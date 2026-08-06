@@ -1,0 +1,57 @@
+{
+  "teams": {
+    "provider": "real_fpl",
+    "dataset": "teams",
+    "temporal_class": "STRICT_BACKTEST_SAFE",
+    "event_time_established": true,
+    "published_at_established": true,
+    "available_at_established": true,
+    "ingested_at_established": true,
+    "rationale": "Reference data (teams/fixtures) with stable identifiers.",
+    "snapshot_timing": null
+  },
+  "players": {
+    "provider": "real_fpl",
+    "dataset": "players",
+    "temporal_class": "STRICT_BACKTEST_SAFE",
+    "event_time_established": true,
+    "published_at_established": true,
+    "available_at_established": true,
+    "ingested_at_established": true,
+    "rationale": "Reference data (teams/fixtures) with stable identifiers.",
+    "snapshot_timing": null
+  },
+  "fixtures": {
+    "provider": "real_fpl",
+    "dataset": "fixtures",
+    "temporal_class": "STRICT_BACKTEST_SAFE",
+    "event_time_established": true,
+    "published_at_established": true,
+    "available_at_established": true,
+    "ingested_at_established": true,
+    "rationale": "Reference data (teams/fixtures) with stable identifiers.",
+    "snapshot_timing": null
+  },
+  "fpl_history": {
+    "provider": "real_fpl",
+    "dataset": "fpl_history",
+    "temporal_class": "STRICT_BACKTEST_SAFE",
+    "event_time_established": true,
+    "published_at_established": true,
+    "available_at_established": true,
+    "ingested_at_established": true,
+    "rationale": "Finalized gameweek outcomes are published right after each gameweek; legitimately available as features for later gameweeks (strict via gameweek ordering).",
+    "snapshot_timing": "gameweek outcome; available after each gameweek"
+  },
+  "fpl_snapshots": {
+    "provider": "real_fpl",
+    "dataset": "fpl_snapshots",
+    "temporal_class": "HISTORICAL_OUTCOME_ONLY",
+    "event_time_established": true,
+    "published_at_established": false,
+    "available_at_established": false,
+    "ingested_at_established": true,
+    "rationale": "Mirror snapshots are gameweek-end values; no recorded pre-deadline availability. usable as outcome/exploratory only, NOT as a strict pre-deadline feature.",
+    "snapshot_timing": "gameweek_end (post-deadline); NOT pre-deadline"
+  }
+}

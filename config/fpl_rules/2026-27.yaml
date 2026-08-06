@@ -1,0 +1,30 @@
+season: "2026-27"
+rules_version: "2026-27-official"
+
+# Intentionally versioned. Complete scoring constants belong in the scoring-engine milestone.
+# Validate all constants against the official FPL rules before production use.
+
+chips:
+  sets: 2
+  available:
+    - wildcard
+    - free_hit
+    - triple_captain
+    - bench_boost
+
+transfers:
+  max_rollover_free_transfers: 5
+
+lockdown:
+  policy: "09:00 UK time on day after final match of gameweek"
+
+price_changes:
+  official_predictor_available: true
+
+bps:
+  versioned: true
+  source: "official-premier-league-fpl"
+
+defensive_contribution:
+  versioned: true
+  source: "official-premier-league-fpl"

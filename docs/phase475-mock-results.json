@@ -1,0 +1,968 @@
+{
+  "pipeline_validation": {
+    "eligible_player_gameweeks": 2520,
+    "featured_rows": 2520,
+    "missing_rows": 0,
+    "data_completeness": 1.0,
+    "temporal_ordering": "pass",
+    "leakage_test": "pass",
+    "leakage_note": "Features for each row are computed ONLY from Gameweeks strictly before the target Gameweek (cutoff = target Gameweek). This is enforced by construction in the dataset builder.",
+    "db_temporal_policy_note": "The mock provider does not populate available_at/ingested_at/deadline_time, so STRICT_REPRODUCIBILITY policy enforcement cannot be exercised at the database layer on this dataset."
+  },
+  "rows_built": 2520,
+  "baselines": {
+    "per_season": {
+      "2022-23": {
+        "baseline_a": {
+          "n": 840,
+          "mae": 2.5169,
+          "rmse": 2.8931,
+          "spearman": 0.8115,
+          "top5": 0.85,
+          "top10": 0.85,
+          "top20": 0.8982
+        },
+        "baseline_b": {
+          "n": 840,
+          "mae": 2.25,
+          "rmse": 2.5755,
+          "spearman": 0.9845,
+          "top5": 0.9571,
+          "top10": 0.9571,
+          "top20": 0.9518
+        },
+        "baseline_c": {
+          "n": 840,
+          "mae": 2.8963,
+          "rmse": 3.2787,
+          "spearman": 0.9316,
+          "top5": 0.5714,
+          "top10": 0.9571,
+          "top20": 0.9518
+        }
+      },
+      "2023-24": {
+        "baseline_a": {
+          "n": 840,
+          "mae": 2.5169,
+          "rmse": 2.8931,
+          "spearman": 0.8115,
+          "top5": 0.85,
+          "top10": 0.85,
+          "top20": 0.8982
+        },
+        "baseline_b": {
+          "n": 840,
+          "mae": 2.25,
+          "rmse": 2.5755,
+          "spearman": 0.9845,
+          "top5": 0.9571,
+          "top10": 0.9571,
+          "top20": 0.9518
+        },
+        "baseline_c": {
+          "n": 840,
+          "mae": 2.8963,
+          "rmse": 3.2787,
+          "spearman": 0.9316,
+          "top5": 0.5714,
+          "top10": 0.9571,
+          "top20": 0.9518
+        }
+      },
+      "2024-25": {
+        "baseline_a": {
+          "n": 840,
+          "mae": 2.5169,
+          "rmse": 2.8931,
+          "spearman": 0.8115,
+          "top5": 0.85,
+          "top10": 0.85,
+          "top20": 0.8982
+        },
+        "baseline_b": {
+          "n": 840,
+          "mae": 2.25,
+          "rmse": 2.5755,
+          "spearman": 0.9845,
+          "top5": 0.9571,
+          "top10": 0.9571,
+          "top20": 0.9518
+        },
+        "baseline_c": {
+          "n": 840,
+          "mae": 2.8963,
+          "rmse": 3.2787,
+          "spearman": 0.9316,
+          "top5": 0.5714,
+          "top10": 0.9571,
+          "top20": 0.9518
+        }
+      }
+    },
+    "aggregate": {
+      "baseline_a": {
+        "n": 2520,
+        "mae": 2.5169,
+        "rmse": 2.8931,
+        "spearman": 0.8115,
+        "top5": 0.85,
+        "top10": 0.85,
+        "top20": 0.8982
+      },
+      "baseline_b": {
+        "n": 2520,
+        "mae": 2.25,
+        "rmse": 2.5755,
+        "spearman": 0.9845,
+        "top5": 0.9571,
+        "top10": 0.9571,
+        "top20": 0.9518
+      },
+      "baseline_c": {
+        "n": 2520,
+        "mae": 2.8963,
+        "rmse": 3.2787,
+        "spearman": 0.9316,
+        "top5": 0.5714,
+        "top10": 0.9571,
+        "top20": 0.9518
+      }
+    }
+  },
+  "minutes": {
+    "per_season": {
+      "2022-23": {
+        "n": 840,
+        "start_log_loss": 0.0248,
+        "start_brier": 0.0089,
+        "start_ece": 0.0,
+        "cal_30_ece": 0.0,
+        "cal_60_ece": 0.0,
+        "expected_minutes_mae": 44.7589,
+        "expected_minutes_rmse": 62.3819
+      },
+      "2023-24": {
+        "n": 840,
+        "start_log_loss": 0.0248,
+        "start_brier": 0.0089,
+        "start_ece": 0.0,
+        "cal_30_ece": 0.0,
+        "cal_60_ece": 0.0,
+        "expected_minutes_mae": 44.7589,
+        "expected_minutes_rmse": 62.3819
+      },
+      "2024-25": {
+        "n": 840,
+        "start_log_loss": 0.0248,
+        "start_brier": 0.0089,
+        "start_ece": 0.0,
+        "cal_30_ece": 0.0,
+        "cal_60_ece": 0.0,
+        "expected_minutes_mae": 44.7589,
+        "expected_minutes_rmse": 62.3819
+      }
+    },
+    "breakdown": {
+      "position": {
+        "DEF": {
+          "n": 672,
+          "log_loss": 0.0248,
+          "brier": 0.0089,
+          "ece": 0.0333
+        },
+        "FWD": {
+          "n": 588,
+          "log_loss": 0.0248,
+          "brier": 0.0089,
+          "ece": 0.0333
+        },
+        "GK": {
+          "n": 672,
+          "log_loss": 0.0248,
+          "brier": 0.0089,
+          "ece": 0.0333
+        },
+        "MID": {
+          "n": 588,
+          "log_loss": 0.0248,
+          "brier": 0.0089,
+          "ece": 0.0333
+        }
+      },
+      "price_range": {
+        "<=5.5": {
+          "n": 1428,
+          "log_loss": 0.0248,
+          "brier": 0.0089,
+          "ece": 0.002
+        },
+        "5.5-7.0": {
+          "n": 672,
+          "log_loss": 0.0248,
+          "brier": 0.0089,
+          "ece": 0.0
+        },
+        "7.0-9.0": {
+          "n": 420,
+          "log_loss": 0.0248,
+          "brier": 0.0089,
+          "ece": 0.0067
+        },
+        ">9.0": {
+          "n": 0,
+          "log_loss": NaN,
+          "brier": NaN,
+          "ece": NaN
+        }
+      },
+      "minutes_bucket": {
+        "0-10": {
+          "n": 2430,
+          "log_loss": 0.0,
+          "brier": 0.0,
+          "ece": 0.0
+        },
+        "10-45": {
+          "n": 0,
+          "log_loss": NaN,
+          "brier": NaN,
+          "ece": NaN
+        },
+        "45-75": {
+          "n": 90,
+          "log_loss": 0.6931,
+          "brier": 0.25,
+          "ece": 0.0
+        },
+        "75-90": {
+          "n": 0,
+          "log_loss": NaN,
+          "brier": NaN,
+          "ece": NaN
+        }
+      }
+    },
+    "heuristic_product": {
+      "model": {
+        "n": 2520,
+        "log_loss": 0.0248,
+        "brier": 0.0089,
+        "ece": 0.0
+      },
+      "prev_start_rate": {
+        "n": 2520,
+        "log_loss": 0.6931,
+        "brier": 0.25,
+        "ece": 0.0
+      },
+      "recent_start_rate": {
+        "n": 2520,
+        "log_loss": 1.0986,
+        "brier": 0.4444,
+        "ece": 0.6667
+      },
+      "minutes_avg_mae": 45.0,
+      "model_minutes_mae": 44.7589
+    },
+    "aggregate": {
+      "n": 2520,
+      "start_log_loss": 0.0248,
+      "start_brier": 0.0089,
+      "start_ece": 0.0,
+      "cal_30_ece": 0.0,
+      "cal_60_ece": 0.0,
+      "expected_minutes_mae": 44.7589,
+      "expected_minutes_rmse": 62.3819,
+      "start_calibration": [
+        {
+          "bin_low": 0.0,
+          "bin_high": 0.1,
+          "count": 1215,
+          "predicted": 0.0,
+          "observed": 0.0
+        },
+        {
+          "bin_low": 0.5,
+          "bin_high": 0.6,
+          "count": 90,
+          "predicted": 0.5,
+          "observed": 0.5
+        },
+        {
+          "bin_low": 0.9,
+          "bin_high": 1.0,
+          "count": 45,
+          "predicted": 1.0,
+          "observed": 1.0
+        }
+      ],
+      "cal_30_calibration": [
+        {
+          "bin_low": 0.0,
+          "bin_high": 0.1,
+          "count": 1215,
+          "predicted": 0.0,
+          "observed": 0.0
+        },
+        {
+          "bin_low": 0.5,
+          "bin_high": 0.6,
+          "count": 90,
+          "predicted": 0.5,
+          "observed": 0.5
+        },
+        {
+          "bin_low": 0.9,
+          "bin_high": 1.0,
+          "count": 45,
+          "predicted": 1.0,
+          "observed": 1.0
+        }
+      ],
+      "cal_60_calibration": [
+        {
+          "bin_low": 0.0,
+          "bin_high": 0.1,
+          "count": 1215,
+          "predicted": 0.0,
+          "observed": 0.0
+        },
+        {
+          "bin_low": 0.5,
+          "bin_high": 0.6,
+          "count": 90,
+          "predicted": 0.5,
+          "observed": 0.5
+        },
+        {
+          "bin_low": 0.9,
+          "bin_high": 1.0,
+          "count": 45,
+          "predicted": 1.0,
+          "observed": 1.0
+        }
+      ]
+    }
+  },
+  "team_match": {
+    "matches": 999,
+    "per_season": {
+      "2022-23": {
+        "n": 333,
+        "wdl_log_loss": 1.3251,
+        "wdl_brier": 0.7097,
+        "expected_goals_mae": 1.483,
+        "expected_goals_rmse": 1.7521,
+        "clean_sheet_ece": 0.2494,
+        "clean_sheet_brier": 0.2446
+      },
+      "2023-24": {
+        "n": 333,
+        "wdl_log_loss": 1.3251,
+        "wdl_brier": 0.7097,
+        "expected_goals_mae": 1.483,
+        "expected_goals_rmse": 1.7521,
+        "clean_sheet_ece": 0.2494,
+        "clean_sheet_brier": 0.2446
+      },
+      "2024-25": {
+        "n": 333,
+        "wdl_log_loss": 1.3251,
+        "wdl_brier": 0.7097,
+        "expected_goals_mae": 1.483,
+        "expected_goals_rmse": 1.7521,
+        "clean_sheet_ece": 0.2494,
+        "clean_sheet_brier": 0.2446
+      }
+    },
+    "aggregate": {
+      "n": 999,
+      "wdl_log_loss": 1.3251,
+      "wdl_brier": 0.7097,
+      "expected_goals_mae": 1.483,
+      "expected_goals_rmse": 1.7521,
+      "clean_sheet_ece": 0.2494,
+      "clean_sheet_brier": 0.2446
+    },
+    "wdl_baselines": {
+      "home": 0.5976,
+      "draw": 0.2012,
+      "away": 0.2012
+    },
+    "team_stability": {
+      "2022-23": {
+        "n_teams": 18,
+        "mean_attack_std": 0.0306,
+        "mean_defence_std": 0.0306
+      },
+      "2023-24": {
+        "n_teams": 18,
+        "mean_attack_std": 0.0306,
+        "mean_defence_std": 0.0306
+      },
+      "2024-25": {
+        "n_teams": 18,
+        "mean_attack_std": 0.0306,
+        "mean_defence_std": 0.0306
+      }
+    },
+    "expected_goals_baseline_mae": {
+      "league_avg_mae": 1.1601,
+      "n": 999
+    }
+  },
+  "player_pipeline": {
+    "per_season": {
+      "2022-23": {
+        "baseline_a": {
+          "n": 840,
+          "mae": 2.5169,
+          "rmse": 2.8931,
+          "spearman": 0.8115,
+          "top5": 0.85,
+          "top10": 0.85,
+          "top20": 0.8982
+        },
+        "baseline_b": {
+          "n": 840,
+          "mae": 2.25,
+          "rmse": 2.5755,
+          "spearman": 0.9845,
+          "top5": 0.9571,
+          "top10": 0.9571,
+          "top20": 0.9518
+        },
+        "baseline_c": {
+          "n": 840,
+          "mae": 2.8963,
+          "rmse": 3.2787,
+          "spearman": 0.9316,
+          "top5": 0.5714,
+          "top10": 0.9571,
+          "top20": 0.9518
+        },
+        "baseline_d": {
+          "n": 840,
+          "mae": 2.5954,
+          "rmse": 2.9792,
+          "spearman": 0.3451,
+          "top5": 0.4643,
+          "top10": 0.4893,
+          "top20": 0.7321
+        }
+      },
+      "2023-24": {
+        "baseline_a": {
+          "n": 840,
+          "mae": 2.5169,
+          "rmse": 2.8931,
+          "spearman": 0.8115,
+          "top5": 0.85,
+          "top10": 0.85,
+          "top20": 0.8982
+        },
+        "baseline_b": {
+          "n": 840,
+          "mae": 2.25,
+          "rmse": 2.5755,
+          "spearman": 0.9845,
+          "top5": 0.9571,
+          "top10": 0.9571,
+          "top20": 0.9518
+        },
+        "baseline_c": {
+          "n": 840,
+          "mae": 2.8963,
+          "rmse": 3.2787,
+          "spearman": 0.9316,
+          "top5": 0.5714,
+          "top10": 0.9571,
+          "top20": 0.9518
+        },
+        "baseline_d": {
+          "n": 840,
+          "mae": 2.5954,
+          "rmse": 2.9792,
+          "spearman": 0.3451,
+          "top5": 0.4643,
+          "top10": 0.4893,
+          "top20": 0.7321
+        }
+      },
+      "2024-25": {
+        "baseline_a": {
+          "n": 840,
+          "mae": 2.5169,
+          "rmse": 2.8931,
+          "spearman": 0.8115,
+          "top5": 0.85,
+          "top10": 0.85,
+          "top20": 0.8982
+        },
+        "baseline_b": {
+          "n": 840,
+          "mae": 2.25,
+          "rmse": 2.5755,
+          "spearman": 0.9845,
+          "top5": 0.9571,
+          "top10": 0.9571,
+          "top20": 0.9518
+        },
+        "baseline_c": {
+          "n": 840,
+          "mae": 2.8963,
+          "rmse": 3.2787,
+          "spearman": 0.9316,
+          "top5": 0.5714,
+          "top10": 0.9571,
+          "top20": 0.9518
+        },
+        "baseline_d": {
+          "n": 840,
+          "mae": 2.5954,
+          "rmse": 2.9792,
+          "spearman": 0.3451,
+          "top5": 0.4643,
+          "top10": 0.4893,
+          "top20": 0.7321
+        }
+      }
+    },
+    "aggregate": {
+      "baseline_a": {
+        "n": 2520,
+        "mae": 2.5169,
+        "rmse": 2.8931,
+        "spearman": 0.8115,
+        "top5": 0.85,
+        "top10": 0.85,
+        "top20": 0.8982
+      },
+      "baseline_b": {
+        "n": 2520,
+        "mae": 2.25,
+        "rmse": 2.5755,
+        "spearman": 0.9845,
+        "top5": 0.9571,
+        "top10": 0.9571,
+        "top20": 0.9518
+      },
+      "baseline_c": {
+        "n": 2520,
+        "mae": 2.8963,
+        "rmse": 3.2787,
+        "spearman": 0.9316,
+        "top5": 0.5714,
+        "top10": 0.9571,
+        "top20": 0.9518
+      },
+      "baseline_d": {
+        "n": 2520,
+        "mae": 2.5954,
+        "rmse": 2.9792,
+        "spearman": 0.3451,
+        "top5": 0.4643,
+        "top10": 0.4893,
+        "top20": 0.7321
+      }
+    },
+    "position": {
+      "DEF": {
+        "baseline_a": {
+          "n": 672,
+          "mae": 2.511,
+          "rmse": 2.8755,
+          "spearman": 0.7923,
+          "top5": 0.8857,
+          "top10": NaN,
+          "top20": NaN
+        },
+        "baseline_b": {
+          "n": 672,
+          "mae": 2.2366,
+          "rmse": 2.557,
+          "spearman": 0.9769,
+          "top5": 0.95,
+          "top10": NaN,
+          "top20": NaN
+        },
+        "baseline_c": {
+          "n": 672,
+          "mae": 2.8773,
+          "rmse": 3.2705,
+          "spearman": 0.9302,
+          "top5": 0.95,
+          "top10": NaN,
+          "top20": NaN
+        },
+        "baseline_d": {
+          "n": 672,
+          "mae": 2.3792,
+          "rmse": 2.7171,
+          "spearman": 0.8645,
+          "top5": 0.8929,
+          "top10": NaN,
+          "top20": NaN
+        }
+      },
+      "FWD": {
+        "baseline_a": {
+          "n": 588,
+          "mae": 2.5237,
+          "rmse": 2.913,
+          "spearman": 0.8288,
+          "top5": 0.9214,
+          "top10": NaN,
+          "top20": NaN
+        },
+        "baseline_b": {
+          "n": 588,
+          "mae": 2.2653,
+          "rmse": 2.5965,
+          "spearman": 0.9904,
+          "top5": 0.9643,
+          "top10": NaN,
+          "top20": NaN
+        },
+        "baseline_c": {
+          "n": 588,
+          "mae": 2.9732,
+          "rmse": 3.3849,
+          "spearman": 0.9446,
+          "top5": 0.9643,
+          "top10": NaN,
+          "top20": NaN
+        },
+        "baseline_d": {
+          "n": 588,
+          "mae": 3.0687,
+          "rmse": 3.5158,
+          "spearman": 0.9446,
+          "top5": 0.9643,
+          "top10": NaN,
+          "top20": NaN
+        }
+      },
+      "GK": {
+        "baseline_a": {
+          "n": 672,
+          "mae": 2.5202,
+          "rmse": 2.9138,
+          "spearman": 0.8401,
+          "top5": 0.9214,
+          "top10": NaN,
+          "top20": NaN
+        },
+        "baseline_b": {
+          "n": 672,
+          "mae": 2.2679,
+          "rmse": 2.5983,
+          "spearman": 0.9878,
+          "top5": 0.9643,
+          "top10": NaN,
+          "top20": NaN
+        },
+        "baseline_c": {
+          "n": 672,
+          "mae": 2.916,
+          "rmse": 3.2805,
+          "spearman": 0.9411,
+          "top5": 0.9,
+          "top10": NaN,
+          "top20": NaN
+        },
+        "baseline_d": {
+          "n": 672,
+          "mae": 2.3549,
+          "rmse": 2.7326,
+          "spearman": 0.9191,
+          "top5": 0.9214,
+          "top10": NaN,
+          "top20": NaN
+        }
+      },
+      "MID": {
+        "baseline_a": {
+          "n": 588,
+          "mae": 2.5132,
+          "rmse": 2.8692,
+          "spearman": 0.7873,
+          "top5": 0.9214,
+          "top10": NaN,
+          "top20": NaN
+        },
+        "baseline_b": {
+          "n": 588,
+          "mae": 2.2296,
+          "rmse": 2.5492,
+          "spearman": 0.9812,
+          "top5": 0.9643,
+          "top10": NaN,
+          "top20": NaN
+        },
+        "baseline_c": {
+          "n": 588,
+          "mae": 2.8184,
+          "rmse": 3.1767,
+          "spearman": 0.9354,
+          "top5": 0.8857,
+          "top10": NaN,
+          "top20": NaN
+        },
+        "baseline_d": {
+          "n": 588,
+          "mae": 2.6442,
+          "rmse": 2.9505,
+          "spearman": 0.9334,
+          "top5": 0.8286,
+          "top10": NaN,
+          "top20": NaN
+        }
+      }
+    },
+    "price": {
+      "<=5.5": {
+        "baseline_a": {
+          "n": 1428,
+          "mae": 2.5141,
+          "rmse": 2.8848,
+          "spearman": 0.803,
+          "top5": 0.8357,
+          "top10": 0.8929,
+          "top20": NaN
+        },
+        "baseline_b": {
+          "n": 1428,
+          "mae": 2.2437,
+          "rmse": 2.5668,
+          "spearman": 0.9813,
+          "top5": 0.9429,
+          "top10": 0.9571,
+          "top20": NaN
+        },
+        "baseline_c": {
+          "n": 1428,
+          "mae": 2.8788,
+          "rmse": 3.2588,
+          "spearman": 0.9274,
+          "top5": 0.9429,
+          "top10": 0.8679,
+          "top20": NaN
+        },
+        "baseline_d": {
+          "n": 1428,
+          "mae": 2.5906,
+          "rmse": 2.9745,
+          "spearman": 0.2547,
+          "top5": 0.3786,
+          "top10": 0.6107,
+          "top20": NaN
+        }
+      },
+      "5.5-7.0": {
+        "baseline_a": {
+          "n": 672,
+          "mae": 2.5196,
+          "rmse": 2.8898,
+          "spearman": 0.8032,
+          "top5": 0.8857,
+          "top10": NaN,
+          "top20": NaN
+        },
+        "baseline_b": {
+          "n": 672,
+          "mae": 2.2455,
+          "rmse": 2.5711,
+          "spearman": 0.9878,
+          "top5": 0.95,
+          "top10": NaN,
+          "top20": NaN
+        },
+        "baseline_c": {
+          "n": 672,
+          "mae": 2.8893,
+          "rmse": 3.2759,
+          "spearman": 0.9352,
+          "top5": 0.95,
+          "top10": NaN,
+          "top20": NaN
+        },
+        "baseline_d": {
+          "n": 672,
+          "mae": 2.6042,
+          "rmse": 2.9703,
+          "spearman": 0.5231,
+          "top5": 0.6357,
+          "top10": NaN,
+          "top20": NaN
+        }
+      },
+      "7.0-9.0": {
+        "baseline_a": {
+          "n": 420,
+          "mae": 2.5221,
+          "rmse": 2.9262,
+          "spearman": 0.8617,
+          "top5": 1.0,
+          "top10": NaN,
+          "top20": NaN
+        },
+        "baseline_b": {
+          "n": 420,
+          "mae": 2.2786,
+          "rmse": 2.6119,
+          "spearman": 0.9899,
+          "top5": 1.0,
+          "top10": NaN,
+          "top20": NaN
+        },
+        "baseline_c": {
+          "n": 420,
+          "mae": 2.9669,
+          "rmse": 3.35,
+          "spearman": 0.9391,
+          "top5": 1.0,
+          "top10": NaN,
+          "top20": NaN
+        },
+        "baseline_d": {
+          "n": 420,
+          "mae": 2.5978,
+          "rmse": 3.0089,
+          "spearman": 0.3101,
+          "top5": 1.0,
+          "top10": NaN,
+          "top20": NaN
+        }
+      },
+      ">9.0": {
+        "baseline_a": {
+          "n": 0,
+          "mae": NaN,
+          "rmse": NaN,
+          "spearman": NaN,
+          "top5": NaN,
+          "top10": NaN,
+          "top20": NaN
+        },
+        "baseline_b": {
+          "n": 0,
+          "mae": NaN,
+          "rmse": NaN,
+          "spearman": NaN,
+          "top5": NaN,
+          "top10": NaN,
+          "top20": NaN
+        },
+        "baseline_c": {
+          "n": 0,
+          "mae": NaN,
+          "rmse": NaN,
+          "spearman": NaN,
+          "top5": NaN,
+          "top10": NaN,
+          "top20": NaN
+        },
+        "baseline_d": {
+          "n": 0,
+          "mae": NaN,
+          "rmse": NaN,
+          "spearman": NaN,
+          "top5": NaN,
+          "top10": NaN,
+          "top20": NaN
+        }
+      }
+    }
+  },
+  "ablations": {
+    "ablation_a_minutes": {
+      "without_minutes_model": {
+        "mae": 2.8963,
+        "spearman": 0.9316,
+        "top10_capture": 0.9571
+      },
+      "with_minutes_model": {
+        "mae": 2.5954,
+        "spearman": 0.3451,
+        "top10_capture": 0.4893
+      },
+      "delta_mae": -0.3009
+    },
+    "ablation_b_fixture": {
+      "form_only": {
+        "mae": 2.5169,
+        "spearman": 0.8115,
+        "top10_capture": 0.85
+      },
+      "form_plus_fixture": {
+        "mae": 2.8963,
+        "spearman": 0.9316,
+        "top10_capture": 0.9571
+      },
+      "delta_mae": 0.3794
+    },
+    "ablation_c_team_strength": {
+      "without_team_strength": {
+        "mae": 2.25,
+        "spearman": 0.9845,
+        "top10_capture": 0.9571
+      },
+      "with_team_strength": {
+        "mae": 2.8963,
+        "spearman": 0.9316,
+        "top10_capture": 0.9571
+      },
+      "delta_mae": 0.6463
+    },
+    "ablation_d_match_model": {
+      "simple_fixture_baseline": {
+        "mae": 2.8963,
+        "spearman": 0.9316,
+        "top10_capture": 0.9571
+      },
+      "match_model_informed": {
+        "mae": 2.5954,
+        "spearman": 0.3451,
+        "top10_capture": 0.4893
+      },
+      "delta_mae": -0.3009
+    }
+  },
+  "captain_proxy": {
+    "n_gameweeks": 84,
+    "integrated_pipeline_captain": {
+      "average_points": 4.5,
+      "success_rate": 0.1071,
+      "points_above_baseline": 0.2143
+    },
+    "recent_form_captain": {
+      "average_points": 4.2857
+    },
+    "fixture_baseline_captain": {
+      "average_points": 4.5
+    },
+    "vs_recent_form": {
+      "average_points": 4.5,
+      "success_rate": 0.1071,
+      "points_above_baseline": 0.2143
+    },
+    "vs_fixture_baseline": {
+      "average_points": 4.5,
+      "success_rate": 0.0,
+      "points_above_baseline": 0.0
+    },
+    "diagnostic_only": true
+  },
+  "data_provenance": {
+    "provider": "mock_historical",
+    "environment": "mock",
+    "data_type": "synthetic/generated mock data",
+    "seasons_loaded": [
+      "2022-23",
+      "2023-24",
+      "2024-25"
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+tests/integration/test_postgresql.py: 6
+tests/optimization/test_optimization.py: 3
+tests/optimization/test_phase65.py: 2
+tests/prediction/test_phase5_complete.py: 145
+tests/unit/test_backtest_engine.py: 28
+tests/unit/test_entity_resolution.py: 4
+tests/unit/test_feature_store.py: 22
+tests/unit/test_health.py: 1
+tests/unit/test_historical_snapshots.py: 3
+tests/unit/test_idempotent_ingestion.py: 3
+tests/unit/test_leakage.py: 10
+tests/unit/test_phase7_availability.py: 36
+tests/unit/test_provider.py: 2
+tests/unit/test_provider_normalization.py: 10
+tests/unit/test_reconciliation.py: 12
+tests/unit/test_resume.py: 3
+tests/unit/test_temporal_integrity.py: 3
+tests/unit/test_temporal_queries.py: 18
+tests/unit/test_validation.py: 8
+tests/unit/test_validation_gate.py: 4
+

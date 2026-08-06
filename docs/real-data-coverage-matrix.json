@@ -1,0 +1,42 @@
+[
+  {
+    "season": "2022-23",
+    "fpl": "available",
+    "fixtures": "available",
+    "player_stats": "available",
+    "team_stats": "unavailable",
+    "ownership": "available",
+    "xg": "available",
+    "coverage_pct": 83.3
+  },
+  {
+    "season": "2023-24",
+    "fpl": "available",
+    "fixtures": "available",
+    "player_stats": "available",
+    "team_stats": "unavailable",
+    "ownership": "available",
+    "xg": "available",
+    "coverage_pct": 83.3
+  },
+  {
+    "season": "2024-25",
+    "fpl": "available",
+    "fixtures": "available",
+    "player_stats": "available",
+    "team_stats": "unavailable",
+    "ownership": "available",
+    "xg": "available",
+    "coverage_pct": 83.3
+  },
+  {
+    "season": "2025-26",
+    "fpl": "available",
+    "fixtures": "available",
+    "player_stats": "available",
+    "team_stats": "unavailable",
+    "ownership": "available",
+    "xg": "available",
+    "coverage_pct": 83.3
+  }
+]

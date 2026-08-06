@@ -1,0 +1,64 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fpl-intelligence-engine"
+version = "0.1.0"
+description = "Free-first, data-driven Fantasy Premier League intelligence platform"
+requires-python = ">=3.12"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [{name = "FPL Intelligence Engine"}]
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.34,<1",
+  "httpx>=0.28,<1",
+  "pydantic>=2.10,<3",
+  "pydantic-settings>=2.7,<3",
+  "sqlalchemy>=2.0,<3",
+  "psycopg[binary]>=3.2,<4",
+  "alembic>=1.15,<2",
+  "tenacity>=9,<10",
+  "pyyaml>=6.0,<7",
+  "typer>=0.15,<1",
+  "rich>=13.9,<14",
+  "numpy>=1.26,<3",
+  "scipy>=1.11,<2",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3,<9",
+  "pytest-asyncio>=0.25,<1",
+  "respx>=0.22,<1",
+  "ruff>=0.9,<1",
+  "mypy>=1.14,<2",
+]
+
+[project.scripts]
+fpl = "fpl_intelligence.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fpl_intelligence"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+pythonpath = ["src"]
+asyncio_mode = "auto"
+# Explicit discovery root: a bare `pytest` must always collect the ENTIRE tests/
+# tree (unit, integration, optimization, prediction). Do not narrow this.
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = false
+warn_unused_ignores = true
+warn_redundant_casts = true

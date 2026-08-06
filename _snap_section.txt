@@ -1,0 +1,103 @@
+        # 6. Player performance snapshots (price/ownership/transfers)
+        if dataset in ("all", "fpl"):
+            try:
+                snapshots_data = provider.get_fpl_snapshots(season_code)
+                norm_snapshots = [normalize_fpl_snapshot(s, provider_name) for s in snapshots_data]
+
+                # Real FPL data may contain multiple fixture rows per (player,
+                # gameweek) whose unique key (player, gameweek, event_time) can
+                # collide (double/blank gameweeks sharing a kickoff window).
+                # Aggregate per (player, gameweek, event_time): additive snapshot
+                # counts are summed; scalar values take the final row. This keeps
+                # the FPLSnapshot unique constraint satisfied and is idempotent.
+                snap_agg: dict[tuple[str, int, Any], dict[str, Any]] = {}
+                snap_order: list[tuple[str, int, Any]] = []
+                _snap_sum = [
+                    "transfers_in_event", "transfers_out_event",
+                    "transfers_in_season", "transfers_out_season",
+                ]
+                for ns in norm_snapshots:
+                    pid = ns.get("provider_player_id")
+                    gw_num = ns.get("gameweek")
+                    if not pid or gw_num is None:
+                        continue
+                    key = (pid, int(gw_num), ns.get("event_time"))
+                    if key not in snap_agg:
+                        snap_agg[key] = dict(ns)
+                        snap_order.append(key)
+                    else:
+                        merged = snap_agg[key]
+                        for f in _snap_sum:
+                            if ns.get(f) is not None:
+                                merged[f] = (merged.get(f) or 0) + (ns.get(f) or 0)
+                        for f in [
+                            "price", "selected_by_percent", "form",
+                            "points_per_game", "ep_this", "ep_next",
+                            "total_points", "event_time",
+                        ]:
+                            if ns.get(f) is not None:
+                                merged[f] = ns.get(f)
+
+                for key in snap_order:
+                    ns = snap_agg[key]
+                    player = player_map.get(key[0])
+                    gw_num = key[1]
+                    if player is None:
+                        continue
+
+                    gw = db.scalar(
+                        select(Gameweek).where(
+                            Gameweek.season_id == season.id,
+                            Gameweek.provider_event_id == int(gw_num),
+                        )
+                    )
+                    if gw is None:
+                        continue
+
+                    event_time = ns.get("event_time")
+
+                    existing_snap = db.scalar(
+                        select(FPLSnapshot).where(
+                            FPLSnapshot.player_id == player.id,
+                            FPLSnapshot.gameweek_id == gw.id,
+                            FPLSnapshot.event_time == event_time,
+                        )
+                    )
+                    if existing_snap:
+                        continue
+
+                    db.add(
+                        FPLSnapshot(
+                            player_id=player.id,
+                            gameweek_id=gw.id,
+                            season_id=season.id,
+                            event_time=event_time,
+                            price=ns.get("price"),
+                            selected_by_percent=ns.get("selected_by_percent"),
+                            transfers_in_event=ns.get("transfers_in_event"),
+                            transfers_out_event=ns.get("transfers_out_event"),
+                            transfers_in_season=ns.get("transfers_in_season"),
+                            transfers_out_season=ns.get("transfers_out_season"),
+                            total_points=ns.get("total_points"),
+                            form=ns.get("form"),
+                            points_per_game=ns.get("points_per_game"),
+                            ep_this=ns.get("ep_this"),
+                            ep_next=ns.get("ep_next"),
+                        )
+                    )
+
+                if not dry_run:
+                    _save_raw_record(
+                        db, provider_name, provider_name, f"/fpl_snapshots/{season_code}",
+                        list(snapshots_data), season_code,
+                    )
+            except NotImplementedError:
+                logger.info("FPL snapshots not supported by provider %s", provider_name)
+
+        # NOTE: Team-level advanced match stats (shots/possession/big chances)
+        # are NOT present in the public FPL mirror source. Team goals/xG are
+        # derivable via RealFootballStatsProvider but are not consumed by the
+        # Phase 4.5 evaluation pipeline; they are documented as "unavailable"
+        # (the honest representation required by Phase 4.75).
+        # RealFootballStatsProvider remains the extension point for future
+        # Understat/FBref-style team-level statistics.

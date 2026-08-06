@@ -1,0 +1,66 @@
+{
+  "seasons": {
+    "2022-23": {
+      "total_points": 164.0,
+      "gw_average": 27.33,
+      "gw_count": 6.0,
+      "transfer_events": 5.0,
+      "transfer_costs": 16.0,
+      "hit_roi": -2.67,
+      "captain_points": 22.0,
+      "captain_extra": 22.0,
+      "downside_variance": 105.89,
+      "season": "2022-23",
+      "status": "COMPLETED"
+    },
+    "2023-24": {
+      "total_points": 1696.0,
+      "gw_average": 44.63,
+      "gw_count": 38.0,
+      "transfer_events": 19.0,
+      "transfer_costs": 72.0,
+      "hit_roi": -1.89,
+      "captain_points": 174.0,
+      "captain_extra": 174.0,
+      "downside_variance": 468.81,
+      "season": "2023-24",
+      "status": "COMPLETED"
+    },
+    "2024-25": {
+      "total_points": 2150.0,
+      "gw_average": 56.58,
+      "gw_count": 38.0,
+      "transfer_events": 22.0,
+      "transfer_costs": 84.0,
+      "hit_roi": -2.21,
+      "captain_points": 279.0,
+      "captain_extra": 279.0,
+      "downside_variance": 500.3,
+      "season": "2024-25",
+      "status": "COMPLETED"
+    },
+    "2025-26": {
+      "total_points": 1719.0,
+      "gw_average": 45.24,
+      "gw_count": 38.0,
+      "transfer_events": 18.0,
+      "transfer_costs": 68.0,
+      "hit_roi": -1.79,
+      "captain_points": 200.0,
+      "captain_extra": 200.0,
+      "downside_variance": 471.71,
+      "season": "2025-26",
+      "status": "COMPLETED"
+    }
+  },
+  "meta": {
+    "imported_seasons": [
+      "2022-23",
+      "2023-24",
+      "2024-25",
+      "2025-26"
+    ],
+    "elapsed_s": 448.9,
+    "note": "Real DecisionBacktester, recent-form provider. No fabricated constants."
+  }
+}

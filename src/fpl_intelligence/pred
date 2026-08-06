@@ -1,0 +1,110 @@
+"""Player prediction model interface.
+
+Defines the abstraction for prediction models that can be plugged
+into the backtest engine. This allows the backtester to work with
+baseline models, future ML models, or ensembles.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Any, Protocol, runtime_checkable
+
+
+@runtime_checkable
+class PlayerPredictionModel(Protocol):
+    """Protocol for player prediction models.
+
+    The backtester should be able to plug in:
+        - baseline model
+        - future ML model
+        - future ensemble
+
+    All methods accept an explicit cutoff timestamp and must never
+    use data after the cutoff.
+    """
+
+    @property
+    def model_name(self) -> str:
+        """Name of this model, e.g. 'recent_form_baseline'."""
+        ...
+
+    @property
+    def model_version(self) -> str:
+        """Version of this model, e.g. '1.0.0'."""
+        ...
+
+    def fit(
+        self,
+        db: Any,
+        cutoff_time: datetime,
+        context: dict[str, Any] | None = None,
+    ) -> None:
+        """Train/fit the model on data up to the cutoff.
+
+        Args:
+            db: Database session.
+            cutoff_time: The historical decision cutoff. The model
+                must only use data available before this timestamp.
+            context: Optional context dict.
+        """
+        ...
+
+    def predict(
+        self,
+        player_id: int,
+        fixture_id: int | None,
+        cutoff_time: datetime,
+        context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Predict expected points for a player in a fixture.
+
+        Args:
+            player_id: Player ID.
+            fixture_id: Fixture ID (may be None for gameweek-level).
+            cutoff_time: The historical decision cutoff.
+            context: Optional context dict with features, etc.
+
+        Returns:
+            Dict with at least:
+                - "predicted_expected_points": float
+                - "prediction_interval_lower": float | None
+                - "prediction_interval_upper": float | None
+                - "confidence": float (0-1)
+                - "data_completeness": float (0-1)
+                - "model_name": str
+                - "model_version": str
+        """
+        ...
+
+    def predict_batch(
+        self,
+        cutoff_time: datetime,
+        context: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Predict for all players at a cutoff.
+
+        Args:
+            cutoff_time: The historical decision cutoff.
+            context: Optional context dict.
+
+        Returns:
+            List of prediction dicts.
+        """
+        ...
+
+    def evaluate(
+        self,
+        predictions: list[dict[str, Any]],
+        actuals: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """Evaluate predictions against actuals.
+
+        Args:
+            predictions: List of prediction dicts.
+            actuals: List of actual outcome dicts.
+
+        Returns:
+            Dict of evaluation metrics.
+        """
+        ...

@@ -1,0 +1,60 @@
+src\fpl_intelligence\domain\canonical.py:220: error: No overload variant of "int" matches argument type "object"  [call-overload]
+src\fpl_intelligence\domain\canonical.py:220: note: Possible overload variants:
+src\fpl_intelligence\domain\canonical.py:220: note:     def int(str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc = ..., /) -> int
+src\fpl_intelligence\domain\canonical.py:220: note:     def int(str | bytes | bytearray, /, base: SupportsIndex) -> int
+src\fpl_intelligence\domain\canonical.py:230: error: Argument 1 to "float" has incompatible type "object"; expected "str | Buffer | SupportsFloat | SupportsIndex"  [arg-type]
+src\fpl_intelligence\features\cache.py:152: error: Dict entry 3 has incompatible type "str": "float"; expected "str": "int"  [dict-item]
+src\fpl_intelligence\validation\historical.py:76: error: "Gameweek" has no attribute "home_team_id"  [attr-defined]
+src\fpl_intelligence\validation\historical.py:78: error: "Gameweek" has no attribute "home_team_id"  [attr-defined]
+src\fpl_intelligence\validation\historical.py:80: error: "Gameweek" has no attribute "away_team_id"  [attr-defined]
+src\fpl_intelligence\validation\historical.py:82: error: "Gameweek" has no attribute "away_team_id"  [attr-defined]
+src\fpl_intelligence\validation\historical.py:214: error: Incompatible types in assignment (expression has type "Row[tuple[str, str, int]]", variable has type "Row[tuple[int, int, int]]")  [assignment]
+src\fpl_intelligence\validation\historical.py:230: error: Incompatible types in assignment (expression has type "Row[tuple[str, str, int]]", variable has type "Row[tuple[int, int, int]]")  [assignment]
+src\fpl_intelligence\ingestion\historical.py:60: error: Incompatible return value type (got "list[dict[str, Any]]", expected "dict[str, Any]")  [return-value]
+src\fpl_intelligence\ingestion\historical.py:62: error: Incompatible return value type (got "str", expected "dict[str, Any]")  [return-value]
+src\fpl_intelligence\ingestion\historical.py:64: error: Incompatible return value type (got "int | float | str | None", expected "dict[str, Any]")  [return-value]
+src\fpl_intelligence\ingestion\historical.py:65: error: Incompatible return value type (got "str", expected "dict[str, Any]")  [return-value]
+src\fpl_intelligence\ingestion\historical.py:454: error: Incompatible types in assignment (expression has type "Player | None", variable has type "Player")  [assignment]
+src\fpl_intelligence\ingestion\historical.py:459: error: Incompatible types in assignment (expression has type "Gameweek | None", variable has type "Gameweek")  [assignment]
+src\fpl_intelligence\ingestion\historical.py:543: error: Incompatible types in assignment (expression has type "Player | None", variable has type "Player")  [assignment]
+src\fpl_intelligence\ingestion\historical.py:548: error: Incompatible types in assignment (expression has type "None", variable has type "Gameweek")  [assignment]
+src\fpl_intelligence\ingestion\historical.py:550: error: Incompatible types in assignment (expression has type "Gameweek | None", variable has type "Gameweek")  [assignment]
+src\fpl_intelligence\ingestion\historical.py:560: error: Argument 2 to "where" of "Select" has incompatible type "ColumnElement[bool] | None"; expected "ColumnElement[bool] | _HasClauseElement[bool] | SQLCoreOperations[bool] | ExpressionElementRole[bool] | TypedColumnsClauseRole[bool] | Callable[[], ColumnElement[bool]] | LambdaElement"  [arg-type]
+src\fpl_intelligence\backtesting\reporting.py:81: error: "Select[tuple[PlayerPrediction]]" has no attribute "count"  [attr-defined]
+src\fpl_intelligence\backtesting\reporting.py:118: error: Need type annotation for "keys" (hint: "keys: set[<type>] = ...")  [var-annotated]
+src\fpl_intelligence\backtesting\engine.py:114: error: "BacktestEngine" has no attribute "_create_run"  [attr-defined]
+src\fpl_intelligence\backtesting\engine.py:116: error: "BacktestEngine" has no attribute "_execute_gameweeks"  [attr-defined]
+src\fpl_intelligence\backtesting\engine.py:129: error: "BacktestEngine" has no attribute "_create_run"  [attr-defined]
+src\fpl_intelligence\backtesting\engine.py:133: error: "BacktestEngine" has no attribute "_execute_gameweeks"  [attr-defined]
+src\fpl_intelligence\ingestion\fpl.py:62: error: "object" has no attribute "__iter__"; maybe "__dir__" or "__str__"? (not iterable)  [attr-defined]
+src\fpl_intelligence\ingestion\fpl.py:68: error: "type[Team]" has no attribute "provider"  [attr-defined]
+src\fpl_intelligence\ingestion\fpl.py:68: error: "type[Team]" has no attribute "provider_team_id"  [attr-defined]
+src\fpl_intelligence\ingestion\fpl.py:85: error: "object" has no attribute "__iter__"; maybe "__dir__" or "__str__"? (not iterable)  [attr-defined]
+src\fpl_intelligence\ingestion\fpl.py:91: error: "type[Player]" has no attribute "provider"  [attr-defined]
+src\fpl_intelligence\ingestion\fpl.py:91: error: "type[Player]" has no attribute "provider_player_id"  [attr-defined]
+src\fpl_intelligence\ingestion\fpl.py:115: error: Argument 1 to "len" has incompatible type "object"; expected "Sized"  [arg-type]
+src\fpl_intelligence\ingestion\fpl.py:151: error: "Team" has no attribute "provider_team_id"  [attr-defined]
+src\fpl_intelligence\ingestion\fpl.py:153: error: "Team" has no attribute "provider"  [attr-defined]
+src\fpl_intelligence\ingestion\fpl.py:157: error: No overload variant of "int" matches argument type "object"  [call-overload]
+src\fpl_intelligence\ingestion\fpl.py:157: note: Possible overload variants:
+src\fpl_intelligence\ingestion\fpl.py:157: note:     def int(str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc = ..., /) -> int
+src\fpl_intelligence\ingestion\fpl.py:157: note:     def int(str | bytes | bytearray, /, base: SupportsIndex) -> int
+src\fpl_intelligence\ingestion\fpl.py:168: error: No overload variant of "int" matches argument type "object"  [call-overload]
+src\fpl_intelligence\ingestion\fpl.py:168: note: Possible overload variants:
+src\fpl_intelligence\ingestion\fpl.py:168: note:     def int(str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc = ..., /) -> int
+src\fpl_intelligence\ingestion\fpl.py:168: note:     def int(str | bytes | bytearray, /, base: SupportsIndex) -> int
+src\fpl_intelligence\ingestion\fpl.py:169: error: No overload variant of "int" matches argument type "object"  [call-overload]
+src\fpl_intelligence\ingestion\fpl.py:169: note: Possible overload variants:
+src\fpl_intelligence\ingestion\fpl.py:169: note:     def int(str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc = ..., /) -> int
+src\fpl_intelligence\ingestion\fpl.py:169: note:     def int(str | bytes | bytearray, /, base: SupportsIndex) -> int
+src\fpl_intelligence\ingestion\fpl.py:191: error: Incompatible types in assignment (expression has type "object", variable has type "SQLCoreOperations[int | None] | int | None")  [assignment]
+src\fpl_intelligence\ingestion\fpl.py:192: error: Incompatible types in assignment (expression has type "object", variable has type "SQLCoreOperations[int | None] | int | None")  [assignment]
+src\fpl_intelligence\ingestion\fpl.py:199: error: No overload variant of "int" matches argument type "object"  [call-overload]
+src\fpl_intelligence\ingestion\fpl.py:199: note: Possible overload variants:
+src\fpl_intelligence\ingestion\fpl.py:199: note:     def int(str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc = ..., /) -> int
+src\fpl_intelligence\ingestion\fpl.py:199: note:     def int(str | bytes | bytearray, /, base: SupportsIndex) -> int
+src\fpl_intelligence\ingestion\fpl.py:205: error: No overload variant of "int" matches argument type "object"  [call-overload]
+src\fpl_intelligence\ingestion\fpl.py:205: note: Possible overload variants:
+src\fpl_intelligence\ingestion\fpl.py:205: note:     def int(str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc = ..., /) -> int
+src\fpl_intelligence\ingestion\fpl.py:205: note:     def int(str | bytes | bytearray, /, base: SupportsIndex) -> int
+Found 41 errors in 7 files (checked 47 source files)

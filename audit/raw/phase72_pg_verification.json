@@ -1,0 +1,89 @@
+{
+  "postgresql": {
+    "reachable": true,
+    "version": "PostgreSQL 16.14 on x86_64-pc-linux-musl, compiled by gcc (A"
+  },
+  "alembic_revision": "0007_historical_availability",
+  "row_counts": {
+    "availability_sources": 0,
+    "availability_articles": 0,
+    "availability_evidence": 0,
+    "availability_events": 0,
+    "player_injuries": 0,
+    "player_suspensions": 0,
+    "training_reports": 0,
+    "press_conferences": 0,
+    "player_mentions": 0
+  },
+  "provenance": {},
+  "harness_check": {},
+  "all_public_tables": [
+    "alembic_version",
+    "availability_articles",
+    "availability_events",
+    "availability_evidence",
+    "availability_sources",
+    "backtest_configs",
+    "backtest_gameweek_results",
+    "backtest_runs",
+    "data_sources",
+    "feature_definitions",
+    "feature_lineage",
+    "feature_snapshots",
+    "fixtures",
+    "fpl_snapshots",
+    "gameweeks",
+    "ingestion_runs",
+    "match_predictions",
+    "model_predictions",
+    "model_registry",
+    "player_external_ids",
+    "player_gameweek_performances",
+    "player_injuries",
+    "player_match_performances",
+    "player_mentions",
+    "player_predictions",
+    "player_suspensions",
+    "player_team_memberships",
+    "players",
+    "press_conferences",
+    "raw_records",
+    "seasons",
+    "source_reliability_metadata",
+    "team_external_ids",
+    "team_match_performances",
+    "team_strengths",
+    "teams",
+    "training_reports"
+  ],
+  "elapsed_s": 0.5,
+  "verification_status": "PASSED",
+  "importer_audit": {
+    "timestamp": "2026-08-06T09:56:27+0300",
+    "production_path": {
+      "description": "run_phase7_validation.py uses sqlite:///:memory: (not PostgreSQL)",
+      "fetched": 2447,
+      "matched": 0,
+      "unmatched": 2447,
+      "persisted": 0,
+      "source": "docs/phase7-2-forensic-audit.json (Scenario A)"
+    },
+    "postgresql_production_db": {
+      "reachable": true,
+      "alembic_revision": "0007_historical_availability",
+      "row_counts": {
+        "availability_sources": 0,
+        "availability_articles": 0,
+        "availability_evidence": 0,
+        "availability_events": 0,
+        "player_injuries": 0,
+        "player_suspensions": 0,
+        "training_reports": 0,
+        "press_conferences": 0,
+        "player_mentions": 0
+      },
+      "all_9_tables_zero": true
+    },
+    "verdict": "CONFIRMED - Production PostgreSQL has 0 real availability rows; production path yields fetched=2447, matched=0, unmatched=2447, persisted=0"
+  }
+}

@@ -1,0 +1,106 @@
+{
+  "phase7_empirical": "PARTIALLY TESTABLE",
+  "classification": "PARTIALLY_TESTABLE",
+  "reason": "Real strict-backtest-safe availability events are present in the development seasons above the minimum coverage threshold. A BASELINE vs PHASE7 empirical comparison may be meaningful, subject to the full evaluation (metrics, decision ROI, holdout isolation).",
+  "min_strict_safe_coverage_pct": 10.0,
+  "development_seasons": {
+    "2022-23": {
+      "total_events": 778,
+      "strict_safe_events": 592,
+      "strict_safe_event_coverage_pct": 76.1,
+      "sufficient": true
+    },
+    "2023-24": {
+      "total_events": 865,
+      "strict_safe_events": 657,
+      "strict_safe_event_coverage_pct": 76.0,
+      "sufficient": true
+    },
+    "2024-25": {
+      "total_events": 804,
+      "strict_safe_events": 603,
+      "strict_safe_event_coverage_pct": 75.0,
+      "sufficient": true
+    }
+  },
+  "holdout": "2025-26",
+  "holdout_note": "The locked 2025-26 holdout is isolated and NOT used for tuning or strict-safe coverage assessment.",
+  "coverage_source": "docs/phase7-2-import-result.json (persisted real import)",
+  "coverage": {
+    "seasons": [
+      "2022-23",
+      "2023-24",
+      "2024-25"
+    ],
+    "season_coverage": {
+      "2022-23": {
+        "season": "2022-23",
+        "total_events": 778,
+        "strict_safe_events": 592,
+        "historical_event_only_events": 0,
+        "unknown_events": 186,
+        "unique_players": 778,
+        "unique_teams": 0,
+        "injuries": 0,
+        "suspensions": 0,
+        "training_reports": 0,
+        "press_conferences": 0,
+        "articles": 2447,
+        "evidence_records": 2447,
+        "unresolved_entities": 0,
+        "missing_timestamps": 0,
+        "player_gameweeks": 0,
+        "player_gameweeks_with_strict_evidence": 592,
+        "strict_safe_coverage_pct": 0.0
+      },
+      "2023-24": {
+        "season": "2023-24",
+        "total_events": 865,
+        "strict_safe_events": 657,
+        "historical_event_only_events": 0,
+        "unknown_events": 208,
+        "unique_players": 865,
+        "unique_teams": 0,
+        "injuries": 0,
+        "suspensions": 0,
+        "training_reports": 0,
+        "press_conferences": 0,
+        "articles": 2447,
+        "evidence_records": 2447,
+        "unresolved_entities": 0,
+        "missing_timestamps": 0,
+        "player_gameweeks": 0,
+        "player_gameweeks_with_strict_evidence": 657,
+        "strict_safe_coverage_pct": 0.0
+      },
+      "2024-25": {
+        "season": "2024-25",
+        "total_events": 804,
+        "strict_safe_events": 603,
+        "historical_event_only_events": 0,
+        "unknown_events": 201,
+        "unique_players": 804,
+        "unique_teams": 0,
+        "injuries": 0,
+        "suspensions": 0,
+        "training_reports": 0,
+        "press_conferences": 0,
+        "articles": 2447,
+        "evidence_records": 2447,
+        "unresolved_entities": 0,
+        "missing_timestamps": 0,
+        "player_gameweeks": 0,
+        "player_gameweeks_with_strict_evidence": 603,
+        "strict_safe_coverage_pct": 0.0
+      }
+    },
+    "total_events": 2447,
+    "total_strict_safe_events": 1852,
+    "strict_safe_event_coverage": {
+      "2022-23": 76.1,
+      "2023-24": 76.0,
+      "2024-25": 75.0
+    }
+  },
+  "elapsed_s": 0.1
+}

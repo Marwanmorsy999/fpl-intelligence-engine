@@ -1,0 +1,196 @@
+_gen_engine.py:1:1: I001 [*] Import block is un-sorted or un-formatted
+_gen_engine.py:1:8: F401 [*] `sys` imported but unused
+_test_script.py:1:17: invalid-syntax: Expected an expression
+_write_engine_p2.py:1:1: I001 [*] Import block is un-sorted or un-formatted
+_write_engine_p2.py:1:8: F401 [*] `sys` imported but unused
+migrations\versions\0001_initial.py:98:101: E501 Line too long (123 > 100)
+migrations\versions\0002_historical_data.py:20:101: E501 Line too long (103 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:47:101: E501 Line too long (107 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:48:101: E501 Line too long (103 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:49:101: E501 Line too long (107 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:61:101: E501 Line too long (111 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:62:101: E501 Line too long (113 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:63:101: E501 Line too long (111 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:64:101: E501 Line too long (107 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:67:101: E501 Line too long (117 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:68:101: E501 Line too long (121 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:69:101: E501 Line too long (117 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:70:101: E501 Line too long (113 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:73:101: E501 Line too long (103 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:74:101: E501 Line too long (109 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:75:101: E501 Line too long (107 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:92:101: E501 Line too long (101 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:95:101: E501 Line too long (103 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:96:101: E501 Line too long (104 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:125:101: E501 Line too long (101 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:126:101: E501 Line too long (102 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:129:101: E501 Line too long (109 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:130:101: E501 Line too long (111 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:131:101: E501 Line too long (113 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:132:101: E501 Line too long (111 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:134:101: E501 Line too long (103 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:135:101: E501 Line too long (105 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:136:101: E501 Line too long (106 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:137:101: E501 Line too long (105 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:146:101: E501 Line too long (101 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:148:101: E501 Line too long (101 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:159:101: E501 Line too long (110 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:160:101: E501 Line too long (101 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:163:101: E501 Line too long (108 > 100)
+migrations\versions\0003_phase3_schema_cleanup.py:164:101: E501 Line too long (101 > 100)
+migrations\versions\0004_phase3_feature_store.py:32:101: E501 Line too long (106 > 100)
+migrations\versions\0004_phase3_feature_store.py:50:101: E501 Line too long (106 > 100)
+migrations\versions\0004_phase3_feature_store.py:75:101: E501 Line too long (106 > 100)
+migrations\versions\0004_phase3_feature_store.py:95:101: E501 Line too long (103 > 100)
+migrations\versions\0004_phase3_feature_store.py:101:101: E501 Line too long (106 > 100)
+migrations\versions\0004_phase3_feature_store.py:109:101: E501 Line too long (106 > 100)
+migrations\versions\0004_phase3_feature_store.py:128:101: E501 Line too long (106 > 100)
+migrations\versions\0004_phase3_feature_store.py:152:101: E501 Line too long (106 > 100)
+src\fpl_intelligence\backtesting\baselines.py:10:22: F401 [*] `datetime.datetime` imported but unused
+src\fpl_intelligence\backtesting\baselines.py:13:24: F401 [*] `sqlalchemy.func` imported but unused
+src\fpl_intelligence\backtesting\baselines.py:17:5: F401 [*] `fpl_intelligence.db.models.Fixture` imported but unused
+src\fpl_intelligence\backtesting\baselines.py:18:5: F401 [*] `fpl_intelligence.db.models.Player` imported but unused
+src\fpl_intelligence\backtesting\baselines.py:20:5: F401 [*] `fpl_intelligence.db.models.TeamMatchPerformance` imported but unused
+src\fpl_intelligence\backtesting\baselines.py:86:51: B905 `zip()` without an explicit `strict=` parameter
+src\fpl_intelligence\backtesting\engine.py:3:8: F401 [*] `asyncio` imported but unused
+src\fpl_intelligence\backtesting\engine.py:5:8: F401 [*] `uuid` imported but unused
+src\fpl_intelligence\backtesting\engine.py:7:22: F401 [*] `datetime.datetime` imported but unused
+src\fpl_intelligence\backtesting\engine.py:7:32: F401 [*] `datetime.timezone` imported but unused
+src\fpl_intelligence\backtesting\engine.py:15:5: F401 [*] `fpl_intelligence.backtesting.cutoff.InformationAccessPolicy` imported but unused
+src\fpl_intelligence\backtesting\engine.py:16:5: F401 [*] `fpl_intelligence.backtesting.cutoff.get_gameweek_decision_cutoff` imported but unused
+src\fpl_intelligence\backtesting\engine.py:22:5: F401 [*] `fpl_intelligence.backtesting.models.PlayerPrediction` imported but unused
+src\fpl_intelligence\backtesting\engine.py:24:51: F401 [*] `fpl_intelligence.backtesting.policies.AvailabilityPolicy` imported but unused
+src\fpl_intelligence\backtesting\reporting.py:9:22: F401 [*] `datetime.datetime` imported but unused
+src\fpl_intelligence\backtesting\reporting.py:17:5: F401 [*] `fpl_intelligence.backtesting.models.BacktestConfig` imported but unused
+src\fpl_intelligence\backtesting\reporting.py:18:5: F401 [*] `fpl_intelligence.backtesting.models.BacktestGameweekResult` imported but unused
+src\fpl_intelligence\backtesting\reporting.py:175:101: E501 Line too long (132 > 100)
+src\fpl_intelligence\backtesting\reproducibility.py:11:22: F401 [*] `datetime.datetime` imported but unused
+src\fpl_intelligence\backtesting\reproducibility.py:144:9: SIM103 Return the condition `run.model_version == model_version` directly
+src\fpl_intelligence\db\models.py:15:5: F401 [*] `sqlalchemy.Index` imported but unused
+src\fpl_intelligence\db\models.py:444:101: E501 Line too long (101 > 100)
+src\fpl_intelligence\domain\canonical.py:25:101: E501 Line too long (113 > 100)
+src\fpl_intelligence\domain\canonical.py:45:101: E501 Line too long (115 > 100)
+src\fpl_intelligence\domain\canonical.py:70:101: E501 Line too long (116 > 100)
+src\fpl_intelligence\domain\canonical.py:84:101: E501 Line too long (110 > 100)
+src\fpl_intelligence\domain\historical_provider.py:173:101: E501 Line too long (108 > 100)
+src\fpl_intelligence\features\cache.py:12:8: F401 [*] `json` imported but unused
+src\fpl_intelligence\features\cache.py:152:101: E501 Line too long (113 > 100)
+src\fpl_intelligence\features\calculators\availability.py:114:101: E501 Line too long (104 > 100)
+src\fpl_intelligence\features\calculators\player_form.py:111:55: B905 `zip()` without an explicit `strict=` parameter
+src\fpl_intelligence\features\calculators\player_form.py:113:101: E501 Line too long (103 > 100)
+src\fpl_intelligence\features\calculators\team_features.py:134:101: E501 Line too long (112 > 100)
+src\fpl_intelligence\features\calculators\team_features.py:135:101: E501 Line too long (128 > 100)
+src\fpl_intelligence\features\models.py:14:5: F401 [*] `sqlalchemy.ForeignKey` imported but unused
+src\fpl_intelligence\features\models.py:82:101: E501 Line too long (102 > 100)
+src\fpl_intelligence\features\registry.py:7:1: I001 [*] Import block is un-sorted or un-formatted
+src\fpl_intelligence\features\registry.py:21:5: F401 [*] `fpl_intelligence.features.temporal.InformationAccessPolicy` imported but unused
+src\fpl_intelligence\ingestion\fpl.py:40:101: E501 Line too long (105 > 100)
+src\fpl_intelligence\ingestion\fpl.py:131:101: E501 Line too long (104 > 100)
+src\fpl_intelligence\ingestion\fpl.py:166:101: E501 Line too long (103 > 100)
+src\fpl_intelligence\ingestion\fpl.py:170:101: E501 Line too long (102 > 100)
+src\fpl_intelligence\ingestion\historical.py:102:101: E501 Line too long (106 > 100)
+src\fpl_intelligence\ingestion\historical.py:118:101: E501 Line too long (123 > 100)
+src\fpl_intelligence\ingestion\historical.py:303:101: E501 Line too long (103 > 100)
+src\fpl_intelligence\ingestion\historical.py:345:101: E501 Line too long (118 > 100)
+src\fpl_intelligence\ingestion\historical.py:349:101: E501 Line too long (111 > 100)
+src\fpl_intelligence\ingestion\historical.py:363:101: E501 Line too long (124 > 100)
+src\fpl_intelligence\ingestion\historical.py:408:101: E501 Line too long (127 > 100)
+src\fpl_intelligence\ingestion\historical.py:428:13: F841 Local variable `fixture` is assigned to but never used
+src\fpl_intelligence\ingestion\historical.py:477:17: F841 Local variable `team_id` is assigned to but never used
+src\fpl_intelligence\ingestion\reconciliation.py:45:101: E501 Line too long (103 > 100)
+src\fpl_intelligence\ingestion\reconciliation.py:47:101: E501 Line too long (105 > 100)
+src\fpl_intelligence\ingestion\reconciliation.py:50:101: E501 Line too long (102 > 100)
+src\fpl_intelligence\ingestion\reconciliation.py:52:101: E501 Line too long (104 > 100)
+src\fpl_intelligence\ingestion\reconciliation.py:102:101: E501 Line too long (117 > 100)
+src\fpl_intelligence\ingestion\reconciliation.py:132:101: E501 Line too long (129 > 100)
+src\fpl_intelligence\ingestion\reconciliation.py:155:101: E501 Line too long (104 > 100)
+src\fpl_intelligence\ingestion\reconciliation.py:171:101: E501 Line too long (120 > 100)
+src\fpl_intelligence\ingestion\reconciliation.py:175:101: E501 Line too long (120 > 100)
+src\fpl_intelligence\ingestion\reconciliation.py:182:9: SIM102 Use a single `if` statement instead of nested `if` statements
+src\fpl_intelligence\ingestion\reconciliation.py:184:101: E501 Line too long (124 > 100)
+src\fpl_intelligence\ingestion\reconciliation.py:215:101: E501 Line too long (102 > 100)
+src\fpl_intelligence\ingestion\reconciliation.py:220:101: E501 Line too long (111 > 100)
+src\fpl_intelligence\ingestion\reconciliation.py:225:101: E501 Line too long (114 > 100)
+src\fpl_intelligence\ingestion\reconciliation.py:232:101: E501 Line too long (126 > 100)
+src\fpl_intelligence\ingestion\reconciliation.py:257:101: E501 Line too long (101 > 100)
+src\fpl_intelligence\ingestion\reconciliation.py:262:101: E501 Line too long (105 > 100)
+src\fpl_intelligence\ingestion\reconciliation.py:269:101: E501 Line too long (118 > 100)
+src\fpl_intelligence\ingestion\reconciliation.py:274:101: E501 Line too long (121 > 100)
+src\fpl_intelligence\providers\mock_historical.py:84:101: E501 Line too long (102 > 100)
+src\fpl_intelligence\providers\mock_historical.py:87:101: E501 Line too long (163 > 100)
+src\fpl_intelligence\providers\mock_historical.py:95:21: B007 Loop control variable `match` not used within loop body
+src\fpl_intelligence\providers\mock_historical.py:98:101: E501 Line too long (120 > 100)
+src\fpl_intelligence\providers\mock_historical.py:100:101: E501 Line too long (109 > 100)
+src\fpl_intelligence\providers\mock_historical.py:114:101: E501 Line too long (101 > 100)
+src\fpl_intelligence\providers\mock_historical.py:202:101: E501 Line too long (117 > 100)
+src\fpl_intelligence\providers\mock_historical.py:236:13: SIM113 Use `enumerate()` for index variable `season_index` in `for` loop
+src\fpl_intelligence\providers\mock_historical.py:313:101: E501 Line too long (108 > 100)
+src\fpl_intelligence\scripts\backfill.py:40:101: E501 Line too long (104 > 100)
+src\fpl_intelligence\scripts\backfill.py:41:101: E501 Line too long (110 > 100)
+src\fpl_intelligence\scripts\backfill.py:141:5: F841 Local variable `settings` is assigned to but never used
+src\fpl_intelligence\validation\historical.py:39:101: E501 Line too long (117 > 100)
+src\fpl_intelligence\validation\historical.py:50:101: E501 Line too long (103 > 100)
+src\fpl_intelligence\validation\historical.py:63:101: E501 Line too long (128 > 100)
+src\fpl_intelligence\validation\historical.py:74:101: E501 Line too long (141 > 100)
+src\fpl_intelligence\validation\historical.py:78:101: E501 Line too long (150 > 100)
+src\fpl_intelligence\validation\historical.py:82:101: E501 Line too long (150 > 100)
+src\fpl_intelligence\validation\historical.py:87:101: E501 Line too long (105 > 100)
+src\fpl_intelligence\validation\historical.py:115:101: E501 Line too long (104 > 100)
+src\fpl_intelligence\validation\historical.py:127:101: E501 Line too long (133 > 100)
+src\fpl_intelligence\validation\historical.py:130:101: E501 Line too long (133 > 100)
+src\fpl_intelligence\validation\historical.py:134:101: E501 Line too long (121 > 100)
+src\fpl_intelligence\validation\historical.py:139:101: E501 Line too long (109 > 100)
+src\fpl_intelligence\validation\historical.py:153:101: E501 Line too long (106 > 100)
+src\fpl_intelligence\validation\historical.py:163:101: E501 Line too long (108 > 100)
+src\fpl_intelligence\validation\historical.py:170:101: E501 Line too long (120 > 100)
+src\fpl_intelligence\validation\historical.py:175:101: E501 Line too long (126 > 100)
+tests\conftest.py:91:101: E501 Line too long (119 > 100)
+tests\conftest.py:92:101: E501 Line too long (136 > 100)
+tests\integration\test_postgresql.py:10:1: I001 [*] Import block is un-sorted or un-formatted
+tests\integration\test_postgresql.py:21:5: F401 [*] `fpl_intelligence.db.models.Fixture` imported but unused
+tests\integration\test_postgresql.py:37:5: F401 [*] `fpl_intelligence.features.temporal.DEFAULT_POLICY` imported but unused
+tests\integration\test_postgresql.py:40:5: F401 [*] `fpl_intelligence.features.temporal.apply_policy` imported but unused
+tests\integration\test_postgresql.py:110:101: E501 Line too long (104 > 100)
+tests\integration\test_postgresql.py:113:101: E501 Line too long (109 > 100)
+tests\integration\test_postgresql.py:114:101: E501 Line too long (133 > 100)
+tests\unit\test_entity_resolution.py:40:101: E501 Line too long (102 > 100)
+tests\unit\test_entity_resolution.py:41:101: E501 Line too long (104 > 100)
+tests\unit\test_entity_resolution.py:70:101: E501 Line too long (102 > 100)
+tests\unit\test_entity_resolution.py:80:101: E501 Line too long (111 > 100)
+tests\unit\test_entity_resolution.py:81:101: E501 Line too long (111 > 100)
+tests\unit\test_entity_resolution.py:121:101: E501 Line too long (104 > 100)
+tests\unit\test_entity_resolution.py:122:101: E501 Line too long (104 > 100)
+tests\unit\test_historical_snapshots.py:56:101: E501 Line too long (120 > 100)
+tests\unit\test_historical_snapshots.py:87:101: E501 Line too long (127 > 100)
+tests\unit\test_historical_snapshots.py:130:101: E501 Line too long (143 > 100)
+tests\unit\test_historical_snapshots.py:157:14: B017 Do not assert blind exception: `Exception`
+tests\unit\test_idempotent_ingestion.py:41:101: E501 Line too long (107 > 100)
+tests\unit\test_idempotent_ingestion.py:52:101: E501 Line too long (107 > 100)
+tests\unit\test_idempotent_ingestion.py:65:101: E501 Line too long (103 > 100)
+tests\unit\test_idempotent_ingestion.py:66:101: E501 Line too long (122 > 100)
+tests\unit\test_idempotent_ingestion.py:72:101: E501 Line too long (103 > 100)
+tests\unit\test_idempotent_ingestion.py:74:9: F841 Local variable `report1` is assigned to but never used
+tests\unit\test_idempotent_ingestion.py:74:101: E501 Line too long (107 > 100)
+tests\unit\test_idempotent_ingestion.py:79:9: F841 Local variable `report2` is assigned to but never used
+tests\unit\test_idempotent_ingestion.py:79:101: E501 Line too long (106 > 100)
+tests\unit\test_idempotent_ingestion.py:95:101: E501 Line too long (101 > 100)
+tests\unit\test_resume.py:36:101: E501 Line too long (109 > 100)
+tests\unit\test_resume.py:49:101: E501 Line too long (109 > 100)
+tests\unit\test_resume.py:57:9: F841 Local variable `report` is assigned to but never used
+tests\unit\test_resume.py:57:101: E501 Line too long (105 > 100)
+tests\unit\test_resume.py:81:101: E501 Line too long (107 > 100)
+tests\unit\test_temporal_integrity.py:42:101: E501 Line too long (103 > 100)
+tests\unit\test_temporal_integrity.py:91:101: E501 Line too long (103 > 100)
+tests\unit\test_temporal_integrity.py:118:101: E501 Line too long (102 > 100)
+tests\unit\test_temporal_integrity.py:128:101: E501 Line too long (106 > 100)
+tests\unit\test_validation.py:64:9: F841 Local variable `result` is assigned to but never used
+tests\unit\test_validation.py:126:101: E501 Line too long (103 > 100)
+tests\unit\test_validation.py:148:101: E501 Line too long (103 > 100)
+tests\unit\test_validation.py:174:101: E501 Line too long (103 > 100)
+tests\unit\test_validation.py:194:14: B017 Do not assert blind exception: `Exception`
+tests\unit\test_validation.py:203:101: E501 Line too long (103 > 100)
+tests\unit\test_validation.py:208:101: E501 Line too long (103 > 100)
+tests\unit\test_validation.py:212:101: E501 Line too long (131 > 100)
+tests\unit\test_validation.py:217:9: F841 Local variable `result` is assigned to but never used
+Found 194 errors.
+[*] 30 fixable with the `--fix` option (12 hidden fixes can be enabled with the `--unsafe-fixes` option).

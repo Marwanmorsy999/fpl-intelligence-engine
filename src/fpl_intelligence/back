@@ -1,0 +1,173 @@
+"""Decision cutoff model for backtesting.
+
+A decision cutoff represents the point in time at which a prediction
+was made. It is associated with a season, gameweek, deadline, and
+information-access policy.
+
+All timestamps are timezone-aware UTC internally.
+The original timezone context is stored for reference.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from fpl_intelligence.db.models import Gameweek, Season
+from fpl_intelligence.features.temporal import InformationAccessPolicy
+
+
+@dataclass(frozen=True)
+class DecisionCutoff:
+    """A canonical decision cutoff for a gameweek.
+
+    Attributes:
+        season: Season code, e.g. "2025-26".
+        gameweek: Gameweek number (1-38).
+        deadline: The FPL transfer deadline for this gameweek.
+        cutoff_timestamp: The actual cutoff timestamp (timezone-aware UTC).
+        timezone: The original timezone context (e.g. "Europe/London").
+        information_access_policy: The policy for information availability.
+    """
+    season: str
+    gameweek: int
+    deadline: datetime | None
+    cutoff_timestamp: datetime
+    timezone: str
+    information_access_policy: InformationAccessPolicy = InformationAccessPolicy.STRICT_REPRODUCIBILITY
+
+
+def get_gameweek_decision_cutoff(
+    season_code: str,
+    gameweek_number: int,
+    db: Session,
+    policy: InformationAccessPolicy = InformationAccessPolicy.STRICT_REPRODUCIBILITY,
+    offset_minutes: int = 0,
+) -> DecisionCutoff:
+    """Get the deterministic decision cutoff for a gameweek.
+
+    Args:
+        season_code: Season code, e.g. "2025-26".
+        gameweek_number: Gameweek number (1-38).
+        db: Database session.
+        policy: Information-access policy.
+        offset_minutes: Minutes to offset the cutoff from the deadline.
+            Positive values move the cutoff later (e.g. +60 = 1 hour after deadline).
+            Negative values move it earlier (e.g. -60 = 1 hour before deadline).
+
+    Returns:
+        A DecisionCutoff object.
+
+    Raises:
+        ValueError: If the season or gameweek is not found.
+    """
+    # Get season
+    season = db.scalar(select(Season).where(Season.code == season_code))
+    if season is None:
+        raise ValueError(f"Season '{season_code}' not found")
+
+    # Get gameweek
+    gw = db.scalar(
+        select(Gameweek).where(
+            Gameweek.season_id == season.id,
+            Gameweek.provider_event_id == gameweek_number,
+        )
+    )
+    if gw is None:
+        raise ValueError(
+            f"Gameweek {gameweek_number} not found for season '{season_code}'"
+        )
+
+    # Determine cutoff timestamp
+    deadline = gw.deadline_time
+    if deadline is None:
+        # Fall back to start_time or a default
+        if gw.start_time is not None:
+            cutoff = gw.start_time
+        else:
+            raise ValueError(
+                f"Gameweek {gameweek_number} has no deadline_time or start_time"
+            )
+    else:
+        cutoff = deadline
+
+    # Ensure timezone-aware
+    if cutoff.tzinfo is None:
+        cutoff = cutoff.replace(tzinfo=UTC)
+
+    # Apply offset
+    from datetime import timedelta
+    cutoff = cutoff + timedelta(minutes=offset_minutes)
+
+    return DecisionCutoff(
+        season=season_code,
+        gameweek=gameweek_number,
+        deadline=deadline,
+        cutoff_timestamp=cutoff,
+        timezone="UTC",
+        information_access_policy=policy,
+    )
+
+
+def get_all_gameweek_cutoffs(
+    season_code: str,
+    db: Session,
+    policy: InformationAccessPolicy = InformationAccessPolicy.STRICT_REPRODUCIBILITY,
+    offset_minutes: int = 0,
+) -> list[DecisionCutoff]:
+    """Get decision cutoffs for all gameweeks in a season.
+
+    Args:
+        season_code: Season code.
+        db: Database session.
+        policy: Information-access policy.
+        offset_minutes: Minutes to offset from deadline.
+
+    Returns:
+        List of DecisionCutoff objects, ordered by gameweek number.
+    """
+    season = db.scalar(select(Season).where(Season.code == season_code))
+    if season is None:
+        raise ValueError(f"Season '{season_code}' not found")
+
+    gameweeks = list(
+        db.execute(
+            select(Gameweek)
+            .where(Gameweek.season_id == season.id)
+            .order_by(Gameweek.provider_event_id)
+        ).scalars().all()
+    )
+
+    cutoffs: list[DecisionCutoff] = []
+    for gw in gameweeks:
+        deadline = gw.deadline_time
+        if deadline is None:
+            if gw.start_time is not None:
+                cutoff = gw.start_time
+            else:
+                continue
+        else:
+            cutoff = deadline
+
+        if cutoff.tzinfo is None:
+            cutoff = cutoff.replace(tzinfo=UTC)
+
+        from datetime import timedelta
+        cutoff = cutoff + timedelta(minutes=offset_minutes)
+
+        cutoffs.append(
+            DecisionCutoff(
+                season=season_code,
+                gameweek=gw.provider_event_id,
+                deadline=deadline,
+                cutoff_timestamp=cutoff,
+                timezone="UTC",
+                information_access_policy=policy,
+            )
+        )
+
+    return cutoffs
