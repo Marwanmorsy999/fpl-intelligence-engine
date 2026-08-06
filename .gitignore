@@ -4,9 +4,13 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .venv/
+venv/
 .env
+.redis
 .DS_Store
 *.log
+*.err
+*.pid
 
 # local data
 /data/raw/*
@@ -14,6 +18,21 @@ __pycache__/
 !/data/raw/.gitkeep
 !/data/processed/.gitkeep
 
+# databases and dumps
+*.sql
+*.dump
+*.sqlite
+*.db
+
+# scratch / debug files
+_*.py
+_*.txt
+tmp_*.py
+
 # IDE
 .vscode/
 .idea/
+
+# Docker volumes
+/docker-data/
+/volumes/
