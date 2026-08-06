@@ -1,6 +1,6 @@
 # PROJECT_STATUS.md — Authoritative Source of Truth
 
-**Last updated:** 2026-08-06 (Phase 9.0 Foundation closure — full test suite audited and verified)
+**Last updated:** 2026-08-06 (Phase 9.0.5 Repository Verification — infrastructure locked)
 **Maintained by:** Reconciliation Agent
 
 > This file is the single source of truth for project status. Do not rely on
@@ -354,6 +354,37 @@ and may begin.**
 **Documents produced:**
 - `docs/phase9-architecture.md`
 
+## Phase 9.0.5 — Repository Verification and Infrastructure Lock
+
+```
+Implementation: 100%
+Automated Testing: 100%
+Real-Data Validation: N/A
+Final Holdout: N/A
+Status: CLOSED
+Classification: N/A (infrastructure gate)
+```
+
+**Verification results (2026-08-06):**
+- **Git status:** clean on `main`
+- **Remote:** `origin` → `https://github.com/Marwanmorsy999/fpl-intelligence-engine.git` (`main` tracking `origin/main`)
+- **HEAD:** `bf49ea1` Phase 9.0 foundation
+- **Tags:** `Phase-9.0-foundation`, `v0.9.0-foundation`
+- **Tests:** `pytest -q` → **394 passed, 0 failed, 0 skipped, 0 errored**
+- **Ruff baseline:** preserved as-is (see `ruff_baseline.txt`); `--generate-baseline` unavailable in installed ruff 0.16.1, and the remaining entries represent committed source-code and migration violations that are out of scope for this gate.
+
+**Infrastructure changes applied:**
+- Renamed default branch from `master` to `main`
+- Pushed `main` and tags `Phase-9.0-foundation` and `v0.9.0-foundation` to GitHub
+- Removed 52 tracked scratch/junk files (`_*.py`, `_*.txt`, `tmp_fix_eval.py`, `phase475.err`, `phase475.pid`, `src/f`, `src/fpl`)
+- Hardened `.gitignore` to block future commits of secrets, scratch files, database dumps, IDE files, and local caches
+
+**Version control:** ACTIVE
+**GitHub remote:** CONFIGURED
+**Foundation tag:** v0.9.0-foundation
+**Phase 9.0:** CLOSED
+**Phase 9.1:** UNBLOCKED
+
 ---
 
 ## Summary
@@ -372,6 +403,7 @@ and may begin.**
 | 7 | 100 (eng) | 100 | 0 (BLOCKED, forensic re-audit) | ENGINEERING_COMPLETE / BLOCKED |
 | 8 | 0 (scope audit only) | 0 | N/A | SCOPE_AUDIT_IN_PROGRESS (not A/B/C) |
 | 9 | 100 (foundation) | 100 | N/A (awaiting data) | FOUNDATION_CLOSED / AWAITING_EMPIRICAL_DATA (not A/B/C) |
+| 9.0.5 | 100 | 100 | N/A | CLOSED / INFRASTRUCTURE_LOCKED |
 
 **Full test suite (authoritative, 2026-08-06):** `pytest -q` → **394 passed,
 0 failed, 0 skipped, 0 errored** (exit 0). 21 files across `tests/unit/` (238),
@@ -379,4 +411,4 @@ and may begin.**
 Composition: 343 pre-existing (Phases 1–7) + 51 Phase 9.
 
 
-**PHASE_7_READY = TRUE** (see `docs/phase7-readiness-report.md` for gate evaluation)
+**PHASE_9_0_5_READY = TRUE** (repository verified, infrastructure locked, Phase 9.1 unblocked)
