@@ -734,7 +734,7 @@ tests; full suite 421 unit/optimization/prediction + 6 integration, all green).
 | 8 | 0 (scope audit only) | 0 | N/A | SCOPE_AUDIT_IN_PROGRESS (not A/B/C) |
 | 9 | 100 (foundation) | 100 | N/A (awaiting data) | FOUNDATION_CLOSED / AWAITING_EMPIRICAL_DATA (not A/B/C) |
 | 9.0.5 | 100 | 100 | N/A | CLOSED / INFRASTRUCTURE_LOCKED |
-| 9.1 | 100 (implementation) | 100 | N/A (awaiting data) | **OFFICIALLY CLOSED** (2026-08-13) / not A/B/C |
+| 9.1 | 100 (implementation) | 100 | N/A (awaiting data) | **OFFICIALLY CLOSED** (2026-08-13, tagged v0.9.1) / not A/B/C |
 | 9.1.1 | 100 | 100 | N/A (heuristics pending calibration) | COMPLETE — availability vocabulary reconciliation |
 | 9.1.2 | 100 | 100 | N/A (verified on live PostgreSQL) | COMPLETE — PostgreSQL `availabilitystatus` enum now includes `available` |
 
@@ -767,5 +767,5 @@ new revision). Details in "Phase 9.1 — Final Verification and Closure".
 
 **PHASE_9_0_5_READY = TRUE** (repository verified, infrastructure locked, Phase 9.1 unblocked)
 
-**PHASE_9_1_CLOSED = TRUE** (full 414-test suite green; migration `0011` applied
-and enum verified on live PostgreSQL — Phase 9.2 is unblocked)
+**PHASE_9_1_CLOSED = TRUE** (full 421-test suite green; migration `0011` applied
+and enum verified on live PostgreSQL; tagged **v0.9.1** — Phase 9.2 (Multi-Source Ingestion) is now UNBLOCKED)

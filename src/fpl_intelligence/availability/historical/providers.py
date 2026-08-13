@@ -382,11 +382,20 @@ class SampleHistoricalAvailabilityProvider(HistoricalAvailabilityProvider):
 
 
 def _map_fpl_status(status_code: str) -> str:
-    """Map official FPL status code to a canonical AvailabilityStatus."""
+    """Map official FPL status code to a canonical AvailabilityStatus.
+
+    The ``"a"`` code is "available" — fit and in contention, not a confirmed
+    start — so it maps to :attr:`AvailabilityStatus.AVAILABLE`. This must agree
+    with :func:`_event_type_from_status`, which maps ``"a"`` to
+    ``HistoricalEventType.AVAILABLE`` (and therefore, via
+    ``event_types.AVAILABLE -> AVAILABLE``, to the same canonical status). The
+    previous ``"a" -> START`` was a split-brain: the same source code produced
+    two different canonical statuses depending on which mapper read it.
+    """
     from fpl_intelligence.availability.models import AvailabilityStatus
 
     return {
-        "a": AvailabilityStatus.START,
+        "a": AvailabilityStatus.AVAILABLE,
         "d": AvailabilityStatus.DOUBTFUL,
         "i": AvailabilityStatus.OUT,
         "u": AvailabilityStatus.OUT,

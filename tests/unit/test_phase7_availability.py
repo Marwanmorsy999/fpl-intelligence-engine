@@ -108,6 +108,21 @@ class TestEvidenceCorroboration:
         # OUT ranks above START in severity ordering.
         assert result["status"] == AvailabilityStatus.OUT
 
+    def test_available_corroborates_below_out(self):
+        """Phase 9.1.1 — 'available' is a real status but OUT still wins."""
+        result = ev.corroborate([
+            _item(SourceReliability.VERIFIED_JOURNALIST, EvidenceType.FITNESS, "available", "a"),
+            _item(SourceReliability.VERIFIED_JOURNALIST, EvidenceType.INJURY, "out", "b"),
+        ])
+        assert result["status"] == AvailabilityStatus.OUT
+
+    def test_available_alone_corroborates(self):
+        """Phase 9.1.1 — a lone 'available' claim resolves to AVAILABLE."""
+        result = ev.corroborate([
+            _item(SourceReliability.VERIFIED_JOURNALIST, EvidenceType.FITNESS, "available", "a"),
+        ])
+        assert result["status"] == AvailabilityStatus.AVAILABLE
+
     def test_official_source_boost(self):
         base = ev.corroborate([
             _item(SourceReliability.RELIABLE_JOURNALIST, EvidenceType.INJURY, "doubtful", "a"),
@@ -178,6 +193,28 @@ class TestStateDerivation:
         adj = st.state_to_adjustment(AvailabilityStatus.START, 1.0)
         assert adj["start_probability"] == 0.95
         assert adj["confidence"] == 1.0
+
+    def test_available_state_heuristic(self):
+        """Phase 9.1.1 — 'available' has a conservative, clearly-heuristic mapping.
+
+        Interpolated between START and BENCH. These values are live-engineering
+        heuristics pending empirical calibration, not empirically validated.
+        """
+        assert st.status_start_probability(AvailabilityStatus.AVAILABLE) == 0.80
+        assert st.status_minutes_factor(AvailabilityStatus.AVAILABLE) == 0.85
+        # All statuses (including the new one) keep the probability contract.
+        for status in AvailabilityStatus:
+            assert 0.0 <= st.status_start_probability(status) <= 1.0
+            assert 0.0 <= st.status_minutes_factor(status) <= 1.0
+
+    def test_event_type_available_maps_to_available(self):
+        """Phase 9.1.1 — a confirmed-available historical event maps to 'available'."""
+        from fpl_intelligence.availability.historical.event_types import (
+            HistoricalEventType,
+            event_type_to_status,
+        )
+
+        assert event_type_to_status(HistoricalEventType.AVAILABLE) == "available"
 
     def test_get_state_with_confidence_no_event(self, db_session):
         status, conf, sources = st.get_state_with_confidence(db_session, 1, 1, 1)

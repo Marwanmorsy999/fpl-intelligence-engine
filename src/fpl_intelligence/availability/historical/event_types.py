@@ -47,7 +47,10 @@ _EVENT_TYPE_STATUS: dict[str, str] = {
     HistoricalEventType.EXPECTED_RETURN: AvailabilityStatus.SUSPECT,
     HistoricalEventType.CONFIRMED_RETURN: AvailabilityStatus.START,
     HistoricalEventType.EXPECTED_ABSENCE: AvailabilityStatus.OUT,
-    HistoricalEventType.AVAILABLE: AvailabilityStatus.START,
+    #: ``AVAILABLE`` now maps to the canonical ``available`` status (Phase 9.1.1)
+    #: rather than being collapsed into ``START``: a player reported available is
+    #: fit and in contention but not necessarily confirmed to start.
+    HistoricalEventType.AVAILABLE: AvailabilityStatus.AVAILABLE,
     HistoricalEventType.DOUBTFUL: AvailabilityStatus.DOUBTFUL,
     HistoricalEventType.UNKNOWN: AvailabilityStatus.UNKNOWN,
 }

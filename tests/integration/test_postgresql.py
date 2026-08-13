@@ -4,16 +4,24 @@ These tests verify that the Phase 3 feature store and backtesting
 components work correctly with a real PostgreSQL database, including
 temporal query enforcement, feature computation, and backtest execution.
 
-Run with: pytest tests/integration/test_postgresql.py --postgres-url=postgresql://...
+**These tests are destructive.** The ``pg_engine`` fixture drops and recreates
+the entire ``public`` schema, so it must never be pointed at a real database.
+See the "Disposable test database" section below for the two guards that
+enforce this.
+
+Run with: pytest tests/integration/test_postgresql.py
+Override the server (not the database name) with ``POSTGRES_URL``.
 """
 
 from __future__ import annotations
 
 import os
+import re
 from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import create_engine, select, text
+from sqlalchemy.engine import URL, make_url
 from sqlalchemy.orm import Session, sessionmaker
 
 from fpl_intelligence.backtesting.models import BacktestConfig
@@ -42,33 +50,131 @@ from fpl_intelligence.features.temporal import (
     is_record_available,
 )
 
+# ---------------------------------------------------------------------------
+# Disposable test database
+# ---------------------------------------------------------------------------
+# The deployment database is `fpl` (docker-compose.yml, alembic.ini). Running
+# this module against it destroys the migrated schema, including
+# `alembic_version` and the native `availabilitystatus` enum, which silently
+# undoes `alembic upgrade head`. These tests therefore always run against a
+# dedicated, disposable database, protected two independent ways:
+#
+#   1. The database name is forced to `fpl_intelligence_test`. `POSTGRES_URL`
+#      only supplies the server and credentials; its database component is
+#      replaced. Set `POSTGRES_TEST_URL` to choose a different test database.
+#   2. `_assert_disposable()` refuses to hand out an engine unless the target
+#      database name ends with `_test`, and hard-blocks known real names. It
+#      runs at import time and again inside the destructive fixture, so an
+#      operator cannot aim the DROP SCHEMA at `fpl` even by overriding env vars.
+#
+# A guard violation is a hard error, never a skip: silently skipping would let
+# the isolation regress unnoticed.
+
+#: Dedicated database for these destructive tests.
+DEFAULT_TEST_DB = "fpl_intelligence_test"
+
+#: Maintenance database used only to issue ``CREATE DATABASE``.
+ADMIN_DB = "postgres"
+
+#: Database names that must never be targeted by destructive DDL.
+PROTECTED_DB_NAMES = frozenset({"fpl", "postgres", "template0", "template1"})
+
+#: Test database names must match this and end with ``_test``.
+_SAFE_DB_NAME = re.compile(r"^[A-Za-z0-9_]+$")
 
 # Use the modern psycopg (v3) dialect. The legacy `postgresql://` scheme maps to
 # psycopg2, which is not installed. The project's SQLAlchemy strategy uses
 # `postgresql+psycopg://` (see `src/fpl_intelligence/config/settings.py` and
 # `docker-compose.yml`).
-POSTGRES_URL = os.environ.get(
-    "POSTGRES_URL", "postgresql+psycopg://fpl:fpl@localhost:5432/fpl"
-)
+DEFAULT_SERVER_URL = "postgresql+psycopg://fpl:fpl@localhost:5432/fpl"
 
 
-def pytest_collection_modifyitems(config):
-    """Skip PostgreSQL tests if the database is not available."""
-    try:
-        engine = create_engine(POSTGRES_URL)
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
-        engine.dispose()
-    except Exception:
-        pytest.skip(
-            f"PostgreSQL not available at {POSTGRES_URL}",
-            allow_module_level=True,
+class UnsafeTestDatabaseError(RuntimeError):
+    """Raised when destructive fixtures are aimed at a non-disposable database."""
+
+
+def _resolve_test_url() -> URL:
+    """Return the URL of the disposable test database.
+
+    ``POSTGRES_TEST_URL`` is used verbatim when set. Otherwise the server and
+    credentials come from ``POSTGRES_URL`` (or the local default) and the
+    database name is *replaced* with :data:`DEFAULT_TEST_DB`, so pointing
+    ``POSTGRES_URL`` at the deployment database cannot leak into these tests.
+    """
+    explicit = os.environ.get("POSTGRES_TEST_URL")
+    if explicit:
+        return make_url(explicit)
+    server = make_url(os.environ.get("POSTGRES_URL") or DEFAULT_SERVER_URL)
+    return server.set(database=DEFAULT_TEST_DB)
+
+
+def _assert_disposable(url: URL) -> None:
+    """Raise unless *url* names a database that is safe to drop and recreate."""
+    name = url.database
+    if not name:
+        raise UnsafeTestDatabaseError(
+            "Refusing to run destructive PostgreSQL tests: no database name in URL."
         )
+    if name in PROTECTED_DB_NAMES:
+        raise UnsafeTestDatabaseError(
+            f"Refusing to run destructive PostgreSQL tests against protected "
+            f"database {name!r}. These tests DROP SCHEMA public CASCADE. Use a "
+            f"disposable database such as {DEFAULT_TEST_DB!r}."
+        )
+    if not name.endswith("_test"):
+        raise UnsafeTestDatabaseError(
+            f"Refusing to run destructive PostgreSQL tests against {name!r}: the "
+            f"test database name must end with '_test'."
+        )
+    if not _SAFE_DB_NAME.match(name):
+        raise UnsafeTestDatabaseError(
+            f"Unsafe test database identifier {name!r}; expected [A-Za-z0-9_]+."
+        )
+
+
+def _ensure_database(url: URL) -> None:
+    """Create the disposable test database if it does not exist yet."""
+    _assert_disposable(url)
+    admin = create_engine(url.set(database=ADMIN_DB), isolation_level="AUTOCOMMIT")
+    try:
+        with admin.connect() as conn:
+            exists = conn.execute(
+                text("SELECT 1 FROM pg_database WHERE datname = :name"),
+                {"name": url.database},
+            ).scalar()
+            if not exists:
+                # Identifier already validated against _SAFE_DB_NAME above;
+                # CREATE DATABASE cannot take a bind parameter.
+                conn.execute(text(f'CREATE DATABASE "{url.database}"'))
+    finally:
+        admin.dispose()
+
+
+TEST_URL = _resolve_test_url()
+
+#: Backwards-compatible alias. Always the disposable test database, never `fpl`.
+POSTGRES_URL = TEST_URL.render_as_string(hide_password=False)
+
+# Fail loudly on a guard violation; skip only when PostgreSQL is unreachable.
+_assert_disposable(TEST_URL)
+try:
+    _ensure_database(TEST_URL)
+    _probe = create_engine(TEST_URL)
+    with _probe.connect() as _conn:
+        _conn.execute(text("SELECT 1"))
+    _probe.dispose()
+except UnsafeTestDatabaseError:
+    raise
+except Exception as exc:  # pragma: no cover - depends on local environment
+    pytest.skip(
+        f"PostgreSQL not available for {TEST_URL.database!r}: {exc}",
+        allow_module_level=True,
+    )
 
 
 @pytest.fixture
 def pg_engine():
-    """Create a PostgreSQL engine for testing.
+    """Create an engine on the disposable test database.
 
     SQLite integration tests pass with `Base.metadata.drop_all(engine)` because
     SQLite does not enforce foreign keys by default. On PostgreSQL, tables
@@ -77,9 +183,11 @@ def pg_engine():
     ``drop_all`` if they are not present in the local ``Base.metadata``.
 
     We therefore tear down by recreating the public schema with CASCADE, which
-    is deterministic and engine-correct on PostgreSQL.
+    is deterministic and engine-correct on PostgreSQL. The guard is re-checked
+    here so the destructive DDL can never reach a non-disposable database.
     """
-    engine = create_engine(POSTGRES_URL)
+    _assert_disposable(TEST_URL)
+    engine = create_engine(TEST_URL)
     # Drop any leftover schema so the test starts from a clean slate regardless
     # of whether Alembic migrations have populated it beforehand.
     with engine.begin() as conn:
