@@ -1,7 +1,7 @@
 # Phase 9 Architecture — Live Intelligence Accumulator & LLM Analyst Layer
 
 **Status:** IMPLEMENTATION_COMPLETE
-**Last updated:** 2026-08-06
+**Last updated:** 2026-08-13
 **Constraint:** LLM/AI is the reasoning layer, not the core prediction engine.
 
 ---
@@ -549,3 +549,113 @@ advisory, never feeding numbers back into the quantitative optimizer.
 - `is_mock` and `provider_name`/`model_name` are recorded on every report for
   auditability.
 
+- `is_mock` and `provider_name`/`model_name` are recorded on every report for
+  auditability.
+
+---
+
+## 17. Phase 9.4 — Quantitative Bridge and Evidence Query Layer
+
+### 17.1 Overview
+
+Phase 9.3 left the AI Analyst able to synthesise evidence and predictions, but
+it still required the `PredictionContext` to be assembled by hand (via CLI
+flags on `scripts/manual_ingest_raw_text.py`). Phase 9.4 removes that manual
+step by connecting the Analyst to the **real quantitative engine** (Phases
+4/5/6) and the **live evidence database**, so reports are generated
+automatically from real predictions and stored pre-deadline evidence.
+
+Three components (all in `src/fpl_intelligence/live_intelligence/bridge.py`):
+
+1. **`PredictionContextBuilder`** — the *quantitative bridge*. Reads a
+   `PlayerPrediction` from a `DecisionPredictionProvider` (read-only) and
+   returns a populated :class:`PredictionContext`. The quantitative engine is
+   never modified — only consumed through its existing interface.
+2. **`EvidenceQueryService`** — the *evidence query layer*. Queries resolved
+   `AvailabilityEvidence` (Phase 7), resolved `TacticalEvidence` (Phase 8), and
+   `UnresolvedLiveEvidence` (Phase 9.2.1), filters each by the gameweek cutoff
+   under the `InformationAccessPolicy`, excludes mock-environment evidence by
+   default, and returns an `EvidenceQueryResult` of `EvidenceCitation` objects.
+3. **`AnalystReportGenerator`** — the *orchestrator*. Builds the
+   `PredictionContext` via (1), queries evidence via (2), and delegates to
+   `AIAnalyst.generate_report()` to produce the `IntelligenceReport`. With no
+   evidence it returns the analyst's neutral report.
+
+A `StaticPredictionProvider` (a trivial `DecisionPredictionProvider`) is shipped
+for `--dry-run` and unit tests; it never touches an API or database.
+
+### 17.2 Data Flow
+
+```
+player_id + gameweek + cutoff
+        │
+        ▼
+PredictionContextBuilder ──DecisionPredictionProvider──► PredictionContext (read-only)
+        │
+EvidenceQueryService          availability_evidence (Phase 7, active, pre-cutoff)
+        │                      tactical_evidence (Phase 8, active, pre-cutoff)
+        │                      unresolved_live_evidence (Phase 9.2.1, pre-cutoff)
+        │                      ── filtered by InformationAccessPolicy, mock excluded
+        ▼
+EvidenceQueryResult (EvidenceCitation[])
+        │
+        ▼
+AnalystReportGenerator ──AIAnalyst.generate_report()──► IntelligenceReport (Markdown)
+```
+
+### 17.3 Evidence Filtering Rules
+
+- **Cutoff / no look-ahead.** Each citation's `available_at` (and `ingested_at`
+  under `STRICT_REPRODUCIBILITY`) must be `<= cutoff`. The same
+  `InformationAccessPolicy` used elsewhere in the engine drives
+  `_temporal_condition()`, so look-ahead is structurally impossible.
+- **Mock is never evidence.** Sources carry a `DataEnvironment` marker. By
+  default `EvidenceQueryService` drops evidence whose source is `mock`;
+  `allow_mock=True` opts in for test/dry-run paths.
+- **Phase 7 historical rows without a ledger link** are returned with
+  `source_name="phase7_historical"`; their `temporal_class` is
+  `no_deadline_context`, so the Analyst will never cite them (they carry no
+  resolved deadline context).
+- **Inactive evidence excluded** — `is_active = True` is required for both
+  availability and tactical evidence.
+- **Unresolved evidence is not player-scoped** — a row whose entity could not be
+  resolved is returned for any player query and surfaced as an analyst
+  `unresolved_warning`.
+
+### 17.4 CLI
+
+`scripts/generate_intelligence_report.py`:
+
+```bash
+# Dry run (offline; MockLLMProvider + StaticPredictionProvider, no DB writes)
+python scripts/generate_intelligence_report.py --player-id 1 --gameweek 3 --dry-run
+
+# Against a real DB with mock LLM (no network) and real saved predictions
+python scripts/generate_intelligence_report.py --player-id 1 --gameweek 3 --db ./fpl.db
+
+# Live LLM (requires .env) with explicit cutoff and a different task
+python scripts/generate_intelligence_report.py --player-id 7 --gameweek 4 \
+    --cutoff 2025-08-17T18:30:00+00:00 --task captaincy_debate --db ./fpl.db --provider real
+```
+
+`--cutoff` is an ISO-8601 string and defaults to the current UTC time.
+`--dry-run` uses `MockLLMProvider` + `StaticPredictionProvider` and never issues
+DB writes. `--provider real` builds a guarded real provider via
+`ProviderFactory` (credentials from the git-ignored `.env` only — never
+hardcoded).
+
+### 17.5 Testing & Quality
+
+- `tests/unit/test_phase9_4_bridge.py` — 38 tests covering
+  `PredictionContextBuilder` (mocked `DecisionPredictionProvider`),
+  `EvidenceQueryResult`, `EvidenceQueryService` (availability/tactical/
+  unresolved, cutoff filtering, mock exclusion, player scope, inactive
+  exclusion), `AnalystReportGenerator` (end-to-end with `MockLLMProvider`,
+  neutral-no-evidence, mock-excluded), and `StaticPredictionProvider`.
+- **Full suite: 522 passed** (previously 484).
+- `ruff` and `mypy` clean on `bridge.py` and the new CLI script.
+- **No migration required.** Phase 9.4 introduces no new tables, columns, or
+  enums — it reads existing Phase 4/5/6 prediction interfaces and the existing
+  Phase 7/8/9.2.1 evidence tables.
+- **No live API calls in `pytest`.** All tests use `MockLLMProvider` /
+  `StaticPredictionProvider` against an in-memory SQLite database.

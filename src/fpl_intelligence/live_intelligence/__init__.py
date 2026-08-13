@@ -48,6 +48,13 @@ Architectural non-negotiables enforced by this package
    :mod:`fpl_intelligence.live_intelligence.prompt_registry`).
 """
 
+from fpl_intelligence.live_intelligence.bridge import (
+    AnalystReportGenerator,
+    EvidenceQueryResult,
+    EvidenceQueryService,
+    PredictionContextBuilder,
+    StaticPredictionProvider,
+)
 from fpl_intelligence.live_intelligence.llm_settings import (
     API_KEY_ENV_VAR,
     DEFAULT_MODELS,
@@ -122,14 +129,16 @@ from fpl_intelligence.live_intelligence.temporal_ledger import (
 
 __all__ = [
     "API_KEY_ENV_VAR",
-    "DEFAULT_MODELS",
-    "DEFAULT_TASK_ROUTES",
-    "PROMPT_HASH_LOCK",
+    "AnalystReportGenerator",
     "AvailabilityDerivationPolicy",
     "CacheEntry",
     "CallBudget",
     "CallBudgetExceededError",
     "CaptureMethod",
+    "DEFAULT_MODELS",
+    "DEFAULT_TASK_ROUTES",
+    "EvidenceQueryResult",
+    "EvidenceQueryService",
     "ExtractionStatus",
     "InMemoryResponseCache",
     "IntelligenceReport",
@@ -145,7 +154,9 @@ __all__ = [
     "MissingAPIKeyError",
     "MissingEnvFileError",
     "NullResponseCache",
+    "PROMPT_HASH_LOCK",
     "PredictionContext",
+    "PredictionContextBuilder",
     "PromptFingerprint",
     "ProviderRouter",
     "ProviderRoutingError",
@@ -159,6 +170,7 @@ __all__ = [
     "RouteFailure",
     "RoutingStrategy",
     "SqliteResponseCache",
+    "StaticPredictionProvider",
     "TacticalDirection",
     "TacticalEvidence",
     "TacticalEvidenceType",

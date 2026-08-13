@@ -1,6 +1,6 @@
 # PROJECT_STATUS.md — Authoritative Source of Truth
 
-**Last updated:** 2026-08-13 (Phase 9.3 — OFFICIALLY CLOSED: AI analyst synthesis and intelligence reporting)
+**Last updated:** 2026-08-13 (Phase 9.4 — CLOSED: Quantitative Bridge and Evidence Query Layer)
 **Maintained by:** Reconciliation Agent
 
 > This file is the single source of truth for project status. Do not rely on
@@ -781,6 +781,55 @@ Backward compatibility: `persist_extraction` still accepts legacy
 `int | None` resolvers. Phase 9.3 (live scrapers / empirical backtest) remains
 BLOCKED — no pre-deadline historical source has been acquired.
 
+## Phase 9.4 — Quantitative Bridge and Evidence Query Layer
+
+**Status:** CLOSED (2026-08-13). Builds the automated reporting bridge:
+the Analyst no longer requires manual `PredictionContext` inputs.
+
+**Delivered:**
+- **`live_intelligence/bridge.py`** (new) —
+  - `PredictionContextBuilder` — accepts player id + gameweek, reads
+    `DecisionPredictionProvider` (Phases 4/5/6 read-only) for expected points,
+    expected minutes, start probability, floor/ceiling, and returns a populated
+    `PredictionContext`.
+  - `EvidenceQueryService` — accepts player id + gameweek + cutoff; queries
+    resolved `AvailabilityEvidence` (Phase 7), resolved `TacticalEvidence`
+    (Phase 8), and `UnresolvedLiveEvidence` (Phase 9.2.1); filters by cutoff via
+    `InformationAccessPolicy`; excludes mock evidence by default; returns an
+    `EvidenceQueryResult`.
+  - `AnalystReportGenerator` — orchestrates builder + evidence service and
+    delegates to `AIAnalyst.generate_report()`; returns the neutral report when
+    no evidence is found.
+  - `StaticPredictionProvider` — dry-run/tests-only `DecisionPredictionProvider`.
+- **`scripts/generate_intelligence_report.py`** (new) — standalone CLI with
+  `--player-id`, `--gameweek`, `--cutoff` (ISO-8601, defaults to now),
+  `--dry-run` (MockLLMProvider + StaticPredictionProvider, no DB writes),
+  `--db`, `--task`, `--subject-label`, `--notes`, `--provider`, and
+  `--allow-mock-evidence`. Prints the report as Markdown.
+- **`tests/unit/test_phase9_4_bridge.py`** (new) — 38 tests: builder with a
+  mocked `DecisionPredictionProvider`, evidence query service (cutoff filtering,
+  mock exclusion, player scope, inactive exclusion, unresolved), end-to-end
+  generator with `MockLLMProvider`, and the statutory provider.
+- **`live_intelligence/__init__.py`** — exports the four new public symbols.
+
+**Closure verification (initialization pass, 2026-08-13):**
+- Full suite: **522 passed, 0 failed** (was 484; Phase 9.4 adds 38 tests).
+- `ruff` clean on `bridge.py`, `test_phase9_4_bridge.py`, and
+  `scripts/generate_intelligence_report.py`.
+- `mypy` clean on `bridge.py` and `scripts/generate_intelligence_report.py`.
+- Safe end-to-end dry-run verified:
+  `python scripts/generate_intelligence_report.py --player-id 1 --gameweek 3 --dry-run`
+  → neutral Markdown report, zero live API calls, zero DB writes.
+- **No Phase 9.4 migration required.** Reads existing Phase 4/5/6 prediction
+  interfaces and the existing Phase 7/8/9.2.1 evidence tables; no new tables,
+  columns, or enums.
+
+**No live scraper/fetcher is built yet** and Phases 1–8 (the quantitative
+prediction/optimization stack) are untouched. Phase 9.4 only wires the Analyst
+to existing interfaces and tables. Live web scraping / automated API fetching
+remains out of scope.
+
+## Summary
 ## Summary
 
 | Phase | Impl % | Test % | Real-Data % | Status |
@@ -804,13 +853,14 @@ BLOCKED — no pre-deadline historical source has been acquired.
 | 9.2 | 100 (foundation) | 100 | N/A (awaiting data) | **COMMITTED / TAGGED** (v0.9.2-multisource-ingestion-foundation) — multi-source ingestion foundation |
 | 9.2.1 | 100 | 100 | N/A (verified on live PostgreSQL) | **COMMITTED / TAGGED** (v0.9.2.1-entity-resolution) — entity resolution bridge + unresolved evidence persistence |
 | 9.3 | 100 | 100 | N/A | **CLOSED / TAGGED** (v0.9.3-ai-analyst-synthesis) — AI analyst synthesis, IntelligenceReport, guardrail-enforced reasoning layer |
+| 9.4 | 100 | 100 | N/A | **CLOSED / TAGGED** (v0.9.4-quantitative-bridge) — Quantitative Bridge + Evidence Query Layer; Analyst wired to DecisionPredictionProvider + evidence DB; no migration required |
 
-**Full test suite (authoritative, 2026-08-13):** `pytest -q` → **484 passed,
+**Full test suite (authoritative, 2026-08-13):** `pytest -q` → **522 passed,
 0 failed, 0 skipped, 0 errored** (exit 0), confirmed from a `--junit-xml`
 report. 24 files across `tests/unit/` (280), `tests/prediction/` (145),
-`tests/integration/` (6), `tests/optimization/` (5), `tests/unit/` Phase 9.2 (19) + Phase 9.2.1 (16) + Phase 9.3 (42).
+`tests/integration/` (6), `tests/optimization/` (5), `tests/unit/` Phase 9.2 (19) + Phase 9.2.1 (16) + Phase 9.3 (42) + Phase 9.4 (38).
 Composition: 343 pre-existing (Phases 1–7) + 71 Phase 9 (51 foundation + 10
-Phase 9.1 ProviderRouter + 10 Phase 9.1.1 availability-vocabulary tests) + 35 Phase 9.2/9.2.1 (19 + 16) + 42 Phase 9.3.
+Phase 9.1 ProviderRouter + 10 Phase 9.1.1 availability-vocabulary tests) + 35 Phase 9.2/9.2.1 (19 + 16) + 42 Phase 9.3 + 38 Phase 9.4.
 `ruff` and `mypy` clean on all touched modules. No test executes Alembic
 migrations — migration behaviour is verified manually.
 
@@ -872,3 +922,10 @@ full suite **484 passed**; Phase 9.3 unblocked)
 **PHASE_9_3_CLOSED = TRUE** (committed, tagged **v0.9.3-ai-analyst-synthesis**;
 full suite **484 passed**; safe analyst dry-run verified; no migration required;
 Phase 9.4 unblocked pending pre-deadline historical source acquisition)
+
+**PHASE_9_4_CLOSED = TRUE** (committed, tagged **v0.9.4-quantitative-bridge**;
+pushed to origin; full suite **522 passed, 0 failed, 0 skipped, 0 errored**;
+safe end-to-end dry-run verified (`python scripts/generate_intelligence_report.py
+--player-id 1 --gameweek 3 --dry-run` → neutral Markdown report, zero live API
+calls, zero DB writes); no migration required; Phase 9.5 unblocked after
+this closure report)
