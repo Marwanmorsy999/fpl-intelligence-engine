@@ -73,6 +73,10 @@ class ExtractedAvailabilityEvidence(_StrictModel):
     player_name: str = Field(min_length=1, max_length=200)
     team_name: str | None = Field(default=None, max_length=200)
     evidence_type: EvidenceType
+    #: Canonical :class:`AvailabilityStatus`, including ``available`` (Phase 9.1.1):
+    #: the player is reported fit/available/in contention but not explicitly
+    #: confirmed to start. The prompt tells the model to reserve ``unknown`` for
+    #: the case where no status can be inferred at all.
     status_mentioned: AvailabilityStatus
     confidence: Confidence = 0.5
     #: Number of gameweeks the source says the player is expected to miss,
@@ -133,6 +137,20 @@ class ExtractionEnvelope(_StrictModel):
     tactical_evidence: list[ExtractedTacticalEvidence] = Field(default_factory=list)
     no_evidence_found: bool = False
     extraction_notes: str = Field(default="", max_length=4000)
+
+    @field_validator("extraction_notes", mode="before")
+    @classmethod
+    def _null_to_empty(cls, value: Any) -> Any:
+        """Coerce JSON ``null`` to an empty string.
+
+        LLMs frequently emit ``null`` for an optional text field when they have
+        nothing to say; the schema still requires ``str``, so normalise before
+        validation. This does NOT weaken ``extra="forbid"`` or any enum
+        constraint — unknown keys and bad enum values are still rejected.
+        """
+        if value is None:
+            return ""
+        return value
 
     @property
     def total_items(self) -> int:

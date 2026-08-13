@@ -38,6 +38,11 @@ from fpl_intelligence.live_intelligence.ingestion import (
     LiveIngestionPipeline,
     RawTextSubmission,
 )
+from fpl_intelligence.live_intelligence.llm_providers import (
+    LLMAuthError,
+    LLMRateLimitError,
+)
+from fpl_intelligence.live_intelligence.llm_settings import LLMProviderName
 from fpl_intelligence.live_intelligence.mock_llm import (
     MockLLMProvider,
     make_mock_provider,
@@ -49,8 +54,18 @@ from fpl_intelligence.live_intelligence.models import (
     LiveIntelligenceSource,
     LiveSourceType,
 )
+from fpl_intelligence.live_intelligence.prompt_registry import (
+    hash_prompt_template,
+    verify_prompt_registry,
+)
 from fpl_intelligence.live_intelligence.prompts import (
     get_template,
+)
+from fpl_intelligence.live_intelligence.provider_router import (
+    DEFAULT_TASK_ROUTES,
+    ProviderRouter,
+    ProviderRoutingError,
+    RoutingStrategy,
 )
 from fpl_intelligence.live_intelligence.schemas import (
     ANALYST_SCHEMA_VERSION,
@@ -634,6 +649,79 @@ class TestLLMExtractionMock:
         result = extractor.extract(view)
         assert result.status == ExtractionStatus.SCHEMA_REJECTED
 
+    def test_extractor_accepts_available_status(
+        self, db_session: Session, source: LiveIntelligenceSource,
+    ):
+        """Phase 9.1.1 — 'available' is now a canonical status and must pass."""
+        provider = make_mock_provider(player_names=["Salah"], scripted={"*": json.dumps({
+            "schema_version": EXTRACTION_SCHEMA_VERSION,
+            "availability_evidence": [{
+                "player_name": "Salah",
+                "team_name": "LIV",
+                "evidence_type": "fitness",
+                "status_mentioned": "available",
+                "confidence": 0.7,
+                "source_quote": "Salah trained fully and is available.",
+                "reasoning": "trained fully but not confirmed to start",
+            }],
+            "tactical_evidence": [],
+            "no_evidence_found": False,
+            "extraction_notes": "",
+        })})
+        extractor = PromptedLLMExtractor(provider)
+        raw = LiveIntelligenceRawItem(
+            source_id=source.id,
+            content_hash=content_hash("Salah trained fully and is available."),
+            raw_text="Salah trained fully and is available.",
+            scraped_at=_utc(datetime(2025, 8, 15, 10, 0, 0)),
+            available_at=_utc(datetime(2025, 8, 15, 10, 0, 0)),
+            ingested_at=_utc(datetime(2025, 8, 15, 10, 5, 0)),
+            temporal_class=LedgerTemporalClass.PRE_DEADLINE,
+        )
+        db_session.add(raw)
+        db_session.flush()
+        view = TemporalLedger(db_session).to_view(raw)
+        result = extractor.extract(view)
+        assert result.status == ExtractionStatus.OK
+        assert len(result.availability) == 1
+        assert result.availability[0].status_mentioned == "available"
+
+    def test_extractor_rejects_invalid_status(
+        self, db_session: Session, source: LiveIntelligenceSource,
+    ):
+        """Phase 9.1.1 — a non-canonical status like 'flying' must be rejected."""
+        provider = make_mock_provider(player_names=["Salah"], scripted={"*": json.dumps({
+            "schema_version": EXTRACTION_SCHEMA_VERSION,
+            "availability_evidence": [{
+                "player_name": "Salah",
+                "team_name": "LIV",
+                "evidence_type": "fitness",
+                "status_mentioned": "flying",
+                "confidence": 0.7,
+                "source_quote": "Salah is flying.",
+                "reasoning": "made up",
+            }],
+            "tactical_evidence": [],
+            "no_evidence_found": False,
+            "extraction_notes": "",
+        })})
+        extractor = PromptedLLMExtractor(provider)
+        raw = LiveIntelligenceRawItem(
+            source_id=source.id,
+            content_hash=content_hash("Salah is flying."),
+            raw_text="Salah is flying.",
+            scraped_at=_utc(datetime(2025, 8, 15, 10, 0, 0)),
+            available_at=_utc(datetime(2025, 8, 15, 10, 0, 0)),
+            ingested_at=_utc(datetime(2025, 8, 15, 10, 5, 0)),
+            temporal_class=LedgerTemporalClass.PRE_DEADLINE,
+        )
+        db_session.add(raw)
+        db_session.flush()
+        view = TemporalLedger(db_session).to_view(raw)
+        result = extractor.extract(view)
+        assert result.status == ExtractionStatus.SCHEMA_REJECTED
+        assert result.availability == []
+
     def test_usable_drafts_filters_pre_deadline_only(
         self, db_session: Session, source: LiveIntelligenceSource,
     ):
@@ -1110,3 +1198,256 @@ class TestPromptTemplates:
         assert TRANSFER_RECOMMENDATION.template_id == "phase9.analyst.transfer"
         assert CAPTAINCY_DEBATE.template_id == "phase9.analyst.captaincy"
         assert DIFFERENTIAL_RISK.template_id == "phase9.analyst.differential"
+
+    def test_extraction_templates_bumped_for_available(self):
+        """Phase 9.1.1 — extraction prompts list 'available' and were bumped."""
+        availability = get_template("phase9.extract.availability")
+        combined = get_template("phase9.extract.combined")
+        for template in (availability, combined):
+            assert template.version == "1.1.0"
+            assert '"available"' in template.system
+            assert '"flying"' not in template.system
+        # The schema block enumerates the canonical statuses from the enum, so
+        # 'available' shows up in the exact field the model must fill.
+        assert '"available"' in availability.system
+
+    def test_prompt_registry_lock_deterministic(self):
+        """Phase 9.1.1 — hashing is deterministic and the lock is current."""
+        # Deterministic: same template -> same hash, repeats included.
+        t = get_template("phase9.extract.availability")
+        assert hash_prompt_template(t) == hash_prompt_template(t)
+        # The live lock matches the computed hashes (no silent drift), which is
+        # what lets the dry-run and audit trust the pinned template identity.
+        assert verify_prompt_registry() == []
+
+
+# ---------------------------------------------------------------------------
+# Phase 9.1 ProviderRouter — task routing, fallback, round-robin, no-key
+# ---------------------------------------------------------------------------
+
+
+class _NoKeySettings:
+    """Offline settings double for the router's ``factory.settings``."""
+
+    def __init__(self, configured: set[LLMProviderName]) -> None:
+        self._configured = set(configured)
+        self.llm_max_calls_per_run = 8
+        self.llm_min_seconds_between_calls = 0.0
+
+    def has_api_key(self, provider: LLMProviderName) -> bool:
+        return provider in self._configured
+
+    def model_for(self, provider: LLMProviderName) -> str:
+        return f"fake-{provider.value}"
+
+
+class _FakeRouterFactory:
+    """ProviderFactory double that returns mock providers without env keys."""
+
+    def __init__(
+        self,
+        configured: set[LLMProviderName] | None = None,
+        providers: dict[LLMProviderName, Any] | None = None,
+    ) -> None:
+        self.settings = _NoKeySettings(configured or set())
+        self._providers = dict(providers or {})
+
+    def create(self, provider: LLMProviderName | str, **kwargs: Any) -> Any:
+        provider = LLMProviderName(provider)
+        return self._providers.get(provider) or make_mock_provider()
+
+    def default_cache(self) -> Any:
+        from fpl_intelligence.live_intelligence.response_cache import NullResponseCache
+
+        return NullResponseCache()
+
+
+class _FailingProvider:
+    """Offline provider that raises a configured error on every call."""
+
+    def __init__(self, exc: Exception) -> None:
+        self._exc = exc
+
+    def complete(self, prompt: Any) -> None:
+        raise self._exc
+
+    def close(self) -> None:
+        pass
+
+
+class _CountingProvider:
+    """Offline provider that reports a given ``live_calls`` count (Phase 9.1.1).
+
+    Mirrors the ``live_calls`` attribute on :class:`RealLLMProvider` so router
+    usage accounting can be tested without any network access.
+    """
+
+    def __init__(self, n_live_calls: int) -> None:
+        self.live_calls = n_live_calls
+        self._inner = make_mock_provider()
+
+    def complete(self, prompt: Any) -> Any:
+        return self._inner.complete(prompt)
+
+    def close(self) -> None:
+        pass
+
+
+class _RouterPrompt:
+    """Minimal stand-in for LLMPrompt carrying only what routing needs."""
+
+    def __init__(self, template_id: str) -> None:
+        self.template_id = template_id
+        self.context: dict[str, Any] = {"raw_text": "", "team_hint": None}
+
+    def hash(self) -> str:
+        return f"hash-{self.template_id}"
+
+
+_ALL_PR = {LLMProviderName.GROQ, LLMProviderName.GEMINI, LLMProviderName.OPENROUTER}
+
+
+class TestProviderRouter:
+    def test_default_task_routes(self):
+        assert DEFAULT_TASK_ROUTES["availability"] is LLMProviderName.GROQ
+        assert DEFAULT_TASK_ROUTES["tactical"] is LLMProviderName.GEMINI
+        assert DEFAULT_TASK_ROUTES["combined"] is LLMProviderName.GEMINI
+
+    def test_task_based_routing_picks_preferred_provider(self):
+        factory = _FakeRouterFactory(configured=_ALL_PR)
+        router = ProviderRouter(factory)
+        template = get_template("phase9.extract.availability")
+
+        decision = router.route("availability", template, prompt_hash="h1")
+        assert decision.provider_name == "groq"
+        assert decision.routing_strategy is RoutingStrategy.TASK_BASED
+        assert decision.task == "availability"
+        assert decision.template_id == template.template_id
+        assert decision.prompt_hash == "h1"
+
+        tactical = router.route("tactical", template, prompt_hash="h2")
+        assert tactical.provider_name == "gemini"
+        assert tactical.routing_strategy is RoutingStrategy.TASK_BASED
+
+    def test_round_robin_cycles_providers(self):
+        factory = _FakeRouterFactory(configured=_ALL_PR)
+        router = ProviderRouter(factory, round_robin=True)
+        template = get_template("phase9.extract.availability")
+
+        d1 = router.route("availability", template, prompt_hash="h")
+        d2 = router.route("availability", template, prompt_hash="h")
+        assert d1.routing_strategy is RoutingStrategy.ROUND_ROBIN
+        assert d2.routing_strategy is RoutingStrategy.ROUND_ROBIN
+        assert d1.provider_name != d2.provider_name
+        assert {d1.provider_name, d2.provider_name} == {"groq", "gemini"}
+
+    def test_route_prefers_tactic_preferred_when_configured(self):
+        factory = _FakeRouterFactory(configured={LLMProviderName.GEMINI})
+        router = ProviderRouter(factory)
+        template = get_template("phase9.extract.tactical")
+
+        # tactical prefers gemini, which IS configured → direct task routing.
+        decision = router.route("tactical", template, prompt_hash="h")
+        assert decision.provider_name == "gemini"
+        assert decision.routing_strategy is RoutingStrategy.TASK_BASED
+
+    def test_no_key_raises_provider_routing_error(self):
+        factory = _FakeRouterFactory(configured=set())
+        router = ProviderRouter(factory)
+        template = get_template("phase9.extract.availability")
+        with pytest.raises(ProviderRoutingError, match="API key"):
+            router.route("availability", template, prompt_hash="h")
+        with pytest.raises(ProviderRoutingError, match="API key"):
+            router.complete(_RouterPrompt("phase9.extract.availability"))
+
+    def test_fallback_on_rate_limit(self):
+        factory = _FakeRouterFactory(
+            configured={LLMProviderName.GROQ, LLMProviderName.GEMINI},
+            providers={LLMProviderName.GROQ: _FailingProvider(LLMRateLimitError("429"))},
+        )
+        router = ProviderRouter(factory)
+        response = router.complete(_RouterPrompt("phase9.extract.availability"))
+
+        assert router.last_route is not None
+        assert router.last_route.provider_name == "gemini"
+        assert router.last_route.routing_strategy is RoutingStrategy.FALLBACK
+        assert response.routing_strategy == "fallback"
+
+    def test_fallback_on_auth_error(self):
+        factory = _FakeRouterFactory(
+            configured={LLMProviderName.GROQ, LLMProviderName.GEMINI},
+            providers={LLMProviderName.GROQ: _FailingProvider(LLMAuthError("401"))},
+        )
+        router = ProviderRouter(factory)
+        response = router.complete(_RouterPrompt("phase9.extract.availability"))
+
+        assert router.last_route is not None
+        assert router.last_route.provider_name == "gemini"
+        assert router.last_route.routing_strategy is RoutingStrategy.FALLBACK
+        assert response.routing_strategy == "fallback"
+
+    def test_all_providers_fail_raises(self):
+        factory = _FakeRouterFactory(
+            configured={LLMProviderName.GROQ, LLMProviderName.GEMINI},
+            providers={
+                LLMProviderName.GROQ: _FailingProvider(LLMRateLimitError("429")),
+                LLMProviderName.GEMINI: _FailingProvider(LLMAuthError("401")),
+            },
+        )
+        router = ProviderRouter(factory)
+        with pytest.raises(ProviderRoutingError, match="All providers failed"):
+            router.complete(_RouterPrompt("phase9.extract.availability"))
+
+    def test_router_holds_no_api_keys(self):
+        factory = _FakeRouterFactory(configured=_ALL_PR)
+        router = ProviderRouter(factory)
+        assert not hasattr(router, "api_key")
+        # The router never reads a key itself; it delegates to the factory.
+        assert router.model_name == "router"
+
+    def test_complete_stamps_task_based_routing_on_response(self):
+        factory = _FakeRouterFactory(configured=_ALL_PR)
+        router = ProviderRouter(factory)
+        # tactical → gemini (configured) → mock succeeds offline.
+        response = router.complete(_RouterPrompt("phase9.extract.tactical"))
+        assert response.routing_strategy == "task_based"
+        assert router.last_route is not None
+        assert router.last_route.provider_name == "gemini"
+
+    def test_router_tracks_live_calls(self):
+        """Phase 9.1.1 — the router folds delegate providers' live-call counts in."""
+        factory = _FakeRouterFactory(
+            configured={LLMProviderName.GROQ, LLMProviderName.GEMINI},
+            providers={
+                LLMProviderName.GROQ: _CountingProvider(2),
+                LLMProviderName.GEMINI: _CountingProvider(3),
+            },
+        )
+        router = ProviderRouter(factory)
+        # availability → groq (preferred), which reports 2 live calls.
+        router.complete(_RouterPrompt("phase9.extract.availability"))
+        assert router.live_calls == 2
+        assert router.last_failure is None  # no fallback needed
+
+    def test_fallback_records_failure_and_counts_calls(self):
+        """Phase 9.1.1 — fallback surfaces primary + reason and counts both calls."""
+        factory = _FakeRouterFactory(
+            configured={LLMProviderName.GROQ, LLMProviderName.GEMINI},
+            providers={
+                LLMProviderName.GROQ: _FailingProvider(LLMRateLimitError("429")),
+                LLMProviderName.GEMINI: _CountingProvider(3),
+            },
+        )
+        router = ProviderRouter(factory)
+        response = router.complete(_RouterPrompt("phase9.extract.availability"))
+
+        assert router.last_route is not None
+        assert router.last_route.provider_name == "gemini"
+        assert router.last_route.routing_strategy is RoutingStrategy.FALLBACK
+        assert response.routing_strategy == "fallback"
+        # Diagnostics: which primary was attempted and why it failed. No secrets.
+        assert router.last_failure is not None
+        assert router.last_failure.primary_provider == "groq"
+        assert router.last_failure.reason == "rate_limit"
+        # The successful fallback provider's live calls are counted.
+        assert router.live_calls == 3

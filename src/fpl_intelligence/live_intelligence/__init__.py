@@ -39,8 +39,25 @@ Architectural non-negotiables enforced by this package
 
 5. **Nothing is silently dropped.** Unresolved players, ungrounded quotes and
    schema-rejected payloads are recorded with a reason, not discarded.
+
+6. **Real providers are guarded, not trusted.** Phase 9.1 adds live Gemini /
+   Groq / OpenRouter access behind a response cache, a hard ``max_tokens``
+   cap, a rate limiter and a per-process call budget. Credentials come from a
+   git-ignored ``.env`` only, and every extraction carries the SHA-256 of the
+   prompt template that produced it (see
+   :mod:`fpl_intelligence.live_intelligence.prompt_registry`).
 """
 
+from fpl_intelligence.live_intelligence.llm_settings import (
+    API_KEY_ENV_VAR,
+    DEFAULT_MODELS,
+    LLMProviderName,
+    LLMSettings,
+    MissingAPIKeyError,
+    MissingEnvFileError,
+    get_llm_settings,
+    load_llm_settings,
+)
 from fpl_intelligence.live_intelligence.models import (
     CaptureMethod,
     ExtractionStatus,
@@ -54,6 +71,36 @@ from fpl_intelligence.live_intelligence.models import (
     TacticalEvidence,
     TacticalEvidenceType,
 )
+from fpl_intelligence.live_intelligence.prompt_registry import (
+    PROMPT_HASH_LOCK,
+    PromptFingerprint,
+    fingerprint_prompt,
+    fingerprint_template,
+    hash_prompt_template,
+    verify_prompt_registry,
+)
+from fpl_intelligence.live_intelligence.provider_router import (
+    DEFAULT_TASK_ROUTES,
+    ProviderRouter,
+    ProviderRoutingError,
+    RouteDecision,
+    RouteFailure,
+    RoutingStrategy,
+)
+from fpl_intelligence.live_intelligence.rate_limit import (
+    CallBudget,
+    CallBudgetExceededError,
+    RateLimiter,
+)
+from fpl_intelligence.live_intelligence.response_cache import (
+    CacheEntry,
+    InMemoryResponseCache,
+    NullResponseCache,
+    ResponseCache,
+    SqliteResponseCache,
+    build_cache,
+    make_cache_key,
+)
 from fpl_intelligence.live_intelligence.temporal_ledger import (
     AvailabilityDerivationPolicy,
     LedgerTimestamps,
@@ -65,22 +112,52 @@ from fpl_intelligence.live_intelligence.temporal_ledger import (
 )
 
 __all__ = [
+    "API_KEY_ENV_VAR",
+    "DEFAULT_MODELS",
+    "DEFAULT_TASK_ROUTES",
+    "PROMPT_HASH_LOCK",
     "AvailabilityDerivationPolicy",
+    "CacheEntry",
+    "CallBudget",
+    "CallBudgetExceededError",
     "CaptureMethod",
     "ExtractionStatus",
+    "InMemoryResponseCache",
     "LLMExtractionRun",
+    "LLMProviderName",
+    "LLMSettings",
     "LedgerTemporalClass",
     "LedgerTimestamps",
     "LiveAvailabilityEvidenceLink",
     "LiveIntelligenceRawItem",
     "LiveIntelligenceSource",
     "LiveSourceType",
+    "MissingAPIKeyError",
+    "MissingEnvFileError",
+    "NullResponseCache",
+    "PromptFingerprint",
+    "ProviderRouter",
+    "ProviderRoutingError",
+    "RateLimiter",
+    "ResponseCache",
+    "RouteDecision",
+    "RouteFailure",
+    "RoutingStrategy",
+    "SqliteResponseCache",
     "TacticalDirection",
     "TacticalEvidence",
     "TacticalEvidenceType",
     "TemporalIntegrityError",
     "TemporalLedger",
+    "build_cache",
     "classify_ledger_entry",
     "derive_available_at",
+    "fingerprint_prompt",
+    "fingerprint_template",
+    "get_llm_settings",
+    "hash_prompt_template",
     "is_usable_for_deadline",
+    "load_llm_settings",
+    "make_cache_key",
+    "verify_prompt_registry",
 ]

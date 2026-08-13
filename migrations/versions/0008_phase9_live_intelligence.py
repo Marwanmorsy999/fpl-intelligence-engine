@@ -26,6 +26,7 @@ Create Date: 2026-08-06
 """
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects import postgresql
 
 revision = "0008_phase9_live_intelligence"
 down_revision = "0007_historical_availability"
@@ -89,36 +90,68 @@ _EXTRACTION_STATUS = [
     "provider_error",
 ]
 
-# The Phase 7 sourcereliability enum type already exists; reuse it without
-# attempting to re-create it.
-_SOURCE_RELIABILITY = sa.Enum(
+# The Phase 7 sourcereliability enum type is created by migration 0006. This
+# migration only *references* it, so it must never be re-created here.
+_SOURCE_RELIABILITY = [
     "official",
     "verified_journalist",
     "reliable_journalist",
     "unverified",
-    name="sourcereliability",
-    create_type=False,
+]
+
+#: Enum types owned by this migration, as ``(values, type_name)`` pairs.
+_OWNED_ENUMS = (
+    (_LIVE_SOURCE_TYPE, "livesourcetype"),
+    (_CAPTURE_METHOD, "capturemethod"),
+    (_LEDGER_TEMPORAL_CLASS, "ledgertemporalclass"),
+    (_TACTICAL_EVIDENCE_TYPE, "tacticalevidencetype"),
+    (_TACTICAL_DIRECTION, "tacticaldirection"),
+    (_EXTRACTION_STATUS, "extractionstatus"),
 )
 
 
-def upgrade() -> None:
-    live_source_type = sa.Enum(*_LIVE_SOURCE_TYPE, name="livesourcetype")
-    capture_method = sa.Enum(*_CAPTURE_METHOD, name="capturemethod")
-    ledger_temporal_class = sa.Enum(*_LEDGER_TEMPORAL_CLASS, name="ledgertemporalclass")
-    tactical_evidence_type = sa.Enum(*_TACTICAL_EVIDENCE_TYPE, name="tacticalevidencetype")
-    tactical_direction = sa.Enum(*_TACTICAL_DIRECTION, name="tacticaldirection")
-    extraction_status = sa.Enum(*_EXTRACTION_STATUS, name="extractionstatus")
+def _enum_ref(bind: sa.engine.Connection, values: list[str], type_name: str) -> sa.types.TypeEngine:
+    """Return an enum column type that never emits ``CREATE TYPE`` itself.
 
+    Every enum type used below is created exactly once, explicitly, at the top of
+    :func:`upgrade`. The column definitions must therefore only *reference* the
+    type. Left to its own devices SQLAlchemy also tries to create an inline enum
+    when the owning table is created, which raises ``DuplicateObject`` on
+    PostgreSQL for a type that already exists — either because we just created it
+    or because an earlier migration owns it (``sourcereliability``, from 0006).
+
+    Suppressing that requires ``create_type=False`` on the **dialect-specific**
+    :class:`sqlalchemy.dialects.postgresql.ENUM`. The generic ``sa.Enum``
+    silently swallows ``create_type`` (it is not one of its constructor
+    arguments) and the PostgreSQL implementation it adapts to still defaults to
+    ``create_type=True``, so setting the flag on ``sa.Enum`` has no effect at all.
+
+    Non-PostgreSQL dialects have no native enum type: ``sa.Enum`` renders as
+    ``VARCHAR`` plus a CHECK constraint and emits no ``CREATE TYPE``, so the
+    plain generic type is already safe there.
+    """
+    if bind.dialect.name == "postgresql":
+        return postgresql.ENUM(*values, name=type_name, create_type=False)
+    return sa.Enum(*values, name=type_name)
+
+
+def upgrade() -> None:
     bind = op.get_bind()
-    for enum_type in (
-        live_source_type,
-        capture_method,
-        ledger_temporal_class,
-        tactical_evidence_type,
-        tactical_direction,
-        extraction_status,
-    ):
-        enum_type.create(bind, checkfirst=True)
+
+    # Create the enum types owned by this migration up front and idempotently.
+    # ``checkfirst=True`` makes a partially-applied or re-run migration a no-op
+    # instead of a hard failure. ``sourcereliability`` is deliberately absent:
+    # migration 0006 owns it.
+    for values, type_name in _OWNED_ENUMS:
+        sa.Enum(*values, name=type_name).create(bind, checkfirst=True)
+
+    live_source_type = _enum_ref(bind, _LIVE_SOURCE_TYPE, "livesourcetype")
+    capture_method = _enum_ref(bind, _CAPTURE_METHOD, "capturemethod")
+    ledger_temporal_class = _enum_ref(bind, _LEDGER_TEMPORAL_CLASS, "ledgertemporalclass")
+    tactical_evidence_type = _enum_ref(bind, _TACTICAL_EVIDENCE_TYPE, "tacticalevidencetype")
+    tactical_direction = _enum_ref(bind, _TACTICAL_DIRECTION, "tacticaldirection")
+    extraction_status = _enum_ref(bind, _EXTRACTION_STATUS, "extractionstatus")
+    source_reliability = _enum_ref(bind, _SOURCE_RELIABILITY, "sourcereliability")
 
     # -- sources -----------------------------------------------------------
     op.create_table(
@@ -128,7 +161,7 @@ def upgrade() -> None:
         sa.Column("source_type", live_source_type, nullable=False, server_default="other"),
         sa.Column("url", sa.String(500), nullable=True),
         sa.Column(
-            "reliability", _SOURCE_RELIABILITY, nullable=False, server_default="unverified"
+            "reliability", source_reliability, nullable=False, server_default="unverified"
         ),
         sa.Column(
             "capture_method", capture_method, nullable=False, server_default="manual_paste"

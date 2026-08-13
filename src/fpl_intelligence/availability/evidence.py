@@ -40,16 +40,21 @@ _EVIDENCE_TYPE_CONFIDENCE: dict[str, float] = {
     EvidenceType.TRANSFER_NEWS: 0.40,
 }
 
-# Status ordering — later statuses override earlier ones (more severe).
+# Status ordering — later statuses override earlier ones (more severe / more
+# certain). ``START`` ranks *above* ``AVAILABLE``: an explicit "will start" is a
+# firmer commitment than a vague "is available", so when the two conflict the
+# explicit start wins. ``AVAILABLE`` still sits well below the negative statuses
+# (bench, doubtful, out, ...), so a conflicting ``OUT`` continues to win.
 _STATUS_ORDER: dict[str, int] = {
     AvailabilityStatus.UNKNOWN: 0,
-    AvailabilityStatus.START: 1,
-    AvailabilityStatus.BENCH: 2,
-    AvailabilityStatus.SUSPECT: 3,
-    AvailabilityStatus.QUESTIONABLE: 4,
-    AvailabilityStatus.DOUBTFUL: 5,
-    AvailabilityStatus.OUT: 6,
-    AvailabilityStatus.SUSPENDED: 6,
+    AvailabilityStatus.AVAILABLE: 1,
+    AvailabilityStatus.START: 2,
+    AvailabilityStatus.BENCH: 3,
+    AvailabilityStatus.SUSPECT: 4,
+    AvailabilityStatus.QUESTIONABLE: 5,
+    AvailabilityStatus.DOUBTFUL: 6,
+    AvailabilityStatus.OUT: 7,
+    AvailabilityStatus.SUSPENDED: 7,
 }
 
 

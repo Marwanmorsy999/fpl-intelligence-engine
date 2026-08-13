@@ -55,6 +55,12 @@ class AvailabilityStatus(StrEnum):
     """Canonical availability states for a player-gameweek."""
     START = "start"
     BENCH = "bench"
+    #: Player is reported fit/available/in contention, but not explicitly
+    #: confirmed to start. Added in Phase 9.1.1 so the live extraction layer can
+    #: express "fit but not sure about the starting XI" without collapsing it
+    #: into a semantically wrong status. Maps onto the conservative state
+    #: heuristics in :mod:`fpl_intelligence.availability.state`.
+    AVAILABLE = "available"
     DOUBTFUL = "doubtful"
     QUESTIONABLE = "questionable"
     SUSPECT = "suspect"

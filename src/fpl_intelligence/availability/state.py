@@ -18,8 +18,17 @@ from fpl_intelligence.availability.models import (
 # These are derived from historical FPL data (correlation between announced
 # availability status and actual minutes played), NOT arbitrary constants.
 # Source: FPL price changes + minutes data 2022-23 through 2024-25.
+#
+# NOTE (Phase 9.1.1 / live-engineering heuristic): `AVAILABLE` was added by the
+# live extraction layer and has NO historical calibration yet. The values below
+# are a deliberately conservative interpolation between START (explicitly
+# confirmed to start) and BENCH (confirmed bench role): a player "available but
+# not confirmed to start" is treated as closer to a starter than a bench warmer.
+# These numbers MUST be replaced by empirically calibrated values once Phase 9
+# evidence can be backtested. They are NOT claimed to be empirically validated.
 _STATUS_START_PROB: dict[str, float] = {
     AvailabilityStatus.START: 0.95,
+    AvailabilityStatus.AVAILABLE: 0.80,  # heuristic, pending calibration
     AvailabilityStatus.BENCH: 0.75,
     AvailabilityStatus.SUSPECT: 0.80,
     AvailabilityStatus.QUESTIONABLE: 0.55,
@@ -30,8 +39,11 @@ _STATUS_START_PROB: dict[str, float] = {
 }
 
 # Status → expected minutes multiplier (of normal 60+ minute baseline).
+# See the heuristic note above: `AVAILABLE` is interpolated between START and
+# BENCH and is not yet empirically calibrated.
 _STATUS_MINUTES_FACTOR: dict[str, float] = {
     AvailabilityStatus.START: 1.0,
+    AvailabilityStatus.AVAILABLE: 0.85,  # heuristic, pending calibration
     AvailabilityStatus.BENCH: 0.15,
     AvailabilityStatus.SUSPECT: 0.80,
     AvailabilityStatus.QUESTIONABLE: 0.40,

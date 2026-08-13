@@ -65,6 +65,14 @@ Decision-Facing Output            4 guardrails enforced post-hoc
 | `mock_llm.py` | `MockLLMProvider`: deterministic, rule-based, zero network. Keyword → evidence mapping. `is_mock=True` propagates to `LLMExtractionRun.is_mock`, excluding mock output from validation evidence. Scripted responses for adversarial testing. |
 | `analyst_prompts.py` | Three analyst templates: `TRANSFER_RECOMMENDATION`, `CAPTAINCY_DEBATE`, `DIFFERENTIAL_RISK`. System prompt enforces restatement, no revised projections, citation-or-stay-silent. |
 | `analyst.py` | `AIAnalyst`: reads `DecisionPredictionProvider` read-only, filters evidence pre-deadline, renders prompt, validates output, enforces 4 guardrails: restatement check, no invented baselines, citation validation, empty-evidence→neutral. |
+| `llm_settings.py` *(9.1)* | Secure runtime config. `LLMSettings` holds API keys as `SecretStr`, prints redacted SHA-256 fingerprints only. `load_llm_settings()` reads a git-ignored `.env`; `LLMProviderName` / `model_for` / `has_api_key`. |
+| `llm_providers.py` *(9.1)* | `RealLLMProvider` subclasses for Gemini, Groq, OpenRouter (`httpx`, no vendor SDK) behind the response cache, `max_tokens` cap, input guard, rate limiter and call budget. `ProviderFactory` builds providers wired to all safeguards. |
+| `provider_router.py` *(9.1)* | `ProviderRouter` — task-based routing to the preferred provider, automatic fallback on rate-limit/auth errors, optional round-robin load balancing. Implements `LLMProvider`; never holds API keys, delegates to `ProviderFactory`. |
+| `response_cache.py` *(9.1)* | Read-through cache keyed by `provider|model|prompt_hash|input_hash|max_output_tokens|temperature`. `SqliteResponseCache` persists to a git-ignored local file; cache hits cost zero quota. |
+| `rate_limit.py` *(9.1)* | `RateLimiter` pacing plus `CallBudget` per-process ceiling; cache hits never consume the budget. |
+| `prompt_registry.py` *(9.1)* | Prompt versioning: hashes template + schema version (`prompt_template_hash`), verifies the registry, fingerprints rendered prompts. |
+
+`ProviderRouter` routing defaults: **availability → Groq** (fast structured JSON), **tactical / combined → Gemini** (longer context), with fallback order Groq → Gemini → OpenRouter. Routing metadata (`provider_name`, `model_name`, `routing_strategy` = `task_based` / `fallback` / `round_robin`) is recorded on every `llm_extraction_runs` row and on `LLMResponse` / `ExtractionProvenance`, so the audit trail states *how* a provider was reached, not just *which* provider answered.
 
 ---
 
@@ -307,6 +315,7 @@ assert report.extraction_run.is_mock is True  # excluded from validation evidenc
 | Mock LLM for tests | `MockLLMProvider` used everywhere; `is_mock=True` |
 | Temporal fields enforced | `published_at`, `scraped_at`, `available_at`, `ingested_at` on every ledger row |
 | LLM outputs strictly typed JSON | `extra="forbid"` on all Pydantic models |
+| PostgreSQL enum reconciled with Python enum | Migration `0011_phase912_availability_enum` adds `available` to native `availabilitystatus` enum |
 
 ---
 
@@ -318,3 +327,162 @@ assert report.extraction_run.is_mock is True  # excluded from validation evidenc
 3. Run empirical backtest once a `STRICT_BACKTEST_SAFE` historical source is
    acquired or live data accumulates past a deadline.
 4. Do **not** assign A/B/C until empirical validation is possible.
+
+---
+
+## 14. Phase 9.1.1 — Availability Vocabulary Reconciliation
+
+### 14.1 Canonical status list (as of Phase 9.1.1)
+
+`AvailabilityStatus` (the single canonical vocabulary shared by Phase 7 and
+Phase 9) is now:
+
+```
+start, bench, available, doubtful, questionable, suspect, out, suspended, unknown
+```
+
+`available` was added because the live dry-run against Groq legitimately
+returned `status_mentioned = "available"` for a player who "trained fully and
+is available, but will he start?" Forcing the model to collapse that into
+`start` or `unknown` would be semantically wrong, so the vocabulary — not the
+model — was reconciled. **Any source term is normalised onto these nine values;
+the extraction schema accepts no others** (`flying` → schema rejection).
+
+### 14.2 Phase 7 state mapping (heuristic, pending calibration)
+
+`available` means *fit / available / in contention, but not confirmed to start*.
+It was added to the Phase 7 status-handling tables with a conservative mapping:
+
+| Map | Value | Meaning |
+|-----|-------|---------|
+| `evidence._STATUS_ORDER` | between `START` and `BENCH` | severer than `start`, lest `OUT`/`DOUBTFUL` lose to it |
+| `state._STATUS_START_PROB` | `0.80` | interpolated between `START` (0.95) and `BENCH` (0.75) |
+| `state._STATUS_MINUTES_FACTOR` | `0.85` | interpolated between `START` (1.0) and `BENCH` (0.15) |
+
+> **Important:** the two numeric mappings for `available` are **live-engineering
+> heuristics, not empirically validated constants.** They have no historical
+> calibration yet (Phase 9 data does not exist to fit them). They MUST be
+> replaced by empirically calibrated values once live evidence can be backtested.
+> The code and tests mark them as such and do not claim empirical support.
+
+`historical/event_types.py` now maps `HistoricalEventType.AVAILABLE` →
+`AvailabilityStatus.AVAILABLE` (was `START`).
+
+### 14.3 Prompt template (v1.1.0)
+
+The shared extraction rules now:
+- enumerate the full canonical status list in the `status_mentioned` field;
+- give worked normalisation examples (`ruled out → out`, `suspended →
+  suspended`, `touch and go → doubtful`, `trained fully and available →
+  available`, `expected to start → start`, `back in training but not this
+  weekend → available or bench depending on wording`);
+- instruct the model to use `unknown` **only** when no status can be inferred.
+
+The template version was bumped to `1.1.0` for all three extraction templates,
+and `PROMPT_HASH_LOCK` was updated (see `prompt_registry.py`).
+
+### 14.4 Dry-run / free-tier changes
+
+- **`max_output_tokens` raised 1024 → 2048** (both the `FREE_TIER_*` constant
+  and the `LLMSettings` default). Provider-specific caps still bound the worst
+  case per request.
+- **Truncation warning** — the dry-run prints a warning if
+  `completion_tokens >= max_output_tokens`.
+- **Free-tier accounting** — the dry-run previously reported `live API calls
+  made = 0` under the router because `ProviderRouter` did not expose
+  `live_calls`. The router now folds every delegated provider's `live_calls`
+  (task-based call, retries, and fallback calls) into a single counter, so
+  routed runs report their true usage. Cache hits still cost 0.
+  - **Fallback diagnostics** — when `routing_strategy = fallback`, the dry-run
+    prints the primary provider attempted and a coarse failure reason
+    (`rate_limit`, `auth`, `timeout`, `schema_error` or `other`). No secrets are
+    printed — only provider names and reason categories.
+
+### 14.5 Code-review remediation (findings 1–7)
+
+A `/review uncommitted` pass after closure flagged 10 issues in the Phase 9.1
+layer; findings 1–7 were fixed in source (findings 8–10 deferred as tech debt).
+The shared safeguards behaviour is the most consequential:
+
+- **One budget / limiter / cache per router (was finding 1).** `ProviderRouter`
+  now owns a single `CallBudget`, `RateLimiter` and `ResponseCache` and passes
+  them to `ProviderFactory.create()` for *every* built provider — primary,
+  retry and fallback. Previously each build got fresh per-call instances, so the
+  `LLM_MAX_CALLS_PER_RUN` ceiling was never enforced across routed calls and
+  pacing history reset on every call. The router exposes the shared objects as
+  `router.budget` / `router.rate_limiter` / `router.cache`.
+- **Budget charged per HTTP request (was finding 5).** `RealLLMProvider` no
+  longer pre-charges on `complete()`; `_consume_request_slot()` claims one slot
+  per real attempt inside `_invoke_with_retry()`, so retries count honestly.
+  `live_calls` aliases `live_requests` (every request, not just successes).
+- **Backoff floors at the pacing interval (was finding 7).** `_retry_after_seconds`
+  treats non-positive / invalid `Retry-After` as absent (no zero-delay retry);
+  `_backoff` floors the delay at `RateLimiter.min_interval_seconds` and caps at
+  60s.
+- **Mock keyword matching is word-bounded (was finding 2).** `"available"` no
+  longer matches inside `"unavailable"`; an explicit `"unavailable" → DOUBTFUL`
+  rule was added.
+- **Corroboration ranks `START` above `AVAILABLE` (was finding 3)** — an explicit
+  start beats a vague "available".
+- **`LLM_MODEL` override is primary-only (was finding 4)** — it no longer leaks
+  onto fallback providers (`model_for` applies it only when
+  `target == settings.llm_provider`).
+- **Historical FPL `"a"` code → `AVAILABLE` (was finding 6)** — aligned
+  `_map_fpl_status` with the event-type mapping (`START` was a split-brain).
+
+Regression coverage lives in `tests/unit/test_phase9_finding_remediations.py`.
+
+---
+
+## 15. Phase 9.1.2 — PostgreSQL Enum Migration
+
+### 15.1 Problem
+
+Phase 9.1.1 added `AVAILABLE = "available"` to the Python
+`AvailabilityStatus` enum in `models.py` and updated all SQLAlchemy/alembic
+migrations that define the enum *from metadata* (e.g. `sa.Enum(AvailabilityStatus, ...)`).
+However, the **native PostgreSQL enum type** `availabilitystatus` — created by
+Alembic migration `0006_phase7_availability` — was never altered to include the
+`available` value.
+
+On PostgreSQL, a native enum type cannot store a value it does not know about.
+Any attempt to persist an `availability_evidence` or `availability_events`
+row with `status_mentioned = 'available'` on a pre-9.1.2 database would raise:
+
+```
+psycopg2.errors.InvalidTextRepresentation: enum value "available" is not valid
+```
+
+This was the final blocker for the live extraction path, even though the dry-run
+against the mock provider and the SQLite-backed unit tests all passed (SQLite
+does not enforce native enum membership; its `SAEnum` stores values as `TEXT`
+with a `CHECK` constraint derived from the model metadata, which was already
+updated).
+
+### 15.2 Solution
+
+**Migration file:** `migrations/versions/0011_phase912_availability_enum.py`
+
+The migration runs `ALTER TYPE availabilitystatus ADD VALUE IF NOT EXISTS
+'available' AFTER 'start'` inside an Alembic `autocommit_block`, because
+PostgreSQL does not allow `ALTER TYPE ... ADD VALUE` inside an explicit
+transaction. Key properties:
+
+| Property | Behaviour |
+|----------|-----------|
+| **Idempotent** | `IF NOT EXISTS` guard + pre-check via `_enum_values()` query against `pg_enum` |
+| **Guarded** | Only runs on `postgresql://` dialect; no-op on SQLite/MySQL |
+| **Ordered** | `AFTER 'start'` places it between `start` (0.95 start probability) and `bench` (0.75), matching `_STATUS_ORDER` |
+| **Downgrade** | Documented no-op — PostgreSQL cannot safely drop an enum value that may be referenced by existing rows. The downgrade function is a no-op by design; dropping requires a manual `DROP TYPE` + `CREATE TYPE` + column rewrite after data audit |
+| **Dry-run verified** | `alembic upgrade head` against SQLite passes; all 141 unit tests pass |
+
+### 15.3 Deployment
+
+```bash
+alembic upgrade head
+```
+
+After running, the PostgreSQL `availabilitystatus` enum will contain all nine
+values: `start, bench, available, doubtful, questionable, suspect, out,
+suspended, unknown`.
+

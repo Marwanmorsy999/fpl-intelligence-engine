@@ -148,12 +148,33 @@ OUTPUT SCHEMA (schema_version = "{EXTRACTION_SCHEMA_VERSION}")
   "no_evidence_found": <true only if BOTH arrays are empty>,
   "extraction_notes": "<optional: ambiguities you deliberately did not resolve>"
 }}
+
+AVAILABILITY STATUS SEMANTICS — pick ONE status_mentioned per availability item.
+The allowed values are: {_enum_list(AvailabilityStatus)}
+
+Normalise the source wording onto the canonical status; never invent a value.
+Worked examples:
+  "ruled out for four to six weeks"                        -> "out"
+  "he is suspended for this fixture"                       -> "suspended"
+  "it is touch and go, we will check Saturday morning"     -> "doubtful"
+  "trained fully and he is available, but will he start?"  -> "available"
+  "the manager confirmed he will start"                    -> "start"
+  "back in training but not this weekend"                  -> "available" if the
+     text implies he could be involved soon but not confirmed for this match;
+     -> "bench" if the text says he will be on the bench
+"available" means the player is reported fit/available/in contention, but not
+explicitly confirmed to start.
+Use "unknown" ONLY when no status can be inferred from the text at all — e.g.
+the source states no availability-relevant fact. Never use "unknown" merely
+because you are unsure which of the concrete statuses best fits; pick the most
+defensible concrete one and be honest about it in `reasoning`.
+
 """
 
 
 AVAILABILITY_EXTRACTION = PromptTemplate(
     template_id="phase9.extract.availability",
-    version="1.0.0",
+    version="1.1.0",
     system=(
         "You are a precise information-extraction component inside a Fantasy "
         "Premier League intelligence engine. You convert unstructured English "
@@ -183,7 +204,7 @@ AVAILABILITY_EXTRACTION = PromptTemplate(
 
 TACTICAL_EXTRACTION = PromptTemplate(
     template_id="phase9.extract.tactical",
-    version="1.0.0",
+    version="1.1.0",
     system=(
         "You are a precise information-extraction component inside a Fantasy "
         "Premier League intelligence engine. You convert unstructured English "
@@ -219,7 +240,7 @@ TACTICAL_EXTRACTION = PromptTemplate(
 
 COMBINED_EXTRACTION = PromptTemplate(
     template_id="phase9.extract.combined",
-    version="1.0.0",
+    version="1.1.0",
     system=(
         "You are a precise information-extraction component inside a Fantasy "
         "Premier League intelligence engine. You convert unstructured English "

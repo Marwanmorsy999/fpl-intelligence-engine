@@ -339,11 +339,23 @@ class LLMExtractionRun(Base):
     #: SHA-256 of the fully rendered prompt. Two runs with the same hash and
     #: same model are reproducible.
     prompt_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    #: SHA-256 of the *unrendered* template (Phase 9.1 prompt registry). Groups
+    #: every run that shared a prompt design, independent of its input.
+    prompt_template_hash: Mapped[str | None] = mapped_column(String(64), index=True)
     schema_version: Mapped[str] = mapped_column(String(50), nullable=False)
     temperature: Mapped[float | None] = mapped_column(Float)
     #: True when produced by a test double. Mock runs never yield validation
     #: evidence.
     is_mock: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
+    #: True when the response came from the local response cache instead of the
+    #: provider. Cached runs consumed no free-tier quota; recording it keeps the
+    #: usage audit honest rather than double-counting replays as API calls.
+    from_cache: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    #: Token accounting reported by the provider, when it reports any.
+    prompt_tokens: Mapped[int | None] = mapped_column(Integer)
+    completion_tokens: Mapped[int | None] = mapped_column(Integer)
+    #: The generation cap that was enforced on this call.
+    max_output_tokens: Mapped[int | None] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(
         SAEnum(ExtractionStatus, values_callable=_enum_values), nullable=False
     )
@@ -360,6 +372,11 @@ class LLMExtractionRun(Base):
     )
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     latency_ms: Mapped[int | None] = mapped_column(Integer)
+    #: How this run's provider was selected (Phase 9.1): one of ``task_based``,
+    #: ``fallback`` or ``round_robin``, or NULL when the provider was chosen
+    #: directly without routing. Records *how* the model was reached, so the
+    #: audit trail states the routing decision, not just the provider.
+    routing_strategy: Mapped[str | None] = mapped_column(String(20))
 
     raw_item: Mapped[LiveIntelligenceRawItem] = relationship(back_populates="extraction_runs")
     tactical_evidence: Mapped[list[TacticalEvidence]] = relationship(
@@ -442,6 +459,14 @@ class TacticalEvidence(Base):
         nullable=False,
         default=LedgerTemporalClass.NO_DEADLINE_CONTEXT,
     )
+    # -- method provenance (Phase 9.1) -------------------------------------
+    #: Which prompt and which model produced this signal. Denormalised from
+    #: ``llm_extraction_runs`` on purpose: an evidence row must be able to
+    #: state the method that created it without a join, because the first
+    #: question asked of any extracted claim is "which prompt said that?".
+    prompt_hash: Mapped[str | None] = mapped_column(String(64), index=True)
+    provider_name: Mapped[str | None] = mapped_column(String(100))
+    model_name: Mapped[str | None] = mapped_column(String(200))
     valid_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     valid_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
@@ -491,6 +516,12 @@ class LiveAvailabilityEvidenceLink(Base):
         nullable=False,
         default=LedgerTemporalClass.NO_DEADLINE_CONTEXT,
     )
+    # -- method provenance (Phase 9.1) -------------------------------------
+    #: The Phase 7 evidence row itself is untouched, so the prompt and provider
+    #: that produced it are recorded here, on the Phase 9-owned link.
+    prompt_hash: Mapped[str | None] = mapped_column(String(64), index=True)
+    provider_name: Mapped[str | None] = mapped_column(String(100))
+    model_name: Mapped[str | None] = mapped_column(String(200))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
     )

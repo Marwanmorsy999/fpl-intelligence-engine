@@ -51,6 +51,27 @@ from fpl_intelligence.live_intelligence.schemas import (
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
 
 
+# Compiled word-boundary patterns, memoised per keyword. Word boundaries matter:
+# the rule keyword "available" must *not* fire inside the word "unavailable", and
+# "out" must not fire inside "about". A plain ``substring in text`` check would
+# let a negative statement ("he is unavailable") be misread as a positive one.
+_KEYWORD_PATTERN_CACHE: dict[str, re.Pattern[str]] = {}
+
+
+def _keyword_pattern(keyword: str) -> re.Pattern[str]:
+    cached = _KEYWORD_PATTERN_CACHE.get(keyword)
+    if cached is None:
+        cached = re.compile(r"\b" + re.escape(keyword) + r"\b")
+        _KEYWORD_PATTERN_CACHE[keyword] = cached
+    return cached
+
+
+def _keyword_match(keyword: str, text: str) -> bool:
+    """True when *keyword* appears as a whole word/phrase in *text*."""
+    return bool(_keyword_pattern(keyword).search(text))
+
+
+
 @dataclass(frozen=True)
 class KeywordRule:
     """Maps a keyword to a deterministic piece of extracted evidence.
@@ -111,6 +132,18 @@ DEFAULT_RULES: tuple[KeywordRule, ...] = (
     KeywordRule(
         "on the bench", "availability", EvidenceType.LINEUP_HINT,
         AvailabilityStatus.BENCH, confidence=0.7,
+    ),
+    KeywordRule(
+        "unavailable", "availability", EvidenceType.FITNESS,
+        AvailabilityStatus.DOUBTFUL, confidence=0.75,
+    ),
+    KeywordRule(
+        "unavailable", "availability", EvidenceType.FITNESS,
+        AvailabilityStatus.DOUBTFUL, confidence=0.75,
+    ),
+    KeywordRule(
+        "available", "availability", EvidenceType.FITNESS,
+        AvailabilityStatus.AVAILABLE, confidence=0.7,
     ),
     # -- tactical --
     KeywordRule(
@@ -235,7 +268,7 @@ class MockLLMProvider(LLMProvider):
             lowered = sentence.casefold()
             subject = self._subject_in(sentence)
             for rule in self._rules:
-                if rule.keyword not in lowered:
+                if not _keyword_match(rule.keyword, lowered):
                     continue
                 if rule.kind == "availability" and want_availability:
                     if subject is None:

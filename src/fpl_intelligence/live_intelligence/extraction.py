@@ -31,6 +31,7 @@ from fpl_intelligence.live_intelligence.models import (
     TacticalDirection,
     TacticalEvidence,
 )
+from fpl_intelligence.live_intelligence.prompt_registry import hash_prompt_template
 from fpl_intelligence.live_intelligence.prompts import (
     COMBINED_EXTRACTION,
     LLMPrompt,
@@ -69,6 +70,18 @@ class LLMResponse:
     is_mock: bool
     latency_ms: int | None = None
     temperature: float | None = None
+    #: True when the text was served from the Phase 9.1 response cache rather
+    #: than fetched from the provider. A cached response cost no quota, and the
+    #: distinction is recorded rather than hidden so free-tier usage can be
+    #: audited honestly.
+    from_cache: bool = False
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    max_output_tokens: int | None = None
+    finish_reason: str | None = None
+    #: The routing strategy used to select this provider (Phase 9.1).
+    #: Empty string when the provider was selected directly without routing.
+    routing_strategy: str = ""
 
 
 class LLMProvider(abc.ABC):
@@ -140,6 +153,13 @@ class AvailabilityEvidenceDraft:
     available_at: datetime
     ingested_at: datetime
     temporal_class: str
+    # Method provenance (Phase 9.1), never LLM-supplied. Two extractions are
+    # only comparable when these agree, so they travel with the evidence
+    # rather than living only on the run row.
+    prompt_hash: str | None = None
+    prompt_template_id: str | None = None
+    provider_name: str | None = None
+    model_name: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -152,6 +172,10 @@ class AvailabilityEvidenceDraft:
             "source_quote": self.source_quote,
             "temporal_class": self.temporal_class,
             "available_at": self.available_at.isoformat(),
+            "prompt_hash": self.prompt_hash,
+            "prompt_template_id": self.prompt_template_id,
+            "provider_name": self.provider_name,
+            "model_name": self.model_name,
         }
 
 
@@ -174,6 +198,11 @@ class TacticalEvidenceDraft:
     available_at: datetime
     ingested_at: datetime
     temporal_class: str
+    # Method provenance (Phase 9.1), never LLM-supplied.
+    prompt_hash: str | None = None
+    prompt_template_id: str | None = None
+    provider_name: str | None = None
+    model_name: str | None = None
 
     @property
     def subject_hint(self) -> str | None:
@@ -191,6 +220,10 @@ class TacticalEvidenceDraft:
             "source_quote": self.source_quote,
             "temporal_class": self.temporal_class,
             "available_at": self.available_at.isoformat(),
+            "prompt_hash": self.prompt_hash,
+            "prompt_template_id": self.prompt_template_id,
+            "provider_name": self.provider_name,
+            "model_name": self.model_name,
         }
 
 
@@ -210,6 +243,37 @@ class ExtractionProvenance:
     latency_ms: int | None = None
     requested_at: datetime | None = None
     completed_at: datetime | None = None
+    #: SHA-256 of the *unrendered* template (see :mod:`prompt_registry`).
+    #: ``prompt_hash`` identifies this exact call; ``template_hash`` identifies
+    #: the prompt design that produced it, across every input.
+    template_hash: str = ""
+    from_cache: bool = False
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    max_output_tokens: int | None = None
+    #: The routing strategy used to select the provider (Phase 9.1).
+    #: Empty string when the provider was selected directly without routing.
+    routing_strategy: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "extractor_name": self.extractor_name,
+            "provider_name": self.provider_name,
+            "model_name": self.model_name,
+            "template_id": self.template_id,
+            "template_version": self.template_version,
+            "template_hash": self.template_hash,
+            "prompt_hash": self.prompt_hash,
+            "schema_version": self.schema_version,
+            "is_mock": self.is_mock,
+            "from_cache": self.from_cache,
+            "temperature": self.temperature,
+            "latency_ms": self.latency_ms,
+            "prompt_tokens": self.prompt_tokens,
+            "completion_tokens": self.completion_tokens,
+            "max_output_tokens": self.max_output_tokens,
+            "routing_strategy": self.routing_strategy,
+        }
 
 
 @dataclass
@@ -334,6 +398,7 @@ class PromptedLLMExtractor(LLMExtractor):
     def extract(self, item: LedgerItemView) -> ExtractionResult:
         prompt = self.build_prompt(item)
         requested_at = self._clock()
+        template_hash = hash_prompt_template(self._template)
 
         def _provenance(
             response: LLMResponse | None, completed_at: datetime | None
@@ -347,12 +412,18 @@ class PromptedLLMExtractor(LLMExtractor):
                 template_id=prompt.template_id,
                 template_version=prompt.version,
                 prompt_hash=prompt.hash(),
+                template_hash=template_hash,
                 schema_version=EXTRACTION_SCHEMA_VERSION,
                 is_mock=response.is_mock if response else self._provider.is_mock,
                 temperature=response.temperature if response else None,
                 latency_ms=response.latency_ms if response else None,
                 requested_at=requested_at,
                 completed_at=completed_at,
+                from_cache=response.from_cache if response else False,
+                prompt_tokens=response.prompt_tokens if response else None,
+                completion_tokens=response.completion_tokens if response else None,
+                max_output_tokens=response.max_output_tokens if response else None,
+                routing_strategy=response.routing_strategy if response else "",
             )
 
         # 1. Provider call.
@@ -395,7 +466,7 @@ class PromptedLLMExtractor(LLMExtractor):
             )
 
         # 4. Grounding + temporal inheritance.
-        availability, tactical, rejected = self._ground_and_inherit(item, envelope)
+        availability, tactical, rejected = self._ground_and_inherit(item, envelope, provenance)
 
         if not availability and not tactical:
             status = (
@@ -420,7 +491,10 @@ class PromptedLLMExtractor(LLMExtractor):
     # -- internals ---------------------------------------------------------
 
     def _ground_and_inherit(
-        self, item: LedgerItemView, envelope: ExtractionEnvelope
+        self,
+        item: LedgerItemView,
+        envelope: ExtractionEnvelope,
+        provenance: ExtractionProvenance,
     ) -> tuple[
         list[AvailabilityEvidenceDraft], list[TacticalEvidenceDraft], list[RejectedItem]
     ]:
@@ -429,7 +503,9 @@ class PromptedLLMExtractor(LLMExtractor):
         This is where the no-look-ahead guarantee is realised: the drafts take
         ``published_at`` / ``available_at`` / ``ingested_at`` / ``temporal_class``
         from ``item``, and there is no code path by which a model-supplied value
-        could reach them.
+        could reach them. The same applies to the method provenance
+        (``prompt_hash``, ``provider_name``): it comes from ``provenance``, which
+        the engine computed, never from the model's payload.
         """
         ts: LedgerTimestamps = item.timestamps
         availability: list[AvailabilityEvidenceDraft] = []
@@ -448,7 +524,7 @@ class PromptedLLMExtractor(LLMExtractor):
                     )
                 )
                 continue
-            availability.append(_to_availability_draft(claim, item, ts))
+            availability.append(_to_availability_draft(claim, item, ts, provenance))
 
         for tac_claim in envelope.tactical_evidence:
             tac: ExtractedTacticalEvidence = tac_claim
@@ -472,13 +548,16 @@ class PromptedLLMExtractor(LLMExtractor):
                     )
                 )
                 continue
-            tactical.append(_to_tactical_draft(tac, item, ts))
+            tactical.append(_to_tactical_draft(tac, item, ts, provenance))
 
         return availability, tactical, rejected
 
 
 def _to_availability_draft(
-    claim: ExtractedAvailabilityEvidence, item: LedgerItemView, ts: LedgerTimestamps
+    claim: ExtractedAvailabilityEvidence,
+    item: LedgerItemView,
+    ts: LedgerTimestamps,
+    provenance: ExtractionProvenance,
 ) -> AvailabilityEvidenceDraft:
     return AvailabilityEvidenceDraft(
         player_name=claim.player_name,
@@ -494,11 +573,18 @@ def _to_availability_draft(
         available_at=ts.available_at,
         ingested_at=ts.ingested_at,
         temporal_class=item.temporal_class,
+        prompt_hash=provenance.prompt_hash,
+        prompt_template_id=provenance.template_id,
+        provider_name=provenance.provider_name,
+        model_name=provenance.model_name,
     )
 
 
 def _to_tactical_draft(
-    claim: ExtractedTacticalEvidence, item: LedgerItemView, ts: LedgerTimestamps
+    claim: ExtractedTacticalEvidence,
+    item: LedgerItemView,
+    ts: LedgerTimestamps,
+    provenance: ExtractionProvenance,
 ) -> TacticalEvidenceDraft:
     return TacticalEvidenceDraft(
         evidence_type=str(claim.evidence_type),
@@ -515,6 +601,10 @@ def _to_tactical_draft(
         available_at=ts.available_at,
         ingested_at=ts.ingested_at,
         temporal_class=item.temporal_class,
+        prompt_hash=provenance.prompt_hash,
+        prompt_template_id=provenance.template_id,
+        provider_name=provenance.provider_name,
+        model_name=provenance.model_name,
     )
 
 
@@ -596,9 +686,15 @@ def persist_extraction(
         prompt_template_id=prov.template_id,
         prompt_version=prov.template_version,
         prompt_hash=prov.prompt_hash,
+        prompt_template_hash=prov.template_hash or None,
         schema_version=prov.schema_version,
         temperature=prov.temperature,
         is_mock=prov.is_mock,
+        from_cache=prov.from_cache,
+        prompt_tokens=prov.prompt_tokens,
+        completion_tokens=prov.completion_tokens,
+        max_output_tokens=prov.max_output_tokens,
+        routing_strategy=prov.routing_strategy or None,
         status=result.status,
         error=result.error,
         raw_response=result.raw_response,
@@ -651,6 +747,9 @@ def persist_extraction(
                 extraction_run_id=run.id,
                 source_quote=draft.source_quote,
                 temporal_class=draft.temporal_class,
+                prompt_hash=draft.prompt_hash,
+                provider_name=draft.provider_name,
+                model_name=draft.model_name,
                 created_at=now,
             )
         )
@@ -707,6 +806,9 @@ def persist_extraction(
                 ingested_at=draft_t.ingested_at,
                 extracted_at=now,
                 temporal_class=draft_t.temporal_class,
+                prompt_hash=draft_t.prompt_hash,
+                provider_name=draft_t.provider_name,
+                model_name=draft_t.model_name,
                 valid_from=draft_t.available_at,
                 is_active=True,
             )
