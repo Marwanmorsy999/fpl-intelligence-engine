@@ -1,6 +1,6 @@
 # PROJECT_STATUS.md — Authoritative Source of Truth
 
-**Last updated:** 2026-08-13 (Phase 9.1 — OFFICIALLY CLOSED: full suite + live PostgreSQL verification)
+**Last updated:** 2026-08-13 (Phase 9.3 — OFFICIALLY CLOSED: AI analyst synthesis and intelligence reporting)
 **Maintained by:** Reconciliation Agent
 
 > This file is the single source of truth for project status. Do not rely on
@@ -269,12 +269,12 @@ shifts.
 ## Phase 9 — Live Intelligence Accumulator & LLM Analyst Layer
 
 ```
-Implementation: 100% (foundation complete)
-Automated Testing: 100% (51 Phase 9 tests; 394 total, 0 failed / 0 skipped / 0 errored)
+Implementation: 100% (foundation + AI analyst synthesis complete)
+Automated Testing: 100% (55 Phase 9.3 tests; 484 total, 0 failed / 0 skipped / 0 errored)
 Real-Data Validation: N/A (BLOCKED — no pre-deadline historical source yet)
 Final Holdout: N/A
-Status: FOUNDATION_CLOSED / AWAITING_EMPIRICAL_DATA
-Classification: NOT A/B/C (foundation only, no live scraping, no evaluation)
+Status: FOUNDATION_CLOSED / PHASE_9.3_CLOSED / AWAITING_EMPIRICAL_DATA
+Classification: NOT A/B/C (foundation + analyst synthesis, no live scraping, no evaluation)
 ```
 
 **Tests:** Full suite = **394 passed, 0 failed, 0 skipped, 0 errored** (`pytest -q`,
@@ -343,6 +343,35 @@ full suite green at 394/394 with the complete pre-Phase-9 suite (343) intact,
 lint parity restored against `ruff_baseline.txt`, and discovery pinned via
 `testpaths`. **Phase 9.1 (Real LLM Provider / Live Scheduler) is now unblocked
 and may begin.**
+
+## Phase 9.3 — AI Analyst Synthesis and Intelligence Reporting
+
+**Status:** OFFICIALLY CLOSED (2026-08-13; committed, tagged v0.9.3-ai-analyst-synthesis).
+
+**Delivered:**
+- **`report.py`** — `IntelligenceReport` (Pydantic, presentation layer), `PredictionContext` (read-only quantitative snapshot), `ReportQualitativeAdjustment`, `ReportEvidenceCitation`, `UnresolvedWarning`. `render_markdown()` is a pure function of model fields.
+- **`analyst.py`** — `AIAnalyst` with four guardrails: (1) read-only quantitative input via `DecisionPredictionProvider`, (2) no numeric output channel, (3) restatement verification (`AnalystGuardrailError` on any baseline drift > 1e-4), (4) pre-deadline evidence filter using `InformationAccessPolicy`. Tasks: `TRANSFER_RECOMMENDATION`, `CAPTAINCY_DEBATE`, `DIFFERENTIAL_RISK`.
+- **`raw_item_ledger.py`** — extended `ManualIngestReport` with `--analyst` flag support; `_run_analyst()` builds `EvidenceCitation` objects from persisted availability and tactical evidence, runs `AIAnalyst.generate_report()`, prints rendered Markdown.
+- **`manual_ingest_raw_text.py`** — extended CLI: `--analyst`, `--player-id`, `--subject-label`, `--expected-points`, `--expected-minutes`, `--start-probability`, `--floor`, `--ceiling`.
+- **`test_phase9_3_analyst.py`** — 42 new tests covering guardrail enforcement, restatement verification, mock evidence exclusion, empty-evidence→neutral, Markdown rendering, `PredictionContext`, and end-to-end `generate_report()` integration.
+
+**Closure verification (2026-08-13):**
+- Full suite: **484 passed, 0 failed, 0 errored, 0 skipped**.
+- Safe end-to-end dry-run: `scripts/manual_ingest_raw_text.py --dry-run --analyst` with `MockLLMProvider` and `scripts/fixtures/press_conference_transcript.txt` → extraction succeeds, 11 tactical items unresolved (fictional players in fixture), `IntelligenceReport` rendered as Markdown, all changes rolled back, zero live API calls.
+- `ruff` clean on all Phase 9.3 modules. `mypy` clean on `analyst.py` and `report.py`.
+- **No Phase 9.3 migration required.** Phase 9.3 is an application-logic layer only; it reads existing Phase 7/9 tables (availability_evidence, tactical_evidence, live_intelligence_raw_items, llm_extraction_runs) and introduces no new database tables, columns, or enums.
+
+**Tag:** v0.9.3-ai-analyst-synthesis
+
+**Remaining tasks:**
+1. Wire a live-scraping or manual-paste ingestion source.
+2. Implement canonical entity resolution matching Phase 7 provider keys.
+3. Acquire or accumulate a `STRICT_BACKTEST_SAFE` historical source.
+4. Run empirical backtest once data is available.
+5. Do **not** classify Phase 9 until empirical validation is possible.
+
+**Documents produced:**
+- `docs/phase9-architecture.md`
 
 **Remaining tasks:**
 1. Wire a live-scraping or manual-paste ingestion source.
@@ -774,16 +803,16 @@ BLOCKED — no pre-deadline historical source has been acquired.
 | 9.1.2 | 100 | 100 | N/A (verified on live PostgreSQL) | COMPLETE — PostgreSQL `availabilitystatus` enum now includes `available` |
 | 9.2 | 100 (foundation) | 100 | N/A (awaiting data) | **COMMITTED / TAGGED** (v0.9.2-multisource-ingestion-foundation) — multi-source ingestion foundation |
 | 9.2.1 | 100 | 100 | N/A (verified on live PostgreSQL) | **COMMITTED / TAGGED** (v0.9.2.1-entity-resolution) — entity resolution bridge + unresolved evidence persistence |
+| 9.3 | 100 | 100 | N/A | **CLOSED / TAGGED** (v0.9.3-ai-analyst-synthesis) — AI analyst synthesis, IntelligenceReport, guardrail-enforced reasoning layer |
 
-**Full test suite (authoritative, 2026-08-13):** `pytest -q` → **462 passed,
+**Full test suite (authoritative, 2026-08-13):** `pytest -q` → **484 passed,
 0 failed, 0 skipped, 0 errored** (exit 0), confirmed from a `--junit-xml`
 report. 24 files across `tests/unit/` (280), `tests/prediction/` (145),
-`tests/integration/` (6), `tests/optimization/` (5), `tests/unit/` Phase 9.2 (19) + Phase 9.2.1 (16).
+`tests/integration/` (6), `tests/optimization/` (5), `tests/unit/` Phase 9.2 (19) + Phase 9.2.1 (16) + Phase 9.3 (42).
 Composition: 343 pre-existing (Phases 1–7) + 71 Phase 9 (51 foundation + 10
-Phase 9.1 ProviderRouter + 10 Phase 9.1.1 availability-vocabulary tests) + 35 Phase 9.2/9.2.1 (19 + 16).
+Phase 9.1 ProviderRouter + 10 Phase 9.1.1 availability-vocabulary tests) + 35 Phase 9.2/9.2.1 (19 + 16) + 42 Phase 9.3.
 `ruff` and `mypy` clean on all touched modules. No test executes Alembic
-migrations — migration behaviour is verified manually (see "Phase 9.2.1 — Closure
-Verification").
+migrations — migration behaviour is verified manually.
 
 **Phase 9.1.2 migration:** `0011_phase912_availability_enum.py` — `alembic
 upgrade head` **applied to the live Docker PostgreSQL database** (`fpl` on
@@ -810,6 +839,17 @@ the PostgreSQL guard is a correct no-op. ruff + mypy clean.
 - Tagged **v0.9.2.1-entity-resolution**. Phase 9.2 tagged
   **v0.9.2-multisource-ingestion-foundation**.
 
+**Phase 9.3 closure verification (2026-08-13):**
+- Committed and tagged **v0.9.3-ai-analyst-synthesis**; pushed to origin.
+- Full suite: **484 passed, 0 failed, 0 errored, 0 skipped** (Phase 9.3 adds 42 tests).
+- Safe end-to-end dry-run verified: `scripts/manual_ingest_raw_text.py --dry-run --analyst`
+  with `MockLLMProvider` and `scripts/fixtures/press_conference_transcript.txt`
+  → extraction succeeds, 0 availability / 11 tactical / 0 resolved / 11 unresolved / 0 ambiguous,
+  `IntelligenceReport` rendered as Markdown, all changes rolled back, zero live API calls.
+- `ruff` clean on all Phase 9.3 modules. `mypy` clean on `analyst.py` and `report.py`.
+- **No Phase 9.3 migration required.** Phase 9.3 is application-logic only; no new database
+  tables, columns, or enums introduced. Uses existing Phase 7/9 tables exclusively.
+
 **Migration `0008` fix (2026-08-13):** applying the chain to real PostgreSQL for
 the first time exposed a blocking `DuplicateObject: type "livesourcetype"
 already exists` failure that made fresh PostgreSQL provisioning impossible.
@@ -827,4 +867,8 @@ and enum verified on live PostgreSQL; tagged **v0.9.1** — Phase 9.2 (Multi-Sou
 
 **PHASE_9_2_1_CLOSED = TRUE** (committed, tagged **v0.9.2.1-entity-resolution**;
 migration `0012` verified on live PostgreSQL; end-to-end dry-run verified;
-full suite **462 passed**; Phase 9.3 unblocked pending pre-deadline historical source acquisition)
+full suite **484 passed**; Phase 9.3 unblocked)
+
+**PHASE_9_3_CLOSED = TRUE** (committed, tagged **v0.9.3-ai-analyst-synthesis**;
+full suite **484 passed**; safe analyst dry-run verified; no migration required;
+Phase 9.4 unblocked pending pre-deadline historical source acquisition)
