@@ -489,6 +489,78 @@ class TacticalEvidence(Base):
     )
 
 
+class ResolutionStatus(StrEnum):
+    """Audit status for a single live-intelligence entity-resolution attempt.
+
+    Mirrors :class:`~fpl_intelligence.live_intelligence.entity_resolution.ResolutionStatus`
+    so a row can record exactly how (or whether) an entity was resolved without
+    importing the resolver into the model layer.
+    """
+
+    RESOLVED = "resolved"
+    RESOLVED_BY_EXTERNAL_ID = "resolved_by_external_id"
+    RESOLVED_BY_NAME_TEAM = "resolved_by_name_team"
+    RESOLVED_BY_NAME_UNIQUE = "resolved_by_name_unique"
+    RESOLVED_BY_ALIAS = "resolved_by_alias"
+    UNRESOLVED_PLAYER = "unresolved_player"
+    UNRESOLVED_TEAM = "unresolved_team"
+    AMBIGUOUS_PLAYER = "ambiguous_player"
+
+
+class UnresolvedLiveEvidence(Base):
+    """Append-only audit row for an entity the extractor could not resolve.
+
+    Live evidence ingestion is robust against unresolved entities: evidence is
+    never silently dropped. When a draft names a player/team that resolves to no
+    canonical id (or is ambiguous), the raw item still survives — this row
+    records the verbatim hint, the attempted resolution status, and the quote so
+    the gap can be triaged and backfilled later.
+
+    Phase 9-owned: it does not touch the Phase 7 tables. The raw item itself is
+    persisted by :func:`ingest_raw_text` before extraction, so provenance back
+    to the source text is always intact even when no canonical entity exists.
+    """
+
+    __tablename__ = "unresolved_live_evidence"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    raw_item_id: Mapped[int] = mapped_column(
+        ForeignKey("live_intelligence_raw_items.id"), nullable=False, index=True
+    )
+    source_id: Mapped[int] = mapped_column(
+        ForeignKey("live_intelligence_sources.id"), nullable=False, index=True
+    )
+    extraction_run_id: Mapped[int | None] = mapped_column(
+        ForeignKey("llm_extraction_runs.id"), index=True
+    )
+    evidence_type: Mapped[str | None] = mapped_column(String(50), index=True)
+    player_name: Mapped[str | None] = mapped_column(String(200))
+    team_name: Mapped[str | None] = mapped_column(String(200))
+    status_mentioned: Mapped[str | None] = mapped_column(String(50))
+    quote: Mapped[str | None] = mapped_column(Text)
+    confidence: Mapped[float | None] = mapped_column(Float)
+    prompt_hash: Mapped[str | None] = mapped_column(String(64), index=True)
+    provider_name: Mapped[str | None] = mapped_column(String(100))
+    team_hint: Mapped[str | None] = mapped_column(String(200))
+    resolution_status: Mapped[str] = mapped_column(
+        SAEnum(ResolutionStatus, values_callable=_enum_values),
+        nullable=False,
+        default=ResolutionStatus.UNRESOLVED_PLAYER,
+    )
+    resolution_reason: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_unresolved_evidence_run_type",
+            "extraction_run_id",
+            "evidence_type",
+        ),
+    )
+
+
 class LiveAvailabilityEvidenceLink(Base):
     """Provenance bridge from Phase 7 ``availability_evidence`` to the ledger.
 

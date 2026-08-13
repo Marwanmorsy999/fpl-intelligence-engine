@@ -717,6 +717,41 @@ tests; full suite 421 unit/optimization/prediction + 6 integration, all green).
 
 ---
 
+
+### Phase 9.2.1 — Entity Resolution Bridge & Unresolved Evidence Persistence
+
+**Status:** IMPLEMENTED (2026-08-13). Live evidence ingestion is now robust
+against unresolved entities: evidence is never silently dropped; resolution is
+explicit, auditable, and tolerant of provider-key namespaces.
+
+Delivered:
+1. **Provider-key normalization** (`live_intelligence/entity_resolution.py`):
+   `PROVIDER_KEY_ALIASES` maps `real_fpl` / `fpl` / `real_fpl_bootstrap` /
+   `live_intelligence` (and more) onto a single canonical `fpl_element` key, so
+   the Phase 7 `real_fpl` vs `real_fpl_bootstrap` mismatch no longer breaks
+   resolution. `seed_fpl_external_id` stores/aliases ids under that key
+   (application-side, not a migration).
+2. **Resolution priority** (`build_entity_resolver` → `ResolutionResult`):
+   external id -> canonical id -> name+team+season -> unique name -> alias; else
+   `UNRESOLVED_PLAYER` / `UNRESOLVED_TEAM` / `AMBIGUOUS_PLAYER`.
+3. **`UnresolvedLiveEvidence`** (Phase 9-owned, append-only): one row per
+   unresolved/ambiguous draft, in addition to the run's JSON `unresolved_entities`.
+   The raw item is persisted before extraction, so provenance survives.
+4. **Wiring**: `PersistenceReport` tracks resolved/unresolved/ambiguous;
+   `ManualIngestReport` exposes counts + `unresolved_evidence_ids`; the manual
+   script prints them.
+5. **Migration `0012_phase921_unresolved_evidence`**: creates
+   `unresolved_live_evidence` + native `resolutionstatus` enum. No Phase 7 table
+   touched.
+6. **16 new tests** in `tests/unit/test_phase9_2_1_entity_resolution.py`
+   (provider-key aliases, external-id/name/unique/ambiguous resolution,
+   unresolved player & team persistence, provider-key mismatch tolerance,
+   duplicate skip, raw-item-survives-unresolved).
+
+Backward compatibility: `persist_extraction` still accepts legacy
+`int | None` resolvers. Phase 9.3 (live scrapers / empirical backtest) remains
+BLOCKED — no pre-deadline historical source has been acquired.
+
 ## Summary
 
 | Phase | Impl % | Test % | Real-Data % | Status |
@@ -768,4 +803,4 @@ new revision). Details in "Phase 9.1 — Final Verification and Closure".
 **PHASE_9_0_5_READY = TRUE** (repository verified, infrastructure locked, Phase 9.1 unblocked)
 
 **PHASE_9_1_CLOSED = TRUE** (full 421-test suite green; migration `0011` applied
-and enum verified on live PostgreSQL; tagged **v0.9.1** — Phase 9.2 (Multi-Source Ingestion) is now UNBLOCKED)
+and enum verified on live PostgreSQL; tagged **v0.9.1** — Phase 9.2 (Multi-Source Ingestion) is now UNBLOCKED; Phase 9.2.1 (entity resolution bridge + unresolved evidence) implemented, full suite **462 passed**)

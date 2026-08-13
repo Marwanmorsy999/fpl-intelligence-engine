@@ -20,16 +20,23 @@ from datetime import datetime
 from typing import Any
 
 from pydantic import ValidationError
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from fpl_intelligence.availability.models import AvailabilityEvidence
+from fpl_intelligence.live_intelligence.entity_resolution import (
+    ResolutionResult,
+    ResolutionStatus,
+)
 from fpl_intelligence.live_intelligence.models import (
     ExtractionStatus,
     LedgerTemporalClass,
     LiveAvailabilityEvidenceLink,
+    LiveIntelligenceRawItem,
     LLMExtractionRun,
     TacticalDirection,
     TacticalEvidence,
+    UnresolvedLiveEvidence,
 )
 from fpl_intelligence.live_intelligence.prompt_registry import hash_prompt_template
 from fpl_intelligence.live_intelligence.prompts import (
@@ -386,7 +393,7 @@ class PromptedLLMExtractor(LLMExtractor):
                 "source_name": item.source_name,
                 "source_type": item.source_type,
                 "source_reliability": item.source_reliability,
-                "team_hint": item.team_hint,
+                "team_hint": item.team_hint or "unknown",
             },
             raw_text=item.raw_text,
             source_name=item.source_name,
@@ -629,7 +636,10 @@ def strip_code_fence(text: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-EntityResolver = Any  # Callable[[str, str | None], int | None]; kept loose by design.
+#: The resolver returns a :class:`ResolutionResult` (status + canonical id +
+#: reason). Kept as a typing alias so callers can name it; the historical
+#: ``Callable[[str, str | None], int | None]`` contract is deliberately widened.
+EntityResolver = Any
 
 
 @dataclass
@@ -639,7 +649,11 @@ class PersistenceReport:
     extraction_run_id: int | None = None
     availability_persisted: int = 0
     tactical_persisted: int = 0
+    resolved: int = 0
+    unresolved_count: int = 0
+    ambiguous_count: int = 0
     unresolved: list[dict[str, Any]] = field(default_factory=list)
+    unresolved_evidence_ids: list[int] = field(default_factory=list)
     skipped_duplicates: int = 0
 
     def to_dict(self) -> dict[str, Any]:
@@ -647,7 +661,10 @@ class PersistenceReport:
             "extraction_run_id": self.extraction_run_id,
             "availability_persisted": self.availability_persisted,
             "tactical_persisted": self.tactical_persisted,
-            "unresolved": self.unresolved,
+            "resolved": self.resolved,
+            "unresolved": self.unresolved_count,
+            "ambiguous": self.ambiguous_count,
+            "unresolved_evidence_ids": self.unresolved_evidence_ids,
             "skipped_duplicates": self.skipped_duplicates,
         }
 
@@ -667,8 +684,13 @@ def persist_extraction(
     Entity resolution is injected rather than assumed. Phase 7 was blocked
     precisely because an importer resolved against a different provider key
     than the ingestion path used, so here an unresolvable entity produces an
-    ``unresolved`` entry on the run — visible in every audit — instead of a
+    ``unresolved`` entry on the run — and a persisted
+    :class:`UnresolvedLiveEvidence` row — visible in every audit — instead of a
     guessed id or a silent drop.
+
+    The injected resolver returns a :class:`ResolutionResult`. ``provider``,
+    ``prompt_hash`` and ``team_hint`` are threaded onto the unresolved rows for
+    auditability.
 
     ``availability_evidence.player_id`` is NOT NULL, so an unresolved
     availability draft cannot be persisted at all; that fact is recorded rather
@@ -709,81 +731,140 @@ def persist_extraction(
 
     unresolved: list[dict[str, Any]] = [r.to_dict() for r in result.rejected]
 
+    def _resolve_player(entity: str | None, team: str | None = None) -> ResolutionResult:
+        if resolve_player is None:
+            return ResolutionResult(
+                ResolutionStatus.UNRESOLVED_PLAYER, None,
+                "player could not be resolved to a canonical id",
+            )
+        raw = resolve_player(entity, team)
+        if isinstance(raw, ResolutionResult):
+            return raw
+        if raw is None:
+            return ResolutionResult(
+                ResolutionStatus.UNRESOLVED_PLAYER, None,
+                "player could not be resolved to a canonical id",
+            )
+        return ResolutionResult(ResolutionStatus.RESOLVED, int(raw), "resolved by legacy resolver")
+
+    def _resolve_team(entity: str | None, team: str | None = None) -> ResolutionResult:
+        if resolve_team is None:
+            return ResolutionResult(ResolutionStatus.UNRESOLVED_TEAM, None, "no resolver")
+        # New resolvers accept a ``kind`` kwarg; legacy ones do not.
+        try:
+            raw = resolve_team(entity, team, kind="team")
+        except TypeError:
+            raw = resolve_team(entity, team)
+        if isinstance(raw, ResolutionResult):
+            return raw
+        if raw is None:
+            return ResolutionResult(
+                ResolutionStatus.UNRESOLVED_TEAM, None,
+                "team could not be resolved to a canonical id",
+            )
+        return ResolutionResult(ResolutionStatus.RESOLVED, int(raw), "resolved by legacy resolver")
+
     # -- availability evidence (Phase 7 table + Phase 9 provenance link) ----
+    raw_item = (
+        db.scalar(
+            select(LiveIntelligenceRawItem).where(
+                LiveIntelligenceRawItem.id == result.raw_item_id
+            )
+        )
+        if result.raw_item_id is not None
+        else None
+    )
+    source_id = raw_item.source_id if raw_item is not None else None
     for draft in result.availability:
-        player_id = resolve_player(draft.player_name, draft.team_name) if resolve_player else None
-        if player_id is None or season_id is None:
+        res = _resolve_player(draft.player_name, draft.team_name)
+        if res.resolved and season_id is not None:
+            report.resolved += 1
+            evidence = AvailabilityEvidence(
+                player_id=res.canonical_id,
+                season_id=season_id,
+                gameweek_id=gameweek_id,
+                evidence_type=draft.evidence_type,
+                status_mentioned=draft.status_mentioned,
+                confidence=draft.confidence,
+                description=draft.source_quote,
+                extracted_at=now,
+                valid_from=draft.available_at,
+                is_active=True,
+            )
+            db.add(evidence)
+            db.flush()
+            db.add(
+                LiveAvailabilityEvidenceLink(
+                    availability_evidence_id=evidence.id,
+                    raw_item_id=draft.raw_item_id,
+                    extraction_run_id=run.id,
+                    source_quote=draft.source_quote,
+                    temporal_class=draft.temporal_class,
+                    prompt_hash=draft.prompt_hash,
+                    provider_name=draft.provider_name,
+                    model_name=draft.model_name,
+                    created_at=now,
+                )
+            )
+            report.availability_persisted += 1
+        else:
+            report.unresolved_count += 1
+            if res.status is ResolutionStatus.AMBIGUOUS_PLAYER:
+                report.ambiguous_count += 1
+            row = UnresolvedLiveEvidence(
+                raw_item_id=draft.raw_item_id,
+                source_id=source_id,
+                extraction_run_id=run.id,
+                evidence_type=draft.evidence_type,
+                player_name=draft.player_name,
+                team_name=draft.team_name,
+                status_mentioned=draft.status_mentioned,
+                quote=draft.source_quote,
+                confidence=draft.confidence,
+                prompt_hash=draft.prompt_hash,
+                provider_name=draft.provider_name,
+                resolution_status=res.status,
+                resolution_reason=res.reason,
+            )
+            db.add(row)
+            db.flush()
+            report.unresolved_evidence_ids.append(row.id)
             unresolved.append(
                 {
                     "kind": "availability",
-                    "reason": (
-                        "player could not be resolved to a canonical id"
-                        if player_id is None
-                        else "no canonical season context"
-                    ),
+                    "reason": res.reason,
+                    "resolution_status": str(res.status),
                     "payload": draft.to_dict(),
                 }
             )
-            continue
-
-        evidence = AvailabilityEvidence(
-            player_id=player_id,
-            season_id=season_id,
-            gameweek_id=gameweek_id,
-            evidence_type=draft.evidence_type,
-            status_mentioned=draft.status_mentioned,
-            confidence=draft.confidence,
-            description=draft.source_quote,
-            extracted_at=now,
-            valid_from=draft.available_at,
-            is_active=True,
-        )
-        db.add(evidence)
-        db.flush()
-        db.add(
-            LiveAvailabilityEvidenceLink(
-                availability_evidence_id=evidence.id,
-                raw_item_id=draft.raw_item_id,
-                extraction_run_id=run.id,
-                source_quote=draft.source_quote,
-                temporal_class=draft.temporal_class,
-                prompt_hash=draft.prompt_hash,
-                provider_name=draft.provider_name,
-                model_name=draft.model_name,
-                created_at=now,
-            )
-        )
-        report.availability_persisted += 1
 
     # -- tactical evidence (Phase 9 table) ----------------------------------
     for tactical_draft in result.tactical:
         draft_t: TacticalEvidenceDraft = tactical_draft
-        team_id = (
-            resolve_team(draft_t.team_name, None)
-            if resolve_team and draft_t.team_name
-            else None
-        )
-        player_id = (
-            resolve_player(draft_t.player_name, draft_t.team_name)
-            if resolve_player and draft_t.player_name
-            else None
-        )
-        if draft_t.player_name and player_id is None:
-            unresolved.append(
-                {
-                    "kind": "tactical",
-                    "reason": "player named but not resolvable to a canonical id",
-                    "payload": draft_t.to_dict(),
-                }
-            )
-        if draft_t.team_name and team_id is None:
-            unresolved.append(
-                {
-                    "kind": "tactical",
-                    "reason": "team named but not resolvable to a canonical id",
-                    "payload": draft_t.to_dict(),
-                }
-            )
+        team_id: int | None = None
+        if draft_t.team_name and resolve_team is not None:
+            team_res = _resolve_team(draft_t.team_name, None)
+            team_id = team_res.canonical_id
+            if not team_res.resolved:
+                report.unresolved_count += 1
+                if team_res.status is ResolutionStatus.AMBIGUOUS_PLAYER:
+                    report.ambiguous_count += 1
+                _record_unresolved(
+                    db, report, run.id, source_id, draft_t, team_res, now
+                )
+        player_id: int | None = None
+        if draft_t.player_name and resolve_player is not None:
+            player_res = _resolve_player(draft_t.player_name, draft_t.team_name)
+            player_id = player_res.canonical_id
+            if player_res.resolved:
+                report.resolved += 1
+            else:
+                report.unresolved_count += 1
+                if player_res.status is ResolutionStatus.AMBIGUOUS_PLAYER:
+                    report.ambiguous_count += 1
+                _record_unresolved(
+                    db, report, run.id, source_id, draft_t, player_res, now
+                )
 
         db.add(
             TacticalEvidence(
@@ -821,6 +902,36 @@ def persist_extraction(
     report.unresolved = unresolved
     db.flush()
     return report
+
+
+def _record_unresolved(
+    db: Session,
+    report: PersistenceReport,
+    run_id: int,
+    source_id: int | None,
+    draft: TacticalEvidenceDraft,
+    res: ResolutionResult,
+    now: datetime,
+) -> None:
+    """Persist one ``UnresolvedLiveEvidence`` row for an unresolved tactical draft."""
+    row = UnresolvedLiveEvidence(
+        raw_item_id=draft.raw_item_id,
+        source_id=source_id,
+        extraction_run_id=run_id,
+        evidence_type=draft.evidence_type,
+        player_name=draft.player_name,
+        team_name=draft.team_name,
+        status_mentioned=None,
+        quote=draft.source_quote,
+        confidence=draft.confidence,
+        prompt_hash=draft.prompt_hash,
+        provider_name=draft.provider_name,
+        resolution_status=res.status,
+        resolution_reason=res.reason,
+    )
+    db.add(row)
+    db.flush()
+    report.unresolved_evidence_ids.append(row.id)
 
 
 def usable_drafts(
