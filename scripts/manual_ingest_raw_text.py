@@ -253,7 +253,7 @@ def main(argv: list[str] | None = None) -> int:
         if report.unresolved_evidence_ids:
             print(f"  unresolved_ids      : {report.unresolved_evidence_ids}")
         if args.dry_run:
-            print(f"  dry_run             : True (all changes rolled back)")
+            print("  dry_run             : True (all changes rolled back)")
         print("=" * 78)
         return EXIT_OK
     finally:
