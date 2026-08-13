@@ -486,3 +486,66 @@ After running, the PostgreSQL `availabilitystatus` enum will contain all nine
 values: `start, bench, available, doubtful, questionable, suspect, out,
 suspended, unknown`.
 
+---
+
+## 16. Phase 9.3 — Intelligence Report Synthesis Layer
+
+### 16.1 Overview
+
+Phase 9.3 adds the presentation layer that transforms a `PlayerPrediction` +
+extracted `EvidenceCitation[]` into a human-readable `IntelligenceReport`. It is
+the "what should I do with this intelligence?" step — purely narrative and
+advisory, never feeding numbers back into the quantitative optimizer.
+
+### 16.2 New / Extended Modules
+
+| Module | Responsibility |
+|--------|----------------|
+| `report.py` (new) | `PredictionContext`, `IntelligenceReport`, `ReportConfidence`, `ReportEvidenceCitation`, `ReportQuantitativeBaseline`, `ReportQualitativeAdjustment`, `UnresolvedWarning`. Includes `render_markdown()`. |
+| `analyst.py` (extended) | `AIAnalyst.generate_report()`, `captaincy_report()`, `differential_report()` — delegate to `analyse()` then translate into `IntelligenceReport`. |
+| `scripts/manual_ingest_raw_text.py` (extended) | `--analyst` flag runs synthesis after ingestion and prints the report as Markdown. |
+
+### 16.3 IntelligenceReport Shape
+
+```json
+{
+  "schema_version": "phase9.report.v1",
+  "task": "transfer_recommendation",
+  "headline": "Transfer Recommendation: Player 1",
+  "prediction_context": { "subject_ref": "player:1", "player_id": 1, "gameweek": 1, ... },
+  "qualitative_adjustment": { "direction": "neutral", "magnitude": "low", "cited_evidence_refs": [], "rationale": "..." },
+  "net_assessment": "...",
+  "recommendation": "hold",
+  "confidence": 0.6,
+  "confidence_band": "low",
+  "citations": [ { "evidence_ref": "ev_1", "kind": "availability", ... } ],
+  "unresolved_warnings": [ { "evidence_ref": "ev_1", "kind": "excluded", ... } ],
+  "caveats": ["..."],
+  "generated_at": "2026-08-13T...",
+  "provider_name": "mock",
+  "model_name": "scripted",
+  "is_mock": true,
+  "prompt_hash": "..."
+}
+```
+
+### 16.4 Three Analyst Tasks
+
+1. **Transfer Recommendation** (`AnalystTask.TRANSFER_RECOMMENDATION`) —
+   buy/hold/sell guidance based on injury/tactical news relative to the
+   quantitative baseline.
+2. **Captaincy Debate** (`AnalystTask.CAPTAINCY_DEBATE`) — compares multiple
+   players' baselines side-by-side and argues for/against each as captain.
+3. **Differential Risk** (`AnalystTask.DIFFERENTIAL_RISK`) — evaluates a less-owned
+   player against higher-owned alternatives, weighing information asymmetry.
+
+### 16.5 Constraints Honoured
+
+- `IntelligenceReport` is a **presentation layer** only; it never feeds back into
+  `DecisionPredictionProvider` or any optimizer.
+- `PredictionContext` carries quantitative numbers read-only; the analyst cannot
+  revise them (structural guarantee — it has no output field for a new projection).
+- `MockLLMProvider` is used in all unit tests; no live API calls in `pytest`.
+- `is_mock` and `provider_name`/`model_name` are recorded on every report for
+  auditability.
+

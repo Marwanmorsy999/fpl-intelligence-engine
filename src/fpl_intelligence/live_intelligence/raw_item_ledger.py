@@ -35,6 +35,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from fpl_intelligence.availability.models import AvailabilityEvidence
 from fpl_intelligence.db.models import Gameweek, Season
 from fpl_intelligence.features.temporal import InformationAccessPolicy
 from fpl_intelligence.live_intelligence.entity_resolution import (
@@ -341,6 +342,182 @@ def build_entity_resolver(db: Session):
     season_id=None) -> ResolutionResult``.
     """
     return entity_resolution_build_entity_resolver(db)
+
+
+@dataclass(frozen=True)
+class IngestedEvidenceSnapshot:
+    """Detached, in-memory projection of one persisted evidence row.
+
+    Captured *before* a dry-run rollback, so the Phase 9.3 AI Analyst can reason
+    over exactly the evidence this extraction produced without keeping the
+    transaction open and without leaving a permanent row behind. Every field is
+    a primitive: the snapshot survives ``Session.rollback()`` and expiry because
+    it holds no ORM identity.
+
+    Temporal fields are inherited from the ledger row (the source of truth),
+    never from the model, and ``is_mock`` is carried from the extraction run so
+    scaffold artefacts can never be read as real evidence.
+    """
+
+    evidence_ref: str
+    kind: str  # "availability" | "tactical"
+    subject_ref: str | None
+    summary: str
+    source_name: str
+    source_reliability: str
+    confidence: float
+    direction: str
+    available_at: datetime
+    ingested_at: datetime
+    temporal_class: str
+    source_quote: str | None = None
+    is_mock: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "evidence_ref": self.evidence_ref,
+            "kind": self.kind,
+            "subject_ref": self.subject_ref,
+            "summary": self.summary,
+            "source_name": self.source_name,
+            "source_reliability": self.source_reliability,
+            "confidence": self.confidence,
+            "direction": self.direction,
+            "available_at": self.available_at.isoformat(),
+            "ingested_at": self.ingested_at.isoformat(),
+            "temporal_class": self.temporal_class,
+            "is_mock": self.is_mock,
+        }
+
+
+@dataclass(frozen=True)
+class UnresolvedEvidenceSnapshot:
+    """Detached projection of one ``UnresolvedLiveEvidence`` row.
+
+    Surfaces evidence whose subject could not be resolved to a canonical player
+    or team, so a report can warn about it instead of silently omitting it.
+    """
+
+    evidence_ref: str
+    kind: str
+    subject_hint: str | None
+    resolution_status: str
+    resolution_reason: str
+    quote: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "evidence_ref": self.evidence_ref,
+            "kind": self.kind,
+            "subject_hint": self.subject_hint,
+            "resolution_status": self.resolution_status,
+            "resolution_reason": self.resolution_reason,
+        }
+
+
+def snapshot_evidence(
+    db: Session,
+    *,
+    extraction_run_id: int | None,
+    availability_evidence_ids: list[int],
+    view: LedgerItemView,
+    is_mock: bool,
+) -> list[IngestedEvidenceSnapshot]:
+    """Project the evidence written by one extraction run into detached snapshots.
+
+    Must be called while the writing transaction is still open (the rows are
+    flushed but not necessarily committed). Everything it returns is a plain
+    frozen dataclass, so a subsequent ``rollback()`` cannot invalidate it.
+    """
+    if extraction_run_id is None:
+        return []
+
+    snapshots: list[IngestedEvidenceSnapshot] = []
+    timestamps = view.timestamps
+    temporal_class = view.temporal_class
+
+    if availability_evidence_ids:
+        for ev in db.scalars(
+            select(AvailabilityEvidence)
+            .where(AvailabilityEvidence.id.in_(availability_evidence_ids))
+            .order_by(AvailabilityEvidence.id)
+        ).all():
+            snapshots.append(
+                IngestedEvidenceSnapshot(
+                    evidence_ref=f"avail:{ev.id}",
+                    kind="availability",
+                    subject_ref=f"player:{ev.player_id}",
+                    summary=ev.description or f"{ev.evidence_type}: {ev.status_mentioned}",
+                    source_name=view.source_name,
+                    source_reliability=view.source_reliability,
+                    confidence=float(ev.confidence),
+                    direction="unknown",
+                    available_at=timestamps.available_at,
+                    ingested_at=timestamps.ingested_at,
+                    temporal_class=temporal_class,
+                    source_quote=ev.description,
+                    is_mock=is_mock,
+                )
+            )
+
+    for tac in db.scalars(
+        select(TacticalEvidence)
+        .where(TacticalEvidence.extraction_run_id == extraction_run_id)
+        .order_by(TacticalEvidence.id)
+    ).all():
+        if tac.player_id is not None:
+            subject_ref: str | None = f"player:{tac.player_id}"
+        elif tac.team_id is not None:
+            subject_ref = f"team:{tac.team_id}"
+        else:
+            subject_ref = None
+        snapshots.append(
+            IngestedEvidenceSnapshot(
+                evidence_ref=f"tact:{tac.id}",
+                kind="tactical",
+                subject_ref=subject_ref,
+                summary=(
+                    tac.value_text
+                    or tac.description
+                    or tac.source_quote
+                    or str(tac.evidence_type)
+                ),
+                source_name=view.source_name,
+                source_reliability=view.source_reliability,
+                confidence=float(tac.confidence),
+                direction=str(tac.direction),
+                available_at=timestamps.available_at,
+                ingested_at=timestamps.ingested_at,
+                temporal_class=temporal_class,
+                source_quote=tac.source_quote,
+                is_mock=is_mock,
+            )
+        )
+
+    return snapshots
+
+
+def snapshot_unresolved(
+    db: Session, extraction_run_id: int | None
+) -> list[UnresolvedEvidenceSnapshot]:
+    """Project this run's ``UnresolvedLiveEvidence`` rows into detached snapshots."""
+    if extraction_run_id is None:
+        return []
+    return [
+        UnresolvedEvidenceSnapshot(
+            evidence_ref=f"unresolved:{row.id}",
+            kind="availability" if row.status_mentioned else "tactical",
+            subject_hint=row.player_name or row.team_name,
+            resolution_status=str(row.resolution_status),
+            resolution_reason=row.resolution_reason or "unknown",
+            quote=row.quote,
+        )
+        for row in db.scalars(
+            select(UnresolvedLiveEvidence)
+            .where(UnresolvedLiveEvidence.extraction_run_id == extraction_run_id)
+            .order_by(UnresolvedLiveEvidence.id)
+        ).all()
+    ]
 
 
 def collect_evidence_ids(db: Session, extraction_run_id: int | None) -> tuple[list[int], list[int]]:

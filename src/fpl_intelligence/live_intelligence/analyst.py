@@ -53,6 +53,15 @@ from fpl_intelligence.live_intelligence.extraction import (
 )
 from fpl_intelligence.live_intelligence.models import LedgerTemporalClass
 from fpl_intelligence.live_intelligence.prompts import LLMPrompt, PromptTemplate
+from fpl_intelligence.live_intelligence.report import (
+    IntelligenceReport,
+    PredictionContext,
+    ReportConfidence,
+    ReportEvidenceCitation,
+    ReportQualitativeAdjustment,
+    ReportQuantitativeBaseline,
+    UnresolvedWarning,
+)
 from fpl_intelligence.live_intelligence.schemas import ANALYST_SCHEMA_VERSION, AnalystOutput
 from fpl_intelligence.live_intelligence.temporal_ledger import Clock, utc_now
 from fpl_intelligence.optimization.provider import (
@@ -301,6 +310,14 @@ class AIAnalyst:
     def provider(self) -> LLMProvider:
         return self._provider
 
+    def _confidence_band(self, confidence: float) -> str:
+        """Map a 0-1 confidence score to a coarse ReportConfidence band."""
+        if confidence >= 0.8:
+            return ReportConfidence.HIGH
+        if confidence >= 0.5:
+            return ReportConfidence.MODERATE
+        return ReportConfidence.LOW
+
     # -- baseline construction --------------------------------------------
 
     def baseline_for(
@@ -331,6 +348,210 @@ class AIAnalyst:
         )
 
     # -- public tasks ------------------------------------------------------
+
+    def generate_report(
+        self,
+        *,
+        prediction: PredictionContext,
+        evidence: list[EvidenceCitation],
+        task: AnalystTask = AnalystTask.TRANSFER_RECOMMENDATION,
+        deadline: datetime | None,
+        subject_label: str | None = None,
+        notes: str = "",
+    ) -> IntelligenceReport:
+        """Synthesise a user-facing :class:`IntelligenceReport` from a single
+        :class:`PredictionContext` and resolved evidence.
+
+        This is a convenience wrapper around :meth:`analyse` that accepts a
+        :class:`PredictionContext` (Phase 9.3's typed prediction container)
+        instead of a list of :class:`QuantitativeBaseline`. The baseline is
+        projected, the analyst is run through the full guardrail pipeline, and
+        the validated :class:`AnalystOutput` is translated into the presentation
+        model :class:`IntelligenceReport`.
+
+        Args:
+            prediction: The quantitative prediction context (read-only).
+            evidence: Pre-resolved evidence citations.
+            task: Which synthesis task to run.
+            deadline: Gameweek deadline for evidence filtering.
+            subject_label: Human-readable label; defaults to the prediction's
+                display name or subject ref.
+            notes: Free-form notes injected into the analyst context.
+
+        Returns:
+            A fully validated :class:`IntelligenceReport` ready for Markdown
+            rendering or CLI display.
+        """
+        label = subject_label or prediction.display_name or prediction.subject_ref
+        baseline = QuantitativeBaseline(
+            subject_ref=prediction.subject_ref or f"player:{prediction.player_id}",
+            player_id=prediction.player_id,
+            gameweek=prediction.gameweek,
+            expected_points=prediction.expected_points,
+            expected_minutes=prediction.expected_minutes,
+            start_probability=prediction.start_probability,
+            floor=prediction.floor,
+            ceiling=prediction.ceiling,
+            model_confidence=prediction.model_confidence,
+            fixture_count=prediction.fixture_count,
+            display_name=prediction.display_name,
+        )
+        analyst_report = self.analyse(
+            AnalystContext(
+                task=task,
+                subject_label=label,
+                gameweek=prediction.gameweek,
+                deadline=deadline,
+                baselines=[baseline],
+                evidence=evidence,
+                notes=notes,
+            )
+        )
+        return self._report_from_analyst(analyst_report, prediction)
+
+    def captaincy_report(
+        self,
+        *,
+        predictions: list[PredictionContext],
+        evidence: list[EvidenceCitation],
+        deadline: datetime | None,
+        subject_label: str | None = None,
+        notes: str = "",
+    ) -> IntelligenceReport:
+        """Synthesise a captaincy-debate report across two or more candidates."""
+        if len(predictions) < 2:
+            raise ValueError(
+                "A captaincy debate needs at least two candidates; "
+                f"got {len(predictions)}."
+            )
+        baselines = [
+            QuantitativeBaseline(
+                subject_ref=p.subject_ref or f"player:{p.player_id}",
+                player_id=p.player_id,
+                gameweek=p.gameweek,
+                expected_points=p.expected_points,
+                expected_minutes=p.expected_minutes,
+                start_probability=p.start_probability,
+                floor=p.floor,
+                ceiling=p.ceiling,
+                model_confidence=p.model_confidence,
+                fixture_count=p.fixture_count,
+                display_name=p.display_name,
+            )
+            for p in predictions
+        ]
+        label = subject_label or " vs ".join(
+            b.display_name or b.subject_ref for b in baselines
+        )
+        analyst_report = self.analyse(
+            AnalystContext(
+                task=AnalystTask.CAPTAINCY_DEBATE,
+                subject_label=label,
+                gameweek=predictions[0].gameweek,
+                deadline=deadline,
+                baselines=baselines,
+                evidence=evidence,
+                notes=notes,
+            )
+        )
+        primary = predictions[0]
+        return self._report_from_analyst(analyst_report, primary)
+
+    def differential_report(
+        self,
+        *,
+        prediction: PredictionContext,
+        evidence: list[EvidenceCitation],
+        deadline: datetime | None,
+        subject_label: str | None = None,
+        notes: str = "",
+    ) -> IntelligenceReport:
+        """Synthesise a differential-risk profile for a single pick."""
+        return self.generate_report(
+            prediction=prediction,
+            evidence=evidence,
+            task=AnalystTask.DIFFERENTIAL_RISK,
+            deadline=deadline,
+            subject_label=subject_label,
+            notes=notes,
+        )
+
+    # -- translation -------------------------------------------------------
+
+    def _report_from_analyst(
+        self, analyst_report: AnalystReport, prediction: PredictionContext
+    ) -> IntelligenceReport:
+        """Translate a validated AnalystReport into an IntelligenceReport."""
+        output = analyst_report.output
+        ctx = analyst_report.context
+        pc = prediction
+
+        citations = [
+            ReportEvidenceCitation(
+                evidence_ref=e.evidence_ref,
+                kind=e.kind,
+                subject_ref=e.subject_ref,
+                summary=e.summary,
+                source_name=e.source_name,
+                source_reliability=e.source_reliability,
+                confidence=e.confidence,
+                direction=e.direction,
+            )
+            for e in ctx.evidence
+        ]
+
+        unresolved_warnings = [
+            UnresolvedWarning(
+                evidence_ref=rec.get("evidence_ref", ""),
+                kind="excluded",
+                subject_hint=rec.get("subject_hint"),
+                resolution_status="excluded",
+                resolution_reason=rec.get("reason", "unknown"),
+            )
+            for rec in analyst_report.excluded_evidence
+        ]
+
+        confidence_band = self._confidence_band(output.confidence)
+
+        return IntelligenceReport(
+            schema_version="phase9.report.v1",
+            task=str(ctx.task),
+            headline=output.headline,
+            prediction_context=ReportQuantitativeBaseline(
+                subject_ref=pc.subject_ref or f"player:{pc.player_id}",
+                player_id=pc.player_id,
+                gameweek=pc.gameweek,
+                expected_points=pc.expected_points,
+                expected_minutes=pc.expected_minutes,
+                start_probability=pc.start_probability,
+                floor=pc.floor,
+                ceiling=pc.ceiling,
+                fixture_count=pc.fixture_count,
+                display_name=pc.display_name or ctx.subject_label,
+            ),
+            qualitative_adjustment=ReportQualitativeAdjustment(
+                direction=output.qualitative_adjustment.direction,
+                magnitude=output.qualitative_adjustment.magnitude,
+                cited_evidence_refs=list(
+                    output.qualitative_adjustment.cited_evidence_refs
+                ),
+                rationale=output.qualitative_adjustment.rationale,
+            ),
+            net_assessment=output.net_assessment,
+            recommendation=output.recommendation,
+            confidence=output.confidence,
+            confidence_band=confidence_band,
+            citations=citations,
+            unresolved_warnings=unresolved_warnings,
+            caveats=list(output.caveats),
+            generated_at=analyst_report.generated_at,
+            provider_name=analyst_report.provider_name,
+            model_name=analyst_report.model_name,
+            is_mock=analyst_report.is_mock,
+            prompt_hash=analyst_report.prompt_hash,
+        )
+
+    # -- existing public tasks --------------------------------------------
 
     def transfer_recommendation(
         self,

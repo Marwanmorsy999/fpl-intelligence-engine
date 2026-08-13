@@ -41,6 +41,11 @@ Usage
         --published-at 2025-08-15T14:00:00Z \\
         --season-code 2025-26 --gameweek-number 3
 
+    python scripts/manual_ingest_raw_text.py \\
+        --source-id journalist_manual --text "Salah is ruled out." \\
+        --published-at 2025-08-15T14:00:00Z --analyst \\
+        --subject-label "Mohamed Salah" --player-id 1
+
 Exit codes: ``0`` success (including a clean duplicate skip), ``1`` usage /
 configuration error, ``2`` provider error.
 """
@@ -50,16 +55,25 @@ import argparse
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _SRC = _REPO_ROOT / "src"
 if str(_SRC) not in sys.path:  # pragma: no cover - script bootstrap
     sys.path.insert(0, str(_SRC))
 
+from fpl_intelligence.live_intelligence.analyst import (  # noqa: E402
+    AIAnalyst,
+    EvidenceCitation,
+)
 from fpl_intelligence.live_intelligence.mock_llm import MockLLMProvider  # noqa: E402
 from fpl_intelligence.live_intelligence.raw_item_ledger import (  # noqa: E402
+    ManualIngestReport,
     ManualIngestStatus,
     ingest_raw_text,
+)
+from fpl_intelligence.live_intelligence.report import (  # noqa: E402
+    PredictionContext,
 )
 from fpl_intelligence.live_intelligence.source_registry import SourceType  # noqa: E402
 
@@ -129,6 +143,54 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "No rows are permanently written, but counts and IDs are printed.",
     )
     parser.add_argument(
+        "--analyst",
+        action="store_true",
+        help="After ingestion, run the Phase 9.3 AI Analyst synthesis and "
+        "print the IntelligenceReport as Markdown. Uses the mock provider by "
+        "default; combine with --provider real for a live model call.",
+    )
+    parser.add_argument(
+        "--player-id",
+        type=int,
+        default=1,
+        help="Player ID for the analyst prediction context (used with --analyst).",
+    )
+    parser.add_argument(
+        "--expected-points",
+        type=float,
+        default=5.5,
+        help="Expected points from the quantitative engine for the analyst.",
+    )
+    parser.add_argument(
+        "--expected-minutes",
+        type=float,
+        default=60.0,
+        help="Expected minutes from the quantitative engine for the analyst.",
+    )
+    parser.add_argument(
+        "--start-probability",
+        type=float,
+        default=0.8,
+        help="Start probability from the quantitative engine for the analyst.",
+    )
+    parser.add_argument(
+        "--floor",
+        type=float,
+        default=2.0,
+        help="Floor (P10) from the quantitative engine for the analyst.",
+    )
+    parser.add_argument(
+        "--ceiling",
+        type=float,
+        default=10.0,
+        help="Ceiling (P90) from the quantitative engine for the analyst.",
+    )
+    parser.add_argument(
+        "--subject-label",
+        default=None,
+        help="Human-readable subject label for the analyst report.",
+    )
+    parser.add_argument(
         "--db",
         type=Path,
         default=None,
@@ -175,6 +237,137 @@ def _build_session(db_path: Path | None):
     Base.metadata.create_all(engine)
     SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     return SessionLocal
+
+
+def _evidence_citations_from_report(
+    db: Any, manifest: ManualIngestReport, raw_text: str
+) -> list[EvidenceCitation]:
+    """Build EvidenceCitation objects from the extracted evidence, for the analyst.
+
+    Reads the persisted availability and tactical evidence rows that were just
+    extracted, projecting them into the analyst's citation shape. Temporal
+    fields are inherited from the ledger row (the source of truth), never from
+    the LLM, and ``is_mock`` is carried from the extraction run.
+    """
+    from sqlalchemy import select
+
+    from fpl_intelligence.availability.models import AvailabilityEvidence
+    from fpl_intelligence.live_intelligence.models import (
+        LiveIntelligenceRawItem,
+        LLMExtractionRun,
+        TacticalEvidence,
+    )
+    from fpl_intelligence.live_intelligence.temporal_ledger import (
+        LedgerTemporalClass,
+        LedgerTimestamps,
+    )
+
+    citations: list[EvidenceCitation] = []
+
+    if manifest.extraction_run_id is not None:
+        run = db.get(LLMExtractionRun, manifest.extraction_run_id)
+        raw_item = (
+            db.get(LiveIntelligenceRawItem, manifest.raw_item_id)
+            if manifest.raw_item_id is not None
+            else None
+        )
+        if raw_item is not None:
+            ts = LedgerTimestamps(
+                scraped_at=raw_item.scraped_at,
+                ingested_at=raw_item.ingested_at,
+                available_at=raw_item.available_at,
+                published_at=raw_item.published_at,
+                event_time=raw_item.event_time,
+            )
+            is_mock = run.is_mock if run else True
+
+            for ev in db.scalars(
+                select(AvailabilityEvidence).where(
+                    AvailabilityEvidence.id.in_(manifest.availability_evidence_ids)
+                )
+            ).all():
+                citations.append(
+                    EvidenceCitation(
+                        evidence_ref=f"avail:{ev.id}",
+                        kind="availability",
+                        summary=ev.description or ev.status_mentioned,
+                        source_name=run.provider_name if run else "mock",
+                        source_reliability="unverified",
+                        confidence=ev.confidence,
+                        available_at=ts.available_at,
+                        ingested_at=ts.ingested_at,
+                        temporal_class=raw_item.temporal_class or LedgerTemporalClass.PRE_DEADLINE,
+                        direction="unknown",
+                        subject_ref=f"player:{ev.player_id}",
+                        source_quote=ev.description,
+                        is_mock=is_mock,
+                    )
+                )
+
+            for ev in db.scalars(
+                select(TacticalEvidence).where(
+                    TacticalEvidence.id.in_(manifest.tactical_evidence_ids)
+                )
+            ).all():
+                citations.append(
+                    EvidenceCitation(
+                        evidence_ref=f"tact:{ev.id}",
+                        kind="tactical",
+                        summary=ev.description or ev.value_text or ev.evidence_type,
+                        source_name=run.provider_name if run else "mock",
+                        source_reliability="unverified",
+                        confidence=ev.confidence,
+                        available_at=ts.available_at,
+                        ingested_at=ts.ingested_at,
+                        temporal_class=raw_item.temporal_class or LedgerTemporalClass.PRE_DEADLINE,
+                        direction=ev.direction,
+                        subject_ref=(
+                            f"player:{ev.player_id}" if ev.player_id else None
+                        ),
+                        source_quote=ev.source_quote,
+                        is_mock=is_mock,
+                    )
+                )
+
+    return citations
+
+
+def _run_analyst(
+    db: Any,
+    provider: Any,
+    manifest: ManualIngestReport,
+    args: argparse.Namespace,
+    raw_text: str,
+) -> Any:
+    """Run the Phase 9.3 AI Analyst synthesis and return an IntelligenceReport."""
+    from fpl_intelligence.live_intelligence.analyst import AnalystTask
+    from fpl_intelligence.live_intelligence.temporal_ledger import utc_now as _utc_now
+
+    analyst = AIAnalyst(provider, allow_mock_evidence=True, strict_leakage=False)
+
+    prediction = PredictionContext(
+        player_id=args.player_id,
+        gameweek=args.gameweek_number or 1,
+        expected_points=args.expected_points,
+        expected_minutes=args.expected_minutes,
+        start_probability=args.start_probability,
+        floor=args.floor,
+        ceiling=args.ceiling,
+        model_confidence=1.0,
+        fixture_count=1,
+        subject_ref=f"player:{args.player_id}",
+        display_name=args.subject_label or f"Player {args.player_id}",
+    )
+
+    evidence = _evidence_citations_from_report(db, manifest, raw_text)
+
+    return analyst.generate_report(
+        prediction=prediction,
+        evidence=evidence,
+        task=AnalystTask.TRANSFER_RECOMMENDATION,
+        deadline=_utc_now(),
+        subject_label=args.subject_label,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -255,6 +448,22 @@ def main(argv: list[str] | None = None) -> int:
         if args.dry_run:
             print("  dry_run             : True (all changes rolled back)")
         print("=" * 78)
+
+        if args.analyst:
+            print()
+            intel_report = _run_analyst(
+                db,
+                provider,
+                report,
+                args,
+                text,
+            )
+            print(intel_report.render_markdown())
+            print()
+            print("=" * 78)
+            print("PHASE 9.3 — INTELLIGENCE REPORT (Markdown above)")
+            print("=" * 78)
+
         return EXIT_OK
     finally:
         db.close()

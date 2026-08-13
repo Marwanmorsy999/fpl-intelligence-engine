@@ -175,13 +175,13 @@ availability importer resolves under `real_fpl_bootstrap`, a **different
 `PlayerExternalId` key**, so in production **all 2,447 are UNMATCHED**
 (`availability_events = 0`). Both logs describe the same 2,447 records.
 **Forensic resolver audit** (`docs/phase7-2-forensic-audit.json`, conservation
-`fetched == Σ terminal`, `conservation_ok=true`):
+`fetched == Î£ terminal`, `conservation_ok=true`):
 - Production path: `fetched=2447, matched=0, unmatched=2447, persisted=0`.
 - Seeded harness: `fetched=2447, matched=2447, skipped_temporal_invalid=169,
   persisted=2278` (5 structured derived tables remain 0 — no such columns in
   `players_raw.csv`).
 **Real-data status:** In the production path Phase 7 availability tables are
-EMPTY, so BASELINE ≡ PHASE7 and no comparison is possible. The "PARTIALLY
+EMPTY, so BASELINE ≥ PHASE7 and no comparison is possible. The "PARTIALLY
 TESTABLE" status from the prior update is **revoked** by the forensic re-audit.
 The honest classification is **BLOCKED — INSUFFICIENT HISTORICAL AVAILABILITY
 DATA** (not A/B/C). See `docs/phase7-empirical-validation-report.md` §18.
@@ -324,7 +324,7 @@ lost, deleted, or hidden from discovery. Findings:
 1. `tests/conftest.py` — removed a **dead** `fpl_intelligence.live_intelligence.models`
    import block added during Phase 9. It was unused (`test_phase9.py` imports
    those models itself and defines its own shadowing `db_session` fixture), and
-   it had introduced 6 new lint errors (1×I001, 5×F401) plus needless coupling
+   it had introduced 6 new lint errors (1ÃI001, 5ÃF401) plus needless coupling
    of the shared Phase 1–7 fixture to Phase 9 tables. `conftest.py` is now back
    to exact parity with `ruff_baseline.txt` (2 pre-existing E501s only).
 2. `pyproject.toml` — added `testpaths = ["tests"]` under
