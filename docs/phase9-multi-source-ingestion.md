@@ -194,13 +194,28 @@ python scripts/manual_ingest_raw_text.py \
     --source-id press_conference_manual --file transcript.txt \
     --published-at 2025-08-15T14:00:00Z \
     --season-code 2025-26 --gameweek-number 3
+
+python scripts/manual_ingest_raw_text.py \
+    --source-id press_conference_manual \
+    --file scripts/fixtures/press_conference_transcript.txt \
+    --published-at 2026-08-14T09:00:00Z \
+    --dry-run
 ```
+
+The `--dry-run` example uses the bundled fixture transcript and the deterministic
+`MockLLMProvider` (the default). It exercises the full extraction pipeline
+without making network calls or writing to the database.
 
 Arguments: `--source-id` (required), `--file` *or* `--text` (required),
 `--published-at` (required, ISO-8601), `--url`, `--external-id`, `--title`,
 `--source-type`, `--available-at`, `--temporal-class`, `--season-code`,
 `--gameweek-number`, `--provider mock|real`, `--db` (SQLite path; defaults to
-in-memory).
+in-memory), `--dry-run`.
+
+`--dry-run` performs extraction and persistence inside a transaction and rolls
+back at the end. Counts and IDs are printed as if the run had been committed, but
+no rows are permanently written. This is safe to run against any database
+(including the live `fpl` PostgreSQL) because all changes are discarded.
 
 Defaults to the deterministic `MockLLMProvider` (no network calls, no quota).
 `--provider real` builds a guarded real provider from `.env` settings.

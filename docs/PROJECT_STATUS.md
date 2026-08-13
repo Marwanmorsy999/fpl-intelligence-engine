@@ -772,16 +772,18 @@ BLOCKED — no pre-deadline historical source has been acquired.
 | 9.1 | 100 (implementation) | 100 | N/A (awaiting data) | **OFFICIALLY CLOSED** (2026-08-13, tagged v0.9.1) / not A/B/C |
 | 9.1.1 | 100 | 100 | N/A (heuristics pending calibration) | COMPLETE — availability vocabulary reconciliation |
 | 9.1.2 | 100 | 100 | N/A (verified on live PostgreSQL) | COMPLETE — PostgreSQL `availabilitystatus` enum now includes `available` |
+| 9.2 | 100 (foundation) | 100 | N/A (awaiting data) | **COMMITTED / TAGGED** (v0.9.2-multisource-ingestion-foundation) — multi-source ingestion foundation |
+| 9.2.1 | 100 | 100 | N/A (verified on live PostgreSQL) | **COMMITTED / TAGGED** (v0.9.2.1-entity-resolution) — entity resolution bridge + unresolved evidence persistence |
 
-**Full test suite (authoritative, 2026-08-13):** `pytest -q` → **414 passed,
+**Full test suite (authoritative, 2026-08-13):** `pytest -q` → **462 passed,
 0 failed, 0 skipped, 0 errored** (exit 0), confirmed from a `--junit-xml`
-report. 21 files across `tests/unit/` (258), `tests/prediction/` (145),
-`tests/integration/` (6), `tests/optimization/` (5).
+report. 24 files across `tests/unit/` (280), `tests/prediction/` (145),
+`tests/integration/` (6), `tests/optimization/` (5), `tests/unit/` Phase 9.2 (19) + Phase 9.2.1 (16).
 Composition: 343 pre-existing (Phases 1–7) + 71 Phase 9 (51 foundation + 10
-Phase 9.1 ProviderRouter + 10 Phase 9.1.1 availability-vocabulary tests).
+Phase 9.1 ProviderRouter + 10 Phase 9.1.1 availability-vocabulary tests) + 35 Phase 9.2/9.2.1 (19 + 16).
 `ruff` and `mypy` clean on all touched modules. No test executes Alembic
-migrations — migration behaviour is verified manually (see "Phase 9.1 — Final
-Verification and Closure").
+migrations — migration behaviour is verified manually (see "Phase 9.2.1 — Closure
+Verification").
 
 **Phase 9.1.2 migration:** `0011_phase912_availability_enum.py` — `alembic
 upgrade head` **applied to the live Docker PostgreSQL database** (`fpl` on
@@ -791,6 +793,22 @@ upgrade head` **applied to the live Docker PostgreSQL database** (`fpl` on
 inserting `'available'` into an `availabilitystatus` column succeeds;
 idempotency verified by re-running `upgrade head`. Also passes on SQLite, where
 the PostgreSQL guard is a correct no-op. ruff + mypy clean.
+
+**Phase 9.2.1 closure verification (2026-08-13):**
+- `alembic upgrade head` applied to live PostgreSQL (`fpl` on `postgres:16-alpine`);
+  `alembic_version` = `0012_phase921_unresolved_evidence` (head).
+- `unresolved_live_evidence` table verified: all 15 columns present, 6 indexes,
+  FKs to `live_intelligence_raw_items`, `live_intelligence_sources`,
+  `llm_extraction_runs`.
+- `resolutionstatus` enum verified: `{resolved, resolved_by_external_id,
+  resolved_by_name_team, resolved_by_name_unique, resolved_by_alias,
+  unresolved_player, unresolved_team, ambiguous_player}` (8 values).
+- End-to-end dry-run verified: `scripts/manual_ingest_raw_text.py --dry-run`
+  with `MockLLMProvider` and `scripts/fixtures/press_conference_transcript.txt`
+  → 0 availability, 11 tactical, 0 resolved, 11 unresolved, 0 ambiguous.
+  All changes rolled back; no permanent fixture rows in the live database.
+- Tagged **v0.9.2.1-entity-resolution**. Phase 9.2 tagged
+  **v0.9.2-multisource-ingestion-foundation**.
 
 **Migration `0008` fix (2026-08-13):** applying the chain to real PostgreSQL for
 the first time exposed a blocking `DuplicateObject: type "livesourcetype"
@@ -803,4 +821,10 @@ new revision). Details in "Phase 9.1 — Final Verification and Closure".
 **PHASE_9_0_5_READY = TRUE** (repository verified, infrastructure locked, Phase 9.1 unblocked)
 
 **PHASE_9_1_CLOSED = TRUE** (full 421-test suite green; migration `0011` applied
-and enum verified on live PostgreSQL; tagged **v0.9.1** — Phase 9.2 (Multi-Source Ingestion) is now UNBLOCKED; Phase 9.2.1 (entity resolution bridge + unresolved evidence) implemented, full suite **462 passed**)
+and enum verified on live PostgreSQL; tagged **v0.9.1** — Phase 9.2 (Multi-Source Ingestion) is now UNBLOCKED)
+
+**PHASE_9_2_CLOSED = TRUE** (committed, tagged **v0.9.2-multisource-ingestion-foundation**)
+
+**PHASE_9_2_1_CLOSED = TRUE** (committed, tagged **v0.9.2.1-entity-resolution**;
+migration `0012` verified on live PostgreSQL; end-to-end dry-run verified;
+full suite **462 passed**; Phase 9.3 unblocked pending pre-deadline historical source acquisition)
