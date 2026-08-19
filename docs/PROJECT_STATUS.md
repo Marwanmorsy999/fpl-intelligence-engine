@@ -1,6 +1,6 @@
 # PROJECT_STATUS.md — Authoritative Source of Truth
 
-**Last updated:** 2026-08-19 (Phase 10.4 — INITIALIZED: Personalized Squad Decision Engine; Phase 10.3 — CLOSED: Web Dashboard; Phase 10.2 — CLOSED: Telegram Bot Notifications; Phase 10.1 — CLOSED: FastAPI Intelligence Endpoints; Phase 9.8 — CLOSED: Production Deployment)
+**Last updated:** 2026-08-19 (Phase 10.4 — CLOSED: Personalized Squad Decision Engine; Phase 10.3 — CLOSED: Web Dashboard; Phase 10.2 — CLOSED: Telegram Bot Notifications; Phase 10.1 — CLOSED: FastAPI Intelligence Endpoints; Phase 9.8 — CLOSED: Production Deployment)
 **Maintained by:** Reconciliation Agent
 
 > This file is the single source of truth for project status. Do not rely on
@@ -978,8 +978,12 @@ deployment/operations prerequisite. Phase 9.9 may now begin; see its own
 | 9.6 | 100 | 100 | N/A (no live calls in pytest) | **CLOSED / TAGGED** (v0.9.6-scheduling-alerting) — Scheduling and Alerting: `Scheduler`, `AlertGenerator`, `NotificationService` + notifiers, `scripts/run_scheduler.py`; 43 tests, fully offline; no migration required |
 | 9.7 | 100 | 100 | N/A (no live calls in pytest) | **CLOSED / TAGGED** (v0.9.7-live-end-to-end-verification) — Live End-to-End Verification: `RSSFeedVerifier` / `FPLAPIVerifier` / `EndToEndVerifier`, three CLI scripts, `tests/unit/test_phase9_7_verification.py`; 616 total tests, fully offline; no migration required; Phase 9.8 unblocked |
 | 9.8 | 100 | 100 | N/A | **CLOSED / TAGGED** (v0.9.8-production-deployment) — Production Deployment |
+| 10.1 | 100 | 100 | N/A | **CLOSED / TAGGED** (v1.0.1-api-intelligence-endpoints) — FastAPI Intelligence Endpoints |
+| 10.2 | 100 | 100 | N/A | **CLOSED / TAGGED** (v1.0.2-telegram-bot-notifications) — Telegram Bot Notifications |
+| 10.3 | 100 | 100 | N/A | **CLOSED / TAGGED** (v1.0.3-web-dashboard) — Web Dashboard |
+| 10.4 | 100 | 100 | N/A | **CLOSED / TAGGED** (v1.0.4-personalized-squad-decisions) — Personalized Squad Decision Engine |
 
-**Full test suite (authoritative, 2026-08-19):** `pytest -q` → **706 passed, 0 failed, 0 skipped, 0 errored** (exit 0). Composition: pre-existing Phases 1–9.8 suites (699 tests) + Phase 10.1 API tests (7 tests).
+**Full test suite (authoritative, 2026-08-19):** `pytest -q` → **772 passed, 0 failed, 0 skipped, 0 errored** (exit 0). Composition: pre-existing Phases 1–10.3 suite (755 tests) + Phase 10.4 tests (17 tests).
 
 **Phase 9.1.2 migration:** `0011_phase912_availability_enum.py` — `alembic
 upgrade head` **applied to the live Docker PostgreSQL database** (`fpl` on
@@ -1388,8 +1392,7 @@ modified; no hardcoded secrets; no live API calls in tests.
 
 ## Phase 10.4 — Personalized Squad Decision Engine
 
-**Status:** INITIALIZED (2026-08-19). Connects the user's FPL squad to the Phase 6
-Decision Optimization Engine.
+**Status:** **CLOSED** (2026-08-19; committed, tagged v1.0.4-personalized-squad-decisions). Connects the user's FPL squad to the Phase 6 Decision Optimization Engine with full dashboard integration.
 
 **Delivered:**
 - **`src/fpl_intelligence/squad/models.py`** — Pydantic models: `SquadStateCreate`,
@@ -1420,6 +1423,11 @@ Decision Optimization Engine.
 **Constraints honoured:** No Phase 6 core algorithms modified; no live LLM calls
 in `pytest`; no hardcoded API keys; no database schema changes.
 
-**Next:** Phase 10.5 is unblocked.
+**Important note:** `SquadService` is currently in-memory only. It should be persisted
+(e.g., to PostgreSQL) before production multi-worker deployment to ensure session
+consistency across workers.
+
+**Phase 10.5 state:** Phase 10.4 closure report complete. Phase 11 API-first data
+pivot is now **unblocked** after this closure report is committed.
 
 ---
