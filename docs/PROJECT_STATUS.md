@@ -1,6 +1,6 @@
 # PROJECT_STATUS.md — Authoritative Source of Truth
 
-**Last updated:** 2026-08-19 (Phase 10.2 — CLOSED: Telegram Bot Notifications; Phase 10.1 — CLOSED: FastAPI Intelligence Endpoints; Phase 9.8 — CLOSED: Production Deployment)
+**Last updated:** 2026-08-19 (Phase 10.4 — INITIALIZED: Personalized Squad Decision Engine; Phase 10.3 — CLOSED: Web Dashboard; Phase 10.2 — CLOSED: Telegram Bot Notifications; Phase 10.1 — CLOSED: FastAPI Intelligence Endpoints; Phase 9.8 — CLOSED: Production Deployment)
 **Maintained by:** Reconciliation Agent
 
 > This file is the single source of truth for project status. Do not rely on
@@ -1383,5 +1383,43 @@ modified; no hardcoded secrets; no live API calls in tests.
 - All Phase 10.3 tests pass.
 
 **Phase 10.4 unblocked:** Phase 10.3 infrastructure is in place. Phase 10.4 may now begin.
+
+---
+
+## Phase 10.4 — Personalized Squad Decision Engine
+
+**Status:** INITIALIZED (2026-08-19). Connects the user's FPL squad to the Phase 6
+Decision Optimization Engine.
+
+**Delivered:**
+- **`src/fpl_intelligence/squad/models.py`** — Pydantic models: `SquadStateCreate`,
+  `SquadStateResponse`, `DecisionReport`, `TransferPlan`, `ChipRecommendation`,
+  `CaptainRecommendation`.
+- **`src/fpl_intelligence/squad/service.py`** — `SquadService`: in-memory,
+  thread-safe store for squad state (set/get/clear).
+- **`src/fpl_intelligence/squad/bridge.py`** — `DecisionOptimizerBridge`:
+  converts API squad payload to optimization-domain `SquadState`, delegates to
+  Phase 6 optimizers (`StartingXIOptimizer`, `CaptainOptimizer`,
+  `MultiTransferPlanner`, `ChipSimulator`), returns structured `DecisionReport`.
+- **`src/fpl_intelligence/api/routes/squad.py`** — FastAPI router with
+  `POST /api/v1/squad`, `GET /api/v1/squad`, `GET /api/v1/decisions`.
+- **`src/fpl_intelligence/web/dashboard.py`** — Extended with
+  `/api/v1/dashboard/squad-decisions` proxy endpoint.
+- **`src/fpl_intelligence/web/static/dashboard.html`** — Updated with Squad
+  Decisions section (Starting XI, Bench Order, Captain, Transfer Plan, Chip).
+- **`tests/unit/test_phase10_4_squad.py`** — 17 tests: SquadService, bridge,
+  and API endpoints.
+- **`docs/phase10-squad.md`** — Phase 10.4 documentation.
+
+**Verification:**
+- Full suite: **772 passed, 0 failed** (was 755; +17 new tests).
+- `ruff` clean on all new modules.
+- `mypy` clean on all new modules.
+- No migration required (in-memory service).
+
+**Constraints honoured:** No Phase 6 core algorithms modified; no live LLM calls
+in `pytest`; no hardcoded API keys; no database schema changes.
+
+**Next:** Phase 10.5 is unblocked.
 
 ---

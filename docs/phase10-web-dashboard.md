@@ -36,3 +36,14 @@ Telegram or programmatic API access.
 ## Next
 
 Phase 10.4 is unblocked.
+
+### Phase 10.4 — Squad Decisions Integration
+
+The dashboard now includes a **Squad Decisions** section that proxies
+`GET /api/v1/decisions` and displays the optimized Starting XI, Bench Order,
+Captain recommendation, Transfer Plan, and Chip recommendation from the Phase
+10.4 `DecisionOptimizerBridge`.
+
+The dashboard router was extended with a
+`GET /api/v1/dashboard/squad-decisions` proxy endpoint that calls the
+decisions API and returns the JSON result for the SPA.

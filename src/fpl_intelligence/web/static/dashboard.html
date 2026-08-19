@@ -74,6 +74,37 @@
                 </table>
             </div>
         </section>
+
+        <section class="card" id="squadSection">
+            <h2>Squad Decisions</h2>
+            <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 1rem;">
+                Set your squad via <code>POST /api/v1/squad</code> to see personalized recommendations.
+            </p>
+            <div id="squadDecisions" style="display: none;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                    <div class="card" style="margin: 0; border: 1px solid #334155;">
+                        <h3 style="font-size: 0.95rem; color: #38bdf8; margin-bottom: 0.5rem;">Starting XI</h3>
+                        <div id="startingXi" style="font-size: 0.85rem; color: #e2e8f0;"></div>
+                    </div>
+                    <div class="card" style="margin: 0; border: 1px solid #334155;">
+                        <h3 style="font-size: 0.95rem; color: #38bdf8; margin-bottom: 0.5rem;">Captain</h3>
+                        <div id="captainRec" style="font-size: 0.85rem; color: #e2e8f0;"></div>
+                    </div>
+                    <div class="card" style="margin: 0; border: 1px solid #334155;">
+                        <h3 style="font-size: 0.95rem; color: #38bdf8; margin-bottom: 0.5rem;">Transfer Plan</h3>
+                        <div id="transferPlan" style="font-size: 0.85rem; color: #e2e8f0;"></div>
+                    </div>
+                    <div class="card" style="margin: 0; border: 1px solid #334155;">
+                        <h3 style="font-size: 0.95rem; color: #38bdf8; margin-bottom: 0.5rem;">Chip Recommendation</h3>
+                        <div id="chipRec" style="font-size: 0.85rem; color: #e2e8f0;"></div>
+                    </div>
+                </div>
+                <div class="card" style="margin: 0; border: 1px solid #334155;">
+                    <h3 style="font-size: 0.95rem; color: #38bdf8; margin-bottom: 0.5rem;">Bench Order</h3>
+                    <div id="benchOrder" style="font-size: 0.85rem; color: #e2e8f0;"></div>
+                </div>
+            </div>
+        </section>
     </div>
 
     <script>
@@ -141,8 +172,51 @@
             }
         });
 
-        loadHealth();
+        async function loadSquadDecisions() {
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/dashboard/squad-decisions`);
+                if (res.status === 404) {
+                    document.getElementById('squadSection').querySelector('p').style.display = 'block';
+                    document.getElementById('squadDecisions').style.display = 'none';
+                    return;
+                }
+                const data = await res.json();
+                document.getElementById('squadSection').querySelector('p').style.display = 'none';
+                document.getElementById('squadDecisions').style.display = 'block';
+
+                document.getElementById('startingXi').innerHTML = data.starting_xi.length
+                    ? `<div>Starting XI: ${data.starting_xi.join(', ')}</div>`
+                    : '<div style="color: #94a3b8;">No starting XI available</div>';
+
+                const cap = data.captain;
+                document.getElementById('captainRec').innerHTML = cap
+                    ? `<div><strong>Player ${cap.player_id}</strong> — EV: ${cap.expected_points.toFixed(2)} pts</div>
+                       <div style="color: #94a3b8; margin-top: 0.25rem;">${cap.main_reason || ''}</div>`
+                    : '<div style="color: #94a3b8;">No captain recommendation</div>';
+
+                const tp = data.transfer_plan;
+                document.getElementById('transferPlan').innerHTML = tp
+                    ? `<div><strong>${tp.action_type}</strong> — Net: ${tp.expected_gain.toFixed(2)} pts</div>
+                       <div style="color: #94a3b8; margin-top: 0.25rem;">${tp.main_reason || ''}</div>`
+                    : '<div style="color: #94a3b8;">No transfer plan (provide player metadata)</div>';
+
+                const cr = data.chip_recommendation;
+                document.getElementById('chipRec').innerHTML = cr
+                    ? `<div><strong>${cr.chip_name || 'None'}</strong> — Gain: ${cr.expected_gain.toFixed(2)} pts</div>
+                       <div style="color: #94a3b8; margin-top: 0.25rem;">${cr.main_reason || ''}</div>`
+                    : '<div style="color: #94a3b8;">No chip recommendation this gameweek</div>';
+
+                document.getElementById('benchOrder').innerHTML = data.bench_order.length
+                    ? `<div>Bench: ${data.bench_order.join(', ')}</div>`
+                    : '<div style="color: #94a3b8;">No bench order available</div>';
+            } catch (e) {
+                document.getElementById('squadSection').querySelector('p').textContent = `Failed to load decisions: ${e.message}`;
+            }
+        }
+
+        async function loadHealth() {
         loadUnresolved();
+        loadSquadDecisions();
         setInterval(loadUnresolved, 30000);
     </script>
 </body>
