@@ -28,6 +28,9 @@ venv/
 _*.py
 _*.txt
 tmp_*.py
+# ...but never ignore legitimate Python package markers
+!**/__init__.py
+!**/__main__.py
 
 # IDE
 .vscode/

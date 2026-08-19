@@ -659,3 +659,112 @@ hardcoded).
   Phase 7/8/9.2.1 evidence tables.
 - **No live API calls in `pytest`.** All tests use `MockLLMProvider` /
   `StaticPredictionProvider` against an in-memory SQLite database.
+---
+## 18. Phase 9.5 — Live Source Connectors
+
+### 18.1 Overview
+
+Phase 9.4 left the Analyst able to turn *stored* evidence into reports, but
+every raw item still had to be captured and pasted by hand. Phase 9.5
+automates the ingestion of news by introducing a small **Live Source
+Connector** layer: each connector fetches raw items from one live source, and a
+**ConnectorScheduler** orchestrates the available connectors on demand or on a
+schedule, handing the fetched items straight to the Phase 9.2 ingestion
+pipeline.
+
+This layer is **additive and offline-testable**:
+
+- it does **not** modify the quantitative Phases 1–8 stack,
+- it makes **no live API calls inside `pytest`** (tests inject
+  `httpx.MockTransport` clients),
+- it **hardcodes no API keys** (the official FPL `bootstrap-static` endpoint
+  requires none; readers that later need keys read them from the injected
+  `headers` / env only),
+- and it performs **no aggressive scraping** — it only polls declared RSS
+  feeds and the official API at a rate-limited, polite interval.
+
+### 18.2 Components
+
+All code lives in `src/fpl_intelligence/live_intelligence/connectors/`:
+
+| Module | Component | Responsibility |
+|--------|-----------|----------------|
+| `base.py` | `SourceConnector` (ABC) | The interface every fetcher implements: `fetch() -> list[RawItem]`. Shared HTTP plumbing (`_get`), rate limiting via the Phase 9.1 `RateLimiter`, typed exceptions (`SourceConnectorError` / `SourceConnectionError` / `SourceParseError`), and `_build_raw_item()` which constructs a Phase 9.2 `RawItem`. |
+| `rss.py` | `RSSConnector` | Fetches an RSS 2.0 feed, parses `<item>`s with the stdlib `xml.etree`, and extracts title, content (description / content:encoded), `published_at` (RFC 822 or ISO-8601, namespace-agnostic), and the permalink / GUID. |
+| `fpl_api.py` | `FPLAPIConnector` | Fetches the official FPL `bootstrap-static` JSON and projects each player into a `RawItem`: any non-empty `news`, or a `chance_of_playing_* < 100` availability risk. Player FPL id → `external_id`; fetch time → `published_at`. |
+| `scheduler.py` | `ConnectorScheduler` | Runs the connectors, forwards each `RawItem` to an `IngestionSink`, and isolates failures per connector / per item. Supports manual triggering (`run()`) and scheduled execution (`run_scheduled()`). Produces a `SchedulerReport`. |
+
+**The connector↔pipeline contract.** A connector returns
+`list[RawItem]` — the very model the Phase 9.2 `ingest_raw_text` already
+consumes — so the scheduler's sink is a one-line call
+(`ingest_raw_text(db, source_id=..., text=..., published_at=..., ...)`). No type
+conversion, no loss of provenance: `source_id`, `url`, `external_id`,
+`published_at`, `available_at` and `content_hash` all ride along.
+
+**Time handling.** `scraped_at` / `ingested_at` come from the connector's
+injected clock; `available_at` defaults to `published_at` (we never claim access
+before publication). RSS items whose `published_at` is in the future (source
+clock skew) are dropped rather than fabricated; items without a parseable date
+default to the fetch time, which is the honest minimum.
+
+### 18.3 Data Flow
+
+```
+RSS feed / FPL bootstrap-static  (network)
+        │
+        ▼
+Connector.fetch()  ──►  list[RawItem]   (rate-limited, typed errors)
+        │
+        ▼
+ConnectorScheduler.run() / run_scheduled()
+        │  per connector, error-isolated
+        ▼
+IngestionSink ── ingest_raw_text ──► Phase 9.2 pipeline (dedupe, ledger, extraction)
+        │
+        ▼
+SchedulerReport (fetched / ingested / errors)
+```
+### 18.4 CLI
+
+`scripts/run_live_ingestion.py`:
+
+```bash
+# All connectors, one pass (persists into an in-memory DB)
+python scripts/run_live_ingestion.py --connector all
+
+# RSS only, custom feed
+python scripts/run_live_ingestion.py --connector rss --rss-url https://...
+
+# Official FPL API only
+python scripts/run_live_ingestion.py --connector fpl_api
+
+# Fetch but do not persist (safe to inspect)
+python scripts/run_live_ingestion.py --connector all --dry-run
+
+# Scheduled execution against a real DB file
+python scripts/run_live_ingestion.py --connector all --interval 60 --iterations 5 --db ./fpl.db
+```
+
+`--connector` selects `rss`, `fpl_api`, or `all`. `--dry-run` still *fetches*
+from the live sources but the ingestion pipeline rolls back so nothing is
+persisted. `--interval` / `--iterations` enable and bound scheduled execution.
+Without `--db` an in-memory SQLite database is used, so a bare run never
+touches a real database.
+
+### 18.5 Testing & Quality
+
+- `tests/unit/test_phase9_5_connectors.py` — 35 tests: `RSSConnector` (RSS
+  parsing incl. namespaces + ISO/RFC822 dates, empty feed, skipped title-only
+  items, future-date drop, HTTP 500/429/`ConnectError`, invalid XML, `limit`,
+  rate-limit pacing, custom `source_id`), `FPLAPIConnector` (news + chance
+  extraction, fully-available player skip, string chance values, invalid JSON /
+  missing elements / HTTP error, `limit`), and `ConnectorScheduler`
+  (fetch→sink for all/single connector, per-connector fetch-error isolation,
+  per-item sink-error isolation, scheduled execution count + dry-run flag,
+  report totals, unknown connector). All HTTP is mocked with
+  `httpx.MockTransport` — **zero live network calls in `pytest`**.
+- **Full suite: 557 passed** (previously 522; Phase 9.5 adds 35 tests).
+- `ruff` and `mypy` clean on the `connectors/` package, the test module, and
+  the new CLI script.
+- **No migration required.** Phase 9.5 introduces no new tables, columns, or
+  enums — it consumes the existing Phase 9.2 `ingest_raw_text` pipeline.

@@ -1,6 +1,6 @@
 # PROJECT_STATUS.md — Authoritative Source of Truth
 
-**Last updated:** 2026-08-13 (Phase 9.4 — CLOSED: Quantitative Bridge and Evidence Query Layer)
+**Last updated:** 2026-08-13 (Phase 9.5 — CLOSED: Live Source Connectors; Phase 9.4 — CLOSED: Quantitative Bridge and Evidence Query Layer)
 **Maintained by:** Reconciliation Agent
 
 > This file is the single source of truth for project status. Do not rely on
@@ -854,13 +854,14 @@ remains out of scope.
 | 9.2.1 | 100 | 100 | N/A (verified on live PostgreSQL) | **COMMITTED / TAGGED** (v0.9.2.1-entity-resolution) — entity resolution bridge + unresolved evidence persistence |
 | 9.3 | 100 | 100 | N/A | **CLOSED / TAGGED** (v0.9.3-ai-analyst-synthesis) — AI analyst synthesis, IntelligenceReport, guardrail-enforced reasoning layer |
 | 9.4 | 100 | 100 | N/A | **CLOSED / TAGGED** (v0.9.4-quantitative-bridge) — Quantitative Bridge + Evidence Query Layer; Analyst wired to DecisionPredictionProvider + evidence DB; no migration required |
+| 9.5 | 100 | 100 | N/A (no live calls in pytest) | **CLOSED / TAGGED** (v0.9.5-live-source-connectors) — Live Source Connectors: `SourceConnector` ABC, `RSSConnector`, `FPLAPIConnector`, `ConnectorScheduler`, `scripts/run_live_ingestion.py`; no migration required |
 
-**Full test suite (authoritative, 2026-08-13):** `pytest -q` → **522 passed,
+**Full test suite (authoritative, 2026-08-13):** `pytest -q` → **557 passed,
 0 failed, 0 skipped, 0 errored** (exit 0), confirmed from a `--junit-xml`
 report. 24 files across `tests/unit/` (280), `tests/prediction/` (145),
 `tests/integration/` (6), `tests/optimization/` (5), `tests/unit/` Phase 9.2 (19) + Phase 9.2.1 (16) + Phase 9.3 (42) + Phase 9.4 (38).
 Composition: 343 pre-existing (Phases 1–7) + 71 Phase 9 (51 foundation + 10
-Phase 9.1 ProviderRouter + 10 Phase 9.1.1 availability-vocabulary tests) + 35 Phase 9.2/9.2.1 (19 + 16) + 42 Phase 9.3 + 38 Phase 9.4.
+Phase 9.1 ProviderRouter + 10 Phase 9.1.1 availability-vocabulary tests) + 35 Phase 9.2/9.2.1 (19 + 16) + 42 Phase 9.3 + 38 Phase 9.4 + 35 Phase 9.5.
 `ruff` and `mypy` clean on all touched modules. No test executes Alembic
 migrations — migration behaviour is verified manually.
 
@@ -928,4 +929,55 @@ pushed to origin; full suite **522 passed, 0 failed, 0 skipped, 0 errored**;
 safe end-to-end dry-run verified (`python scripts/generate_intelligence_report.py
 --player-id 1 --gameweek 3 --dry-run` → neutral Markdown report, zero live API
 calls, zero DB writes); no migration required; Phase 9.5 unblocked after
+this closure report)
+---
+
+## Phase 9.5 — Live Source Connectors
+
+**Status:** **CLOSED** (2026-08-13). Automates the ingestion of news from
+multiple live sources.
+
+**Delivered:**
+- **`live_intelligence/connectors/`** (new subpackage) —
+  - `base.py`: the abstract `SourceConnector` interface returning a
+    `list[RawItem]`, shared rate-limited HTTP plumbing (Phase 9.1 `RateLimiter`),
+    and the typed `SourceConnectorError` / `SourceConnectionError` /
+    `SourceParseError`.
+  - `rss.py`: `RSSConnector` — parses RSS 2.0 (title / description /
+    content:encoded / link / guid / pubDate, namespace- and date-format-
+    tolerant), with rate limiting and typed error handling.
+  - `fpl_api.py`: `FPLAPIConnector` — fetches the official FPL
+    `bootstrap-static` endpoint and surfaces player `news` plus
+    `chance_of_playing_*` availability risk; no API key hardcoded.
+  - `scheduler.py`: `ConnectorScheduler` — orchestrates connectors on demand
+    (`run`) or on a schedule (`run_scheduled`), isolates fetch/sink failures
+    per connector, and returns a `SchedulerReport`.
+- **`scripts/run_live_ingestion.py`** (new) — standalone CLI with `--connector`
+  (`rss`, `fpl_api`, `all`), `--dry-run` (fetch but don't persist), `--rss-url`,
+  `--source-id`, `--interval`, `--iterations`, and `--db`. Uses the scheduler
+  and passes fetched raw items to the Phase 9.2 `ingest_raw_text` pipeline,
+  then prints the ingestion summary.
+- **`tests/unit/test_phase9_5_connectors.py`** (new) — 35 tests covering
+  `RSSConnector` and `FPLAPIConnector` (HTTP mocked via `httpx.MockTransport` —
+  **no live network calls in `pytest`**) and `ConnectorScheduler` (end-to-end
+  flow with mock connectors).
+
+**Constraints honoured:** does not modify Phases 1–8; no live API calls inside
+`pytest`; no hardcoded API keys; no aggressive scrapers.
+
+**Phase 9.5 closure verification (2026-08-13):**
+- Full suite: **557 passed, 0 failed, 0 skipped, 0 errored** (exit 0; was 522;
+  Phase 9.5 adds 35 tests).
+- `ruff` clean on `connectors/`, `test_phase9_5_connectors.py`, and
+  `scripts/run_live_ingestion.py`.
+- `mypy` clean on `connectors/` and `scripts/run_live_ingestion.py`.
+- Safe offline dry-run path verified with mocked HTTP; live-source dry-runs
+  require real network access and are exercised out of band.
+- **No Phase 9.5 migration required.** Consumes the existing Phase 9.2
+  `ingest_raw_text` pipeline; no new tables, columns, or enums.
+
+**PHASE_9_5_CLOSED = TRUE** (committed, tagged **v0.9.5-live-source-connectors**;
+pushed to origin; full suite **557 passed, 0 failed, 0 skipped, 0 errored**;
+connector tests use mocked `httpx.MockTransport` — zero live API calls inside
+`pytest`; ruff + mypy clean; no migration required; Phase 9.6 unblocked after
 this closure report)
