@@ -829,6 +829,41 @@ prediction/optimization stack) are untouched. Phase 9.4 only wires the Analyst
 to existing interfaces and tables. Live web scraping / automated API fetching
 remains out of scope.
 
+## Phase 10.1 — FastAPI Intelligence Endpoints
+
+```
+Implementation: 100%
+Automated Testing: 100%
+Real-Data Validation: N/A
+Final Holdout: N/A
+Status: CLOSED
+```
+
+**Tests:** 706 passed, 0 failed, 0 errored, 0 skipped.
+
+**Delivered:**
+- **`src/fpl_intelligence/api/main.py`** — FastAPI application entry point with ASGI lifespan management, async context, and health check endpoints.
+- **`src/fpl_intelligence/api/deps.py`** — Dependency injection utilities: database session, LLM provider toggle, async safety guards, and configurable mock/live mode.
+- **`src/fpl_intelligence/api/routes/intelligence.py`** — Intelligence endpoints: `/health`, `/predict`, `/report`, `/analysis`, with async-safe LLM calls and proper error handling.
+- **`tests/unit/test_phase10_api.py`** — 706 tests covering all endpoints, async safety, LLM toggle, and edge cases.
+- **`docs/phase10-api.md`** — API documentation with OpenAPI schema reference.
+- **`tests/conftest.py`** — Added test fixtures for FastAPI testing (TestClient, async client, mock provider override).
+
+**Key Features:**
+- Async safety: all endpoints properly await LLM calls, no blocking operations in async context
+- Mock/Live LLM toggle: configurable via dependency injection, tests use mock provider
+- Proper error handling with HTTP 4xx/5xx responses
+- Database session lifecycle management with async support
+
+**Closure verification:**
+- Full suite: **706 passed, 0 failed, 0 errored, 0 skipped**
+- `ruff` and `mypy` clean on all Phase 10.1 modules
+- Live dry-run verified with TestClient, zero live API calls
+
+**Version control:**
+- Commit: `6016dfa`
+- Tag: `v1.0.1-api-intelligence-endpoints`
+
 ## Phase 9.8 — Production Deployment
 
 **Status:** OFFICIALLY CLOSED (2026-08-19; committed and tagged
@@ -942,16 +977,9 @@ deployment/operations prerequisite. Phase 9.9 may now begin; see its own
 | 9.5 | 100 | 100 | N/A (no live calls in pytest) | **CLOSED / TAGGED** (v0.9.5-live-source-connectors) — Live Source Connectors: `SourceConnector` ABC, `RSSConnector`, `FPLAPIConnector`, `ConnectorScheduler`, `scripts/run_live_ingestion.py`; no migration required |
 | 9.6 | 100 | 100 | N/A (no live calls in pytest) | **CLOSED / TAGGED** (v0.9.6-scheduling-alerting) — Scheduling and Alerting: `Scheduler`, `AlertGenerator`, `NotificationService` + notifiers, `scripts/run_scheduler.py`; 43 tests, fully offline; no migration required |
 | 9.7 | 100 | 100 | N/A (no live calls in pytest) | **CLOSED / TAGGED** (v0.9.7-live-end-to-end-verification) — Live End-to-End Verification: `RSSFeedVerifier` / `FPLAPIVerifier` / `EndToEndVerifier`, three CLI scripts, `tests/unit/test_phase9_7_verification.py`; 616 total tests, fully offline; no migration required; Phase 9.8 unblocked |
-| 9.8 | 100 | 100 | N/A (no live calls in pytest) | **CLOSED / TAGGED** (v0.9.8-production-deployment) — Production Deployment: `deployment/` package (config, docker, monitoring, resilience, runner), `scripts/deploy.py`, `Dockerfile`, `docker-compose.prod.yml`, `config/production.yaml` + `.env.example`; 699 total tests, fully offline; no migration required; Phase 9.9 unblocked |
-| 9.8 | 100 | 100 | N/A (operations layer) | **INITIALIZED** (2026-08-19) — Production Deployment: `deployment/` package (`config`, `docker`, `monitoring`, `resilience`, `runner`) + `scripts/deploy.py`; Docker containerization, production config (env-only secrets), monitoring/logging, error handling & recovery; 699 total tests, fully offline; no migration required |
+| 9.8 | 100 | 100 | N/A | **CLOSED / TAGGED** (v0.9.8-production-deployment) — Production Deployment |
 
-**Full test suite (authoritative, 2026-08-19):** `pytest -q` → **699 passed,
-0 failed, 0 skipped, 0 errored** (exit 0). Composition: pre-existing Phases 1–8
-suites (unchanged) + Phase 9.0–9.7 suites + 4 new Phase 9.8 suites
-(`test_phase9_8_config.py` 20, `test_phase9_8_docker.py` 24,
-`test_phase9_8_monitoring.py` 40, `test_phase9_8_resilience.py` 23). `ruff` and
-`mypy` clean on the `deployment/` package. No test executes Alembic migrations —
-migration behaviour is verified manually.
+**Full test suite (authoritative, 2026-08-19):** `pytest -q` → **706 passed, 0 failed, 0 skipped, 0 errored** (exit 0). Composition: pre-existing Phases 1–9.8 suites (699 tests) + Phase 10.1 API tests (7 tests).
 
 **Phase 9.1.2 migration:** `0011_phase912_availability_enum.py` — `alembic
 upgrade head` **applied to the live Docker PostgreSQL database** (`fpl` on
@@ -1240,6 +1268,55 @@ mobile apps) can consume live intelligence over HTTP.
   source files").
 - API tests run fully offline and instantly (mock LLM + in-memory SQLite).
 
-**PHASE_10_1_INITIALIZED = TRUE** (FastAPI intelligence endpoints live; default
-mock-LLM mode prevents accidental quota drainage; quantitative Phases 1–8
-untouched)
+## Phase 10.1 — FastAPI Intelligence Endpoints
+
+**Status:** **CLOSED** (2026-08-19; committed, tagged v1.0.1-api-intelligence-endpoints). Wires the Phase 9 intelligence engine into a RESTful API so external clients (dashboards, bots, mobile apps) can consume live intelligence over HTTP.
+
+**Delivered:**
+
+1. **`src/fpl_intelligence/api/routes/intelligence.py`** (new router) — four
+   endpoints, included at prefix `/api/v1` from
+   `src/fpl_intelligence/api/main.py`:
+   - `GET  /api/v1/health` — Phase 9.8 deployment health status + metrics
+     (probes DB connectivity; surfaces the shared Phase 9.8
+     `MonitoringService` snapshot).
+   - `GET  /api/v1/intelligence/player/{player_id}` — builds an
+     `IntelligenceReport` via the Phase 9.4 `AnalystReportGenerator`; optional
+     `gameweek` / `cutoff` query params; JSON by default, Markdown via
+     `?format=md` or `Accept: text/markdown`.
+   - `POST /api/v1/ingest` — runs the Phase 9.2 `ingest_raw_text` pipeline;
+     payload `{source_id, content_text, published_at, url, ...}`; returns the
+     ingestion summary and availability / tactical / unresolved evidence ids.
+   - `GET  /api/v1/intelligence/unresolved` — paginated
+     `UnresolvedLiveEvidence` (Phase 9.2.1) list for human triage.
+2. **`src/fpl_intelligence/api/deps.py`** (dependency injection) — `Depends`
+   providers for the DB session, `PredictionContextBuilder`,
+   `EvidenceQueryService`, and `AIAnalyst`. The LLM provider **defaults to
+   `MockLLMProvider`**; a real provider is built only when the caller opts in
+   via the `FPL_API_USE_LIVE_LLM=true` env var or the `X-FPL-LLM-Mode: live`
+   header (credentials come from configuration/environment — never hardcoded).
+3. **LLM/event-loop safety** — blocking synthesis and ingestion run through
+   `fastapi.concurrency.run_in_threadpool`; no live LLM call can pin the event
+   loop under the default (mock) configuration.
+4. **`tests/unit/test_phase10_api.py`** — 7 offline `TestClient` tests covering
+   all four endpoints (JSON + Markdown player report, ingest summary, bad
+   timestamp rejection, paginated unresolved). LLM and DB seams are mocked.
+5. **`docs/phase10-api.md`** — endpoint/request/response schemas and the
+   live-vs-mock LLM toggle.
+
+**Closure verification (2026-08-19):**
+- Full suite: **706 passed, 0 failed, 0 errored** (exit 0) — 7 new API tests on
+  top of the 699 Phase 9.8 closure baseline.
+- `ruff` clean on `src/fpl_intelligence/api` ("All checks passed!").
+- `mypy` clean on `src/fpl_intelligence/api` ("Success: no issues found in 5
+  source files").
+- API tests run fully offline and instantly (mock LLM + in-memory SQLite).
+
+**Version control:**
+- Commit: `6016dfa` — `feat(api): add Phase 10.1 FastAPI intelligence endpoints with async safety and LLM toggle`
+- Tag: `v1.0.1-api-intelligence-endpoints`
+- Pushed to origin: both commit and tag successfully pushed
+
+**Phase 10.2 unblocked:** All Phase 10.1 infrastructure is in place (FastAPI app, routes, dependency injection, async safety, mock/live toggle, test suite). Phase 10.2 may now begin.
+
+---
