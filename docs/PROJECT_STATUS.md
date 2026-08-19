@@ -1,6 +1,6 @@
 # PROJECT_STATUS.md — Authoritative Source of Truth
 
-**Last updated:** 2026-08-19 (Phase 10.1 — INITIALIZED: FastAPI Intelligence Endpoints; Phase 9.8 — CLOSED: Production Deployment; Phase 9.7 — CLOSED: Live End-to-End Verification; Phase 9.6 — CLOSED: Scheduling and Alerting; Phase 9.5 — CLOSED: Live Source Connectors)
+**Last updated:** 2026-08-19 (Phase 10.2 — CLOSED: Telegram Bot Notifications; Phase 10.1 — CLOSED: FastAPI Intelligence Endpoints; Phase 9.8 — CLOSED: Production Deployment)
 **Maintained by:** Reconciliation Agent
 
 > This file is the single source of truth for project status. Do not rely on
@@ -1318,5 +1318,40 @@ mobile apps) can consume live intelligence over HTTP.
 - Pushed to origin: both commit and tag successfully pushed
 
 **Phase 10.2 unblocked:** All Phase 10.1 infrastructure is in place (FastAPI app, routes, dependency injection, async safety, mock/live toggle, test suite). Phase 10.2 may now begin.
+
+## Phase 10.2 — Telegram Bot Notifications
+
+**Status:** **CLOSED** (2026-08-19; committed, tagged v1.0.2-telegram-bot-notifications). Delivers FPL intelligence reports and alerts directly to the user via Telegram.
+
+**Delivered:**
+
+1. **`src/fpl_intelligence/notifications/telegram_bot.py`** (new package) —
+   `TelegramBot` async bot with commands `/start`, `/help`, `/report`,
+   `/alerts`, `/status`. Uses `python-telegram-bot` v21+ `ApplicationBuilder`
+   / `CommandHandler` pattern. Heavy DB/LLM operations offloaded to
+   `asyncio.to_thread`. `dry_run` mode prints to console instead of calling the
+   Telegram API. `simulate_command` creates mock `Update`/`Context` objects for
+   programmatic testing.
+2. **`scripts/run_telegram_bot.py`** (new CLI) — `--dry-run` interactive REPL
+   and live polling mode. Reads `TELEGRAM_BOT_TOKEN` and
+   `TELEGRAM_ALLOWED_USER_IDS` from environment variables / arguments.
+3. **`tests/unit/test_phase10_2_telegram.py`** — 47 new tests covering
+   construction, authorization, all five commands, player resolution, worker
+   thread delegation, status text building, HTML report formatting, escape
+   helpers, `simulate_command`, and `run_dry_repl`. All Telegram API calls are
+   mocked; zero live network traffic inside `pytest`.
+4. **`docs/phase10-notifications.md`** — setup, CLI reference, command list,
+   architecture diagram, and thread-safety notes.
+
+**Constraints honoured:** no Phases 1–8 code modified; no Phase 9 core logic
+modified; no hardcoded tokens; no live API calls in tests.
+
+**Phase 10.2 verification (2026-08-19):**
+- Full suite: **752 passed, 0 failed, 0 skipped, 0 errored** (exit 0).
+- `ruff` clean on all new modules.
+- `mypy` clean on all new modules.
+- No new database migrations required.
+
+**Phase 10.3 unblocked:** Phase 10.2 infrastructure is in place. Phase 10.3 may now begin.
 
 ---
