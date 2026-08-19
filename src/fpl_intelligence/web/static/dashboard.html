@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FPL Intelligence Dashboard</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; line-height: 1.6; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        header { margin-bottom: 2rem; border-bottom: 1px solid #1e293b; padding-bottom: 1rem; }
+        h1 { font-size: 1.5rem; color: #38bdf8; }
+        .subtitle { color: #94a3b8; font-size: 0.9rem; }
+        .card { background: #1e293b; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; border: 1px solid #334155; }
+        .card h2 { font-size: 1.1rem; color: #38bdf8; margin-bottom: 1rem; }
+        .health-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+        .health-item { background: #0f172a; padding: 1rem; border-radius: 6px; }
+        .health-label { font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+        .health-value { font-size: 1.2rem; font-weight: 600; margin-top: 0.25rem; }
+        .health-value.ok { color: #4ade80; }
+        .health-value.degraded { color: #fbbf24; }
+        form { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+        input, button { padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; font-size: 0.95rem; }
+        input:focus { outline: none; border-color: #38bdf8; }
+        button { background: #38bdf8; color: #0f172a; border: none; cursor: pointer; font-weight: 600; }
+        button:hover { background: #0ea5e9; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .report { white-space: pre-wrap; font-family: 'SF Mono', Monaco, monospace; font-size: 0.85rem; line-height: 1.5; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th, td { text-align: left; padding: 0.75rem; border-bottom: 1px solid #334155; }
+        th { color: #94a3b8; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
+        tr:hover { background: #0f172a; }
+        .error { color: #f87171; }
+        .hidden { display: none; }
+        .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+        .badge-ok { background: #166534; color: #4ade80; }
+        .badge-warn { background: #713f12; color: #fbbf24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>FPL Intelligence Dashboard</h1>
+            <p class="subtitle" id="version">Loading...</p>
+        </header>
+
+        <section class="card">
+            <h2>System Health</h2>
+            <div class="health-grid" id="health">
+                <div class="health-item"><div class="health-label">Status</div><div class="health-value">Loading...</div></div>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>Player Intelligence</h2>
+            <form id="playerForm">
+                <input type="number" id="playerId" placeholder="Player ID" required min="1">
+                <input type="number" id="gameweek" placeholder="Gameweek (optional)" min="1">
+                <button type="submit">Generate Report</button>
+            </form>
+            <div id="playerReport" class="report hidden"></div>
+        </section>
+
+        <section class="card">
+            <h2>Unresolved Evidence</h2>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr><th>ID</th><th>Player</th><th>Team</th><th>Status</th><th>Resolution</th><th>Evidence Type</th></tr>
+                    </thead>
+                    <tbody id="unresolvedTable">
+                        <tr><td colspan="6" style="text-align: center; color: #94a3b8;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        async function loadHealth() {
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/health`);
+                const data = await res.json();
+                document.getElementById('version').textContent = `Version ${data.version} | Phase ${data.phase} | Deployment ${data.phase9_8_deployment.tag}`;
+                const grid = document.getElementById('health');
+                grid.innerHTML = '';
+                const items = [
+                    { label: 'Overall', value: data.status.toUpperCase(), cls: data.status === 'ok' ? 'ok' : 'degraded' },
+                    { label: 'Database', value: data.monitoring.health.database ? 'UP' : 'DOWN', cls: data.monitoring.health.database ? 'ok' : 'degraded' },
+                    { label: 'API', value: 'UP', cls: 'ok' },
+                ];
+                items.forEach(item => {
+                    grid.innerHTML += `<div class="health-item"><div class="health-label">${item.label}</div><div class="health-value ${item.cls}">${item.value}</div></div>`;
+                });
+            } catch (e) {
+                document.getElementById('health').innerHTML = `<div class="error">Failed to load health: ${e.message}</div>`;
+            }
+        }
+
+        async function loadUnresolved() {
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/intelligence/unresolved?limit=50`);
+                const data = await res.json();
+                const tbody = document.getElementById('unresolvedTable');
+                if (data.items.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #94a3b8;">No unresolved evidence</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = data.items.map(row => `
+                    <tr>
+                        <td>${row.id}</td>
+                        <td>${row.player_name || '-'}</td>
+                        <td>${row.team_name || '-'}</td>
+                        <td>${row.status_mentioned || '-'}</td>
+                        <td><span class="badge ${row.resolution_status === 'resolved' ? 'badge-ok' : 'badge-warn'}">${row.resolution_status}</span></td>
+                        <td>${row.evidence_type}</td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                document.getElementById('unresolvedTable').innerHTML = `<tr><td colspan="6" class="error">Failed: ${e.message}</td></tr>`;
+            }
+        }
+
+        document.getElementById('playerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const playerId = document.getElementById('playerId').value;
+            const gameweek = document.getElementById('gameweek').value;
+            const reportDiv = document.getElementById('playerReport');
+            reportDiv.classList.remove('hidden');
+            reportDiv.textContent = 'Loading...';
+            try {
+                const url = `${API_BASE}/api/v1/intelligence/player/${playerId}${gameweek ? `?gameweek=${gameweek}` : ''}`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const text = await res.text();
+                reportDiv.textContent = text;
+            } catch (e) {
+                reportDiv.innerHTML = `<span class="error">Failed: ${e.message}</span>`;
+            }
+        });
+
+        loadHealth();
+        loadUnresolved();
+        setInterval(loadUnresolved, 30000);
+    </script>
+</body>
+</html>

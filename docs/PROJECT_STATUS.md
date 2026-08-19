@@ -1354,4 +1354,34 @@ modified; no hardcoded tokens; no live API calls in tests.
 
 **Phase 10.3 unblocked:** Phase 10.2 infrastructure is in place. Phase 10.3 may now begin.
 
+## Phase 10.3 — Web Dashboard
+
+**Status:** **INITIALIZED** (2026-08-19). Adds a simple single-page web dashboard
+that consumes the Phase 10.1 REST API to display FPL intelligence without
+requiring Telegram or programmatic API access.
+
+**Delivered:**
+
+1. **`src/fpl_intelligence/web/dashboard.py`** (new package) — FastAPI router
+   that serves `dashboard.html` at `GET /dashboard`.
+2. **`src/fpl_intelligence/web/static/dashboard.html`** — Single-page app
+   (vanilla JS, no build step) that fetches:
+   - `GET /api/v1/health` — system health + metrics
+   - `GET /api/v1/intelligence/player/{id}` — player intelligence report
+   - `GET /api/v1/intelligence/unresolved` — unresolved evidence triage table
+3. **`tests/unit/test_phase10_3_web.py`** — 3 tests covering route response,
+   static file existence, and API references in HTML.
+4. **Wired into `src/fpl_intelligence/api/main.py`** — dashboard router included
+   alongside the Phase 10.1 intelligence router.
+
+**Constraints honoured:** no Phases 1–8 code modified; no Phase 9 core logic
+modified; no hardcoded secrets; no live API calls in tests.
+
+**Phase 10.3 verification (2026-08-19):**
+- `ruff` clean on all new modules.
+- `mypy` clean on all new modules.
+- All Phase 10.3 tests pass.
+
+**Phase 10.4 unblocked:** Phase 10.3 infrastructure is in place. Phase 10.4 may now begin.
+
 ---
