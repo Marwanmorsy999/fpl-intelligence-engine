@@ -1,6 +1,6 @@
 # PROJECT_STATUS.md — Authoritative Source of Truth
 
-**Last updated:** 2026-08-13 (Phase 9.5 — CLOSED: Live Source Connectors; Phase 9.4 — CLOSED: Quantitative Bridge and Evidence Query Layer)
+**Last updated:** 2026-08-19 (Phase 9.6 — INITIALIZED: Scheduling and Alerting; Phase 9.5 — CLOSED: Live Source Connectors)
 **Maintained by:** Reconciliation Agent
 
 > This file is the single source of truth for project status. Do not rely on
@@ -981,3 +981,64 @@ pushed to origin; full suite **557 passed, 0 failed, 0 skipped, 0 errored**;
 connector tests use mocked `httpx.MockTransport` — zero live API calls inside
 `pytest`; ruff + mypy clean; no migration required; Phase 9.6 unblocked after
 this closure report)
+
+---
+
+## Phase 9.6 — Scheduling and Alerting
+
+**Status:** **IMPLEMENTED** (2026-08-19). Automates the ingestion of news on a
+schedule and generates alerts for the user from the ingested news.
+
+**Delivered:**
+- **`live_intelligence/scheduling/`** (new subpackage) —
+  - `scheduler.py`: `Scheduler` — orchestrates **fetch (Phase 9.5 connectors) →
+    ingest (Phase 9.2) → alert → notify** per pass. Supports manual triggering
+    (`run()`) and scheduled execution (`run_scheduled()`), with injected
+    `RateLimiter` pacing between passes and per-stage error isolation.
+    Produces a `SchedulerRunReport` per pass.
+  - `alerts.py`: `AlertGenerator` — turns raw items into `Alert` objects using
+    keyword classification (injury, availability risk, tactical change,
+    transfer news, general) with severity ratings; no network calls;
+    rate-limited passes and per-item error isolation; `max_alerts_per_pass`
+    flood protection.
+  - `notification.py`: `NotificationService` + `Notifier` channels —
+    `SlackNotifier` (HTTP webhook, mocked with `httpx.MockTransport` in tests),
+    `EmailNotifier` (SMTP via stdlib `smtplib`, injectable SMTP seam),
+    `LogNotifier` (dry-run-safe local sink), `RecordingNotifier` (tests).
+    Rate-limited sends and per-channel error isolation.
+- **`scripts/run_scheduler.py`** (new) — standalone CLI with `--connector`
+  (`rss`, `fpl_api`, `all`) and `--dry-run` (fetch but don't persist), plus
+  `--interval` / `--iterations` (scheduled execution), `--db`, `--no-alerts`,
+  and `--notify` (`none`/`log`/`slack`/`email`). Uses the `Scheduler` to fetch
+  news, passes raw items to the Phase 9.2 `ingest_raw_text` pipeline, and
+  prints the ingestion/alert/notification summary.
+- **`tests/unit/test_phase9_6_scheduling_alerting.py`** (new) — 43 tests
+  covering `Scheduler` (HTTP mocked), `AlertGenerator` (offline), and
+  `NotificationService` (Slack HTTP mocked / Email SMTP injected). **Zero live
+  network calls inside `pytest`.**
+
+**Constraints honoured:** does not modify Phases 1–8 (`Scheduler` only wraps
+the existing ConnectorScheduler + `ingest_raw_text`); no live API calls inside
+`pytest`; no hardcoded API keys (Slack webhook / SMTP credentials come from
+arguments or environment variables); no aggressive scrapers (rate-limited RSS
+polling + official FPL API only).
+
+**Phase 9.6 verification (2026-08-19):**
+- Full suite: **594 passed, 1 pre-existing skipped, 0 failed, 0 errored**
+  (exit 0). The single skip is a conditional `pytest.skip()` in
+  `tests/integration/test_postgresql.py` (PostgreSQL not available) and is
+  unrelated to Phase 9.6; all 43 Phase 9.6 tests run and pass.
+- Baseline before Phase 9.6: 551 collected. Phase 9.6 adds 43 → **594 passed.**
+- `ruff` clean on `scheduling/`, `scripts/run_scheduler.py`, and
+  `test_phase9_6_scheduling_alerting.py` ("All checks passed!").
+- `mypy` clean on `scheduling/`, `scripts/run_scheduler.py`, and the test
+  module ("Success: no issues found in 5 source files").
+- CLI verified offline: `--help` renders; `--notify slack` without a webhook
+  exits `1` with a usage message; no network is touched for usage/help paths.
+- **No Phase 9.6 migration required.** Consumes the existing Phase 9.2
+  `ingest_raw_text` pipeline; no new tables, columns, or enums.
+
+**PHASE_9_6_IMPLEMENTED = TRUE** (Phase 9.6 implemented after Phase 9.5 closure;
+full suite **594 passed, 1 pre-existing skipped, exit 0**; scheduler/alert/
+notification tests are fully offline; ruff + mypy clean; no migration required;
+tagged **v0.9.6-scheduling-alerting**)

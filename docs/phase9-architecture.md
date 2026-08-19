@@ -1,7 +1,7 @@
 # Phase 9 Architecture — Live Intelligence Accumulator & LLM Analyst Layer
 
 **Status:** IMPLEMENTATION_COMPLETE
-**Last updated:** 2026-08-13
+**Last updated:** 2026-08-19 (Phase 9.6 — Scheduling and Alerting implemented)
 **Constraint:** LLM/AI is the reasoning layer, not the core prediction engine.
 
 ---
@@ -71,6 +71,9 @@ Decision-Facing Output            4 guardrails enforced post-hoc
 | `response_cache.py` *(9.1)* | Read-through cache keyed by `provider|model|prompt_hash|input_hash|max_output_tokens|temperature`. `SqliteResponseCache` persists to a git-ignored local file; cache hits cost zero quota. |
 | `rate_limit.py` *(9.1)* | `RateLimiter` pacing plus `CallBudget` per-process ceiling; cache hits never consume the budget. |
 | `prompt_registry.py` *(9.1)* | Prompt versioning: hashes template + schema version (`prompt_template_hash`), verifies the registry, fingerprints rendered prompts. |
+| `scheduling/scheduler.py` *(9.6)* | `Scheduler` — orchestrates **fetch (Phase 9.5 connectors) → ingest (Phase 9.2) → alert → notify** per pass. Manual `run()` / scheduled `run_scheduled()`, `RateLimiter` pacing between passes, per-stage error isolation. Produces a `SchedulerRunReport`. |
+| `scheduling/alerts.py` *(9.6)* | `AlertGenerator` — classifies `RawItem`s into `Alert` objects (injury / availability risk / tactical change / transfer news / general) with severity, via offline keyword heuristics. Rate-limited passes, per-item error isolation, `max_alerts_per_pass` flood cap. |
+| `scheduling/notification.py` *(9.6)* | `NotificationService` + `Notifier` channels — `SlackNotifier` (HTTP webhook), `EmailNotifier` (SMTP), `LogNotifier`, `RecordingNotifier`. Rate-limited sends, per-channel error isolation, `NotificationDispatchReport` receipts. |
 
 `ProviderRouter` routing defaults: **availability → Groq** (fast structured JSON), **tactical / combined → Gemini** (longer context), with fallback order Groq → Gemini → OpenRouter. Routing metadata (`provider_name`, `model_name`, `routing_strategy` = `task_based` / `fallback` / `round_robin`) is recorded on every `llm_extraction_runs` row and on `LLMResponse` / `ExtractionProvenance`, so the audit trail states *how* a provider was reached, not just *which* provider answered.
 
@@ -768,3 +771,136 @@ touches a real database.
   the new CLI script.
 - **No migration required.** Phase 9.5 introduces no new tables, columns, or
   enums — it consumes the existing Phase 9.2 `ingest_raw_text` pipeline.
+
+---
+## 19. Phase 9.6 — Scheduling and Alerting
+
+### 19.1 Overview
+
+Phase 9.5 gave the engine connectors that fetch live news on demand; Phase 9.6
+closes the automation loop:
+
+* a **Scheduler** runs the full pipeline — fetch → ingest → alert → notify —
+  on demand or on a schedule,
+* an **AlertGenerator** turns freshly-ingested raw items into user-facing
+  alerts (injury news, availability risk, tactical changes, transfer news,
+  general), and
+* a **NotificationService** fans those alerts out to the user through one or
+  more channels (Slack webhook, SMTP email, local log).
+
+The layer is **additive and offline-testable**, honouring the same constraints
+as Phase 9.5:
+
+* it does **not** modify the quantitative Phases 1–8 stack — the `Scheduler`
+  only *wraps* the existing Phase 9.5 `ConnectorScheduler` and hands items to
+  the existing Phase 9.2 `ingest_raw_text` pipeline;
+* it makes **no live API calls inside `pytest`** — connector HTTP is mocked
+  with `httpx.MockTransport`, Slack webhook HTTP is mocked the same way, and
+  Email SMTP is an injected seam;
+* it **hardcodes no API keys** — the Slack webhook URL and SMTP credentials
+  come from CLI arguments or environment variables only;
+* and it performs **no aggressive scraping** — the scheduler only re-uses the
+  rate-limited RSS / official-API connectors from Phase 9.5.
+
+### 19.2 Components
+
+All code lives in `src/fpl_intelligence/live_intelligence/scheduling/`:
+
+| Module | Component | Responsibility |
+|--------|-----------|----------------|
+| `scheduler.py` | `Scheduler` | Wraps a Phase 9.5 `ConnectorScheduler` and runs one pipeline pass per call: `run()` (manual) or `run_scheduled()` (loop with `interval_seconds`, bounded by `iterations` or a `stop_event`). The ingestion sink is injected `(raw, *, connector, dry_run)`; the CLI wires it to Phase 9.2 `ingest_raw_text`. Alert and notify stages are optional; failures in any stage are captured on the `SchedulerRunReport` and never abort the pass. A `RateLimiter` paces successive passes. |
+| `alerts.py` | `AlertGenerator` | Classifies `RawItem`s with case-insensitive keyword matching (one alert per item, highest-priority type) and emits `Alert` objects with a `severity` and provenance (`source_id`, `url`, `external_id`, `raw_item_id`). Each `generate()` pass acquires a `RateLimiter`; per-item errors are recorded on the `AlertGenerationReport`; `max_alerts_per_pass` caps the batch. |
+| `notification.py` | `NotificationService` + `Notifier`s | Fans `Alert`s out to every configured channel: `SlackNotifier` (POSTs to an incoming webhook over `httpx`), `EmailNotifier` (stdlib `smtplib`; injectable SMTP seam), `LogNotifier` (dry-run-safe local sink), `RecordingNotifier` (in-memory capture for tests). Every send is rate-limited; one failing channel becomes a failed `NotificationReceipt` and never aborts the other channels. |
+
+**The alert taxonomy.** `AlertType` ∈ {`injury`, `availability_risk`,
+`tactical_change`, `transfer_news`, `general`}, with default severities
+{injury: high, availability_risk: medium, tactical_change: medium,
+transfer_news: low, general: low}. Classification is deliberately *local and
+heuristic* (no LLM, no network), so alert generation cannot be blocked on
+quota or a provider. A future LLM-backed classifier can slot into the same
+`classifier` seam and inherits the existing rate limiting.
+
+**The notify contract.** A `Notifier.send(notification)` either returns an ok
+`NotificationReceipt` or raises `NotificationError`. The `NotificationService`
+converts a raised error into a failed receipt, so a broken channel can never
+propagate into the scheduler. `NotificationDispatchReport` aggregates
+`alerts` / `attempted` / `delivered` / `failed` and per-channel receipts.
+
+### 19.3 Data Flow
+
+```
+RSS feed / FPL bootstrap-static                (network)
+        │
+        ▼
+Connector.fetch() ──► list[RawItem]            (Phase 9.5, rate-limited, typed errors)
+        │
+        ▼
+Scheduler.run() / run_scheduled()              (Phase 9.6, RateLimiter-paced)
+        │  per connector, error-isolated
+        ▼
+IngestionSink ── ingest_raw_text ──► Phase 9.2 pipeline (dedupe, ledger, extraction)
+        │
+        ▼
+AlertGenerator.generate(ingested_items) ──► list[Alert]   (offline keyword classification)
+        │
+        ▼
+NotificationService.send_alerts(alerts) ──► NotificationDispatchReport
+        │  per channel (slack / email / log), rate-limited, error-isolated
+        ▼
+SchedulerRunReport (connector_report + alerts + notifications + errors)
+```
+
+### 19.4 CLI
+
+`scripts/run_scheduler.py`:
+
+```bash
+# All connectors, one pass (persists into an in-memory DB, alerts to the log)
+python scripts/run_scheduler.py --connector all
+
+# RSS only, custom feed, fetch but do not persist
+python scripts/run_scheduler.py --connector rss --rss-url https://... --dry-run
+
+# Official FPL API only, no alerts, no notifications
+python scripts/run_scheduler.py --connector fpl_api --no-alerts --notify none
+
+# Alert to a Slack webhook (URL from --slack-webhook-url or SLACK_WEBHOOK_URL)
+python scripts/run_scheduler.py --connector all --notify slack \
+    --slack-webhook-url https://hooks.slack.com/...
+
+# Alert by email (SMTP credentials from args or SMTP_USERNAME / SMTP_PASSWORD env)
+python scripts/run_scheduler.py --connector all --notify email \
+    --email-from alerts@example.com --email-to me@example.com \
+    --smtp-host smtp.example.com --smtp-port 587 --smtp-user me --smtp-password "***"
+
+# Scheduled execution against a real DB file
+python scripts/run_scheduler.py --connector all --interval 60 --iterations 5 --db ./fpl.db
+```
+
+`--connector` selects `rss`, `fpl_api`, or `all`. `--dry-run` still *fetches*
+from the live sources but the Phase 9.2 pipeline rolls back so nothing is
+persisted (`--notify log` still prints the generated alerts). `--interval` /
+`--iterations` enable and bound scheduled execution. Without `--db` an
+in-memory SQLite database is used, so a bare run never touches a real database.
+Exit codes: `0` success, `1` usage/configuration error, `2` provider/network
+error.
+
+### 19.5 Testing & Quality
+
+- `tests/unit/test_phase9_6_scheduling_alerting.py` — **43 tests** covering
+  `Scheduler` (fetch→ingest→alert→notify for RSS + FPL connectors with
+  `httpx.MockTransport`, single-connector selection, per-connector fetch-error
+  and per-item ingest-error isolation, dry-run forwarding, scheduled execution
+  + stop-event, rate-limit pacing, alert/notify stage failure isolation),
+  `AlertGenerator` (all five alert types, no-match, limit + flood cap,
+  per-item classifier-error isolation, rate-limit pacing, `to_dict`), and
+  `NotificationService` (Slack webhook success / HTTP 500 / `ConnectError`,
+  Email `sendmail` success / failure, log + recording sinks, per-channel error
+  isolation, batch totals, rate-limit pacing, batch cap). **Zero live network
+  calls in `pytest`.**
+- **Full suite: 594 passed** (previously 551; Phase 9.6 adds 43 tests).
+- `ruff` and `mypy` clean on the `scheduling/` package, the test module, and
+  the new CLI script.
+- **No migration required.** Phase 9.6 introduces no new tables, columns, or
+  enums — it consumes the existing Phase 9.5 `ConnectorScheduler` and the
+  Phase 9.2 `ingest_raw_text` pipeline.
