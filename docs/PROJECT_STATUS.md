@@ -951,80 +951,51 @@ deployment/operations prerequisite. Phase 9.9 may now begin; see its own
 
 ## Phase 11.1 — API-First Structured Data Integration
 
-**Status:** INITIALIZED (2026-08-19). The project pivots toward an
-API-first production architecture. Core facts (injuries, chance of playing,
-confirmed lineups, formations) now flow from structured public APIs rather than
-relying on the heavy LLM extraction layer for the decision-critical path. The
-Phase 9/10 LLM layer remains available as an optional analyst layer and is **not
-required** for core decision-making.
+**Status:** CLOSED (2026-08-20; committed, tagged v1.0.5-api-first-data-integration). The project pivots toward an API-first production architecture. Core facts (injuries, chance of playing, confirmed lineups, formations) now flow from structured public APIs rather than relying on the heavy LLM extraction layer for the decision-critical path. The Phase 9/10 LLM layer remains available as an optional analyst layer and is **not required** for core decision-making.
 
 ```
 Implementation: 100% (connectors, cache, injector, decision bridge, CLI, tests)
-Automated Testing: 100% (69 new Phase 11.1 tests)
+Automated Testing: 100% (69 new Phase 11.1 tests; 841 total, 0 failed / 0 skipped / 0 errored)
 Real-Data Validation: N/A (free-tier public APIs; no paid dependency)
-Status: INITIALIZED / API-FIRST_PIVOT_ACTIVE
+Status: CLOSED
 ```
 
 **Constraints honoured:**
 - No Phase 9/10 LLM code deleted or modified.
 - No Phase 1–8 quantitative algorithm modified.
 - No API keys hardcoded (env-only; keyed connectors read from environment).
-- No paid APIs required (FPL official is keyless; API-Football and
-  football-data.org have free tiers).
-- No live API calls inside ``pytest`` (all connectors use a mocked
-  ``httpx.MockTransport``; tests feed fixture JSON).
+- No paid APIs required (FPL official is keyless; API-Football and football-data.org have free tiers).
+- No live API calls inside ``pytest`` (all connectors use a mocked ``httpx.MockTransport``; tests feed fixture JSON).
 
 **Delivered:**
-- ``src/fpl_intelligence/data_providers/fpl_official.py`` — Official FPL API
-  connector (no key). Fetches ``bootstrap-static``, ``fixtures``,
-  ``element-summary/{id}``; extracts news, ``chance_of_playing``, ``status``,
-  ``expected_minutes``, price, team, and next fixture difficulty.
-- ``src/fpl_intelligence/data_providers/api_football.py`` — API-Football
-  connector (keyed via ``API_FOOTBALL_KEY``). Fixtures by date, lineups by
-  fixture, injuries. Disables gracefully when the key is absent.
-- ``src/fpl_intelligence/data_providers/football_data_org.py`` —
-  football-data.org connector (keyed via ``FOOTBALL_DATA_ORG_KEY``).
-  Competitions, matches, standings. Disables gracefully when the key is absent.
-- ``src/fpl_intelligence/data_providers/cache.py`` — ``ResponseCache`` keyed by
-  endpoint + params with a 15-minute general TTL and a 1-minute
-  deadline-sensitive TTL.
-- ``src/fpl_intelligence/data_providers/live_fact_injector.py`` —
-  :class:`LiveFactInjector` converts structured ``PlayerFact`` rows into hard
-  :class:`FactOverride` objects (start probability, expected minutes,
-  availability status). Each source is isolated, so a failure degrades to fewer
-  facts rather than an error.
-- ``src/fpl_intelligence/data_providers/decision_bridge.py`` —
-  :class:`FactOverrideProvider` wraps the baseline quantitative
-  ``DecisionPredictionProvider`` and post-processes predictions without mutating
-  any Phase 1–8 model; :class:`FactCollectionService` orchestrates the
-  connectors + injector.
-- ``src/fpl_intelligence/api/routes/squad.py`` — ``GET /api/v1/decisions`` now
-  accepts ``?live_facts=true`` to apply live overrides before the Phase 6
-  optimizers; falls back to baseline predictions on any failure.
-- ``scripts/fetch_live_facts.py`` — CLI that fetches official FPL facts (and
-  keyed providers when configured), prints a hard-fact summary, supports
-  ``--dry-run`` and ``--cache-dir``, and never requires live LLM calls.
-- ``tests/unit/test_phase11_data_providers.py`` — 69 tests (parsing, cache
-  hit/miss/TTL, injector overrides, graceful degradation, endpoint fallback).
+- ``src/fpl_intelligence/data_providers/fpl_official.py`` — Official FPL API connector (no key). Fetches ``bootstrap-static``, ``fixtures``, ``element-summary/{id}``; extracts news, ``chance_of_playing``, ``status``, ``expected_minutes``, price, team, and next fixture difficulty.
+- ``src/fpl_intelligence/data_providers/api_football.py`` — API-Football connector (keyed via ``API_FOOTBALL_KEY``). Fixtures by date, lineups by fixture, injuries. Disables gracefully when the key is absent.
+- ``src/fpl_intelligence/data_providers/football_data_org.py`` — football-data.org connector (keyed via ``FOOTBALL_DATA_ORG_KEY``). Competitions, matches, standings. Disables gracefully when the key is absent.
+- ``src/fpl_intelligence/data_providers/cache.py`` — ``ResponseCache`` keyed by endpoint + params with a 15-minute general TTL and a 1-minute deadline-sensitive TTL.
+- ``src/fpl_intelligence/data_providers/live_fact_injector.py`` — :class:`LiveFactInjector` converts structured ``PlayerFact`` rows into hard :class:`FactOverride` objects (start probability, expected minutes, availability status). Each source is isolated, so a failure degrades to fewer facts rather than an error.
+- ``src/fpl_intelligence/data_providers/decision_bridge.py`` — :class:`FactOverrideProvider` wraps the baseline quantitative ``DecisionPredictionProvider`` and post-processes predictions without mutating any Phase 1–8 model; :class:`FactCollectionService` orchestrates the connectors + injector.
+- ``src/fpl_intelligence/api/routes/squad.py`` — ``GET /api/v1/decisions`` now accepts ``?live_facts=true`` to apply live overrides before the Phase 6 optimizers; falls back to baseline predictions on any failure.
+- ``scripts/fetch_live_facts.py`` — CLI that fetches official FPL facts (and keyed providers when configured), prints a hard-fact summary, supports ``--dry-run`` and ``--cache-dir``, and never requires live LLM calls.
+- ``tests/unit/test_phase11_data_providers.py`` — 69 tests (parsing, cache hit/miss/TTL, injector overrides, graceful degradation, endpoint fallback).
 
-**Closure verification (2026-08-19):**
-- Full suite: **841 passed, 0 failed, 0 skipped, 0 errored** (was 706 + 69 new
-  Phase 11.1 tests; > 772 bar met).
-- ``ruff`` clean on all Phase 11.1 modules (``src/fpl_intelligence/data_providers``,
-  the squad route, the CLI).
+**Closure verification (2026-08-20):**
+- Full suite: **841 passed, 0 failed, 0 skipped, 0 errored** (was 772 + 69 new Phase 11.1 tests).
+- ``ruff`` clean on all Phase 11.1 modules (``src/fpl_intelligence/data_providers``, the squad route, the CLI).
 - ``mypy`` clean on all Phase 11.1 modules.
 - No migration required (no new tables/columns/enums).
-- **Not classified A/B/C** — this is an integration/architecture layer, not an
-  empirical evaluation of the prediction stack.
+- **Not classified A/B/C** — this is an integration/architecture layer, not an empirical evaluation of the prediction stack.
 
-**Remaining tasks (post-initialization):**
-1. Wire FPL player-id ↔ API-Football/football-data.org id mapping (entity
-   resolution, owned by Phase 9.2.1) so more API-Football facts become keyable
-   on FPL ids.
-2. Acquire a pre-deadline historical source to empirically validate that the
-   structured facts improve holdout decisions.
-3. Extend fixtures/standings context (football-data.org) into richer match
-   context once id mapping exists.
+**Remaining tasks (post-closure):**
+1. Wire FPL player-id ↔ API-Football/football-data.org id mapping (entity resolution, owned by Phase 9.2.1) so more API-Football facts become keyable on FPL ids.
+2. Acquire a pre-deadline historical source to empirically validate that the structured facts improve holdout decisions.
+3. Extend fixtures/standings context (football-data.org) into richer match context once id mapping exists.
+
+**Version control:**
+- Commit: `407c78a` — `feat(data): add API-first structured data integration and live fact injector`
+- Tag: `v1.0.5-api-first-data-integration`
+- Pushed to origin: both commit and tag successfully pushed
+
+**Phase 11.2 unblocked:** Phase 11.1 closure (this report) removes the data-integration prerequisite. Phase 11.2 may now begin.
 
 ## Summary
 ## Summary
@@ -1059,7 +1030,7 @@ Status: INITIALIZED / API-FIRST_PIVOT_ACTIVE
 | 10.2 | 100 | 100 | N/A | **CLOSED / TAGGED** (v1.0.2-telegram-bot-notifications) — Telegram Bot Notifications |
 | 10.3 | 100 | 100 | N/A | **CLOSED / TAGGED** (v1.0.3-web-dashboard) — Web Dashboard |
 | 10.4 | 100 | 100 | N/A | **CLOSED / TAGGED** (v1.0.4-personalized-squad-decisions) — Personalized Squad Decision Engine |
-| 11.1 | 100 | 100 | N/A | INITIALIZED (2026-08-19) — API-First Structured Data Integration |
+| 11.1 | 100 | 100 | N/A | **CLOSED / TAGGED** (v1.0.5-api-first-data-integration) — API-First Structured Data Integration |
 
 **Full test suite (authoritative, 2026-08-19):** `pytest -q` → **841 passed, 0 failed, 0 skipped, 0 errored** (exit 0). Composition: pre-existing Phases 1–10.4 suite (772 tests) + Phase 11.1 data-provider tests (69 tests).
 
