@@ -863,13 +863,16 @@ def _squad_payload() -> dict:
 @pytest.fixture
 def api_client(db_session):
     from fastapi.testclient import TestClient
+    from sqlalchemy import delete
 
     from fpl_intelligence.api import deps
     from fpl_intelligence.api.main import app
-    from fpl_intelligence.api.routes import squad as squad_route
     from fpl_intelligence.live_intelligence.bridge import StaticPredictionProvider
+    from fpl_intelligence.squad.models_db import SquadStateDB
 
-    squad_route._squad_service.clear()
+    # Phase 11.2 — squad state is DB-backed; start each test clean.
+    db_session.execute(delete(SquadStateDB))
+    db_session.commit()
     app.dependency_overrides[deps._get_db_session] = lambda: db_session
     app.dependency_overrides[deps.get_prediction_provider] = lambda: StaticPredictionProvider()
     try:
@@ -877,7 +880,8 @@ def api_client(db_session):
             yield client
     finally:
         app.dependency_overrides.clear()
-        squad_route._squad_service.clear()
+        db_session.execute(delete(SquadStateDB))
+        db_session.commit()
 
 
 class TestDecisionsEndpointLiveFacts:

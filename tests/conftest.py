@@ -23,6 +23,7 @@ from fpl_intelligence.db.models import (
     Team,
     TeamExternalId,
 )
+from fpl_intelligence.squad.models_db import SquadStateDB  # noqa: F401
 
 
 @pytest.fixture

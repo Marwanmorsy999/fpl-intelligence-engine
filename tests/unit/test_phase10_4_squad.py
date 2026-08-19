@@ -211,7 +211,10 @@ class TestDecisionOptimizerBridge:
 
 @pytest.fixture
 def client(db_session: Session) -> Generator[TestClient, None, None]:
+    from sqlalchemy import delete
+
     from fpl_intelligence.api.main import app
+    from fpl_intelligence.squad.models_db import SquadStateDB
 
     def _override_db() -> Generator[Session, None, None]:
         yield db_session
@@ -219,15 +222,17 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
     app.dependency_overrides[deps._get_db_session] = _override_db
     app.dependency_overrides[deps.get_llm_provider] = lambda: MagicMock()
     app.dependency_overrides[deps.get_prediction_provider] = lambda: StaticPredictionProvider()
-    from fpl_intelligence.api.routes.squad import _squad_service
 
-    _squad_service.clear()
+    # Start each test from a clean squad state (Phase 11.2 — DB-backed).
+    db_session.execute(delete(SquadStateDB))
+    db_session.commit()
     try:
         with TestClient(app) as test_client:
             yield test_client
     finally:
         app.dependency_overrides.clear()
-        _squad_service.clear()
+        db_session.execute(delete(SquadStateDB))
+        db_session.commit()
 
 
 class TestSquadAPI:

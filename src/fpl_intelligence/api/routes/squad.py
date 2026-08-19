@@ -7,6 +7,10 @@ are unavailable — network failure, missing key, or ``live_facts=false`` — th
 request falls back to the baseline quantitative predictions and still succeeds.
 No API key is hardcoded; live calls (if any) are cache-first and never fail the
 request.
+
+Phase 11.2 persists the squad state to PostgreSQL: each request binds a
+:class:`~fpl_intelligence.squad.service.SquadService` to the request's database
+session, so the squad survives restarts and is shared across workers.
 """
 
 from __future__ import annotations
@@ -34,23 +38,24 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-_squad_service = SquadService()
+GetDB = deps.GetDB
 
 
 @router.post("/squad", response_model=SquadStateResponse, status_code=200)
-async def set_squad(payload: SquadStateCreate) -> SquadStateResponse:
+async def set_squad(payload: SquadStateCreate, db: GetDB) -> SquadStateResponse:
     """Persist the user's FPL squad state."""
-    return _squad_service.set_squad(payload)
+    return SquadService(session=db).set_squad(payload)
 
 
 @router.get("/squad", response_model=SquadStateResponse | None)
-async def get_squad() -> SquadStateResponse | None:
+async def get_squad(db: GetDB) -> SquadStateResponse | None:
     """Retrieve the current squad state, or ``null`` if none has been set."""
-    return _squad_service.get_squad()
+    return SquadService(session=db).get_squad()
 
 
 @router.get("/decisions", response_model=DecisionReport)
 async def get_decisions(
+    db: GetDB,
     provider: Annotated[DecisionPredictionProvider, Depends(deps.get_prediction_provider)],
     live_facts: bool = Query(
         False,
@@ -65,7 +70,7 @@ async def get_decisions(
     request degrades gracefully to the baseline quantitative predictions and
     still succeeds — it never fails because of an upstream API problem.
     """
-    squad = _squad_service.get_squad()
+    squad = SquadService(session=db).get_squad()
     if squad is None:
         raise HTTPException(
             status_code=404,
