@@ -32,6 +32,9 @@ tmp_*.py
 !**/__init__.py
 !**/__main__.py
 
+# CI / test artifacts
+test_results.xml
+
 # IDE
 .vscode/
 .idea/

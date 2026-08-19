@@ -1,13 +1,11 @@
-# Phase 9.8 — Production deployment stack.
+# Phase 11.2 — Production deployment stack (PaaS/VPS local simulation).
 #
-# Secrets are provided by the host environment / a git-ignored .env file —
-# nothing sensitive is hardcoded here. The app image is the Phase 9.8
-# production Dockerfile (multi-stage, non-root, healthchecked).
+# Simulates the PaaS process model locally: a FastAPI web service, a Phase 9.6
+# scheduler worker, a Phase 10.2 Telegram bot worker, and a PostgreSQL database.
+# Secrets are provided by the host environment / a git-ignored .env file — never
+# committed. The app image is the multi-stage, non-root, healthchecked Dockerfile.
 #
 #   docker compose -f docker-compose.prod.yml up -d --build
-#
-# The API runs the Phase 9.7 EndToEnd verification entry point; the scheduler
-# is driven by the deploy CLI (`scripts/deploy.py`) or your orchestrator.
 
 services:
   db:
@@ -31,13 +29,25 @@ services:
       dockerfile: Dockerfile
     image: fpl-intelligence-engine:production
     restart: unless-stopped
+    command: uvicorn fpl_intelligence.api.main:app --host 0.0.0.0 --port 8000
     environment:
       APP_ENV: production
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-fpl}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-fpl}
       FPL_BASE_URL: https://fantasy.premierleague.com
       REQUEST_TIMEOUT_SECONDS: ${REQUEST_TIMEOUT_SECONDS:-20}
-      # Secrets flow from the host/.env into the container — never committed.
+      SERVE_STATIC_DASHBOARD: ${SERVE_STATIC_DASHBOARD:-true}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      FPL_API_USE_LIVE_LLM: ${FPL_API_USE_LIVE_LLM:-false}
+      API_FOOTBALL_KEY: ${API_FOOTBALL_KEY:-}
+      FOOTBALL_DATA_ORG_KEY: ${FOOTBALL_DATA_ORG_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_ALLOWED_USER_IDS: ${TELEGRAM_ALLOWED_USER_IDS:-}
+      RSS_FEED_URL: ${RSS_FEED_URL:-}
+      SCHEDULER_INTERVAL_SECONDS: ${SCHEDULER_INTERVAL_SECONDS:-900}
       SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
       CRITICAL_ERROR_WEBHOOK_URL: ${CRITICAL_ERROR_WEBHOOK_URL:-}
     depends_on:
@@ -55,6 +65,47 @@ services:
       timeout: 5s
       start_period: 30s
       retries: 3
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: fpl-intelligence-engine:production
+    restart: unless-stopped
+    command: python -m fpl_intelligence.scripts.run_scheduler
+    environment:
+      APP_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-fpl}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-fpl}
+      FPL_API_USE_LIVE_LLM: ${FPL_API_USE_LIVE_LLM:-false}
+      RSS_FEED_URL: ${RSS_FEED_URL:-}
+      SCHEDULER_INTERVAL_SECONDS: ${SCHEDULER_INTERVAL_SECONDS:-900}
+      SCHEDULER_MIN_INTERVAL: ${SCHEDULER_MIN_INTERVAL:-30}
+      API_FOOTBALL_KEY: ${API_FOOTBALL_KEY:-}
+      FOOTBALL_DATA_ORG_KEY: ${FOOTBALL_DATA_ORG_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: fpl-intelligence-engine:production
+    restart: unless-stopped
+    command: python -m fpl_intelligence.scripts.run_telegram_bot
+    environment:
+      APP_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-fpl}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-fpl}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_ALLOWED_USER_IDS: ${TELEGRAM_ALLOWED_USER_IDS:-}
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   postgres_data:

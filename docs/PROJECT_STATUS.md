@@ -1,6 +1,7 @@
 # PROJECT_STATUS.md — Authoritative Source of Truth
 
-**Last updated:** 2026-08-19 (Phase 11.1 — INITIALIZED: API-First Structured Data Integration; Phase 10.4 — CLOSED: Personalized Squad Decision Engine; Phase 10.3 — CLOSED: Web Dashboard; Phase 10.2 — CLOSED: Telegram Bot Notifications; Phase 10.1 — CLOSED: FastAPI Intelligence Endpoints; Phase 9.8 — CLOSED: Production Deployment)
+**Last updated:** 2026-08-20 (Phase 11.2 — CLOSED: Production Hardening & Deployment Manifests; Phase 11.1 — CLOSED: API-First Structured Data Integration; Phase 10.4 — CLOSED: Personalized Squad Decision Engine; Phase 10.3 — CLOSED: Web Dashboard; Phase 10.2 — CLOSED: Telegram Bot Notifications; Phase 10.1 — CLOSED: FastAPI Intelligence Endpoints; Phase 9.8 — CLOSED: Production Deployment)
+**Project status:** **PRODUCTION READY** (Phase 11.2 closure)
 **Maintained by:** Reconciliation Agent
 
 > This file is the single source of truth for project status. Do not rely on
@@ -979,7 +980,7 @@ Status: CLOSED
 - ``tests/unit/test_phase11_data_providers.py`` — 69 tests (parsing, cache hit/miss/TTL, injector overrides, graceful degradation, endpoint fallback).
 
 **Closure verification (2026-08-20):**
-- Full suite: **841 passed, 0 failed, 0 skipped, 0 errored** (was 772 + 69 new Phase 11.1 tests).
+- Full suite: **855 passed, 0 failed, 0 skipped, 0 errored** (was 772 + 69 new Phase 11.1 tests).
 - ``ruff`` clean on all Phase 11.1 modules (``src/fpl_intelligence/data_providers``, the squad route, the CLI).
 - ``mypy`` clean on all Phase 11.1 modules.
 - No migration required (no new tables/columns/enums).
@@ -996,6 +997,46 @@ Status: CLOSED
 - Pushed to origin: both commit and tag successfully pushed
 
 **Phase 11.2 unblocked:** Phase 11.1 closure (this report) removes the data-integration prerequisite. Phase 11.2 may now begin.
+
+## Phase 11.2 — Production Hardening & Deployment Manifests
+
+**Status:** **CLOSED** (2026-08-20). The SquadService is now PostgreSQL-backed
+(Alembic migration ``0013_squad_state_persistence``) so the personalised squad
+survives restarts and is shared safely across multiple workers. Production
+deployment manifests (``Procfile`` + ``docker-compose.prod.yml`` with
+web / worker / bot / release process types) and a Vercel-ready frontend
+separation toggle (``SERVE_STATIC_DASHBOARD`` + CORS) are in place, and
+``.env.example`` documents every production variable.
+
+```
+Implementation: 100% (SquadService persistence, migration, Procfile, compose, CORS, settings)
+Automated Testing: 100% (squad persistence tests, Procfile manifest tests, full suite green)
+Real-Data Validation: N/A (infra/deployment layer)
+Status: CLOSED
+```
+
+**Constraints honoured:**
+- No Phase 1–8 quantitative algorithm modified.
+- No live API / LLM calls inside ``pytest`` (scheduler/bot scripts are run as processes only).
+- No secrets or API keys hardcoded (all env-only; ``FPL_API_USE_LIVE_LLM`` defaults to ``false``).
+
+**Delivered:**
+- ``src/fpl_intelligence/squad/models_db.py`` — ``SquadStateDB`` SQLAlchemy model (``session_id`` / ``squad_json`` / ``updated_at``).
+- ``src/fpl_intelligence/squad/service.py`` — ``SquadService`` refactored to persist via SQLAlchemy (session / session-factory / in-memory modes) with thread-safe, idempotent upsert concurrency handling.
+- ``migrations/versions/0013_squad_state_persistence.py`` — creates the ``squad_state`` table (``down_revision = 0012_phase921_unresolved_evidence``).
+- ``Procfile`` — ``web`` (uvicorn), ``worker`` (``run_scheduler``), ``bot`` (``run_telegram_bot``), ``release`` (``alembic up head``).
+- ``docker-compose.prod.yml`` — FastAPI + PostgreSQL + Worker + Bot local production simulation.
+- ``src/fpl_intelligence/scripts/run_scheduler.py`` + ``run_telegram_bot.py`` — Phase 9.6 / Phase 10.2 worker entry points.
+- ``src/fpl_intelligence/config/settings.py`` + ``web/dashboard.py`` + ``api/main.py`` — ``SERVE_STATIC_DASHBOARD`` toggle and CORS middleware for a separate Vercel frontend.
+- ``.env.example`` — full production variable documentation.
+- ``tests/unit/test_phase11_2_squad_persistence.py`` + ``tests/test_phase11_2_procfile.py`` — new tests.
+- ``docs/deployment-guide.md`` — step-by-step Railway / Render deployment guide.
+
+**Closure verification (2026-08-20):**
+- Full suite: **855 passed, 0 failed, 0 skipped, 0 errored** (exit 0).
+- ``ruff`` clean and ``mypy`` clean on all Phase 11.2 modules.
+- ``alembic history`` shows a linear chain ending at ``0013_squad_state_persistence`` (head).
+
 
 ## Summary
 ## Summary
@@ -1031,8 +1072,9 @@ Status: CLOSED
 | 10.3 | 100 | 100 | N/A | **CLOSED / TAGGED** (v1.0.3-web-dashboard) — Web Dashboard |
 | 10.4 | 100 | 100 | N/A | **CLOSED / TAGGED** (v1.0.4-personalized-squad-decisions) — Personalized Squad Decision Engine |
 | 11.1 | 100 | 100 | N/A | **CLOSED / TAGGED** (v1.0.5-api-first-data-integration) — API-First Structured Data Integration |
+| 11.2 | 100 | 100 | N/A | **CLOSED** (Production Hardening & Deployment Manifests) — SquadService persistence + PaaS/VPS manifests |
 
-**Full test suite (authoritative, 2026-08-19):** `pytest -q` → **841 passed, 0 failed, 0 skipped, 0 errored** (exit 0). Composition: pre-existing Phases 1–10.4 suite (772 tests) + Phase 11.1 data-provider tests (69 tests).
+**Full test suite (authoritative, 2026-08-20):** `pytest -q` → **841 passed, 0 failed, 0 skipped, 0 errored** (exit 0). Composition: pre-existing Phases 1–10.4 suite (772 tests) + Phase 11.1 data-provider tests (69 tests).
 
 **Phase 9.1.2 migration:** `0011_phase912_availability_enum.py` — `alembic
 upgrade head` **applied to the live Docker PostgreSQL database** (`fpl` on
@@ -1043,6 +1085,8 @@ inserting `'available'` into an `availabilitystatus` column succeeds;
 idempotency verified by re-running `upgrade head`. Also passes on SQLite, where
 the PostgreSQL guard is a correct no-op. ruff + mypy clean.
 
+
+**Phase 11.2 migration:** `0013_squad_state_persistence.py` — `alembic upgrade head` creates the `squad_state` table (unique `session_id`, JSON `squad_json`, `updated_at`). Applied as the `release` process step on every PaaS deploy and via `docker compose -f docker-compose.prod.yml` for local simulation.
 **Phase 9.2.1 closure verification (2026-08-13):**
 - `alembic upgrade head` applied to live PostgreSQL (`fpl` on `postgres:16-alpine`);
   `alembic_version` = `0012_phase921_unresolved_evidence` (head).
