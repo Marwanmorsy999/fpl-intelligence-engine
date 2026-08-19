@@ -1,6 +1,6 @@
 # PROJECT_STATUS.md — Authoritative Source of Truth
 
-**Last updated:** 2026-08-19 (Phase 9.8 — CLOSED: Production Deployment; Phase 9.7 — CLOSED: Live End-to-End Verification; Phase 9.6 — CLOSED: Scheduling and Alerting; Phase 9.5 — CLOSED: Live Source Connectors)
+**Last updated:** 2026-08-19 (Phase 10.1 — INITIALIZED: FastAPI Intelligence Endpoints; Phase 9.8 — CLOSED: Production Deployment; Phase 9.7 — CLOSED: Live End-to-End Verification; Phase 9.6 — CLOSED: Scheduling and Alerting; Phase 9.5 — CLOSED: Live Source Connectors)
 **Maintained by:** Reconciliation Agent
 
 > This file is the single source of truth for project status. Do not rely on
@@ -1180,3 +1180,66 @@ alert → notify.
 **v0.9.7-live-end-to-end-verification**; full suite **616 passed, 0 failed,
 0 errored, exit 0**; verification tests are fully offline; ruff + mypy clean;
 no migration required; Phase 9.8 unblocked after this closure report)
+
+---
+
+## Phase 9 — OFFICIAL CLOSURE
+
+**Phase 9 is COMPLETE.** All sub-phases are closed and the production deployment
+is tagged **v0.9.8-production-deployment** (699 tests passing at closure). The
+Live Intelligence Accumulator (9.1–9.5), Live Source Connectors (9.5),
+Scheduling & Alerting (9.6), Live End-to-End Verification (9.7) and Production
+Deployment (9.8) are all shipped behind the existing CLI scripts and are now
+consumed externally via the Phase 10.1 REST API.
+
+No quantitative Phases 1–8 code was modified during Phase 9 or Phase 10.1.
+
+## Phase 10.1 — FastAPI Intelligence Endpoints
+
+**Status:** **INITIALIZED** (2026-08-19). Wires the Phase 9 intelligence engine
+into the Phase 1 FastAPI application so external clients (dashboards, bots,
+mobile apps) can consume live intelligence over HTTP.
+
+**Delivered:**
+
+1. **`src/fpl_intelligence/api/routes/intelligence.py`** (new router) — four
+   endpoints, included at prefix `/api/v1` from
+   `src/fpl_intelligence/api/main.py`:
+   - `GET  /api/v1/health` — Phase 9.8 deployment health status + metrics
+     (probes DB connectivity; surfaces the shared Phase 9.8
+     `MonitoringService` snapshot).
+   - `GET  /api/v1/intelligence/player/{player_id}` — builds an
+     `IntelligenceReport` via the Phase 9.4 `AnalystReportGenerator`; optional
+     `gameweek` / `cutoff` query params; JSON by default, Markdown via
+     `?format=md` or `Accept: text/markdown`.
+   - `POST /api/v1/ingest` — runs the Phase 9.2 `ingest_raw_text` pipeline;
+     payload `{source_id, content_text, published_at, url, ...}`; returns the
+     ingestion summary and availability / tactical / unresolved evidence ids.
+   - `GET  /api/v1/intelligence/unresolved` — paginated
+     `UnresolvedLiveEvidence` (Phase 9.2.1) list for human triage.
+2. **`src/fpl_intelligence/api/deps.py`** (dependency injection) — `Depends`
+   providers for the DB session, `PredictionContextBuilder`,
+   `EvidenceQueryService`, and `AIAnalyst`. The LLM provider **defaults to
+   `MockLLMProvider`**; a real provider is built only when the caller opts in
+   via the `FPL_API_USE_LIVE_LLM=true` env var or the `X-FPL-LLM-Mode: live`
+   header (credentials come from configuration/environment — never hardcoded).
+3. **LLM/event-loop safety** — blocking synthesis and ingestion run through
+   `fastapi.concurrency.run_in_threadpool`; no live LLM call can pin the event
+   loop under the default (mock) configuration.
+4. **`tests/unit/test_phase10_api.py`** — 7 offline `TestClient` tests covering
+   all four endpoints (JSON + Markdown player report, ingest summary, bad
+   timestamp rejection, paginated unresolved). LLM and DB seams are mocked.
+5. **`docs/phase10-api.md`** — endpoint/request/response schemas and the
+   live-vs-mock LLM toggle.
+
+**Phase 10.1 verification (2026-08-19):**
+- Full suite: **706 passed, 0 failed, 0 errored** (exit 0) — 7 new API tests on
+  top of the 699 Phase 9.8 closure baseline.
+- `ruff` clean on `src/fpl_intelligence/api` ("All checks passed!").
+- `mypy` clean on `src/fpl_intelligence/api` ("Success: no issues found in 5
+  source files").
+- API tests run fully offline and instantly (mock LLM + in-memory SQLite).
+
+**PHASE_10_1_INITIALIZED = TRUE** (FastAPI intelligence endpoints live; default
+mock-LLM mode prevents accidental quota drainage; quantitative Phases 1–8
+untouched)

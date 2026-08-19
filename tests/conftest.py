@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from fpl_intelligence.db.base import Base
 from fpl_intelligence.db.models import (
@@ -27,7 +28,12 @@ from fpl_intelligence.db.models import (
 @pytest.fixture
 def db_session() -> Generator[Session, None, None]:
     """Create an in-memory SQLite database with all tables."""
-    engine = create_engine("sqlite:///:memory:", echo=False)
+    engine = create_engine(
+        "sqlite:///:memory:",
+        echo=False,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
 
     @event.listens_for(engine, "connect")
     def set_sqlite_pragma(dbapi_connection, connection_record):
