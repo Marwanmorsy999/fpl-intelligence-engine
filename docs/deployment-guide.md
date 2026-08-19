@@ -124,7 +124,83 @@ frontend separately (e.g. on Vercel):
 
 ---
 
-## 6. Post-deploy checklist
+## 6. 100% Free (No Credit Card) — Vercel + GitHub Actions + Supabase
+
+This tier uses **only free, no-credit-card-required** services:
+
+| Service      | Free tier used (no card)                              |
+| ------------ | ---------------------------------------------------- |
+| **Supabase** | Free Postgres (500 MB DB, no card).                 |
+| **Vercel**  | Hobby tier (serverless functions, no card).         |
+| **GitHub Actions** | Free cron scheduler (public repos; 2,000 min/mo private). |
+
+Vercel's hobby tier **cannot run long-lived background workers**, so the
+Phase 9.6 scheduler and the Telegram bot are driven by **GitHub Actions cron**
+(` .github/workflows/scheduler.yml`) instead of a Procfile `worker`/`bot`
+process. The FastAPI app is served by a single Vercel serverless function
+configured via `vercel.json` (Vercel does **not** use a `Procfile`).
+
+### 6.1 Deploy the API to Vercel
+
+1. Push the repo to GitHub, then **Import** it into Vercel (no framework
+   preset needed; Vercel reads `vercel.json`).
+2. Under **Settings → Build & Development**, confirm the build command is
+   `pip install -r requirements.txt` (set in `vercel.json`).
+3. Add the environment variables from §6.3 below.
+4. **Deploy.** Vercel builds the FastAPI app from
+   `src/fpl_intelligence/api/main.py` and rewrites every request — including
+   `/api/v1/telegram/webhook`, `/api/v1/admin/run-scheduler`, and
+   `/health` — to that serverless function. The `data/` and `tests/`
+   directories are excluded from the function bundle to keep it small.
+5. **Verify:** `https://<your-app>.vercel.app/health` returns
+   `{"status":"ok","version":"..."}`.
+
+### 6.2 Wire up the scheduler (GitHub Actions)
+
+The `scheduler.yml` workflow runs on two cron schedules:
+
+- `0 * * * *` — hourly: `POST /api/v1/admin/run-scheduler` (authenticated with
+  the `X-Admin-Secret` header).
+- `*/10 * * * *` — every 10 minutes: `GET /api/v1/health` to keep the
+  serverless function warm (avoids Vercel's cold-start latency).
+
+Go to ** repo → Settings → Secrets and variables → Actions** and add the two
+secrets from §6.3. The workflow reads them as `secrets.VERCEL_DEPLOY_URL` and
+`secrets.ADMIN_SECRET_KEY`. You can also trigger it manually via
+**Actions → Run workflow**.
+
+### 6.3 Required environment variables
+
+**Vercel — Settings → Environment Variables:**
+
+| Variable                     | Value / example                                                  |
+| ---------------------------- | --------------------------------------------------------------- |
+| `DATABASE_URL`               | Supabase Postgres, `postgresql+psycopg://...` form              |
+| `APP_ENV`                    | `production`                                                    |
+| `ADMIN_SECRET_KEY`           | a strong random string (must match GitHub `ADMIN_SECRET_KEY`)  |
+| `FPL_API_USE_LIVE_LLM`       | `false` (safe default — no live LLM calls)                     |
+| `SERVE_STATIC_DASHBOARD`     | `false` (Vercel hosts the API only)                            |
+| `CORS_ORIGINS`               | comma-separated frontend origins, or empty                    |
+| `API_FOOTBALL_KEY`           | *(optional)*                                                    |
+| `FOOTBALL_DATA_ORG_KEY`      | *(optional)*                                                    |
+| `TELEGRAM_BOT_TOKEN`         | *(optional)* Phase 10.2 bot token                              |
+| `TELEGRAM_ALLOWED_USER_IDS`  | *(optional)* comma-separated Telegram user IDs                |
+| `GROQ_API_KEY` / `GOOGLE_API_KEY` / `OPENROUTER_API_KEY` | *(optional)* LLM keys |
+
+**GitHub — Settings → Secrets → Actions:**
+
+| Secret                | Value                                                        |
+| --------------------- | ----------------------------------------------------------- |
+| `VERCEL_DEPLOY_URL`   | `https://<your-app>.vercel.app` (no trailing slash)         |
+| `ADMIN_SECRET_KEY`    | **identical** value to Vercel's `ADMIN_SECRET_KEY`          |
+
+> The `/api/v1/admin/run-scheduler` endpoint only accepts requests whose
+> `X-Admin-Secret` header equals Vercel's `ADMIN_SECRET_KEY`. Because GitHub
+> sends `secrets.ADMIN_SECRET_KEY`, the two values **must be the same**.
+
+---
+
+## 7. Post-deploy checklist
 
 - [ ] `GET /health` returns `ok`.
 - [ ] `alembic current` shows `0013_squad_state_persistence` (head).

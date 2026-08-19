@@ -1,0 +1,44 @@
+name: No-CC Deployment Scheduler (Vercel)
+
+# Phase 11.4 — 100% free, no-credit-card deployment scheduler.
+# Vercel's hobby tier cannot run long-lived background workers, so GitHub
+# Actions (free for public repos / 2000 min-month private) drives the cron.
+on:
+  schedule:
+    - cron: "0 * * * *"        # hourly: run the live-source scheduler
+    - cron: "*/10 * * * *"     # every 10 min: keep the serverless function warm
+  workflow_dispatch:
+
+concurrency:
+  group: no-cc-deployment-scheduler
+  cancel-in-progress: false
+
+jobs:
+  run-scheduler:
+    # Only fire the heavy scheduler on the hourly tick (or a manual run).
+    if: github.event.schedule == '0 * * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Invoke admin scheduler endpoint
+        env:
+          VERCEL_DEPLOY_URL: ${{ secrets.VERCEL_DEPLOY_URL }}
+          ADMIN_SECRET_KEY: ${{ secrets.ADMIN_SECRET_KEY }}
+        run: |
+          curl -fsS -X POST \
+            "$VERCEL_DEPLOY_URL/api/v1/admin/run-scheduler" \
+            -H "X-Admin-Secret: $ADMIN_SECRET_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}'
+
+  keep-warm:
+    # Only ping health on the 10-minute tick (or a manual run).
+    if: github.event.schedule == '*/10 * * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping health endpoint to keep the function warm
+        env:
+          VERCEL_DEPLOY_URL: ${{ secrets.VERCEL_DEPLOY_URL }}
+        run: |
+          curl -fsS "$VERCEL_DEPLOY_URL/api/v1/health"

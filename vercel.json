@@ -1,0 +1,29 @@
+{
+  "version": 2,
+  "buildCommand": "pip install -r requirements.txt",
+  "builds": [
+    {
+      "src": "src/fpl_intelligence/api/main.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/v1/telegram/webhook",
+      "destination": "/src/fpl_intelligence/api/main.py"
+    },
+    {
+      "source": "/api/v1/admin/(.*)",
+      "destination": "/src/fpl_intelligence/api/main.py"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/src/fpl_intelligence/api/main.py"
+    }
+  ],
+  "functions": {
+    "src/fpl_intelligence/api/main.py": {
+      "excludeFiles": "{data,tests}/**"
+    }
+  }
+}
