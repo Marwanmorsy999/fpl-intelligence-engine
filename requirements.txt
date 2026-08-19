@@ -1,0 +1,19 @@
+requests
+psycopg2-binary
+bcrypt
+fastapi
+uvicorn
+python-dotenv
+gunicorn
+python-multipart
+python-jose[cryptography]
+kubernetes
+pytest
+pytest-asyncio
+pytest-cov
+pydantic
+sqlalchemy
+typing-extensions
+Temporarily commented out for migration testing
+# kubernetes==20.6.0
+# gunicorn==20.1.0

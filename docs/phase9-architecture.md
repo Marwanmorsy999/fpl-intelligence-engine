@@ -1020,6 +1020,149 @@ verification/provider/network failure.
 - `ruff` and `mypy` clean on the `verification/` package, the three CLI scripts,
   and the test module.
 - **No migration required.** Phase 9.7 introduces no new tables, columns, or
-  enums — it consumes the existing Phase 9.2 pipeline, Phase 9.4 bridge and
-  Phase 9.6 scheduler.
+   enums — it consumes the existing Phase 9.2 pipeline, Phase 9.4 bridge and
+   Phase 9.6 scheduler.
+
+---
+
+## 21. Phase 9.8 — Production Deployment
+
+### 21.1 Purpose
+
+Phase 9.8 packages the system for a production environment. It does **not**
+modify the quantitative Phases 1–8 stack and adds no new database tables, columns
+or enums — it is a pure deployment/operations layer that wraps the existing
+Phase 9.2 → 9.7 machinery. The layer has five concerns:
+
+1. **Docker containerization** — a production-ready `Dockerfile` plus a validator
+   and a (mockable) build pipeline.
+2. **Production configuration** — a YAML config file *plus* environment variables
+   for secrets, loaded deterministically.
+3. **Monitoring and logging** — metric + health registries, threshold alerting
+   (log + webhook sinks) and JSON logging.
+4. **Error handling and recovery** — retry with exponential backoff, a circuit
+   breaker, and a recovery manager with dead-lettering.
+5. **Deployment runner** — turns the above into offline readiness checks and,
+   optionally, an image build.
+
+All seams (Docker builder, webhook HTTP client, clocks, sleeps) are injectable, so
+**no live API/`docker`/network call happens inside `pytest`** and no API key is
+hardcoded.
+
+### 21.2 Components
+
+All code lives in `src/fpl_intelligence/deployment/`:
+
+| Module | Component | Responsibility |
+|--------|-----------|----------------|
+| `config.py` | `ProductionConfig`, `load_production_config`, `validate_production_config` | Pydantic-Settings model; loads `config/production.yaml` + environment, forces `app_env="production"`, validates production constraints (PostgreSQL, retry/breaker bounds). Secrets are **env-only** (`SECRET_FIELDS`), redacted in `to_dict()`. |
+| `docker.py` | `validate_dockerfile`, `DockerBuilder`, `SubprocessDockerBuilder`, `build_docker_image` | Pure string analysis of a `Dockerfile` (pinned base image, `WORKDIR`, `EXPOSE`, non-root `USER`, `CMD`/`ENTRYPOINT`); a `DockerBuilder` Protocol whose production impl shells out to the `docker` CLI via an injectable runner. |
+| `monitoring.py` | `MetricRegistry`, `HealthRegistry`, `AlertManager`, `AlertRule`, `AlertSink` (`LogAlertSink` / `WebhookAlertSink`), `ProductionJsonFormatter`, `MonitoringService`, `build_monitoring_service` | Counters/gauges + per-component health + threshold rules over metrics with cooldown dedup; one-line JSON log records; webhook sink uses an injectable `httpx.Client`. |
+| `resilience.py` | `RetryPolicy`, `retry`, `CircuitBreaker`, `RecoveryManager`, `RecordingDeadLetterSink` | Exponential backoff (jitter, injectable `sleep`/`clock`), state machine breaker (closed/open/half-open), and a coordinator that gates ops behind the breaker, retries them, dead-letters permanent failures and reports on a `RecoveryReport`. |
+| `runner.py` | `DeploymentRunner`, `deploy` | Runs the offline readiness probes (config load/valid, Dockerfile production-ready, monitoring wired) and optionally builds the image; returns a `DeploymentReport`. |
+| `scripts/deploy.py` | CLI | `--check-only` (default, fully offline readiness check) and `--build` (readiness + image build). Exit codes: `0` ready/build ok, `1` usage/configuration error, `2` deployment error. |
+
+### 21.3 Configuration contract
+
+* **The file carries no secrets.** `slack_webhook_url`, `smtp_username`,
+  `smtp_password` and `critical_error_webhook_url` are **only** ever read from
+  environment variables (a value written into the YAML is ignored).
+* **Environment overrides the file.** Every field maps to an `UPPER_SNAKE`
+  variable via `ENV_FIELD_MAP`; `app_env` is always forced to `production`.
+* **Deterministic & mockable.** `load_production_config(path, environ=...)` accepts
+  an explicit environment mapping and file path, so tests never touch the real
+  `os.environ` / `.env`.
+* **Validated before use.** `validate_production_config` enforces PostgreSQL-only
+  and sane retry/breaker bounds and feeds the readiness report.
+
+### 21.4 Docker validation invariants
+
+`validate_dockerfile` is pure string analysis (no daemon) and requires:
+
+* a `FROM` with a **pinned** base image (digest or non-`latest` tag),
+* a `WORKDIR`,
+* an `EXPOSE`,
+* a non-root `USER` (rejects `USER root`),
+* at least one of `CMD` / `ENTRYPOINT`.
+
+`build_docker_image` validates first (aborts with `DockerError` on any issue) then
+builds through the injected `DockerBuilder`, so the build itself is fully mocked
+in tests.
+
+### 21.5 Monitoring & alerting
+
+`MonitoringService` exposes `record_metric`, `report_health`, `check_alerts` and
+`report_critical_error`. `build_monitoring_service` wires three shipped rules that
+watch operational counters maintained by the pipeline:
+
+* `health_all_ok` — fires when `health_checks_failed >= 1` (critical),
+* `ingest_failures` — fires when `ingest_failures_total >= 5` (warning),
+* `scheduler_errors` — fires when `scheduler_errors_total >= 10` (critical).
+
+The log sink is always present; a `critical_error_webhook_url` adds a webhook
+sink. `AlertManager` dedupes persistent breaches by a `cooldown_seconds` window so
+a stuck failure alerts once per interval.
+
+### 21.6 Error handling & recovery
+
+* `RetryPolicy.delay_for(failed_attempts)` computes
+  `min(max_delay, base * multiplier ** (failed_attempts-1))` with optional uniform
+  jitter; `retry()` returns a `RetryOutcome` and never raises for retryable
+  exhaustion (a non-retryable exception aborts immediately).
+* `CircuitBreaker` opens after `failure_threshold` consecutive failures and
+  rejects calls with `CircuitOpenError` until the `reset_timeout_seconds` window
+  passes, then allows one half-open trial that closes or reopens the circuit.
+* `RecoveryManager.execute(operation_id, op)` gates `op` behind the breaker,
+  retries on failure, records a `RecoveryEntry`, and on permanent failure writes
+  to the `DeadLetterSink` (e.g. `RecordingDeadLetterSink`) before re-raising
+  (or returning `None` with `raise_on_failure=False`).
+
+### 21.7 Data flow (deployment pass)
+
+```
+config/production.yaml + environment
+        |  load_production_config (secrets env-only, redacted)
+        v
+ProductionConfig  --validate_production_config-->  readiness: config_load / config_valid
+        |
+        v
+validate_dockerfile(Dockerfile)  -->  readiness: dockerfile (production-ready?)
+        |
+        v
+build_monitoring_service(config)  -->  readiness: monitoring (registries + alert rules)
+        |
+        v
+[optional] build_docker_image(config, builder)  -->  DeploymentReport.build
+        |
+        v
+DeploymentReport (config, dockerfile_ok, readiness, build, validation)
+```
+
+### 21.8 Testing & Quality
+
+* `tests/unit/test_phase9_8_config.py` — 20 tests: defaults, YAML + env override,
+  secrets-env-only, redaction, forced production `app_env`, PostgreSQL-only
+  validation, validator ranges, secret-free repo config file, determinism.
+* `tests/unit/test_phase9_8_docker.py` — 24 tests: `DockerBuildConfig.image_ref`,
+  build success/failure (fake builder + fake subprocess runner), invalid-Dockerfile
+  abort, validation-skip flag, parser accepts/rejects every required directive,
+  unpinned/root rejections, digest-pin acceptance, repo Dockerfile passes,
+  build-arg/flag assembly. **Zero docker daemon calls — the builder is mocked.**
+* `tests/unit/test_phase9_8_monitoring.py` — ~40 tests: counter/gauge
+  register/increment/set, registry snapshot isolation, health ok/down/summary,
+  alert-rule above/below/threshold, manager fires/skips/missing-metric/cooldown
+  dedup/per-sink error isolation, JSON formatter + `setup_production_logging`,
+  `MonitoringService` wiring, `build_monitoring_service`. **Webhook sink uses
+  `httpx.MockTransport` — no network in `pytest`.**
+* `tests/unit/test_phase9_8_resilience.py` — 23 tests: `RetryPolicy` validation,
+  exponential-backoff math + cap + jitter, `retry()` first-attempt success,
+  retry-then-succeed, exhaustion, non-retryable abort, injected clock; circuit
+  breaker closed/open/half-open recovery/reopen/reset/stats; recovery manager
+  success, retry-then-recover, failure dead-letter + re-raise, no-raise returns
+  `None`, circuit-open path, `RecoveryReport`/`RecoveryEntry` `to_dict`, recording
+  dead-letter sink. **No wall-clock sleeps — clocks/sleeps injected.**
+
+Full suite after Phase 9.8: **699 passed, 0 failed** (was 616). `ruff` and `mypy`
+clean on the `deployment/` package. **No migration required** — Phase 9.8
+introduces no new tables, columns, or enums.
 

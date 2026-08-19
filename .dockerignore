@@ -1,0 +1,39 @@
+# Phase 9.8 — build context exclusions (keep the image lean and secret-free)
+
+# VCS
+.git
+.gitignore
+
+# Python caches / tooling
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Secrets (never ship into the image)
+.env
+.env.*
+
+# Local databases and scratch data
+data/
+*.db
+*.sqlite
+*.sql
+*.log
+*.err
+*.pid
+
+# Repo scratch files (convention: _*.py / _*.txt)
+_*.py
+_*.txt
+tmp_*.py
+
+# Documentation is not needed at runtime
+docs/
+
+# Scratch / debug
+audit/
+*.xml

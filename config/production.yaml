@@ -1,0 +1,53 @@
+# Phase 9.8 — Production configuration for the FPL Intelligence Engine.
+#
+# This file contains NO secrets. Every sensitive value is read from an
+# environment variable only (see config/production.env.example) and a value
+# written here for a secret field is deliberately IGNORED by the loader.
+#
+# Relative paths (dockerfile_path, docker_context_path) are resolved against
+# the current working directory (run scripts/deploy.py from the repo root).
+
+schema_version: 1
+app_env: production
+app_name: fpl-intelligence-engine
+host: 0.0.0.0
+port: 8000
+workers: 2
+log_level: INFO
+# DATABASE_URL is normally injected via env (PostgreSQL required in production).
+database_url: postgresql+psycopg://fpl:fpl@localhost:5432/fpl
+fpl_base_url: https://fantasy.premierleague.com
+request_timeout_seconds: 20.0
+
+# --- Phase 9.5/9.6 live ingestion -------------------------------------------
+scheduler_enabled: true
+scheduler_interval_seconds: 1800
+ingest_connectors: rss,fpl_api
+rss_url: https://www.bbc.co.uk/sport/football/teams/rss
+fpl_api_url: https://fantasy.premierleague.com/api/bootstrap-static/
+
+# --- Phase 9.6 notification channels ----------------------------------------
+# Secrets (SLACK_WEBHOOK_URL, SMTP_USERNAME, SMTP_PASSWORD) are env-only.
+notify_channels: log
+# email/smtp fields are configured via env when email notifications are used:
+#   EMAIL_FROM, EMAIL_TO, SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD
+smtp_port: 587
+
+# --- Phase 9.8 resilience ----------------------------------------------------
+max_retries: 3
+retry_base_delay_seconds: 1.0
+retry_max_delay_seconds: 30.0
+retry_multiplier: 2.0
+circuit_breaker_failure_threshold: 5
+circuit_breaker_reset_seconds: 60.0
+
+# --- Phase 9.8 monitoring -----------------------------------------------------
+metrics_enabled: true
+health_check_interval_seconds: 60
+# CRITICAL_ERROR_WEBHOOK_URL is env-only (operational incident channel).
+
+# --- Phase 9.8 Docker build ----------------------------------------------------
+docker_image_name: fpl-intelligence-engine
+docker_tag: production
+docker_context_path: .
+dockerfile_path: Dockerfile

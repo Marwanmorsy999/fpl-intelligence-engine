@@ -1,0 +1,60 @@
+# Phase 9.8 — Production deployment stack.
+#
+# Secrets are provided by the host environment / a git-ignored .env file —
+# nothing sensitive is hardcoded here. The app image is the Phase 9.8
+# production Dockerfile (multi-stage, non-root, healthchecked).
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# The API runs the Phase 9.7 EndToEnd verification entry point; the scheduler
+# is driven by the deploy CLI (`scripts/deploy.py`) or your orchestrator.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-fpl}
+      POSTGRES_USER: ${POSTGRES_USER:-fpl}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fpl} -d ${POSTGRES_DB:-fpl}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: fpl-intelligence-engine:production
+    restart: unless-stopped
+    environment:
+      APP_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-fpl}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-fpl}
+      FPL_BASE_URL: https://fantasy.premierleague.com
+      REQUEST_TIMEOUT_SECONDS: ${REQUEST_TIMEOUT_SECONDS:-20}
+      # Secrets flow from the host/.env into the container — never committed.
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+      CRITICAL_ERROR_WEBHOOK_URL: ${CRITICAL_ERROR_WEBHOOK_URL:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+volumes:
+  postgres_data:

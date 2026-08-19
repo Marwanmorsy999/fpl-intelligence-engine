@@ -1,6 +1,6 @@
 # PROJECT_STATUS.md — Authoritative Source of Truth
 
-**Last updated:** 2026-08-19 (Phase 9.7 — CLOSED: Live End-to-End Verification; Phase 9.6 — CLOSED: Scheduling and Alerting; Phase 9.5 — CLOSED: Live Source Connectors)
+**Last updated:** 2026-08-19 (Phase 9.8 — CLOSED: Production Deployment; Phase 9.7 — CLOSED: Live End-to-End Verification; Phase 9.6 — CLOSED: Scheduling and Alerting; Phase 9.5 — CLOSED: Live Source Connectors)
 **Maintained by:** Reconciliation Agent
 
 > This file is the single source of truth for project status. Do not rely on
@@ -829,6 +829,91 @@ prediction/optimization stack) are untouched. Phase 9.4 only wires the Analyst
 to existing interfaces and tables. Live web scraping / automated API fetching
 remains out of scope.
 
+## Phase 9.8 — Production Deployment
+
+**Status:** OFFICIALLY CLOSED (2026-08-19; committed and tagged
+`v0.9.8-production-deployment`). Adds the deployment/operations layer that
+packages the system for a production environment. It is additive and modifies
+**no** quantitative Phases 1–8 code, introduces **no** new database tables,
+columns or enums, makes **no** live API/`docker`/network calls inside `pytest`
+(all build/webhook/clock/sleep seams are injected), and hardcodes **no** API keys.
+
+**Delivered (in `src/fpl_intelligence/deployment/` + `scripts/deploy.py`):**
+
+- **`config.py`** — `ProductionConfig` (pydantic-settings `BaseSettings`),
+  `load_production_config(path, environ=...)`, `validate_production_config`.
+  Secrets are **env-only** (`SECRET_FIELDS`: `slack_webhook_url`, `smtp_username`,
+  `smtp_password`, `critical_error_webhook_url`); `app_env` is forced to
+  `production`; `to_dict(redact_secrets=True)` masks secrets in every report.
+- **`docker.py`** — `validate_dockerfile` (pure string analysis: pinned base
+  image, `WORKDIR`, `EXPOSE`, non-root `USER`, `CMD`/`ENTRYPOINT`) and
+  `build_docker_image` through a mockable `DockerBuilder`
+  (`SubprocessDockerBuilder`, injectable runner). `DockerBuildConfig` /
+  `DockerBuildResult` carry the full `name:tag` reference.
+- **`monitoring.py`** — `MetricRegistry` (counters/gauges), `HealthRegistry`,
+  `AlertManager` + `AlertRule` + `AlertSink` (`LogAlertSink`, `WebhookAlertSink`
+  with injectable `httpx.Client`), `ProductionJsonFormatter` /
+  `setup_production_logging`, and `MonitoringService` / `build_monitoring_service`
+  with three shipped operational rules (health, ingest failures, scheduler errors)
+  and cooldown-based alert dedup.
+- **`resilience.py`** — `RetryPolicy` (exponential backoff + jitter, injectable
+  `sleep`/`clock`), `retry()`, `CircuitBreaker` (closed/open/half-open),
+  `RecoveryManager` (breaker + retry + `RecordingDeadLetterSink` dead-lettering)
+  and `RecoveryReport`.
+- **`runner.py` + `scripts/deploy.py`** — `DeploymentRunner` runs offline
+  readiness checks (config load/valid, Dockerfile production-ready, monitoring
+  wired) and optionally builds the image; `deploy.py` exposes `--check-only`
+  (default, fully offline) and `--build`. The repository `Dockerfile` now pins
+  `python:3.12-slim` and runs as a non-root `fpl` user.
+
+**Testing & Quality (additive, 699 total tests, 0 failures):**
+
+- `tests/unit/test_phase9_8_config.py` — 20 tests (file + env config, secrets
+  env-only, redaction, forced `production`, PostgreSQL-only validation).
+- `tests/unit/test_phase9_8_docker.py` — 24 tests (build success/failure with
+  mocked builder + mocked subprocess runner, Dockerfile parser accepts/rejects
+  every required directive, unpinned/root rejections, repo Dockerfile passes,
+  build-arg/flag assembly).
+- `tests/unit/test_phase9_8_monitoring.py` — 40 tests (metrics, health, alert
+  rules, cooldown dedup, per-sink error isolation, JSON logging, webhook sink via
+  `httpx.MockTransport`).
+- `tests/unit/test_phase9_8_resilience.py` — 23 tests (retry backoff math, circuit
+  breaker state machine, recovery manager retry/dead-letter/no-raise/circuit-open,
+  `RecoveryReport` `to_dict`).
+
+**Closure verification (2026-08-19, commit + tag):**
+- Full suite: **699 passed, 0 failed, 0 skipped, 0 errored** (exit 0).
+- `ruff` and `mypy` clean on the `deployment/` package.
+- `python scripts/deploy.py --check-only` → `READY` (config load/valid,
+  production-ready Dockerfile, monitoring wired with 3 alert rules), exit 0.
+- **No migration required.** Phase 9.8 introduces no new tables, columns, or enums.
+- **Not classified A/B/C.** Phase 9.8 is an operations/deployment layer; it does
+  not evaluate the prediction stack.
+
+**Version control:**
+- Commit: `feat(phase9): add production deployment layer with Docker, config,
+  monitoring, and resilience`
+- Tag: `v0.9.8-production-deployment` (pushed to `origin`)
+- Files committed: `src/fpl_intelligence/deployment/{config,docker,monitoring,
+  resilience,runner}.py`, `scripts/deploy.py`, `Dockerfile`, `.dockerignore`,
+  `docker-compose.prod.yml`, `requirements.txt`, `config/production.yaml`,
+  `config/production.env.example`, the four `tests/unit/test_phase9_8_*.py` files,
+  `docs/phase9-architecture.md`, `docs/PROJECT_STATUS.md`.
+
+**Remaining tasks (post-closure):**
+1. Wire the deployment runner into a real container orchestration (e.g. Compose /
+   k8s) with the PostgreSQL database and the Phase 9.6 notification channels.
+2. Publish the production image to a registry and tag it `v0.9.8-production`.
+3. Confirm the live `CRITICAL_ERROR_WEBHOOK_URL` / Slack / SMTP secrets are
+   supplied via the deployment environment, not the repo.
+4. Do **not** assign A/B/C; Phase 9.8 does not change quantitative results.
+
+**Phase 9.9 — UNBLOCKED.** Phase 9.8 closure (this report) removes the last
+deployment/operations prerequisite. Phase 9.9 may now begin; see its own
+`docs/` section when opened.
+
+---
+
 ## Summary
 ## Summary
 
@@ -857,15 +942,16 @@ remains out of scope.
 | 9.5 | 100 | 100 | N/A (no live calls in pytest) | **CLOSED / TAGGED** (v0.9.5-live-source-connectors) — Live Source Connectors: `SourceConnector` ABC, `RSSConnector`, `FPLAPIConnector`, `ConnectorScheduler`, `scripts/run_live_ingestion.py`; no migration required |
 | 9.6 | 100 | 100 | N/A (no live calls in pytest) | **CLOSED / TAGGED** (v0.9.6-scheduling-alerting) — Scheduling and Alerting: `Scheduler`, `AlertGenerator`, `NotificationService` + notifiers, `scripts/run_scheduler.py`; 43 tests, fully offline; no migration required |
 | 9.7 | 100 | 100 | N/A (no live calls in pytest) | **CLOSED / TAGGED** (v0.9.7-live-end-to-end-verification) — Live End-to-End Verification: `RSSFeedVerifier` / `FPLAPIVerifier` / `EndToEndVerifier`, three CLI scripts, `tests/unit/test_phase9_7_verification.py`; 616 total tests, fully offline; no migration required; Phase 9.8 unblocked |
+| 9.8 | 100 | 100 | N/A (no live calls in pytest) | **CLOSED / TAGGED** (v0.9.8-production-deployment) — Production Deployment: `deployment/` package (config, docker, monitoring, resilience, runner), `scripts/deploy.py`, `Dockerfile`, `docker-compose.prod.yml`, `config/production.yaml` + `.env.example`; 699 total tests, fully offline; no migration required; Phase 9.9 unblocked |
+| 9.8 | 100 | 100 | N/A (operations layer) | **INITIALIZED** (2026-08-19) — Production Deployment: `deployment/` package (`config`, `docker`, `monitoring`, `resilience`, `runner`) + `scripts/deploy.py`; Docker containerization, production config (env-only secrets), monitoring/logging, error handling & recovery; 699 total tests, fully offline; no migration required |
 
-**Full test suite (authoritative, 2026-08-13):** `pytest -q` → **557 passed,
-0 failed, 0 skipped, 0 errored** (exit 0), confirmed from a `--junit-xml`
-report. 24 files across `tests/unit/` (280), `tests/prediction/` (145),
-`tests/integration/` (6), `tests/optimization/` (5), `tests/unit/` Phase 9.2 (19) + Phase 9.2.1 (16) + Phase 9.3 (42) + Phase 9.4 (38).
-Composition: 343 pre-existing (Phases 1–7) + 71 Phase 9 (51 foundation + 10
-Phase 9.1 ProviderRouter + 10 Phase 9.1.1 availability-vocabulary tests) + 35 Phase 9.2/9.2.1 (19 + 16) + 42 Phase 9.3 + 38 Phase 9.4 + 35 Phase 9.5.
-`ruff` and `mypy` clean on all touched modules. No test executes Alembic
-migrations — migration behaviour is verified manually.
+**Full test suite (authoritative, 2026-08-19):** `pytest -q` → **699 passed,
+0 failed, 0 skipped, 0 errored** (exit 0). Composition: pre-existing Phases 1–8
+suites (unchanged) + Phase 9.0–9.7 suites + 4 new Phase 9.8 suites
+(`test_phase9_8_config.py` 20, `test_phase9_8_docker.py` 24,
+`test_phase9_8_monitoring.py` 40, `test_phase9_8_resilience.py` 23). `ruff` and
+`mypy` clean on the `deployment/` package. No test executes Alembic migrations —
+migration behaviour is verified manually.
 
 **Phase 9.1.2 migration:** `0011_phase912_availability_enum.py` — `alembic
 upgrade head` **applied to the live Docker PostgreSQL database** (`fpl` on
