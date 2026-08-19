@@ -1,7 +1,7 @@
 # Phase 9 Architecture — Live Intelligence Accumulator & LLM Analyst Layer
 
 **Status:** IMPLEMENTATION_COMPLETE
-**Last updated:** 2026-08-19 (Phase 9.6 — Scheduling and Alerting implemented)
+**Last updated:** 2026-08-19 (Phase 9.7 — Live End-to-End Verification initialized; Phase 9.6 — Scheduling and Alerting implemented)
 **Constraint:** LLM/AI is the reasoning layer, not the core prediction engine.
 
 ---
@@ -74,6 +74,7 @@ Decision-Facing Output            4 guardrails enforced post-hoc
 | `scheduling/scheduler.py` *(9.6)* | `Scheduler` — orchestrates **fetch (Phase 9.5 connectors) → ingest (Phase 9.2) → alert → notify** per pass. Manual `run()` / scheduled `run_scheduled()`, `RateLimiter` pacing between passes, per-stage error isolation. Produces a `SchedulerRunReport`. |
 | `scheduling/alerts.py` *(9.6)* | `AlertGenerator` — classifies `RawItem`s into `Alert` objects (injury / availability risk / tactical change / transfer news / general) with severity, via offline keyword heuristics. Rate-limited passes, per-item error isolation, `max_alerts_per_pass` flood cap. |
 | `scheduling/notification.py` *(9.6)* | `NotificationService` + `Notifier` channels — `SlackNotifier` (HTTP webhook), `EmailNotifier` (SMTP), `LogNotifier`, `RecordingNotifier`. Rate-limited sends, per-channel error isolation, `NotificationDispatchReport` receipts. |
+| `verification/live_verification.py` *(9.7)* | `RSSFeedVerifier` / `FPLAPIVerifier` — verify a live RSS feed / the official FPL API is reachable, parses, and is ingested into the Phase 9.2 pipeline. `EndToEndVerifier` — runs the full pipeline (fetch → ingest → extract → resolve → synthesize → report → alert → notify) over injected connectors and reports per-stage pass/fail. `build_verification_session` provides the shared in-memory SQLite verification DB. |
 
 `ProviderRouter` routing defaults: **availability → Groq** (fast structured JSON), **tactical / combined → Gemini** (longer context), with fallback order Groq → Gemini → OpenRouter. Routing metadata (`provider_name`, `model_name`, `routing_strategy` = `task_based` / `fallback` / `round_robin`) is recorded on every `llm_extraction_runs` row and on `LLMResponse` / `ExtractionProvenance`, so the audit trail states *how* a provider was reached, not just *which* provider answered.
 
@@ -904,3 +905,121 @@ error.
 - **No migration required.** Phase 9.6 introduces no new tables, columns, or
   enums — it consumes the existing Phase 9.5 `ConnectorScheduler` and the
   Phase 9.2 `ingest_raw_text` pipeline.
+
+---
+
+## 20. Live End-to-End Verification (Phase 9.7)
+
+### 20.1 Purpose
+
+Phase 9.7 verifies that the whole live ingestion chain works **end-to-end with
+real data**: an RSS feed and the official FPL API are fetched live, the news is
+ingested into the Phase 9.2 pipeline, the LLM extracts structured evidence,
+entities are resolved (and unresolved evidence handled — never silently
+dropped), evidence is synthesised with quantitative predictions into an
+`IntelligenceReport`, and alerts are sent to the user.
+
+The layer is **additive and offline-testable**, honouring the same constraints
+as Phase 9.5 / 9.6:
+
+* it does **not** modify the quantitative Phases 1–8 stack — the verifiers only
+  consume the existing connectors, `ingest_raw_text`, the Phase 9.4 bridge and
+  the Phase 9.6 `Scheduler`;
+* it makes **no live API calls inside `pytest`** — connectors inject
+  `httpx.MockTransport`-backed HTTP clients and the default LLM provider is the
+  offline `MockLLMProvider`;
+* it **hardcodes no API keys** — `--provider real` reads the git-ignored `.env`;
+* it performs **no aggressive scraping** — rate-limited RSS polling and the
+  official FPL API only.
+
+### 20.2 Components
+
+All code lives in `src/fpl_intelligence/live_intelligence/verification/`:
+
+| Module | Component | Responsibility |
+|--------|-----------|----------------|
+| `live_verification.py` | `RSSFeedVerifier` | Fetches one live RSS feed, checks accessibility (typed connector errors become a failed `connectivity` stage) and parse quality, then pushes every item through `ingest_raw_text` (Phase 9.2). Returns a `LiveSourceVerification` with `fetched` / `parsed` / `ingested` / `duplicates` counts and per-stage pass/fail. |
+| `live_verification.py` | `FPLAPIVerifier` | The same contract for the official FPL `bootstrap-static` endpoint (player `news` + `chance_of_playing_*` risk). Fully-available players produce no item and are reported as such. |
+| `live_verification.py` | `EndToEndVerifier` | Runs one full pipeline pass over injected connectors via the Phase 9.6 `Scheduler` (fetch → ingest → alert → notify with a `RecordingNotifier`), then adds the Phase 9.4 `AnalystReportGenerator` stage (synthesize → report) over the freshly-committed evidence. Reports `EndToEndVerification` with per-connector totals, extraction-run / evidence / resolution counts, report citations, alerts and notifications delivered. |
+| `live_verification.py` | `build_verification_session` | Builds the verification DB — a shared (StaticPool) in-memory SQLite by default, or a file-backed engine via `--db`. `persist=True` commits; `--dry-run` rolls back. |
+
+CLI entry points:
+
+| Script | Verifies |
+|--------|----------|
+| `scripts/verify_live_rss.py` | Live RSS feed accessibility, parsing and Phase 9.2 ingestion. |
+| `scripts/verify_live_fpl_api.py` | Live FPL API accessibility, parsing and Phase 9.2 ingestion. |
+| `scripts/verify_live_end_to_end.py` | The full live pipeline (all six stages). |
+
+### 20.3 Data Flow
+
+```
+RSS feed / FPL bootstrap-static            (network)
+        │
+        ▼
+Connector.fetch() ──► list[RawItem]        (Phase 9.5, rate-limited, typed errors)
+        │
+        ▼
+Scheduler.run()                            (Phase 9.6, one pass, per-stage error isolation)
+        │  ingest sink = ingest_raw_text   (Phase 9.2: hash → dedupe → ledger → extract → persist)
+        ▼
+LLM extraction (provider injectable; mock by default, --provider real for a live LLM)
+        │
+        ▼
+Entity resolution + UnresolvedLiveEvidence (resolved / unresolved / ambiguous counts)
+        │
+        ▼
+AnalystReportGenerator.generate(...)       (Phase 9.4: evidence × quantitative predictions → report)
+        │
+        ▼
+AlertGenerator → NotificationService → RecordingNotifier (alerts + delivered receipts)
+        │
+        ▼
+EndToEndVerification (per-stage PASS/FAIL + totals)
+```
+
+### 20.4 CLI Usage
+
+```bash
+# RSS feed verification (BBC team feed, default)
+python scripts/verify_live_rss.py
+
+# FPL API verification
+python scripts/verify_live_fpl_api.py
+
+# Full end-to-end pipeline verification (all connectors)
+python scripts/verify_live_end_to_end.py
+
+# RSS only, custom feed, fetch-but-do-not-persist (safe live smoke test)
+python scripts/verify_live_end_to_end.py --connector rss --rss-url https://... --dry-run
+
+# Full pipeline with a real LLM + season/gameweek deadline context
+python scripts/verify_live_end_to_end.py --provider real --season-code 2025-26 \
+    --gameweek 3 --db ./fpl.db
+
+# Persist into a named DB
+python scripts/verify_live_fpl_api.py --db ./fpl.db
+```
+
+Exit codes: `0` all checks passed, `1` usage/configuration error, `2`
+verification/provider/network failure.
+
+### 20.5 Testing & Quality
+
+- `tests/unit/test_phase9_7_verification.py` — **16 tests** covering
+  `RSSFeedVerifier` (accessible feed parse + ingest, connectivity failure,
+  invalid XML, duplicate detection, dry-run), `FPLAPIVerifier` (parse + ingest,
+  connection failure, invalid JSON, fully-available-player filtering) and
+  `EndToEndVerifier` (full pipeline all stages pass, report synthesised with the
+  quantitative baseline, alerts generated + delivered, fetch-failure isolation,
+  single-connector run, dry-run without report, report `to_dict`). All HTTP is
+  mocked with `httpx.MockTransport` and the evidence DB is a shared in-memory
+  SQLite — **zero live network calls in `pytest`.**
+- **Full suite: 616 passed** (Phase 9.7 adds 16 tests to the 600 collected
+  before it).
+- `ruff` and `mypy` clean on the `verification/` package, the three CLI scripts,
+  and the test module.
+- **No migration required.** Phase 9.7 introduces no new tables, columns, or
+  enums — it consumes the existing Phase 9.2 pipeline, Phase 9.4 bridge and
+  Phase 9.6 scheduler.
+

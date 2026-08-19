@@ -1,6 +1,6 @@
 # PROJECT_STATUS.md — Authoritative Source of Truth
 
-**Last updated:** 2026-08-19 (Phase 9.6 — INITIALIZED: Scheduling and Alerting; Phase 9.5 — CLOSED: Live Source Connectors)
+**Last updated:** 2026-08-19 (Phase 9.7 — CLOSED: Live End-to-End Verification; Phase 9.6 — CLOSED: Scheduling and Alerting; Phase 9.5 — CLOSED: Live Source Connectors)
 **Maintained by:** Reconciliation Agent
 
 > This file is the single source of truth for project status. Do not rely on
@@ -855,6 +855,8 @@ remains out of scope.
 | 9.3 | 100 | 100 | N/A | **CLOSED / TAGGED** (v0.9.3-ai-analyst-synthesis) — AI analyst synthesis, IntelligenceReport, guardrail-enforced reasoning layer |
 | 9.4 | 100 | 100 | N/A | **CLOSED / TAGGED** (v0.9.4-quantitative-bridge) — Quantitative Bridge + Evidence Query Layer; Analyst wired to DecisionPredictionProvider + evidence DB; no migration required |
 | 9.5 | 100 | 100 | N/A (no live calls in pytest) | **CLOSED / TAGGED** (v0.9.5-live-source-connectors) — Live Source Connectors: `SourceConnector` ABC, `RSSConnector`, `FPLAPIConnector`, `ConnectorScheduler`, `scripts/run_live_ingestion.py`; no migration required |
+| 9.6 | 100 | 100 | N/A (no live calls in pytest) | **CLOSED / TAGGED** (v0.9.6-scheduling-alerting) — Scheduling and Alerting: `Scheduler`, `AlertGenerator`, `NotificationService` + notifiers, `scripts/run_scheduler.py`; 43 tests, fully offline; no migration required |
+| 9.7 | 100 | 100 | N/A (no live calls in pytest) | **CLOSED / TAGGED** (v0.9.7-live-end-to-end-verification) — Live End-to-End Verification: `RSSFeedVerifier` / `FPLAPIVerifier` / `EndToEndVerifier`, three CLI scripts, `tests/unit/test_phase9_7_verification.py`; 616 total tests, fully offline; no migration required; Phase 9.8 unblocked |
 
 **Full test suite (authoritative, 2026-08-13):** `pytest -q` → **557 passed,
 0 failed, 0 skipped, 0 errored** (exit 0), confirmed from a `--junit-xml`
@@ -1042,3 +1044,53 @@ polling + official FPL API only).
 full suite **594 passed, 1 pre-existing skipped, exit 0**; scheduler/alert/
 notification tests are fully offline; ruff + mypy clean; no migration required;
 tagged **v0.9.6-scheduling-alerting**)
+
+## Phase 9.7 — Live End-to-End Verification
+
+**Status:** **CLOSED** (2026-08-19). Builds the Live End-to-End
+Verification layer: scripts and verifier classes that run the live ingestion
+pipeline against real RSS feeds and the official FPL API, and verify every
+stage works — fetch → ingest → extract → resolve → synthesize → report →
+alert → notify.
+
+**Delivered:**
+
+1. **`live_intelligence/verification/live_verification.py`** (new additive
+   package) — three offline-testable verifiers:
+   - `RSSFeedVerifier` — live RSS feed accessibility, parse, and Phase 9.2
+     ingestion (`LiveSourceVerification` report);
+   - `FPLAPIVerifier` — live FPL `bootstrap-static` accessibility, parse, and
+     Phase 9.2 ingestion;
+   - `EndToEndVerifier` — one full pipeline pass over injected connectors
+     (Phase 9.6 `Scheduler` → Phase 9.4 `AnalystReportGenerator`), reporting
+     per-stage PASS/FAIL plus totals (fetched/ingested, extraction runs,
+     evidence drafts, resolved/unresolved/ambiguous entities, reports and
+     citations, alerts, notifications delivered);
+   - `build_verification_session` — shared in-memory (StaticPool) SQLite
+     verification DB; `persist=True` commits, `--dry-run` rolls back.
+2. **Three CLI scripts**: `scripts/verify_live_rss.py`,
+   `scripts/verify_live_fpl_api.py`, `scripts/verify_live_end_to_end.py`
+   (with `--connector`, `--limit`, `--provider mock|real`, `--dry-run`,
+   `--db`, `--season-code` / `--gameweek`). Exit codes 0/1/2; no API keys
+   hardcoded (`--provider real` reads the git-ignored `.env`); no aggressive
+   scraping — rate-limited RSS polling and the official FPL API only.
+3. **16 unit tests** in `tests/unit/test_phase9_7_verification.py` — all HTTP
+   mocked via `httpx.MockTransport`, evidence DB is a shared in-memory SQLite;
+   **zero live network calls inside `pytest`.**
+
+**Phase 9.7 verification (2026-08-19):**
+- Full suite: **616 passed, 0 failed, 0 errored** (exit 0). Phase 9.7 adds 16
+  tests to the 600 collected before it.
+- `ruff` clean on `verification/`, the three CLI scripts, and
+  `test_phase9_7_verification.py` ("All checks passed!").
+- `mypy` clean on `verification/`, the three CLI scripts, and the test module.
+- CLI verified offline: `--help` renders for all three scripts; no network is
+  touched for usage/help paths.
+- **No Phase 9.7 migration required.** Consumes the existing Phase 9.2
+  `ingest_raw_text` pipeline, Phase 9.4 bridge and Phase 9.6 scheduler; no new
+  tables, columns, or enums.
+
+**PHASE_9_7_CLOSED = TRUE** (committed, tagged
+**v0.9.7-live-end-to-end-verification**; full suite **616 passed, 0 failed,
+0 errored, exit 0**; verification tests are fully offline; ruff + mypy clean;
+no migration required; Phase 9.8 unblocked after this closure report)
