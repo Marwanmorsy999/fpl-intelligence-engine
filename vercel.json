@@ -1,10 +1,12 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
   "buildCommand": "pip install .",
   "functions": {
     "api/index.py": {
       "runtime": "@vercel/python@6.57.1",
-      "excludeFiles": "{data,tests}/**",
+      "includeFiles": "{src/**,migrations/**,config/**,alembic.ini,pyproject.toml,requirements.txt}",
+      "excludeFiles": "{data/**,tests/**,docs/**,audit/**,supabase/**,scripts/**,.github/**,.kilo/**,.mypy_cache/**,.pytest_cache/**,.ruff_cache/**,**/__pycache__/**}",
       "regions": ["cdg1"],
       "maxDuration": 60
     }

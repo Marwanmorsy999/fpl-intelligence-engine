@@ -1,7 +1,17 @@
+# Files never uploaded to Vercel. Keeps the Python function bundle under the
+# platform size limit (see functions.excludeFiles in vercel.json).
 tests/
 data/
+docs/
+audit/
+supabase/
+scripts/
 .venv/
 venv/
+.kilo/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
 **/__pycache__/
 *.pyc
 *.log
