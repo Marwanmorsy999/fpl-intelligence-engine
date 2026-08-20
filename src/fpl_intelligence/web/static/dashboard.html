@@ -3,273 +3,250 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FPL Intelligence Dashboard</title>
+    <title>FPL Intelligence - One-Click Dashboard</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; line-height: 1.6; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
-        header { margin-bottom: 2rem; border-bottom: 1px solid #1e293b; padding-bottom: 1rem; }
-        h1 { font-size: 1.5rem; color: #38bdf8; }
-        .subtitle { color: #94a3b8; font-size: 0.9rem; }
-        .card { background: #1e293b; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; border: 1px solid #334155; }
-        .card h2 { font-size: 1.1rem; color: #38bdf8; margin-bottom: 1rem; }
-        .health-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
-        .health-item { background: #0f172a; padding: 1rem; border-radius: 6px; }
-        .health-label { font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
-        .health-value { font-size: 1.2rem; font-weight: 600; margin-top: 0.25rem; }
-        .health-value.ok { color: #4ade80; }
-        .health-value.degraded { color: #fbbf24; }
-        form { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
-        input, button { padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; font-size: 0.95rem; }
-        input:focus { outline: none; border-color: #38bdf8; }
-        button { background: #38bdf8; color: #0f172a; border: none; cursor: pointer; font-weight: 600; }
-        button:hover { background: #0ea5e9; }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
-        .report { white-space: pre-wrap; font-family: 'SF Mono', Monaco, monospace; font-size: 0.85rem; line-height: 1.5; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-        th, td { text-align: left; padding: 0.75rem; border-bottom: 1px solid #334155; }
-        th { color: #94a3b8; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
-        tr:hover { background: #0f172a; }
-        .error { color: #f87171; }
-        .hidden { display: none; }
-        .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
-        .badge-ok { background: #166534; color: #4ade80; }
-        .badge-warn { background: #713f12; color: #fbbf24; }
+        .container { max-width: 860px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+        header h1 { font-size: 1.6rem; color: #38bdf8; }
+        header p { color: #94a3b8; font-size: 0.95rem; margin-top: 0.25rem; }
+        .hero { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1.75rem; margin: 1.75rem 0; }
+        .hero label { display: block; font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.5rem; }
+        .input-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+        .input-row input { flex: 1 1 220px; padding: 0.9rem 1rem; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; font-size: 1.05rem; }
+        .input-row input:focus { outline: none; border-color: #38bdf8; }
+        .analyze-btn { flex: 0 0 auto; padding: 0.9rem 1.75rem; border-radius: 8px; border: none; background: #22c55e; color: #052e16; font-size: 1.05rem; font-weight: 700; cursor: pointer; transition: background 0.15s ease; }
+        .analyze-btn:hover { background: #16a34a; }
+        .analyze-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+        .status { margin-top: 1rem; color: #7dd3fc; font-size: 0.95rem; display: none; }
+        .error { margin-top: 1rem; padding: 0.9rem 1rem; border-radius: 8px; background: #450a0a; border: 1px solid #b91c1c; color: #fca5a5; font-size: 0.95rem; display: none; }
+        .results { display: none; }
+        .results h2.sub { font-size: 1.1rem; color: #38bdf8; margin: 1.75rem 0 0.75rem; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 1rem; }
+        .card h3 { font-size: 1rem; color: #38bdf8; margin-bottom: 0.75rem; }
+        ul.roster { list-style: none; }
+        ul.roster li { padding: 0.4rem 0; border-bottom: 1px solid #1e293b; display: flex; align-items: center; gap: 0.6rem; }
+        ul.roster li:last-child { border-bottom: none; }
+        .pos { font-size: 0.7rem; font-weight: 700; color: #94a3b8; background: #0f172a; border-radius: 4px; padding: 0.1rem 0.4rem; min-width: 2.6rem; text-align: center; }
+        .cap-badge { font-size: 0.65rem; font-weight: 800; color: #052e16; background: #22c55e; border-radius: 4px; padding: 0.1rem 0.45rem; text-transform: uppercase; }
+        .vice-badge { font-size: 0.65rem; font-weight: 800; color: #0f172a; background: #facc15; border-radius: 4px; padding: 0.1rem 0.45rem; text-transform: uppercase; }
+        .bench li { color: #cbd5e1; }
+        .captain-hero { display: flex; align-items: center; gap: 0.75rem; }
+        .captain-hero .name { font-size: 1.25rem; font-weight: 700; color: #fff; }
+        .reason { color: #94a3b8; font-size: 0.9rem; margin-top: 0.5rem; }
+        .transfer-line { font-size: 1.05rem; }
+        .sell { color: #f87171; font-weight: 600; }
+        .buy { color: #4ade80; font-weight: 600; }
+        .arrow { color: #94a3b8; margin: 0 0.5rem; }
+        .chip-alert { background: #14532d; border: 1px solid #22c55e; border-radius: 12px; padding: 1.5rem; text-align: center; margin-bottom: 1rem; }
+        .chip-alert .chip-title { font-size: 1.4rem; font-weight: 800; color: #bbf7d0; }
+        .chip-alert .chip-sub { color: #86efac; margin-top: 0.35rem; font-size: 0.95rem; }
+        .muted { color: #94a3b8; font-size: 0.9rem; }
+        .team-meta { color: #94a3b8; font-size: 0.9rem; margin-top: 0.35rem; }
+        footer { margin-top: 2.5rem; color: #475569; font-size: 0.8rem; text-align: center; }
+        @media (max-width: 520px) { .analyze-btn { width: 100%; } }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>FPL Intelligence Dashboard</h1>
-            <p class="subtitle" id="version">Loading...</p>
+            <h1>FPL Intelligence</h1>
+            <p>One click. Your optimal team, explained in plain English.</p>
         </header>
 
-        <section class="card">
-            <h2>System Health</h2>
-            <div class="health-grid" id="health">
-                <div class="health-item"><div class="health-label">Status</div><div class="health-value">Loading...</div></div>
+        <section class="hero">
+            <label for="teamId">Enter your FPL Team ID</label>
+            <div class="input-row">
+                <input type="text" id="teamId" inputmode="numeric" placeholder="e.g. 1234567" aria-label="Your FPL Team ID" autocomplete="off">
+                <button class="analyze-btn" id="analyzeBtn" type="button">Analyze My Team</button>
             </div>
+            <div class="status" id="status" role="status" aria-live="polite"></div>
+            <div class="error" id="error" role="alert" aria-live="assertive"></div>
         </section>
 
-        <section class="card">
-            <h2>Player Intelligence</h2>
-            <form id="playerForm">
-                <input type="number" id="playerId" placeholder="Player ID" required min="1">
-                <input type="number" id="gameweek" placeholder="Gameweek (optional)" min="1">
-                <button type="submit">Generate Report</button>
-            </form>
-            <div id="playerReport" class="report hidden"></div>
-        </section>
+        <section class="results" id="results" aria-live="polite">
+            <p class="team-meta" id="teamName"></p>
 
-        <section class="card">
-            <h2>Unresolved Evidence</h2>
-            <div style="overflow-x: auto;">
-                <table>
-                    <thead>
-                        <tr><th>ID</th><th>Player</th><th>Team</th><th>Status</th><th>Resolution</th><th>Evidence Type</th></tr>
-                    </thead>
-                    <tbody id="unresolvedTable">
-                        <tr><td colspan="6" style="text-align: center; color: #94a3b8;">Loading...</td></tr>
-                    </tbody>
-                </table>
+            <div id="chipSlot"></div>
+
+            <h2 class="sub">Your Best Starting 11</h2>
+            <div class="card">
+                <ul class="roster" id="startingXi"></ul>
             </div>
-        </section>
 
-        <section class="card">
-            <h2>Browse Players</h2>
-            <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 1rem;">
-                Find valid integer player IDs (with team, position &amp; price) to use in
-                <code>POST /api/v1/squad</code>. Filter by <code>team</code> ID optionally.
-            </p>
-            <form id="playerBrowseForm">
-                <input type="number" id="browseTeam" placeholder="Team ID (optional)" min="1">
-                <button type="submit">Browse Players</button>
-            </form>
-            <div style="overflow-x: auto; margin-top: 1rem;">
-                <table>
-                    <thead>
-                        <tr><th>ID</th><th>Player</th><th>Team</th><th>Pos</th><th>Price (£m)</th></tr>
-                    </thead>
-                    <tbody id="playersTable">
-                        <tr><td colspan="5" style="text-align: center; color: #94a3b8;">Click "Browse Players" to load.</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
-        <section class="card" id="squadSection">
-            <h2>Squad Decisions</h2>
-            <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 1rem;">
-                Set your squad via <code>POST /api/v1/squad</code> to see personalized recommendations.
-            </p>
-            <div id="squadDecisions" style="display: none;">
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
-                    <div class="card" style="margin: 0; border: 1px solid #334155;">
-                        <h3 style="font-size: 0.95rem; color: #38bdf8; margin-bottom: 0.5rem;">Starting XI</h3>
-                        <div id="startingXi" style="font-size: 0.85rem; color: #e2e8f0;"></div>
-                    </div>
-                    <div class="card" style="margin: 0; border: 1px solid #334155;">
-                        <h3 style="font-size: 0.95rem; color: #38bdf8; margin-bottom: 0.5rem;">Captain</h3>
-                        <div id="captainRec" style="font-size: 0.85rem; color: #e2e8f0;"></div>
-                    </div>
-                    <div class="card" style="margin: 0; border: 1px solid #334155;">
-                        <h3 style="font-size: 0.95rem; color: #38bdf8; margin-bottom: 0.5rem;">Transfer Plan</h3>
-                        <div id="transferPlan" style="font-size: 0.85rem; color: #e2e8f0;"></div>
-                    </div>
-                    <div class="card" style="margin: 0; border: 1px solid #334155;">
-                        <h3 style="font-size: 0.95rem; color: #38bdf8; margin-bottom: 0.5rem;">Chip Recommendation</h3>
-                        <div id="chipRec" style="font-size: 0.85rem; color: #e2e8f0;"></div>
-                    </div>
+            <h2 class="sub">Captain</h2>
+            <div class="card">
+                <div class="captain-hero">
+                    <span class="cap-badge">C</span>
+                    <span class="name" id="captainName">-</span>
                 </div>
-                <div class="card" style="margin: 0; border: 1px solid #334155;">
-                    <h3 style="font-size: 0.95rem; color: #38bdf8; margin-bottom: 0.5rem;">Bench Order</h3>
-                    <div id="benchOrder" style="font-size: 0.85rem; color: #e2e8f0;"></div>
-                </div>
+                <div class="reason" id="captainReason"></div>
+            </div>
+
+            <h2 class="sub">Transfers</h2>
+            <div class="card">
+                <div id="transferBox"></div>
+            </div>
+
+            <h2 class="sub">Your Bench</h2>
+            <div class="card">
+                <ul class="roster bench" id="benchOrder"></ul>
             </div>
         </section>
+
+        <footer>Powered by the FPL Intelligence Engine. Data from the official Fantasy Premier League API.</footer>
     </div>
 
     <script>
-        const API_BASE = window.location.origin;
+        const API = window.location.origin;
+        let PLAYER_NAMES = {};
 
-        async function loadHealth() {
+        function name(id) {
+            return PLAYER_NAMES[id] || ("Player " + id);
+        }
+        function posLabel(code) {
+            return ({1: "GK", 2: "DEF", 3: "MID", 4: "FWD"})[code] || "";
+        }
+        function showError(msg) {
+            const el = document.getElementById("error");
+            el.textContent = msg;
+            el.style.display = "block";
+        }
+
+        async function analyze() {
+            const btn = document.getElementById("analyzeBtn");
+            const input = document.getElementById("teamId");
+            const statusEl = document.getElementById("status");
+            const results = document.getElementById("results");
+            const errorEl = document.getElementById("error");
+
+            errorEl.style.display = "none";
+            results.style.display = "none";
+
+            const raw = (input.value || "").trim();
+            if (!raw || !/^[0-9]+$/.test(raw)) {
+                showError("Please enter a valid FPL Team ID (numbers only).");
+                return;
+            }
+            const entryId = Number(raw);
+
+            btn.disabled = true;
+            statusEl.style.display = "block";
+            statusEl.textContent = "Fetching your squad from FPL...";
+
             try {
-                const res = await fetch(`${API_BASE}/api/v1/health`);
-                const data = await res.json();
-                document.getElementById('version').textContent = `Version ${data.version} | Phase ${data.phase} | Deployment ${data.phase9_8_deployment.tag}`;
-                const grid = document.getElementById('health');
-                grid.innerHTML = '';
-                const dbOk = data.database?.ok ?? data.monitoring?.health?.all_ok ?? false;
-                const apiOk = data.api?.ok ?? true;
-                const items = [
-                    { label: 'Overall', value: data.status.toUpperCase(), cls: data.status === 'ok' ? 'ok' : 'degraded' },
-                    { label: 'Database', value: dbOk ? 'UP' : 'DOWN', cls: dbOk ? 'ok' : 'degraded' },
-                    { label: 'API', value: apiOk ? 'UP' : 'DOWN', cls: apiOk ? 'ok' : 'degraded' },
-                ];
-                items.forEach(item => {
-                    grid.innerHTML += `<div class="health-item"><div class="health-label">${item.label}</div><div class="health-value ${item.cls}">${item.value}</div></div>`;
+                const imp = await fetch(`${API}/api/v1/squad/from-fpl`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ entry_id: entryId })
                 });
-            } catch (e) {
-                document.getElementById('health').innerHTML = `<div class="error">Failed to load health: ${e.message}</div>`;
-            }
-        }
 
-        async function loadUnresolved() {
-            try {
-                const res = await fetch(`${API_BASE}/api/v1/intelligence/unresolved?limit=50`);
-                const data = await res.json();
-                const tbody = document.getElementById('unresolvedTable');
-                if (data.items.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #94a3b8;">No unresolved evidence</td></tr>';
+                if (!imp.ok) {
+                    const body = await imp.json().catch(() => ({}));
+                    if (imp.status === 404) {
+                        showError(body.detail || "Could not find FPL Team ID. Please check your number.");
+                    } else if (imp.status === 503) {
+                        showError(body.detail || "FPL API is temporarily down, please try again in 5 minutes.");
+                    } else {
+                        showError(body.detail || "Something went wrong. Please try again.");
+                    }
+                    statusEl.style.display = "none";
+                    btn.disabled = false;
                     return;
                 }
-                tbody.innerHTML = data.items.map(row => `
-                    <tr>
-                        <td>${row.id}</td>
-                        <td>${row.player_name || '-'}</td>
-                        <td>${row.team_name || '-'}</td>
-                        <td>${row.status_mentioned || '-'}</td>
-                        <td><span class="badge ${row.resolution_status === 'resolved' ? 'badge-ok' : 'badge-warn'}">${row.resolution_status}</span></td>
-                        <td>${row.evidence_type}</td>
-                    </tr>
-                `).join('');
+
+                const impData = await imp.json();
+                PLAYER_NAMES = impData.player_names || {};
+                document.getElementById("teamName").textContent = impData.entry_name
+                    ? `${impData.entry_name} - Gameweek ${impData.gameweek}`
+                    : `Gameweek ${impData.gameweek}`;
+
+                statusEl.textContent = "Running the math...";
+                const dec = await fetch(`${API}/api/v1/decisions`);
+                if (!dec.ok) {
+                    const body = await dec.json().catch(() => ({}));
+                    showError(body.detail || "Could not generate decisions. Please try again.");
+                    statusEl.style.display = "none";
+                    btn.disabled = false;
+                    return;
+                }
+                const report = await dec.json();
+                render(report);
+                statusEl.style.display = "none";
+                results.style.display = "block";
             } catch (e) {
-                document.getElementById('unresolvedTable').innerHTML = `<tr><td colspan="6" class="error">Failed: ${e.message}</td></tr>`;
+                showError("Network error: " + e.message);
+                statusEl.style.display = "none";
+            } finally {
+                btn.disabled = false;
             }
         }
 
-        document.getElementById('playerForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const playerId = document.getElementById('playerId').value;
-            const gameweek = document.getElementById('gameweek').value;
-            const reportDiv = document.getElementById('playerReport');
-            reportDiv.classList.remove('hidden');
-            reportDiv.textContent = 'Loading...';
-            try {
-                const url = `${API_BASE}/api/v1/intelligence/player/${playerId}${gameweek ? `?gameweek=${gameweek}` : ''}`;
-                const res = await fetch(url);
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const text = await res.text();
-                reportDiv.textContent = text;
-            } catch (e) {
-                reportDiv.innerHTML = `<span class="error">Failed: ${e.message}</span>`;
+        function render(report) {
+            const capId = report.captain ? report.captain.player_id : null;
+            const viceId = report.vice_captain;
+
+            const xi = document.getElementById("startingXi");
+            xi.innerHTML = (report.starting_xi || []).map(id => {
+                let badge = "";
+                if (id === capId) badge = '<span class="cap-badge">C</span>';
+                else if (id === viceId) badge = '<span class="vice-badge">VC</span>';
+                return `<li>${badge}<span class="pos">${posLabel((report.meta && report.meta.player_positions && report.meta.player_positions[id]) || "")}</span><span>${name(id)}</span></li>`;
+            }).join("");
+            if (!report.starting_xi || report.starting_xi.length === 0) {
+                xi.innerHTML = '<li class="muted">No starting XI available.</li>';
             }
+
+            const bench = document.getElementById("benchOrder");
+            bench.innerHTML = (report.bench_order || []).map(id =>
+                `<li><span class="pos">${posLabel((report.meta && report.meta.player_positions && report.meta.player_positions[id]) || "")}</span><span>${name(id)}</span></li>`
+            ).join("");
+            if (!report.bench_order || report.bench_order.length === 0) {
+                bench.innerHTML = '<li class="muted">No bench information available.</li>';
+            }
+
+            const capName = document.getElementById("captainName");
+            const capReason = document.getElementById("captainReason");
+            if (report.captain) {
+                capName.textContent = name(report.captain.player_id);
+                let txt = "";
+                if (report.captain.expected_points) txt += `Expected ${report.captain.expected_points.toFixed(1)} pts. `;
+                txt += report.captain.main_reason || "";
+                capReason.textContent = txt;
+            } else {
+                capName.textContent = "(none)";
+                capReason.textContent = "";
+            }
+
+            const tp = report.transfer_plan;
+            const tbox = document.getElementById("transferBox");
+            if (tp && (tp.transfers_out && tp.transfers_out.length) && (tp.transfers_in && tp.transfers_in.length)) {
+                const sell = tp.transfers_out.map(name).join(", ");
+                const buy = tp.transfers_in.map(name).join(", ");
+                let extra = "";
+                if (tp.expected_gain) extra = ` <span class="muted">(expected +${tp.expected_gain.toFixed(1)} pts)</span>`;
+                tbox.innerHTML = `<div class="transfer-line"><span class="sell">Sell ${sell}</span><span class="arrow">&rarr;</span><span class="buy">Buy ${buy}</span>${extra}</div>` +
+                    (tp.main_reason ? `<div class="reason">${tp.main_reason}</div>` : "");
+            } else {
+                tbox.innerHTML = '<div class="muted">No transfers recommended right now - your squad looks good.</div>';
+            }
+
+            const chipSlot = document.getElementById("chipSlot");
+            const cr = report.chip_recommendation;
+            if (cr && cr.chip_name) {
+                const labels = { wildcard: "Wildcard", free_hit: "Free Hit", bench_boost: "Bench Boost", triple_captain: "Triple Captain" };
+                const label = labels[cr.chip_name] || cr.chip_name;
+                chipSlot.innerHTML = `<div class="chip-alert"><div class="chip-title">Play ${label} this week!</div>` +
+                    (cr.main_reason ? `<div class="chip-sub">${cr.main_reason}</div>` : "") + `</div>`;
+            } else {
+                chipSlot.innerHTML = "";
+            }
+        }
+
+        document.getElementById("analyzeBtn").addEventListener("click", analyze);
+        document.getElementById("teamId").addEventListener("keydown", (e) => {
+            if (e.key === "Enter") analyze();
         });
-
-        document.getElementById('playerBrowseForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const team = document.getElementById('browseTeam').value;
-            const tbody = document.getElementById('playersTable');
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #94a3b8;">Loading...</td></tr>';
-            try {
-                const url = `${API_BASE}/api/v1/players${team ? `?team=${team}` : ''}`;
-                const res = await fetch(url);
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const players = await res.json();
-                if (players.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #94a3b8;">No players found</td></tr>';
-                    return;
-                }
-                tbody.innerHTML = players.map(p => `
-                    <tr>
-                        <td>${p.id}</td>
-                        <td>${p.web_name}</td>
-                        <td>${p.team ?? '-'}</td>
-                        <td>${p.position ?? '-'}</td>
-                        <td>${p.price != null ? p.price.toFixed(1) : '-'}</td>
-                    </tr>
-                `).join('');
-            } catch (e) {
-                tbody.innerHTML = `<tr><td colspan="5" class="error">Failed: ${e.message}</td></tr>`;
-            }
-        });
-
-        async function loadSquadDecisions() {
-            try {
-                const res = await fetch(`${API_BASE}/api/v1/dashboard/squad-decisions`);
-                if (res.status === 404) {
-                    document.getElementById('squadSection').querySelector('p').style.display = 'block';
-                    document.getElementById('squadDecisions').style.display = 'none';
-                    return;
-                }
-                const data = await res.json();
-                document.getElementById('squadSection').querySelector('p').style.display = 'none';
-                document.getElementById('squadDecisions').style.display = 'block';
-
-                document.getElementById('startingXi').innerHTML = data.starting_xi.length
-                    ? `<div>Starting XI: ${data.starting_xi.join(', ')}</div>`
-                    : '<div style="color: #94a3b8;">No starting XI available</div>';
-
-                const cap = data.captain;
-                document.getElementById('captainRec').innerHTML = cap
-                    ? `<div><strong>Player ${cap.player_id}</strong> — EV: ${cap.expected_points.toFixed(2)} pts</div>
-                       <div style="color: #94a3b8; margin-top: 0.25rem;">${cap.main_reason || ''}</div>`
-                    : '<div style="color: #94a3b8;">No captain recommendation</div>';
-
-                const tp = data.transfer_plan;
-                document.getElementById('transferPlan').innerHTML = tp
-                    ? `<div><strong>${tp.action_type}</strong> — Net: ${tp.expected_gain.toFixed(2)} pts</div>
-                       <div style="color: #94a3b8; margin-top: 0.25rem;">${tp.main_reason || ''}</div>`
-                    : '<div style="color: #94a3b8;">No transfer plan (provide player metadata)</div>';
-
-                const cr = data.chip_recommendation;
-                document.getElementById('chipRec').innerHTML = cr
-                    ? `<div><strong>${cr.chip_name || 'None'}</strong> — Gain: ${cr.expected_gain.toFixed(2)} pts</div>
-                       <div style="color: #94a3b8; margin-top: 0.25rem;">${cr.main_reason || ''}</div>`
-                    : '<div style="color: #94a3b8;">No chip recommendation this gameweek</div>';
-
-                document.getElementById('benchOrder').innerHTML = data.bench_order.length
-                    ? `<div>Bench: ${data.bench_order.join(', ')}</div>`
-                    : '<div style="color: #94a3b8;">No bench order available</div>';
-            } catch (e) {
-                document.getElementById('squadSection').querySelector('p').textContent = `Failed to load decisions: ${e.message}`;
-            }
-        }
-
-        loadHealth();
-        loadUnresolved();
-        loadSquadDecisions();
-        setInterval(loadUnresolved, 30000);
     </script>
 </body>
 </html>

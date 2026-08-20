@@ -1,4 +1,4 @@
-"""Phase 10.3 — Web dashboard tests."""
+"""Phase 10.3 / 13.0 - Web dashboard tests."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -14,7 +14,10 @@ def test_dashboard_route_serves_html():
     resp = client.get("/dashboard")
     assert resp.status_code == 200
     assert resp.headers["content-type"].startswith("text/html")
-    assert b"FPL Intelligence Dashboard" in resp.content
+    assert b"FPL Intelligence" in resp.content
+    # Phase 13.0 one-click UX.
+    assert b"Analyze My Team" in resp.content
+    assert b"Enter your FPL Team ID" in resp.content
 
 
 def test_dashboard_static_file_exists():
@@ -26,6 +29,6 @@ def test_dashboard_static_file_exists():
 def test_dashboard_html_contains_api_references():
     resp = client.get("/dashboard")
     body = resp.text
-    assert "/api/v1/health" in body
-    assert "/api/v1/intelligence/player/" in body
-    assert "/api/v1/intelligence/unresolved" in body
+    # Phase 13.0 one-click flow endpoints.
+    assert "/api/v1/squad/from-fpl" in body
+    assert "/api/v1/decisions" in body

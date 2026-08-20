@@ -1,19 +1,18 @@
 """Regression test for the dashboard's inline <script>.
 
 Live QA found the dashboard dead because the inline script in
-``dashboard.html`` re-declared ``async function loadHealth()`` (malformed,
-no closing brace) and never invoked the init functions. The browser aborts
-the whole script on the duplicate-declaration SyntaxError, so every section
-stays on "Loading...".
+``dashboard.html`` re-declared an async function (malformed, no closing brace)
+and never invoked the init functions. The browser aborts the whole script on a
+SyntaxError, so every section stays on "Loading...".
 
-This test guards against that class of breakage:
+Phase 13.0 replaced the old multi-panel script with a single one-click flow
+driven by ``analyze()`` (calls ``/api/v1/squad/from-fpl`` then
+``/api/v1/decisions``). These guards ensure the new script:
 
-* ``function loadHealth`` must appear exactly once in the inline script;
-* the init calls (``loadHealth(); loadUnresolved(); loadSquadDecisions();``)
-  must be present so the page actually boots;
-* when a ``node`` binary is available, the extracted script must pass
-  ``node --check`` (clean parse). Environments without ``node`` skip only
-  that sub-check so the suite still passes.
+* declares ``function analyze`` exactly once (no duplicate/malformed decl);
+* wires the Analyze button + Enter key so the page actually boots;
+* calls the one-click import and decisions endpoints;
+* parses cleanly under ``node --check`` when a node binary is available.
 """
 from __future__ import annotations
 
@@ -38,7 +37,6 @@ SCRIPT_CLOSE = "</script>"
 
 
 def _extract_inline_script(html: str) -> str:
-    """Return the content of the first <script>...</script> block."""
     start = html.index(SCRIPT_OPEN) + len(SCRIPT_OPEN)
     end = html.index(SCRIPT_CLOSE, start)
     return html[start:end]
@@ -48,37 +46,32 @@ def test_dashboard_html_exists() -> None:
     assert STATIC_HTML.exists(), f"dashboard.html missing at {STATIC_HTML}"
 
 
-def test_load_health_declared_exactly_once() -> None:
+def test_analyze_declared_exactly_once() -> None:
     html = STATIC_HTML.read_text(encoding="utf-8")
     script = _extract_inline_script(html)
-    assert script.count("function loadHealth") == 1, (
-        "loadHealth must be declared exactly once; found "
-        f"{script.count('function loadHealth')} occurrences"
+    assert script.count("function analyze") == 1, (
+        "analyze must be declared exactly once; found "
+        f"{script.count('function analyze')} occurrences"
     )
 
 
-def test_init_calls_present() -> None:
+def test_boot_wiring_present() -> None:
     html = STATIC_HTML.read_text(encoding="utf-8")
     script = _extract_inline_script(html)
-    for call in ("loadHealth();", "loadUnresolved();", "loadSquadDecisions();"):
-        assert call in script, f"missing init call: {call}"
-
-
-def test_load_health_reads_database_field() -> None:
-    """Regression guard: the dashboard must read the explicit database probe.
-
-    The bug was ``data.monitoring.health.database`` — a field that does not
-    exist on the response — which made the Database card always render DOWN.
-    The fix reads ``data.database.ok`` and falls back to
-    ``data.monitoring.health.all_ok`` for old responses.
-    """
-    html = STATIC_HTML.read_text(encoding="utf-8")
-    script = _extract_inline_script(html)
-    assert "data.database" in script, "loadHealth must read the explicit `database` field"
-    assert "data.monitoring?.health?.all_ok" in script, (
-        "loadHealth must fall back to data.monitoring.health.all_ok for cached "
-        "old responses"
+    assert 'getElementById("analyzeBtn").addEventListener("click", analyze)' in script, (
+        "Analyze button must be wired to the analyze() handler"
     )
+    assert 'getElementById("teamId").addEventListener("keydown"' in script, (
+        "Enter key must trigger analyze()"
+    )
+
+
+def test_calls_one_click_endpoints() -> None:
+    """The one-click flow must hit the import + decisions endpoints."""
+    html = STATIC_HTML.read_text(encoding="utf-8")
+    script = _extract_inline_script(html)
+    assert "/api/v1/squad/from-fpl" in script, "must call POST /api/v1/squad/from-fpl"
+    assert "/api/v1/decisions" in script, "must call GET /api/v1/decisions"
 
 
 def test_inline_script_parses_with_node() -> None:

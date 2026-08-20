@@ -128,3 +128,21 @@ class DecisionReport(BaseModel):
     transfer_plan: TransferPlan | None = None
     chip_recommendation: ChipRecommendation | None = None
     meta: dict[str, Any] = Field(default_factory=dict)
+
+class FromFplResponse(BaseModel):
+    """Response for ``POST /api/v1/squad/from-fpl``.
+
+    Returns the persisted squad plus a display-name map keyed by the stored
+    player IDs (FPL element IDs) so the dashboard can render names instead of
+    raw integers.
+    """
+
+    squad: SquadStateResponse
+    player_names: dict[int, str] = Field(
+        default_factory=dict,
+        description="Map of stored player_id -> display name (web_name).",
+    )
+    entry_name: str | None = Field(
+        default=None, description="Manager's FPL team name, if available."
+    )
+    gameweek: int = Field(..., description="Gameweek the squad was imported for.")

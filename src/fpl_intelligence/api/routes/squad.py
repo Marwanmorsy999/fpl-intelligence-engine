@@ -19,6 +19,7 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from fpl_intelligence.api import deps
 from fpl_intelligence.data_providers.decision_bridge import (
@@ -27,8 +28,14 @@ from fpl_intelligence.data_providers.decision_bridge import (
 )
 from fpl_intelligence.optimization.provider import DecisionPredictionProvider
 from fpl_intelligence.squad.bridge import DecisionOptimizerBridge
+from fpl_intelligence.squad.fpl_import import (
+    FplApiUnavailable,
+    FplEntryNotFound,
+    FplSquadImporter,
+)
 from fpl_intelligence.squad.models import (
     DecisionReport,
+    FromFplResponse,
     SquadStateCreate,
     SquadStateResponse,
 )
@@ -95,7 +102,48 @@ async def get_decisions(
     bridge = DecisionOptimizerBridge(provider=effective_provider)
     report = bridge.generate_decisions(squad)
     report.meta["live_facts_applied"] = len(applied_overrides)
+    report.meta["player_positions"] = squad.player_positions or {}
     report.meta["live_fact_sources"] = sorted(
         {o.source.value for o in applied_overrides}
     )
     return report
+
+
+class FromFplRequest(BaseModel):
+    """Request body for the one-click FPL team import."""
+
+    entry_id: int = Field(
+        ...,
+        gt=0,
+        description="Your FPL Manager Entry ID (the number in your FPL team URL).",
+        examples=[1234567],
+    )
+
+
+@router.post("/squad/from-fpl", response_model=FromFplResponse, status_code=200)
+async def import_squad_from_fpl(
+    payload: FromFplRequest, db: GetDB
+) -> FromFplResponse:
+    """One-click import: resolve an FPL Team ID into a saved squad."""
+    importer = FplSquadImporter()
+    try:
+        result = await importer.build_squad_from_entry(payload.entry_id, db)
+    except FplEntryNotFound as exc:
+        raise HTTPException(
+            status_code=404,
+            detail="Could not find FPL Team ID. Please check your number.",
+        ) from exc
+    except FplApiUnavailable as exc:
+        logger.warning("FPL import failed (API unavailable): %s", exc)
+        raise HTTPException(
+            status_code=503,
+            detail="FPL API is temporarily down, please try again in 5 minutes.",
+        ) from exc
+
+    saved = SquadService(session=db).set_squad(result.squad)
+    return FromFplResponse(
+        squad=saved,
+        player_names=result.player_names,
+        entry_name=result.entry_name,
+        gameweek=result.gameweek,
+    )
