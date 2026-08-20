@@ -42,3 +42,5 @@ test_results.xml
 # Docker volumes
 /docker-data/
 /volumes/
+
+.vercel

@@ -20,7 +20,16 @@ class OfficialFPLDataProvider:
         reraise=True,
     )
     def _get_json(self, path: str) -> Any:
-        with httpx.Client(timeout=self.timeout, follow_redirects=True) as client:
+        headers = {
+            # FPL's API rejects requests without a browser-like User-Agent
+            # (returns 403 from some networks / datacenter IP ranges).
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            ),
+            "Accept": "application/json",
+        }
+        with httpx.Client(timeout=self.timeout, follow_redirects=True, headers=headers) as client:
             response = client.get(f"{self.base_url}{path}")
             response.raise_for_status()
             return response.json()

@@ -121,6 +121,7 @@ class TelegramBot:
         self._metrics = MetricRegistry()
         self._application = ApplicationBuilder().token(token).build()
         self._handlers: dict[str, Any] = {}
+        self._webhook_ready = False
         self._register_handlers()
 
     def _register_handlers(self) -> None:
@@ -516,6 +517,20 @@ class TelegramBot:
             pass
         finally:
             print("\nDry-run stopped.")
+
+    async def process_webhook_update(self, update_json: dict[str, Any]) -> None:
+        """Process a single update received via a webhook (serverless / Vercel).
+
+        Initialises the underlying ``python-telegram-bot`` application once, then
+        feeds the parsed ``Update`` through the same command handlers used by the
+        polling worker. No long-running loop is started.
+        """
+        application = self._application
+        if not self._webhook_ready:
+            await application.initialize()
+            self._webhook_ready = True
+        update = Update.de_json(update_json, application.bot)
+        await application.process_update(update)
 
     def run(self) -> None:
         """Start the bot polling loop (live mode only)."""

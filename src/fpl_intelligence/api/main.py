@@ -1,9 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 
 from fpl_intelligence import __version__
+from fpl_intelligence.api.routes.admin import router as admin_router
 from fpl_intelligence.api.routes.intelligence import router as intelligence_router
 from fpl_intelligence.api.routes.squad import router as squad_router
+from fpl_intelligence.api.routes.telegram import router as telegram_router
 from fpl_intelligence.config import get_settings
 from fpl_intelligence.web.dashboard import router as dashboard_router
 
@@ -26,7 +29,14 @@ if _cors_origins:
 
 app.include_router(intelligence_router, prefix="/api/v1")
 app.include_router(squad_router, prefix="/api/v1")
+app.include_router(admin_router, prefix="/api/v1")
+app.include_router(telegram_router, prefix="/api/v1")
 app.include_router(dashboard_router)
+
+
+@app.get("/", include_in_schema=False)
+def root_redirect() -> RedirectResponse:
+    return RedirectResponse(url="/dashboard")
 
 
 @app.get("/health")

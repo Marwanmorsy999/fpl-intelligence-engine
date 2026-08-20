@@ -1,29 +1,36 @@
 {
   "version": 2,
-  "buildCommand": "pip install -r requirements.txt",
-  "builds": [
+  "buildCommand": "pip install .",
+  "functions": {
+    "api/index.py": {
+      "runtime": "@vercel/python@6.57.1",
+      "excludeFiles": "{data,tests}/**",
+      "regions": ["cdg1"],
+      "maxDuration": 60
+    }
+  },
+  "crons": [
     {
-      "src": "src/fpl_intelligence/api/main.py",
-      "use": "@vercel/python"
+      "path": "/api/v1/admin/ingest-fpl",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/v1/admin/run-scheduler",
+      "schedule": "30 6 * * *"
     }
   ],
   "rewrites": [
     {
       "source": "/api/v1/telegram/webhook",
-      "destination": "/src/fpl_intelligence/api/main.py"
+      "destination": "/api/index.py"
     },
     {
       "source": "/api/v1/admin/(.*)",
-      "destination": "/src/fpl_intelligence/api/main.py"
+      "destination": "/api/index.py"
     },
     {
       "source": "/(.*)",
-      "destination": "/src/fpl_intelligence/api/main.py"
+      "destination": "/api/index.py"
     }
-  ],
-  "functions": {
-    "src/fpl_intelligence/api/main.py": {
-      "excludeFiles": "{data,tests}/**"
-    }
-  }
+  ]
 }
