@@ -5,6 +5,7 @@ from fastapi.responses import RedirectResponse
 from fpl_intelligence import __version__
 from fpl_intelligence.api.routes.admin import router as admin_router
 from fpl_intelligence.api.routes.intelligence import router as intelligence_router
+from fpl_intelligence.api.routes.players import router as players_router
 from fpl_intelligence.api.routes.squad import router as squad_router
 from fpl_intelligence.api.routes.telegram import router as telegram_router
 from fpl_intelligence.common.logging import silence_credential_leaking_loggers
@@ -34,6 +35,7 @@ if _cors_origins:
     )
 
 app.include_router(intelligence_router, prefix="/api/v1")
+app.include_router(players_router, prefix="/api/v1")
 app.include_router(squad_router, prefix="/api/v1")
 app.include_router(admin_router, prefix="/api/v1")
 app.include_router(telegram_router, prefix="/api/v1")

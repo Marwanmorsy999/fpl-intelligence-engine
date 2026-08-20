@@ -5,38 +5,73 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+#: A valid, ready-to-paste example body so Swagger (and the squad endpoint's
+#: ``Try it out`` button) shows integer player IDs instead of the default
+#: ``additionalProp`` placeholders.
+_SQUAD_EXAMPLE = {
+    "player_ids": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    "captain_id": 3,
+    "vice_captain_id": 11,
+    "bank": 0.5,
+    "free_transfers": 1,
+    "chips_available": ["wildcard", "free_hit", "bench_boost", "triple_captain"],
+    "gameweek": 8,
+    "player_positions": {1: 1, 2: 2, 3: 3, 4: 1, 11: 4},
+    "player_prices": {1: 5.0, 2: 5.5, 3: 12.5, 11: 11.0},
+    "player_teams": {1: 3, 2: 3, 3: 1, 11: 8},
+}
 
 
 class SquadStateCreate(BaseModel):
     """Request body for setting the user's squad state."""
+
+    model_config = ConfigDict(json_schema_extra={"example": _SQUAD_EXAMPLE})
 
     player_ids: list[int] = Field(
         ...,
         description="List of 15 player IDs in the user's squad.",
         min_length=15,
         max_length=15,
+        examples=[_SQUAD_EXAMPLE["player_ids"]],
     )
-    captain_id: int = Field(..., description="ID of the current captain.")
-    vice_captain_id: int = Field(..., description="ID of the current vice-captain.")
-    bank: float = Field(default=0.0, description="Available funds in millions.")
-    free_transfers: int = Field(default=1, ge=0, description="Number of free transfers available.")
+    captain_id: int = Field(
+        ..., description="ID of the current captain.", examples=[_SQUAD_EXAMPLE["captain_id"]]
+    )
+    vice_captain_id: int = Field(
+        ...,
+        description="ID of the current vice-captain.",
+        examples=[_SQUAD_EXAMPLE["vice_captain_id"]],
+    )
+    bank: float = Field(
+        default=0.0, description="Available funds in millions.", examples=[_SQUAD_EXAMPLE["bank"]]
+    )
+    free_transfers: int = Field(
+        default=1, ge=0, description="Number of free transfers available.", examples=[1]
+    )
     chips_available: list[str] = Field(
         default_factory=lambda: ["wildcard", "free_hit", "bench_boost", "triple_captain"],
         description="List of chips still available to play.",
+        examples=[_SQUAD_EXAMPLE["chips_available"]],
     )
-    gameweek: int = Field(..., gt=0, description="Current FPL gameweek.")
+    gameweek: int = Field(
+        ..., gt=0, description="Current FPL gameweek.", examples=[_SQUAD_EXAMPLE["gameweek"]]
+    )
     player_positions: dict[int, int] | None = Field(
         default=None,
         description="Optional mapping of player_id -> position_code (1=GK, 2=DEF, 3=MID, 4=FWD).",
+        examples=[_SQUAD_EXAMPLE["player_positions"]],
     )
     player_prices: dict[int, float] | None = Field(
         default=None,
         description="Optional mapping of player_id -> price in millions.",
+        examples=[_SQUAD_EXAMPLE["player_prices"]],
     )
     player_teams: dict[int, int] | None = Field(
         default=None,
         description="Optional mapping of player_id -> team_id.",
+        examples=[_SQUAD_EXAMPLE["player_teams"]],
     )
 
 

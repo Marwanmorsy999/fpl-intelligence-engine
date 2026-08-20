@@ -75,6 +75,28 @@
             </div>
         </section>
 
+        <section class="card">
+            <h2>Browse Players</h2>
+            <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 1rem;">
+                Find valid integer player IDs (with team, position &amp; price) to use in
+                <code>POST /api/v1/squad</code>. Filter by <code>team</code> ID optionally.
+            </p>
+            <form id="playerBrowseForm">
+                <input type="number" id="browseTeam" placeholder="Team ID (optional)" min="1">
+                <button type="submit">Browse Players</button>
+            </form>
+            <div style="overflow-x: auto; margin-top: 1rem;">
+                <table>
+                    <thead>
+                        <tr><th>ID</th><th>Player</th><th>Team</th><th>Pos</th><th>Price (£m)</th></tr>
+                    </thead>
+                    <tbody id="playersTable">
+                        <tr><td colspan="5" style="text-align: center; color: #94a3b8;">Click "Browse Players" to load.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
         <section class="card" id="squadSection">
             <h2>Squad Decisions</h2>
             <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 1rem;">
@@ -169,6 +191,34 @@
                 reportDiv.textContent = text;
             } catch (e) {
                 reportDiv.innerHTML = `<span class="error">Failed: ${e.message}</span>`;
+            }
+        });
+
+        document.getElementById('playerBrowseForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const team = document.getElementById('browseTeam').value;
+            const tbody = document.getElementById('playersTable');
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #94a3b8;">Loading...</td></tr>';
+            try {
+                const url = `${API_BASE}/api/v1/players${team ? `?team=${team}` : ''}`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const players = await res.json();
+                if (players.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #94a3b8;">No players found</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = players.map(p => `
+                    <tr>
+                        <td>${p.id}</td>
+                        <td>${p.web_name}</td>
+                        <td>${p.team ?? '-'}</td>
+                        <td>${p.position ?? '-'}</td>
+                        <td>${p.price != null ? p.price.toFixed(1) : '-'}</td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="5" class="error">Failed: ${e.message}</td></tr>`;
             }
         });
 
