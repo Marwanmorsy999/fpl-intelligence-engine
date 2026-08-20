@@ -15,6 +15,8 @@ from fpl_intelligence.db.models import (
     IngestionRun,
     Player,
     PlayerExternalId,
+    PlayerGameweekPerformance,
+    PlayerTeamMembership,
     RawRecord,
     Season,
     Team,
@@ -149,26 +151,53 @@ def ingest_bootstrap(db: Session, provider: OfficialFPLDataProvider, season_code
         payload = provider.get_bootstrap_static()
         _save_raw_record(db, "/api/bootstrap-static/", payload, season_code)
 
-        _get_or_create_season(db, season_code)
+        season = _get_or_create_season(db, season_code)
         teams = payload.get("teams", [])
         elements = payload.get("elements", [])
 
+        #: Map official_fpl team id -> internal team id so players can be linked.
+        team_ext_map: dict[str, int] = {}
         for item in teams:
             if not isinstance(item, dict):
                 continue
             provider_id = str(int(item["id"]))
-            _get_or_create_team(
+            team = _get_or_create_team(
                 db,
                 provider_id,
                 str(item.get("name", "Unknown")),
                 str(item.get("short_name", "")) or None,
             )
+            team_ext_map[provider_id] = team.id
+
+        # Ensure at least one gameweek exists so a current-price snapshot
+        # (PlayerGameweekPerformance.price) can be stored for Browse Players.
+        reference_gw = None
+        for ev in payload.get("events", []) or []:
+            if not isinstance(ev, dict):
+                continue
+            provider_event_id = int(ev["id"])
+            gw = db.scalar(
+                select(Gameweek).where(
+                    Gameweek.season_id == season.id,
+                    Gameweek.provider_event_id == provider_event_id,
+                )
+            )
+            if gw is None:
+                gw = Gameweek(
+                    season_id=season.id,
+                    provider_event_id=provider_event_id,
+                    name=str(ev.get("name", f"Gameweek {provider_event_id}")),
+                )
+                db.add(gw)
+                db.flush()
+            if reference_gw is None or gw.provider_event_id < reference_gw.provider_event_id:
+                reference_gw = gw
 
         for item in elements:
             if not isinstance(item, dict):
                 continue
             provider_id = str(int(item["id"]))
-            _get_or_create_player(
+            player = _get_or_create_player(
                 db,
                 provider_id,
                 str(item.get("first_name", "")),
@@ -176,6 +205,49 @@ def ingest_bootstrap(db: Session, provider: OfficialFPLDataProvider, season_code
                 str(item.get("web_name", "")),
                 int(item["element_type"]) if item.get("element_type") else None,
             )
+
+            # Link the player to their current team and seed a current-price
+            # snapshot so GET /api/v1/players can return team + price without a
+            # separate historical ingest. Idempotent: skip if already present.
+            team_provider_id = str(int(item["team"])) if item.get("team") is not None else None
+            team_id = team_ext_map.get(team_provider_id) if team_provider_id else None
+            if team_id is not None:
+                existing_membership = db.scalar(
+                    select(PlayerTeamMembership).where(
+                        PlayerTeamMembership.player_id == player.id,
+                        PlayerTeamMembership.team_id == team_id,
+                        PlayerTeamMembership.season_id == season.id,
+                    )
+                )
+                if existing_membership is None:
+                    db.add(
+                        PlayerTeamMembership(
+                            player_id=player.id,
+                            team_id=team_id,
+                            season_id=season.id,
+                            valid_from=season.start_date,
+                        )
+                    )
+
+                now_cost = item.get("now_cost")
+                price = (float(now_cost) / 10.0) if now_cost is not None else None
+                if reference_gw is not None:
+                    existing_pgp = db.scalar(
+                        select(PlayerGameweekPerformance).where(
+                            PlayerGameweekPerformance.player_id == player.id,
+                            PlayerGameweekPerformance.gameweek_id == reference_gw.id,
+                        )
+                    )
+                    if existing_pgp is None:
+                        db.add(
+                            PlayerGameweekPerformance(
+                                player_id=player.id,
+                                gameweek_id=reference_gw.id,
+                                season_id=season.id,
+                                team_id=team_id,
+                                price=price,
+                            )
+                        )
 
         run.status = "SUCCESS"
         run.records_processed = len(teams) + len(elements)
