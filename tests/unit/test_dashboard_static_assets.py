@@ -64,6 +64,23 @@ def test_init_calls_present() -> None:
         assert call in script, f"missing init call: {call}"
 
 
+def test_load_health_reads_database_field() -> None:
+    """Regression guard: the dashboard must read the explicit database probe.
+
+    The bug was ``data.monitoring.health.database`` — a field that does not
+    exist on the response — which made the Database card always render DOWN.
+    The fix reads ``data.database.ok`` and falls back to
+    ``data.monitoring.health.all_ok`` for old responses.
+    """
+    html = STATIC_HTML.read_text(encoding="utf-8")
+    script = _extract_inline_script(html)
+    assert "data.database" in script, "loadHealth must read the explicit `database` field"
+    assert "data.monitoring?.health?.all_ok" in script, (
+        "loadHealth must fall back to data.monitoring.health.all_ok for cached "
+        "old responses"
+    )
+
+
 def test_inline_script_parses_with_node() -> None:
     node = shutil.which("node")
     if node is None:

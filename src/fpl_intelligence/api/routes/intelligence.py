@@ -34,6 +34,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
 from fpl_intelligence import __version__
 from fpl_intelligence.api import deps
@@ -68,6 +69,21 @@ _MONITORING = build_monitoring_service(
         },
     )()
 )
+
+
+def _probe_database(db: Session) -> tuple[bool, str]:
+    """Probe the injected DB session for connectivity without modifying anything.
+
+    Returns ``(ok, detail)`` where ``ok`` is True when ``SELECT 1`` succeeds and
+    ``detail`` is a human-readable status string. Any failure (connection down,
+    pool exhausted, credentials rejected) is caught and surfaced as ``(False, ...)``
+    so the health check never crashes.
+    """
+    try:
+        db.execute(select(1)).scalar_one()
+    except Exception as exc:  # noqa: BLE001 - report connectivity, don't crash health
+        return False, str(exc)
+    return True, "postgres/sqlite reachable"
 
 
 def _parse_iso(value: str) -> datetime:
@@ -133,13 +149,7 @@ async def health(db: deps.GetDB) -> dict[str, Any]:
     Probes database connectivity (without modifying anything) and surfaces the
     shared Phase 9.8 :class:`MonitoringService` metric/health snapshot.
     """
-    db_ok = True
-    db_detail = "postgres/sqlite reachable"
-    try:
-        db.execute(select(1)).scalar_one()
-    except Exception as exc:  # noqa: BLE001 - report, don't crash the health check
-        db_ok = False
-        db_detail = str(exc)
+    db_ok, db_detail = _probe_database(db)
 
     _MONITORING.report_health("database", db_ok, db_detail)
     _MONITORING.report_health("intelligence_api", True, "API router reachable")
@@ -156,6 +166,15 @@ async def health(db: deps.GetDB) -> dict[str, Any]:
         "phase9_8_deployment": {
             "tag": _DEPLOYMENT_TAG,
             "status": "closed",
+        },
+        "database": {
+            "ok": db_ok,
+            "status": "up" if db_ok else "down",
+            "detail": db_detail,
+        },
+        "api": {
+            "ok": True,
+            "status": "up",
         },
         "monitoring": snapshot,
     }

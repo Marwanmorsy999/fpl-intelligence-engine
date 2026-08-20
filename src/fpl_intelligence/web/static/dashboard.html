@@ -139,10 +139,12 @@
                 document.getElementById('version').textContent = `Version ${data.version} | Phase ${data.phase} | Deployment ${data.phase9_8_deployment.tag}`;
                 const grid = document.getElementById('health');
                 grid.innerHTML = '';
+                const dbOk = data.database?.ok ?? data.monitoring?.health?.all_ok ?? false;
+                const apiOk = data.api?.ok ?? true;
                 const items = [
                     { label: 'Overall', value: data.status.toUpperCase(), cls: data.status === 'ok' ? 'ok' : 'degraded' },
-                    { label: 'Database', value: data.monitoring.health.database ? 'UP' : 'DOWN', cls: data.monitoring.health.database ? 'ok' : 'degraded' },
-                    { label: 'API', value: 'UP', cls: 'ok' },
+                    { label: 'Database', value: dbOk ? 'UP' : 'DOWN', cls: dbOk ? 'ok' : 'degraded' },
+                    { label: 'API', value: apiOk ? 'UP' : 'DOWN', cls: apiOk ? 'ok' : 'degraded' },
                 ];
                 items.forEach(item => {
                     grid.innerHTML += `<div class="health-item"><div class="health-label">${item.label}</div><div class="health-value ${item.cls}">${item.value}</div></div>`;
