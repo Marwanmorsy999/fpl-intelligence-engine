@@ -22,15 +22,18 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from fpl_intelligence.api import deps
+from fpl_intelligence.db.models import Player
 from fpl_intelligence.data_providers.decision_bridge import (
     FactCollectionService,
     FactOverrideProvider,
 )
 from fpl_intelligence.optimization.provider import DecisionPredictionProvider
 from fpl_intelligence.squad.bridge import DecisionOptimizerBridge
+from fpl_intelligence.squad.demo import build_demo_squad
 from fpl_intelligence.squad.fpl_import import (
     FplApiUnavailable,
     FplEntryNotFound,
+    FplPicksUnavailable,
     FplSquadImporter,
 )
 from fpl_intelligence.squad.models import (
@@ -133,6 +136,17 @@ async def import_squad_from_fpl(
             status_code=404,
             detail="Could not find FPL Team ID. Please check your number.",
         ) from exc
+    except FplPicksUnavailable as exc:
+        # The entry exists but the season hasn't opened: friendly, non-scary.
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "pre_season",
+                "message": str(exc),
+                "entry_name": exc.entry_name,
+                "gameweek": exc.gameweek,
+            },
+        ) from exc
     except FplApiUnavailable as exc:
         logger.warning("FPL import failed (API unavailable): %s", exc)
         raise HTTPException(
@@ -146,4 +160,37 @@ async def import_squad_from_fpl(
         player_names=result.player_names,
         entry_name=result.entry_name,
         gameweek=result.gameweek,
+    )
+
+
+@router.post("/squad/demo", response_model=FromFplResponse, status_code=200)
+async def demo_squad(db: GetDB) -> FromFplResponse:
+    """Build a valid demo squad from currently ingested players (no FPL account).
+
+    Picks 2 GK, 5 DEF, 5 MID, 3 FWD from the players already in the database,
+    assigns a sensible captain/vice, ~2.0 in the bank and 1 free transfer, then
+    persists it via the SquadService so it renders exactly like a real squad.
+    """
+    from fpl_intelligence.squad.demo import DemoSquadError
+
+    try:
+        squad = build_demo_squad(db)
+    except DemoSquadError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Demo squad unavailable: not enough players ingested yet.",
+        ) from exc
+
+    player_names = {
+        pid: (db.get(Player, pid).web_name if db.get(Player, pid) else f"Player {pid}")
+        for pid in squad.player_ids
+    }
+
+    saved = SquadService(session=db).set_squad(squad)
+    return FromFplResponse(
+        squad=saved,
+        player_names=player_names,
+        entry_name="Demo Squad",
+        gameweek=squad.gameweek,
+        is_demo=True,
     )

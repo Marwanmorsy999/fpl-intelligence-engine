@@ -12,6 +12,7 @@ error messages, and the follow-up ``GET /api/v1/decisions`` call.
 from __future__ import annotations
 
 import asyncio
+from collections import Counter
 
 import httpx
 import pytest
@@ -29,6 +30,7 @@ from fpl_intelligence.squad.fpl_import import (
     FplApiUnavailable,
     FplEntryNotFound,
     FplImportResult,
+    FplPicksUnavailable,
     FplSquadImporter,
 )
 from fpl_intelligence.squad.models import SquadStateCreate
@@ -271,3 +273,95 @@ class TestFromFplEndpoint:
         resp = client.post("/api/v1/squad/from-fpl", json={"entry_id": 1})
         assert resp.status_code == 503
         assert "temporarily down" in resp.json()["detail"]
+
+
+@pytest.fixture
+def seeded_client():
+    """TestClient backed by an in-memory SQLite DB seeded with 20 players."""
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    SL = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+
+    with SL() as s:
+        # 2 GK, 5 DEF, 5 MID, 5 FWD (>= 2/5/5/3 needed for the demo squad).
+        codes = [1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4]
+        for i, code in enumerate(codes, start=1):
+            s.add(
+                Player(
+                    first_name=f"First{i}",
+                    second_name=f"Last{i}",
+                    web_name=f"Demo{i}",
+                    position_code=code,
+                )
+            )
+        s.commit()
+
+    def override():
+        db = SL()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[deps._get_db_session] = override
+    with TestClient(app) as c:
+        yield c
+    app.dependency_overrides.clear()
+    Base.metadata.drop_all(engine)
+
+
+class TestDemoSquad:
+    """POST /api/v1/squad/demo builds a valid squad from seeded DB players."""
+
+    def test_demo_builds_valid_squad_from_db(self, seeded_client) -> None:
+        resp = seeded_client.post("/api/v1/squad/demo")
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        squad = data["squad"]
+
+        # Marker flags + 15 players, valid formation.
+        assert squad["is_demo"] is True
+        assert data["is_demo"] is True
+        assert len(squad["player_ids"]) == 15
+        counts = Counter(int(v) for v in squad["player_positions"].values())
+        assert counts == {1: 2, 2: 5, 3: 5, 4: 3}
+
+        # Sensible captain/vice and bank/transfers.
+        assert squad["captain_id"] in squad["player_ids"]
+        assert squad["vice_captain_id"] in squad["player_ids"]
+        assert squad["captain_id"] != squad["vice_captain_id"]
+        assert squad["bank"] == pytest.approx(2.0)
+        assert squad["free_transfers"] == 1
+
+        # Names + prices always render (real DB players).
+        assert len(data["player_names"]) == 15
+        assert all(data["player_names"].values())
+        assert all(squad["player_prices"].values())
+
+        # Renders exactly like a real squad via GET /api/v1/decisions.
+        dec = seeded_client.get("/api/v1/decisions")
+        assert dec.status_code == 200
+        assert dec.json()["gameweek"] == 1
+
+
+class TestPreSeasonMessage:
+    """The picks-404 (pre-season) path returns a friendly payload, not a 5xx."""
+
+    def test_preseason_picks_404_returns_friendly_message(self, client, monkeypatch) -> None:
+        async def fake(entry_id, db=None):
+            raise FplPicksUnavailable(entry_name="CAPTAIN OB", gameweek=1)
+
+        monkeypatch.setattr(
+            fpl_import_mod.FplSquadImporter, "build_squad_from_entry", staticmethod(fake)
+        )
+
+        resp = client.post("/api/v1/squad/from-fpl", json={"entry_id": 794561})
+        assert resp.status_code == 409
+        detail = resp.json()["detail"]
+        assert detail["code"] == "pre_season"
+        assert "CAPTAIN OB" in detail["message"]
+        assert "hasn't opened yet" in detail["message"]

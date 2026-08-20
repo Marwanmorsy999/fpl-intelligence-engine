@@ -18,6 +18,12 @@
         .analyze-btn { flex: 0 0 auto; padding: 0.9rem 1.75rem; border-radius: 8px; border: none; background: #22c55e; color: #052e16; font-size: 1.05rem; font-weight: 700; cursor: pointer; transition: background 0.15s ease; }
         .analyze-btn:hover { background: #16a34a; }
         .analyze-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+        .demo-btn { display: inline-block; margin-top: 0.9rem; padding: 0.7rem 1.2rem; border-radius: 8px; border: 1px dashed #38bdf8; background: transparent; color: #7dd3fc; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.15s ease; }
+        .demo-btn:hover { background: #0c2a3f; }
+        .demo-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+        .banner { display: none; margin-bottom: 1rem; padding: 0.8rem 1rem; border-radius: 8px; background: #422006; border: 1px solid #f59e0b; color: #fcd34d; font-size: 0.95rem; font-weight: 600; }
+        .preseason { display: none; margin-top: 1rem; padding: 0.9rem 1rem; border-radius: 8px; background: #1e293b; border: 1px solid #38bdf8; color: #e2e8f0; font-size: 0.95rem; }
+        .preseason strong { color: #7dd3fc; }
         .status { margin-top: 1rem; color: #7dd3fc; font-size: 0.95rem; display: none; }
         .error { margin-top: 1rem; padding: 0.9rem 1rem; border-radius: 8px; background: #450a0a; border: 1px solid #b91c1c; color: #fca5a5; font-size: 0.95rem; display: none; }
         .results { display: none; }
@@ -62,9 +68,12 @@
             </div>
             <div class="status" id="status" role="status" aria-live="polite"></div>
             <div class="error" id="error" role="alert" aria-live="assertive"></div>
+            <div class="preseason" id="preseason" role="status" aria-live="polite"></div>
+            <button class="demo-btn" id="demoBtn" type="button">Try a Demo Team (no FPL account needed)</button>
         </section>
 
         <section class="results" id="results" aria-live="polite">
+            <div class="banner" id="demoBanner">You are viewing a DEMO squad, not your real team.</div>
             <p class="team-meta" id="teamName"></p>
 
             <div id="chipSlot"></div>
@@ -112,6 +121,12 @@
             el.textContent = msg;
             el.style.display = "block";
         }
+        function showPreseason(msg) {
+            const el = document.getElementById("preseason");
+            el.innerHTML = "<strong>Heads up:</strong> " + msg;
+            el.style.display = "block";
+            document.getElementById("error").style.display = "none";
+        }
 
         async function analyze() {
             const btn = document.getElementById("analyzeBtn");
@@ -122,6 +137,8 @@
 
             errorEl.style.display = "none";
             results.style.display = "none";
+            document.getElementById("demoBanner").style.display = "none";
+            document.getElementById("preseason").style.display = "none";
 
             const raw = (input.value || "").trim();
             if (!raw || !/^[0-9]+$/.test(raw)) {
@@ -143,6 +160,12 @@
 
                 if (!imp.ok) {
                     const body = await imp.json().catch(() => ({}));
+                    if (imp.status === 409 && body.detail && body.detail.code === "pre_season") {
+                        showPreseason(body.detail.message);
+                        statusEl.style.display = "none";
+                        btn.disabled = false;
+                        return;
+                    }
                     if (imp.status === 404) {
                         showError(body.detail || "Could not find FPL Team ID. Please check your number.");
                     } else if (imp.status === 503) {
@@ -243,10 +266,71 @@
             }
         }
 
+        async function demoTeam() {
+            const btn = document.getElementById("demoBtn");
+            const input = document.getElementById("teamId");
+            const statusEl = document.getElementById("status");
+            const results = document.getElementById("results");
+            const errorEl = document.getElementById("error");
+            const preseason = document.getElementById("preseason");
+
+            input.value = "";
+            errorEl.style.display = "none";
+            preseason.style.display = "none";
+            results.style.display = "none";
+            document.getElementById("demoBanner").style.display = "none";
+
+            btn.disabled = true;
+            statusEl.style.display = "block";
+            statusEl.textContent = "Building your demo squad...";
+
+            try {
+                const imp = await fetch(`${API}/api/v1/squad/demo`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                });
+
+                if (!imp.ok) {
+                    const body = await imp.json().catch(() => ({}));
+                    showError(body.detail || "Could not build a demo squad. Please try again.");
+                    statusEl.style.display = "none";
+                    btn.disabled = false;
+                    return;
+                }
+
+                const impData = await imp.json();
+                PLAYER_NAMES = impData.player_names || {};
+                document.getElementById("teamName").textContent = impData.entry_name
+                    ? `${impData.entry_name} - Gameweek ${impData.gameweek}`
+                    : `Gameweek ${impData.gameweek}`;
+
+                statusEl.textContent = "Running the math...";
+                const dec = await fetch(`${API}/api/v1/decisions`);
+                if (!dec.ok) {
+                    const body = await dec.json().catch(() => ({}));
+                    showError(body.detail || "Could not generate decisions. Please try again.");
+                    statusEl.style.display = "none";
+                    btn.disabled = false;
+                    return;
+                }
+                const report = await dec.json();
+                render(report);
+                document.getElementById("demoBanner").style.display = "block";
+                statusEl.style.display = "none";
+                results.style.display = "block";
+            } catch (e) {
+                showError("Network error: " + e.message);
+                statusEl.style.display = "none";
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
         document.getElementById("analyzeBtn").addEventListener("click", analyze);
         document.getElementById("teamId").addEventListener("keydown", (e) => {
             if (e.key === "Enter") analyze();
         });
+        document.getElementById("demoBtn").addEventListener("click", demoTeam);
     </script>
 </body>
 </html>

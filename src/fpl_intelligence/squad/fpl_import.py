@@ -44,6 +44,27 @@ class FplApiUnavailable(FplImportError):
     """The FPL API is unreachable / returning server errors."""
 
 
+class FplPicksUnavailable(FplImportError):
+    """The entry exists but its picks are unavailable (pre-season).
+
+    The entry lookup succeeded, so we know the manager's team name, but
+    ``/event/<gw>/picks/`` returns 404 because the new season hasn't opened.
+    The UI turns this into a friendly "pre-season" message instead of a scary
+    error.
+    """
+
+    def __init__(self, entry_name: str | None, gameweek: int) -> None:
+        self.entry_name = entry_name
+        self.gameweek = gameweek
+        name = entry_name or "your team"
+        message = (
+            f"We found your team ({name})! The new FPL season hasn't opened yet, "
+            f"so your players aren't visible. Try the Demo Team below, or check "
+            f"back after the first deadline."
+        )
+        super().__init__(message)
+
+
 class FplImportResult:
     """Holds everything the route needs to persist and render a squad."""
 
@@ -89,9 +110,19 @@ class FplSquadImporter:
             gameweek = entry.get("current_event") or 1
             entry_name = entry.get("name")
 
-            picks_payload = await self._get_json(
-                client, f"/api/entry/{entry_id}/event/{gameweek}/picks/"
-            )
+            try:
+                picks_payload = await self._get_json(
+                    client, f"/api/entry/{entry_id}/event/{gameweek}/picks/"
+                )
+            except FplApiUnavailable as exc:
+                # A 404 on the picks endpoint while the entry itself resolved
+                # means the season hasn't opened yet (pre-season). Convert to a
+                # friendly, actionable error rather than a generic 5xx.
+                if "/picks/" in str(exc):
+                    raise FplPicksUnavailable(
+                        entry_name=entry_name, gameweek=gameweek
+                    ) from exc
+                raise
             bootstrap = await self._get_json(client, "/api/bootstrap-static/")
         except FplEntryNotFound:
             raise
