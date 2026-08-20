@@ -35,6 +35,7 @@ from telegram.ext import (
     ContextTypes,
 )
 
+from fpl_intelligence.common.logging import silence_credential_leaking_loggers
 from fpl_intelligence.deployment.monitoring import HealthRegistry, MetricRegistry
 from fpl_intelligence.live_intelligence.report import IntelligenceReport
 from fpl_intelligence.live_intelligence.scheduling.alerts import (
@@ -119,6 +120,10 @@ class TelegramBot:
 
         self._health = HealthRegistry()
         self._metrics = MetricRegistry()
+        # httpx logs the full Telegram API URL — which contains this token — at
+        # INFO level. Mute it before the client is built (covers the polling
+        # worker and the serverless webhook alike).
+        silence_credential_leaking_loggers()
         self._application = ApplicationBuilder().token(token).build()
         self._handlers: dict[str, Any] = {}
         self._webhook_ready = False

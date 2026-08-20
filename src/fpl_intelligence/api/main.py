@@ -7,10 +7,16 @@ from fpl_intelligence.api.routes.admin import router as admin_router
 from fpl_intelligence.api.routes.intelligence import router as intelligence_router
 from fpl_intelligence.api.routes.squad import router as squad_router
 from fpl_intelligence.api.routes.telegram import router as telegram_router
+from fpl_intelligence.common.logging import silence_credential_leaking_loggers
 from fpl_intelligence.config import get_settings
 from fpl_intelligence.web.dashboard import router as dashboard_router
 
 settings = get_settings()
+
+# Serverless platforms capture stdout/stderr verbatim, and httpx logs full
+# request URLs (which embed the Telegram bot token) at INFO level. Mute those
+# loggers before any client is built so credentials never reach the log stream.
+silence_credential_leaking_loggers()
 
 app = FastAPI(title="FPL Intelligence Engine", version=__version__)
 
