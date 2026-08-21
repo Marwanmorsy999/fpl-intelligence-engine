@@ -1,7 +1,12 @@
 # Files never uploaded to Vercel. Keeps the Python function bundle under the
 # platform size limit (see functions.excludeFiles in vercel.json).
 tests/
-data/
+# Exclude the heavy data dirs from the upload, but ALLOW data/seed so the
+# committed offline FPL bootstrap snapshot reaches the function bundle (it is
+# consumed by POST /api/v1/admin/initialize-data and the seed-from-file path).
+data/cache/
+data/raw/
+data/processed/
 docs/
 audit/
 supabase/
