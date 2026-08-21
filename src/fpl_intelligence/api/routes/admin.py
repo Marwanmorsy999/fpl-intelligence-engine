@@ -791,3 +791,85 @@ async def migrate_fpl_code_endpoint() -> dict:
     finally:
         db.close()
 
+
+# --------------------------------------------------------------------------- #
+# Phase 14.0 hotfix 2 — backfill real FPL photo codes from the updated seed
+# --------------------------------------------------------------------------- #
+# The original seed shipped code == id placeholders, so the deployed rows carry
+# useless codes. Real element photo codes come from the live bootstrap API,
+# which Vercel cannot reach (FPL blocks datacenter IPs) — so the committed seed
+# was refreshed offline and this one-shot simply replays it: the player upsert
+# backfills fpl_code on match. Seals itself after the first success (410).
+# --------------------------------------------------------------------------- #
+
+_RESEED_JOB_NAME = "reseed-fpl-codes"
+
+
+def _reseed_applied(db: Session) -> bool:
+    return (
+        db.scalar(
+            select(IngestionRun).where(
+                IngestionRun.job_name == _RESEED_JOB_NAME,
+                IngestionRun.source == _INIT_SOURCE,
+                IngestionRun.status == "SUCCESS",
+            )
+        )
+        is not None
+    )
+
+
+@router.post("/admin/reseed-fpl-codes")
+async def reseed_fpl_codes_endpoint() -> dict:
+    """Replay the bootstrap seed so every player gets their real FPL code.
+
+    Returns 410 after the first successful run. Unauthenticated by design:
+    temporary, self-disabling one-shot for the fresh deployment.
+    """
+    db = SessionLocal()
+    try:
+        if _reseed_applied(db):
+            return JSONResponse(
+                status_code=410,
+                content={
+                    "ok": False,
+                    "error": "Reseed already applied. This endpoint is disabled "
+                    "after its first successful run.",
+                },
+            )
+        report = await run_in_threadpool(_seed_from_file, db, _resolve_seed_path())
+        total = db.scalar(select(func.count()).select_from(Player)) or 0
+        coded = (
+            db.scalar(
+                select(func.count())
+                .select_from(Player)
+                .where(Player.fpl_code.is_not(None))
+            )
+            or 0
+        )
+        db.add(
+            IngestionRun(
+                source=_INIT_SOURCE,
+                job_name=_RESEED_JOB_NAME,
+                season_code=str(report.get("season_code") or SEASON_CODE),
+                status="SUCCESS",
+                started_at=datetime.now(UTC),
+                finished_at=datetime.now(UTC),
+                records_processed=int(coded),
+            )
+        )
+        db.commit()
+        return {
+            "ok": True,
+            "players": int(total),
+            "players_with_code": int(coded),
+            "seed_report": report,
+        }
+    except Exception as exc:  # noqa: BLE001 - surface for visibility
+        db.rollback()
+        logger.exception("reseed-fpl-codes failed")
+        return JSONResponse(
+            status_code=500, content={"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        )
+    finally:
+        db.close()
+
