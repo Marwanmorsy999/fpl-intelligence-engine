@@ -23,7 +23,8 @@ import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
-from sqlalchemy import select
+from sqlalchemy import func, select, text
+from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.orm import Session
 
 from fpl_intelligence.collectors.official_fpl import OfficialFPLDataProvider
@@ -33,6 +34,7 @@ from fpl_intelligence.data_providers.football_data_org import FootballDataOrgCon
 from fpl_intelligence.db.models import (
     Gameweek,
     IngestionRun,
+    Player,
     PlayerGameweekPerformance,
     PlayerTeamMembership,
     RawRecord,
@@ -683,6 +685,106 @@ async def initialize_data_endpoint() -> dict:
     except Exception as exc:  # noqa: BLE001 - surface for visibility
         db.rollback()
         logger.exception("initialize-data failed")
+        return JSONResponse(
+            status_code=500, content={"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        )
+    finally:
+        db.close()
+
+
+# --------------------------------------------------------------------------- #
+# Phase 14.0 hotfix — apply pending schema migration to the deployed database
+# --------------------------------------------------------------------------- #
+# The deployed PostgreSQL predates migration 0015 (players.fpl_code), so every
+# endpoint selecting that column returns HTTP 500. Vercel marks DATABASE_URL
+# sensitive so it cannot be pulled into a local shell; therefore — mirroring
+# the Phase 13.6 bootstrap — this is a narrow, UNAUTHENTICATED one-shot that:
+#   1. adds players.fpl_code when missing,
+#   2. stamps alembic_version to 0015 when the version table exists,
+#   3. replays the idempotent seed so every player gets their FPL code.
+# It seals itself after a successful run (returns 410 thereafter), exactly like
+# initialize-data, so it never becomes a persistent unauthenticated write path.
+# --------------------------------------------------------------------------- #
+
+_MIGRATE_JOB_NAME = "migrate-fpl-code"
+
+
+def _migration_applied(db: Session) -> bool:
+    """True once a successful migrate-fpl-code run has been recorded."""
+    return (
+        db.scalar(
+            select(IngestionRun).where(
+                IngestionRun.job_name == _MIGRATE_JOB_NAME,
+                IngestionRun.source == _INIT_SOURCE,
+                IngestionRun.status == "SUCCESS",
+            )
+        )
+        is not None
+    )
+
+
+@router.post("/admin/migrate-fpl-code")
+async def migrate_fpl_code_endpoint() -> dict:
+    """Add ``players.fpl_code`` and backfill it from the seed, exactly once.
+
+    Returns 410 after the first successful run. Unauthenticated by design: it
+    is a temporary, self-disabling one-shot migration for the fresh deployment.
+    """
+    db = SessionLocal()
+    try:
+        if _migration_applied(db):
+            return JSONResponse(
+                status_code=410,
+                content={
+                    "ok": False,
+                    "error": "Migration already applied. This endpoint is disabled "
+                    "after its first successful run.",
+                },
+            )
+
+        insp = sa_inspect(db.get_bind())
+        column_added = False
+        if "fpl_code" not in [c["name"] for c in insp.get_columns("players")]:
+            db.execute(text("ALTER TABLE players ADD COLUMN fpl_code INTEGER"))
+            column_added = True
+        if insp.has_table("alembic_version"):
+            db.execute(text("DELETE FROM alembic_version"))
+            db.execute(text("INSERT INTO alembic_version (version_num) VALUES ('0015')"))
+        db.commit()
+
+        report = await run_in_threadpool(_seed_from_file, db, _resolve_seed_path())
+
+        total = db.scalar(select(func.count()).select_from(Player)) or 0
+        coded = (
+            db.scalar(
+                select(func.count())
+                .select_from(Player)
+                .where(Player.fpl_code.is_not(None))
+            )
+            or 0
+        )
+        db.add(
+            IngestionRun(
+                source=_INIT_SOURCE,
+                job_name=_MIGRATE_JOB_NAME,
+                season_code=str(report.get("season_code") or SEASON_CODE),
+                status="SUCCESS",
+                started_at=datetime.now(UTC),
+                finished_at=datetime.now(UTC),
+                records_processed=int(coded),
+            )
+        )
+        db.commit()
+        return {
+            "ok": True,
+            "column_added": column_added,
+            "players": int(total),
+            "players_with_code": int(coded),
+            "seed_report": report,
+        }
+    except Exception as exc:  # noqa: BLE001 - surface for visibility
+        db.rollback()
+        logger.exception("migrate-fpl-code failed")
         return JSONResponse(
             status_code=500, content={"ok": False, "error": f"{type(exc).__name__}: {exc}"}
         )

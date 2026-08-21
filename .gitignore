@@ -48,3 +48,5 @@ test_results.xml
 .codegraph/
 .kilo/
 .playwright-mcp/
+.env.*
+!.env.example
