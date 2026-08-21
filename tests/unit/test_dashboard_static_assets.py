@@ -97,6 +97,17 @@ def test_play_names_declared_before_manual_save() -> None:
     assert "POST" in script and "/api/v1/squad" in script
 
 
+def test_retry_sync_button_wired() -> None:
+    """Phase 13.5 — the 503 message shows a 🔄 Try Again button that retries."""
+    html = STATIC_HTML.read_text(encoding="utf-8")
+    script = _extract_inline_script(html)
+    assert "retrySyncBtn" in html
+    assert "🔄 Try Again" in html
+    assert "/api/v1/squad/retry-sync" in script
+    assert 'getElementById("retrySyncBtn").addEventListener("click", retrySync)' in script
+    assert 'getElementById("retrySyncBtn").style.display = "inline-block"' in script
+
+
 def test_inline_script_parses_with_node() -> None:
     node = shutil.which("node")
     if node is None:

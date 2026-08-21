@@ -44,3 +44,5 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_index("ix_squad_state_session_id", table_name="squad_state")
     op.drop_table("squad_state")
+
+

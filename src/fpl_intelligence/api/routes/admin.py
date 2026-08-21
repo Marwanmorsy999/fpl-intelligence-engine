@@ -56,6 +56,7 @@ from fpl_intelligence.live_intelligence.raw_item_ledger import (
 )
 from fpl_intelligence.live_intelligence.scheduling.alerts import AlertGenerator
 from fpl_intelligence.live_intelligence.scheduling.scheduler import Scheduler
+from fpl_intelligence.squad.sync import NoPendingSync, run_pending_sync
 
 logger = logging.getLogger(__name__)
 
@@ -388,7 +389,31 @@ async def run_scheduler_endpoint(
         fallback_items = _run_scheduler_fallback(_make_ingest_sink())
         report["fpl_blocked"] = True
         report["fallback_items"] = fallback_items
+
+    # Phase 13.5 — fold squad auto-sync into the existing daily cron. The
+    # run-scheduler cron already carries the Vercel cron Bearer token, so this
+    # needs no new cron slot, no GitHub Actions, and no new secrets.
+    report["auto_sync"] = await _run_pending_sync_in_scheduler()
     return report
+
+
+async def _run_pending_sync_in_scheduler() -> dict:
+    """Retry any queued squad auto-sync during the daily scheduler pass.
+
+    Never raises: the scheduler must complete even if the sync (or the
+    Telegram push) fails. Returns a small report of what happened.
+    """
+    db = SessionLocal()
+    try:
+        await run_pending_sync(db)
+        return {"queued": True, "synced": True}
+    except NoPendingSync:
+        return {"queued": False, "synced": False}
+    except Exception as exc:  # noqa: BLE001 - scheduler must never fail on sync
+        logger.warning("Pending squad sync during scheduler failed: %s", exc)
+        return {"queued": True, "synced": False, "error": f"{type(exc).__name__}: {exc}"}
+    finally:
+        db.close()
 
 
 @router.get("/admin/ingest-fpl")
@@ -577,6 +602,86 @@ async def seed_from_file_endpoint(
     except Exception as exc:  # noqa: BLE001 - surface for visibility
         db.rollback()
         logger.exception("seed-from-file failed")
+        return JSONResponse(
+            status_code=500, content={"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        )
+    finally:
+        db.close()
+
+
+
+# --------------------------------------------------------------------------- #
+# Phase 13.6 — one-time data initialization
+# --------------------------------------------------------------------------- #
+# Temporary, UNAUTHENTICATED bootstrap so the freshly-deployed PostgreSQL gets
+# real teams + prices even though FPL blocks Vercel's datacenter IPs. Unlike
+# the CRON_SECRET-protected seed-from-file endpoint, this endpoint is meant to
+# be hit exactly once (from the deploy shell / dashboard). It seals itself
+# after a successful run (returns 410 thereafter) so it never becomes a
+# persistent unauthenticated write path.
+# --------------------------------------------------------------------------- #
+
+_INIT_JOB_NAME = "initialize-data"
+_INIT_SOURCE = "seed"
+
+
+def _initialization_complete(db: Session) -> bool:
+    """True once a successful initialize-data run has been recorded."""
+    return (
+        db.scalar(
+            select(IngestionRun).where(
+                IngestionRun.job_name == _INIT_JOB_NAME,
+                IngestionRun.source == _INIT_SOURCE,
+                IngestionRun.status == "SUCCESS",
+            )
+        )
+        is not None
+    )
+
+
+@router.post("/admin/initialize-data")
+async def initialize_data_endpoint() -> dict:
+    """Seed teams + prices from the committed FPL seed, exactly once.
+
+    Returns 410 after the first successful run. Unauthenticated by design: it
+    is a temporary, self-disabling one-shot bootstrap for a fresh deployment.
+    """
+    db = SessionLocal()
+    try:
+        if _initialization_complete(db):
+            return JSONResponse(
+                status_code=410,
+                content={
+                    "ok": False,
+                    "error": "Data already initialized. This endpoint is disabled "
+                    "after its first successful run.",
+                },
+            )
+        try:
+            path = _resolve_seed_path()
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+        report = await run_in_threadpool(_seed_from_file, db, path)
+
+        # Seal the endpoint only after seeding fully succeeded.
+        db.add(
+            IngestionRun(
+                source=_INIT_SOURCE,
+                job_name=_INIT_JOB_NAME,
+                season_code=str(report.get("season_code") or SEASON_CODE),
+                status="SUCCESS",
+                started_at=datetime.now(UTC),
+                finished_at=datetime.now(UTC),
+                records_processed=int(report.get("players") or 0),
+            )
+        )
+        db.commit()
+        report["initialized"] = True
+        return report
+    except Exception as exc:  # noqa: BLE001 - surface for visibility
+        db.rollback()
+        logger.exception("initialize-data failed")
         return JSONResponse(
             status_code=500, content={"ok": False, "error": f"{type(exc).__name__}: {exc}"}
         )

@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     # Comma-separated list of allowed CORS origins for a separate frontend.
     cors_origins: str = ""
 
+    # --- Phase 13.5 — squad auto-sync ---------------------------------------
+    # Public POST /api/v1/squad/retry-sync is rate-limited per client to avoid
+    # hammering the upstream FPL API on deadline day.
+    retry_sync_rate_limit: int = 10
+    retry_sync_rate_window_seconds: int = 60
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 

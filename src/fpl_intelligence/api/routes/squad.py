@@ -16,12 +16,15 @@ session, so the squad survives restarts and is shared across workers.
 from __future__ import annotations
 
 import logging
+import threading
+import time
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from fpl_intelligence.api import deps
+from fpl_intelligence.config import get_settings
 from fpl_intelligence.data_providers.decision_bridge import (
     FactCollectionService,
     FactOverrideProvider,
@@ -44,12 +47,38 @@ from fpl_intelligence.squad.models import (
     SquadStateResponse,
 )
 from fpl_intelligence.squad.service import SquadService
+from fpl_intelligence.squad.sync import (
+    NoPendingSync,
+    run_pending_sync,
+    save_pending_sync,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 GetDB = deps.GetDB
+
+# --------------------------------------------------------------------------- #
+# Rate limiting for the public retry-sync endpoint (Phase 13.5).
+# A simple in-memory fixed-window limiter keyed by client IP. On a serverless
+# runtime this is per-instance (adequate for a "don't hammer FPL on deadline
+# day" guard); it is purely advisory and test-friendly.
+# --------------------------------------------------------------------------- #
+_retry_sync_lock = threading.Lock()
+_retry_sync_stamps: dict[str, list[float]] = {}
+
+
+def _retry_sync_rate_limited(host: str, limit: int, window: float) -> bool:
+    """Return True when the caller has exceeded ``limit`` calls in ``window``."""
+    now = time.monotonic()
+    with _retry_sync_lock:
+        recent = [t for t in _retry_sync_stamps.get(host, []) if now - t < window]
+        if len(recent) >= limit:
+            return True
+        recent.append(now)
+        _retry_sync_stamps[host] = recent
+        return False
 
 
 @router.post("/squad", response_model=SquadStateResponse, status_code=200)
@@ -144,12 +173,66 @@ async def import_squad_from_fpl(
         ) from exc
     except FplRateLimitBlocked as exc:
         logger.warning("FPL import failed (Rate limit): %s", exc)
+        save_pending_sync(db, payload.entry_id)
         raise HTTPException(
             status_code=503,
             detail="FPL API blocked by rate limit",
         ) from exc
     except FplApiUnavailable as exc:
         logger.warning("FPL import failed (API unavailable): %s", exc)
+        save_pending_sync(db, payload.entry_id)
+        raise HTTPException(
+            status_code=503,
+            detail="FPL API is temporarily down, please try again in 5 minutes.",
+        ) from exc
+
+    saved = SquadService(session=db).set_squad(result.squad)
+    return FromFplResponse(
+        squad=saved,
+        player_names=result.player_names,
+        entry_name=result.entry_name,
+        gameweek=result.gameweek,
+    )
+
+
+@router.post("/squad/retry-sync", response_model=FromFplResponse, status_code=200)
+async def retry_sync(request: Request, db: GetDB) -> FromFplResponse:
+    """Public, rate-limited retry for a queued auto-sync squad import.
+
+    When :func:`import_squad_from_fpl` previously failed with a transient 503
+    the manager's ``entry_id`` was queued with ``auto_sync=true``. This endpoint
+    immediately retries that import (saving the squad and sending the "synced"
+    Telegram push on success) — it is what the dashboard's ``🔄 Try Again``
+    button calls.
+    """
+    settings = get_settings()
+    host = request.client.host if request.client else "unknown"
+    if _retry_sync_rate_limited(
+        host,
+        settings.retry_sync_rate_limit,
+        settings.retry_sync_rate_window_seconds,
+    ):
+        raise HTTPException(
+            status_code=429,
+            detail="Too many retry requests. Please wait a minute and try again.",
+        )
+
+    try:
+        result = await run_pending_sync(db)
+    except NoPendingSync as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except FplEntryNotFound as exc:
+        raise HTTPException(
+            status_code=404,
+            detail="Could not find FPL Team ID. Please check your number.",
+        ) from exc
+    except FplPicksNotSaved as exc:
+        raise HTTPException(
+            status_code=409,
+            detail="Picks not saved yet",
+        ) from exc
+    except (FplRateLimitBlocked, FplApiUnavailable) as exc:
+        logger.warning("Auto-sync retry failed: %s", exc)
         raise HTTPException(
             status_code=503,
             detail="FPL API is temporarily down, please try again in 5 minutes.",

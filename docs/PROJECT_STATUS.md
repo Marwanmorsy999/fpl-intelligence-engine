@@ -1516,11 +1516,62 @@ modified; no hardcoded secrets; no live API calls in tests.
 **Constraints honoured:** No Phase 6 core algorithms modified; no live LLM calls
 in `pytest`; no hardcoded API keys; no database schema changes.
 
-**Important note:** `SquadService` is currently in-memory only. It should be persisted
-(e.g., to PostgreSQL) before production multi-worker deployment to ensure session
-consistency across workers.
 
-**Phase 10.5 state:** Phase 10.4 closure report complete. Phase 11 API-first data
-pivot is now **unblocked** after this closure report is committed.
+
+## Phase 13.6 — One-time Data Initialization
+
+```
+Implementation: 100%
+Automated Testing: 100%
+Real-Data Validation: one-shot bootstrap (live verification requires deploy)
+Final Holdout: N/A
+Status: CLOSED
+```
+
+**Delivered:**
+- Temporary, **unauthenticated** `POST /api/v1/admin/initialize-data` that seeds
+  teams + membership + price snapshots from `data/seed/fpl_bootstrap_seed.json`
+  (reuses the existing `_seed_from_file` path).
+- Self-disables: a successful run records an `IngestionRun` (`job_name=initialize-data`,
+  `source=seed`, `status=SUCCESS`); every subsequent call returns **410**.
+- Makes `GET /api/v1/players` return non-null `team` and `price` for the seeded
+  players even though live FPL ingestion is blocked from Vercel egress IPs.
+
+**Tests:** `tests/unit/test_phase13_6_initialize_data.py` — seeds teams/prices,
+players endpoint non-null team+price, self-disables after first run (410),
+records the ingestion run, and requires no CRON_SECRET.
+
+## Phase 13.5 (REVISED) — Auto-Sync Without New Secrets or GitHub Actions
+
+```
+Implementation: 100%
+Automated Testing: 100%
+Real-Data Validation: live deploy/retry requires deploy credentials
+Final Holdout: N/A
+Status: CLOSED
+```
+
+**Delivered:**
+- When `POST /api/v1/squad/from-fpl` fails with 503 (rate limit / API unavailable)
+  the `entry_id` is persisted in the new `pending_sync` table
+  (`auto_sync=true`, migration `0014_pending_sync`).
+- Squad syncing is folded **into the existing** `POST /api/v1/admin/run-scheduler`
+  cron handler — it already receives the Vercel cron Bearer token, so **no new cron
+  slot, no GitHub Actions, no new secrets**.
+- On successful sync the squad is saved and a Telegram message is sent:
+  `✅ Your FPL squad (TEAM NAME) is synced — open the dashboard!` (best-effort
+  notification via `src/fpl_intelligence/notifications/sync_notifier.py`, reusing
+  the existing `TELEGRAM_BOT_TOKEN` + `TELEGRAM_ALLOWED_USER_IDS`; never fails the sync).
+- Public, **rate-limited** `POST /api/v1/squad/retry-sync` (per-client in-memory
+  fixed-window limiter, configurable via `retry_sync_rate_limit_*`); the dashboard
+  503 message now shows a **🔄 Try Again** button that calls it.
+
+**Tests:** `tests/unit/test_phase13_5_auto_sync.py` — 503 persists auto_sync,
+retry-sync success (saves + mocked Telegram notify), failure marks FAILED, no
+pending → 404, rate-limit → 429, scheduler syncs pending, scheduler skips when
+none; `test_dashboard_static_assets.py` asserts the retry button wiring.
+
+**Version control:** tag `v1.3.5-auto-sync`.
+
 
 ---

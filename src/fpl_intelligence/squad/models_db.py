@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, Integer, String, UniqueConstraint
+from sqlalchemy import JSON, Boolean, DateTime, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from fpl_intelligence.db.base import Base
@@ -31,3 +31,23 @@ class SquadStateDB(Base):
     __table_args__ = (
         UniqueConstraint("session_id", name="uq_squad_state_session"),
     )
+
+
+class PendingSyncDB(Base):
+    """A queued auto-sync request (Phase 13.5).
+
+    When ``POST /api/v1/squad/from-fpl`` fails with a transient 503 it records
+    the manager's ``entry_id`` here with ``auto_sync=true``. The daily
+    run-scheduler cron (and the public ``/squad/retry-sync`` endpoint) later
+    retries the import and flips ``status`` to ``SYNCED`` on success or
+    ``FAILED`` when the upstream FPL API is still unreachable.
+    """
+
+    __tablename__ = "pending_sync"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    entry_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    auto_sync: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="PENDING")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

@@ -70,6 +70,7 @@
             <div class="error" id="error" role="alert" aria-live="assertive"></div>
             <div class="preseason" id="preseason" role="status" aria-live="polite"></div>
             <button class="demo-btn" id="manualFallbackBtn" type="button" style="display:none; border-color: #facc15; color: #fef08a;">Enter Squad Manually</button>
+            <button class="demo-btn" id="retrySyncBtn" type="button" style="display:none; border-color: #38bdf8; color: #bae6fd;">🔄 Try Again</button>
             <details style="margin-top: 1rem; color: #94a3b8; font-size: 0.85rem;">
                 <summary style="cursor:pointer;">Developer Tools</summary>
                 <button class="demo-btn" id="demoBtn" type="button">Try a Demo Team</button>
@@ -208,6 +209,9 @@
                     } else if (imp.status === 503 || imp.status === 403) {
                         showError("The official FPL website is currently blocking our servers due to deadline day traffic. Please use the 'Enter Squad Manually' button below, or try again in an hour.");
                         document.getElementById("manualFallbackBtn").style.display = "inline-block";
+                        /* Phase 13.5: auto-sync is queued server-side, so offer a
+                           "🔄 Try Again" button that retries via /squad/retry-sync. */
+                        document.getElementById("retrySyncBtn").style.display = "inline-block";
                     } else {
                         showError(body.detail || "Something went wrong. Please try again.");
                     }
@@ -380,8 +384,69 @@
         }
 
         
+        async function retrySync() {
+            const btn = document.getElementById("retrySyncBtn");
+            const statusEl = document.getElementById("status");
+            const errorEl = document.getElementById("error");
+            const results = document.getElementById("results");
+            errorEl.style.display = "none";
+            results.style.display = "none";
+            btn.disabled = true;
+            statusEl.style.display = "block";
+            statusEl.textContent = "Retrying your FPL sync...";
+            try {
+                const url = `${API}/api/v1/squad/retry-sync`;
+                console.log("[retry] About to call:", url);
+                const res = await fetch(url, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                });
+                console.log("[retry] retry-sync response status:", res.status);
+                if (!res.ok) {
+                    const body = await res.json().catch(() => ({}));
+                    if (res.status === 429) {
+                        showError("You've tried too many times. Please wait a minute, then press Try Again.");
+                    } else if (res.status === 404) {
+                        showError("No pending squad sync found. Enter your Team ID again below.");
+                    } else {
+                        showError(body.detail || "The sync could not complete. Please try again in a few minutes.");
+                    }
+                    statusEl.style.display = "none";
+                    btn.disabled = false;
+                    return;
+                }
+                const impData = await res.json();
+                PLAYER_NAMES = impData.player_names || {};
+                document.getElementById("teamName").textContent = impData.entry_name
+                    ? `${impData.entry_name} - Gameweek ${impData.gameweek}`
+                    : `Gameweek ${impData.gameweek}`;
+                document.getElementById("retrySyncBtn").style.display = "none";
+                statusEl.textContent = "Running the math...";
+                const decUrl = `${API}/api/v1/decisions`;
+                const dec = await fetch(decUrl);
+                if (!dec.ok) {
+                    const body = await dec.json().catch(() => ({}));
+                    showError(body.detail || "Could not generate decisions. Please try again.");
+                    statusEl.style.display = "none";
+                    btn.disabled = false;
+                    return;
+                }
+                const report = await dec.json();
+                render(report);
+                statusEl.style.display = "none";
+                results.style.display = "block";
+            } catch (e) {
+                console.error("[retry] Error in retrySync():", e);
+                showError("Network error: " + e.message);
+                statusEl.style.display = "none";
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
         document.getElementById("manualFallbackBtn").addEventListener("click", loadManualEntry);
         document.getElementById("saveManualBtn").addEventListener("click", saveManual);
+        document.getElementById("retrySyncBtn").addEventListener("click", retrySync);
 
         let ALL_PLAYERS = [];
         async function loadManualEntry() {
