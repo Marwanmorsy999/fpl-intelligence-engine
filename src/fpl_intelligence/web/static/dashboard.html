@@ -132,6 +132,14 @@
         const API = "";
         console.log("[dashboard] script loaded. API base =", JSON.stringify(API));
 
+        // Hotfix v1.3.4: PLAYER_NAMES must be declared before saveManual() writes
+        // to it (it used to be an undeclared global -> ReferenceError crash when
+        // clicking "Save & Analyze"). It is populated:
+        //   * when /api/v1/players loads (manual entry), as an id -> web_name map;
+        //   * when /api/v1/squad/from-fpl or /api/v1/squad/demo responds.
+        // render() resolves names through name(id) for every path.
+        let PLAYER_NAMES = {};
+
         function name(id) {
             return PLAYER_NAMES[id] || ("Player " + id);
         }
@@ -389,6 +397,10 @@
                     const res = await fetch(playersUrl);
                     console.log("[manual] players status:", res.status);
                     ALL_PLAYERS = await res.json();
+                    // Hotfix v1.3.4: build the id -> web_name map so saveManual()
+                    // and render() can resolve names and the PLAYER_NAMES[id]
+                    // writes below never hit an undeclared variable.
+                    PLAYER_NAMES = Object.fromEntries(ALL_PLAYERS.map(p => [p.id, p.web_name]));
                 } catch(e) {
                     console.error("[manual] Failed to load players in loadManualEntry():", e);
                 }

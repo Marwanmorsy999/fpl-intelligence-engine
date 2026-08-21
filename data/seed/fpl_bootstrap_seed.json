@@ -1,0 +1,5656 @@
+{
+  "events": [
+    {
+      "id": 1,
+      "name": "Gameweek 1"
+    },
+    {
+      "id": 2,
+      "name": "Gameweek 2"
+    },
+    {
+      "id": 3,
+      "name": "Gameweek 3"
+    },
+    {
+      "id": 4,
+      "name": "Gameweek 4"
+    },
+    {
+      "id": 5,
+      "name": "Gameweek 5"
+    },
+    {
+      "id": 6,
+      "name": "Gameweek 6"
+    },
+    {
+      "id": 7,
+      "name": "Gameweek 7"
+    },
+    {
+      "id": 8,
+      "name": "Gameweek 8"
+    },
+    {
+      "id": 9,
+      "name": "Gameweek 9"
+    },
+    {
+      "id": 10,
+      "name": "Gameweek 10"
+    },
+    {
+      "id": 11,
+      "name": "Gameweek 11"
+    },
+    {
+      "id": 12,
+      "name": "Gameweek 12"
+    },
+    {
+      "id": 13,
+      "name": "Gameweek 13"
+    },
+    {
+      "id": 14,
+      "name": "Gameweek 14"
+    },
+    {
+      "id": 15,
+      "name": "Gameweek 15"
+    },
+    {
+      "id": 16,
+      "name": "Gameweek 16"
+    },
+    {
+      "id": 17,
+      "name": "Gameweek 17"
+    },
+    {
+      "id": 18,
+      "name": "Gameweek 18"
+    },
+    {
+      "id": 19,
+      "name": "Gameweek 19"
+    },
+    {
+      "id": 20,
+      "name": "Gameweek 20"
+    },
+    {
+      "id": 21,
+      "name": "Gameweek 21"
+    },
+    {
+      "id": 22,
+      "name": "Gameweek 22"
+    },
+    {
+      "id": 23,
+      "name": "Gameweek 23"
+    },
+    {
+      "id": 24,
+      "name": "Gameweek 24"
+    },
+    {
+      "id": 25,
+      "name": "Gameweek 25"
+    },
+    {
+      "id": 26,
+      "name": "Gameweek 26"
+    },
+    {
+      "id": 27,
+      "name": "Gameweek 27"
+    },
+    {
+      "id": 28,
+      "name": "Gameweek 28"
+    },
+    {
+      "id": 29,
+      "name": "Gameweek 29"
+    },
+    {
+      "id": 30,
+      "name": "Gameweek 30"
+    },
+    {
+      "id": 31,
+      "name": "Gameweek 31"
+    },
+    {
+      "id": 32,
+      "name": "Gameweek 32"
+    },
+    {
+      "id": 33,
+      "name": "Gameweek 33"
+    },
+    {
+      "id": 34,
+      "name": "Gameweek 34"
+    },
+    {
+      "id": 35,
+      "name": "Gameweek 35"
+    },
+    {
+      "id": 36,
+      "name": "Gameweek 36"
+    },
+    {
+      "id": 37,
+      "name": "Gameweek 37"
+    },
+    {
+      "id": 38,
+      "name": "Gameweek 38"
+    }
+  ],
+  "meta": {
+    "fetched_from": "https://fantasy.premierleague.com/api/bootstrap-static/",
+    "generated_at": "2026-08-21T12:17:51.536741+00:00",
+    "season_code": "2026-27"
+  },
+  "players": [
+    {
+      "first_name": "David",
+      "id": 1,
+      "now_cost": 60,
+      "position": 1,
+      "second_name": "Raya Mart\u00edn",
+      "team": 1,
+      "web_name": "Raya"
+    },
+    {
+      "first_name": "Kepa",
+      "id": 2,
+      "now_cost": 50,
+      "position": 1,
+      "second_name": "Arrizabalaga Revuelta",
+      "team": 1,
+      "web_name": "Arrizabalaga"
+    },
+    {
+      "first_name": "Illan",
+      "id": 3,
+      "now_cost": 50,
+      "position": 1,
+      "second_name": "Meslier",
+      "team": 1,
+      "web_name": "Meslier"
+    },
+    {
+      "first_name": "Gabriel",
+      "id": 4,
+      "now_cost": 80,
+      "position": 2,
+      "second_name": "dos Santos Magalh\u00e3es",
+      "team": 1,
+      "web_name": "Gabriel"
+    },
+    {
+      "first_name": "Jurri\u00ebn",
+      "id": 5,
+      "now_cost": 65,
+      "position": 2,
+      "second_name": "Timber",
+      "team": 1,
+      "web_name": "J.Timber"
+    },
+    {
+      "first_name": "William",
+      "id": 6,
+      "now_cost": 60,
+      "position": 2,
+      "second_name": "Saliba",
+      "team": 1,
+      "web_name": "Saliba"
+    },
+    {
+      "first_name": "Myles",
+      "id": 7,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Lewis-Skelly",
+      "team": 1,
+      "web_name": "Lewis-Skelly"
+    },
+    {
+      "first_name": "Riccardo",
+      "id": 8,
+      "now_cost": 55,
+      "position": 2,
+      "second_name": "Calafiori",
+      "team": 1,
+      "web_name": "Calafiori"
+    },
+    {
+      "first_name": "Piero",
+      "id": 9,
+      "now_cost": 55,
+      "position": 2,
+      "second_name": "Hincapi\u00e9",
+      "team": 1,
+      "web_name": "Hincapie"
+    },
+    {
+      "first_name": "Benjamin",
+      "id": 10,
+      "now_cost": 55,
+      "position": 2,
+      "second_name": "White",
+      "team": 1,
+      "web_name": "White"
+    },
+    {
+      "first_name": "Cristhian",
+      "id": 11,
+      "now_cost": 55,
+      "position": 2,
+      "second_name": "Mosquera",
+      "team": 1,
+      "web_name": "Mosquera"
+    },
+    {
+      "first_name": "Bukayo",
+      "id": 12,
+      "now_cost": 95,
+      "position": 3,
+      "second_name": "Saka",
+      "team": 1,
+      "web_name": "Saka"
+    },
+    {
+      "first_name": "Declan",
+      "id": 13,
+      "now_cost": 75,
+      "position": 3,
+      "second_name": "Rice",
+      "team": 1,
+      "web_name": "Rice"
+    },
+    {
+      "first_name": "Eberechi",
+      "id": 14,
+      "now_cost": 65,
+      "position": 3,
+      "second_name": "Eze",
+      "team": 1,
+      "web_name": "Eze"
+    },
+    {
+      "first_name": "Martin",
+      "id": 15,
+      "now_cost": 65,
+      "position": 3,
+      "second_name": "\u00d8degaard",
+      "team": 1,
+      "web_name": "\u00d8degaard"
+    },
+    {
+      "first_name": "Noni",
+      "id": 16,
+      "now_cost": 65,
+      "position": 3,
+      "second_name": "Madueke",
+      "team": 1,
+      "web_name": "Madueke"
+    },
+    {
+      "first_name": "Mikel",
+      "id": 17,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Merino Zaz\u00f3n",
+      "team": 1,
+      "web_name": "Merino"
+    },
+    {
+      "first_name": "Gabriel",
+      "id": 18,
+      "now_cost": 65,
+      "position": 3,
+      "second_name": "Martinelli Silva",
+      "team": 1,
+      "web_name": "Martinelli"
+    },
+    {
+      "first_name": "Mart\u00edn",
+      "id": 19,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Zubimendi Ib\u00e1\u00f1ez",
+      "team": 1,
+      "web_name": "Zubimendi"
+    },
+    {
+      "first_name": "Max",
+      "id": 20,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Dowman",
+      "team": 1,
+      "web_name": "Dowman"
+    },
+    {
+      "first_name": "Christian",
+      "id": 21,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "N\u00f8rgaard",
+      "team": 9,
+      "web_name": "N\u00f8rgaard"
+    },
+    {
+      "first_name": "Ethan",
+      "id": 22,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Nwaneri",
+      "team": 1,
+      "web_name": "Nwaneri"
+    },
+    {
+      "first_name": "F\u00e1bio",
+      "id": 23,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Ferreira Vieira",
+      "team": 1,
+      "web_name": "F\u00e1bio Vieira"
+    },
+    {
+      "first_name": "Reiss",
+      "id": 24,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Nelson",
+      "team": 1,
+      "web_name": "Nelson"
+    },
+    {
+      "first_name": "Viktor",
+      "id": 25,
+      "now_cost": 75,
+      "position": 4,
+      "second_name": "Gy\u00f6keres",
+      "team": 1,
+      "web_name": "Gy\u00f6keres"
+    },
+    {
+      "first_name": "Kai",
+      "id": 26,
+      "now_cost": 75,
+      "position": 4,
+      "second_name": "Havertz",
+      "team": 1,
+      "web_name": "Havertz"
+    },
+    {
+      "first_name": "Gabriel",
+      "id": 27,
+      "now_cost": 60,
+      "position": 4,
+      "second_name": "Fernando de Jesus",
+      "team": 1,
+      "web_name": "G.Jesus"
+    },
+    {
+      "first_name": "Emiliano",
+      "id": 28,
+      "now_cost": 50,
+      "position": 1,
+      "second_name": "Mart\u00ednez Romero",
+      "team": 2,
+      "web_name": "Martinez"
+    },
+    {
+      "first_name": "Marco",
+      "id": 29,
+      "now_cost": 45,
+      "position": 1,
+      "second_name": "Bizot",
+      "team": 2,
+      "web_name": "M.Bizot"
+    },
+    {
+      "first_name": "Lucas",
+      "id": 30,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Digne",
+      "team": 2,
+      "web_name": "Digne"
+    },
+    {
+      "first_name": "Ezri",
+      "id": 31,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Konsa Ngoyo",
+      "team": 2,
+      "web_name": "Konsa"
+    },
+    {
+      "first_name": "Matty",
+      "id": 32,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Cash",
+      "team": 2,
+      "web_name": "Cash"
+    },
+    {
+      "first_name": "Tyrone",
+      "id": 33,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Mings",
+      "team": 2,
+      "web_name": "Mings"
+    },
+    {
+      "first_name": "Pau",
+      "id": 34,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Torres",
+      "team": 2,
+      "web_name": "Pau"
+    },
+    {
+      "first_name": "Lamare",
+      "id": 35,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Bogarde",
+      "team": 2,
+      "web_name": "Bogarde"
+    },
+    {
+      "first_name": "Ian",
+      "id": 36,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Maatsen",
+      "team": 2,
+      "web_name": "Maatsen"
+    },
+    {
+      "first_name": "Victor",
+      "id": 37,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Lindel\u00f6f",
+      "team": 2,
+      "web_name": "Lindel\u00f6f"
+    },
+    {
+      "first_name": "Andr\u00e9s",
+      "id": 38,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Garc\u00eda",
+      "team": 2,
+      "web_name": "A.Garc\u00eda"
+    },
+    {
+      "first_name": "Kosta",
+      "id": 39,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Nedeljkovic",
+      "team": 2,
+      "web_name": "Nedeljkovic"
+    },
+    {
+      "first_name": "Morgan",
+      "id": 40,
+      "now_cost": 75,
+      "position": 3,
+      "second_name": "Rogers",
+      "team": 6,
+      "web_name": "Rogers"
+    },
+    {
+      "first_name": "Emiliano",
+      "id": 41,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Buend\u00eda Stati",
+      "team": 2,
+      "web_name": "Buend\u00eda"
+    },
+    {
+      "first_name": "Evann",
+      "id": 42,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Guessand",
+      "team": 8,
+      "web_name": "Guessand"
+    },
+    {
+      "first_name": "Youri",
+      "id": 43,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Tielemans",
+      "team": 16,
+      "web_name": "Tielemans"
+    },
+    {
+      "first_name": "Leon",
+      "id": 44,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Bailey",
+      "team": 2,
+      "web_name": "Bailey"
+    },
+    {
+      "first_name": "John",
+      "id": 45,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "McGinn",
+      "team": 2,
+      "web_name": "McGinn"
+    },
+    {
+      "first_name": "Ross",
+      "id": 46,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Barkley",
+      "team": 2,
+      "web_name": "Barkley"
+    },
+    {
+      "first_name": "Boubacar",
+      "id": 47,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Kamara",
+      "team": 2,
+      "web_name": "Kamara"
+    },
+    {
+      "first_name": "Amadou",
+      "id": 48,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Onana",
+      "team": 2,
+      "web_name": "Onana"
+    },
+    {
+      "first_name": "Samuel",
+      "id": 49,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Iling-Junior",
+      "team": 2,
+      "web_name": "Iling Jr"
+    },
+    {
+      "first_name": "Bradley",
+      "id": 50,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Burrowes",
+      "team": 2,
+      "web_name": "Burrowes"
+    },
+    {
+      "first_name": "George",
+      "id": 51,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Hemmings",
+      "team": 2,
+      "web_name": "George Hemmings"
+    },
+    {
+      "first_name": "Alysson Edward Franco",
+      "id": 52,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "da Rocha dos Santos",
+      "team": 2,
+      "web_name": "Alysson"
+    },
+    {
+      "first_name": "Johan",
+      "id": 53,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Manzambi",
+      "team": 2,
+      "web_name": "Manzambi"
+    },
+    {
+      "first_name": "Joao",
+      "id": 54,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Gomes",
+      "team": 2,
+      "web_name": "Gomes"
+    },
+    {
+      "first_name": "Ollie",
+      "id": 55,
+      "now_cost": 80,
+      "position": 4,
+      "second_name": "Watkins",
+      "team": 2,
+      "web_name": "Watkins"
+    },
+    {
+      "first_name": "Tammy",
+      "id": 56,
+      "now_cost": 55,
+      "position": 4,
+      "second_name": "Abraham",
+      "team": 2,
+      "web_name": "Abraham"
+    },
+    {
+      "first_name": "\u0110or\u0111e",
+      "id": 57,
+      "now_cost": 45,
+      "position": 1,
+      "second_name": "Petrovi\u0107",
+      "team": 3,
+      "web_name": "Petrovi\u0107"
+    },
+    {
+      "first_name": "Fraser",
+      "id": 58,
+      "now_cost": 40,
+      "position": 1,
+      "second_name": "Forster",
+      "team": 3,
+      "web_name": "Forster"
+    },
+    {
+      "first_name": "Will",
+      "id": 59,
+      "now_cost": 40,
+      "position": 1,
+      "second_name": "Dennis",
+      "team": 3,
+      "web_name": "Dennis"
+    },
+    {
+      "first_name": "James",
+      "id": 60,
+      "now_cost": 55,
+      "position": 2,
+      "second_name": "Hill",
+      "team": 3,
+      "web_name": "Hill"
+    },
+    {
+      "first_name": "Adrien",
+      "id": 61,
+      "now_cost": 55,
+      "position": 2,
+      "second_name": "Truffert",
+      "team": 3,
+      "web_name": "Truffert"
+    },
+    {
+      "first_name": "Bafod\u00e9",
+      "id": 62,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Diakit\u00e9",
+      "team": 3,
+      "web_name": "Diakit\u00e9"
+    },
+    {
+      "first_name": "Veljko",
+      "id": 63,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Milosavljevic",
+      "team": 3,
+      "web_name": "Milosavljevi\u0107"
+    },
+    {
+      "first_name": "Adam",
+      "id": 64,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Smith",
+      "team": 3,
+      "web_name": "Smith"
+    },
+    {
+      "first_name": "Juli\u00e1n",
+      "id": 65,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Araujo Z\u00fa\u00f1iga",
+      "team": 3,
+      "web_name": "J.Araujo"
+    },
+    {
+      "first_name": "Julio",
+      "id": 66,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Soler Barreto",
+      "team": 3,
+      "web_name": "Soler"
+    },
+    {
+      "first_name": "Rayan Vitor",
+      "id": 67,
+      "now_cost": 65,
+      "position": 3,
+      "second_name": "Simpl\u00edcio Rocha",
+      "team": 3,
+      "web_name": "Rayan"
+    },
+    {
+      "first_name": "Marcus",
+      "id": 68,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Tavernier",
+      "team": 3,
+      "web_name": "Tavernier"
+    },
+    {
+      "first_name": "Alex",
+      "id": 69,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Scott",
+      "team": 3,
+      "web_name": "Scott"
+    },
+    {
+      "first_name": "Justin",
+      "id": 70,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Kluivert",
+      "team": 3,
+      "web_name": "Kluivert"
+    },
+    {
+      "first_name": "Lewis",
+      "id": 71,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Cook",
+      "team": 3,
+      "web_name": "Cook"
+    },
+    {
+      "first_name": "Ben",
+      "id": 72,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Gannon-Doak",
+      "team": 3,
+      "web_name": "Gannon-Doak"
+    },
+    {
+      "first_name": "Tyler",
+      "id": 73,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Adams",
+      "team": 3,
+      "web_name": "Adams"
+    },
+    {
+      "first_name": "David",
+      "id": 74,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Brooks",
+      "team": 3,
+      "web_name": "Brooks"
+    },
+    {
+      "first_name": "Ryan",
+      "id": 75,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Christie",
+      "team": 3,
+      "web_name": "Christie"
+    },
+    {
+      "first_name": "Alex",
+      "id": 76,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "T\u00f3th",
+      "team": 3,
+      "web_name": "T\u00f3th.A"
+    },
+    {
+      "first_name": "Amine",
+      "id": 77,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Adli",
+      "team": 3,
+      "web_name": "Adli"
+    },
+    {
+      "first_name": "Junior",
+      "id": 78,
+      "now_cost": 75,
+      "position": 3,
+      "second_name": "Kroupi",
+      "team": 3,
+      "web_name": "Kroupi.Jr"
+    },
+    {
+      "first_name": "Francisco Evanilson",
+      "id": 79,
+      "now_cost": 60,
+      "position": 4,
+      "second_name": "de Lima Barbosa",
+      "team": 3,
+      "web_name": "Evanilson"
+    },
+    {
+      "first_name": "Enes",
+      "id": 80,
+      "now_cost": 55,
+      "position": 4,
+      "second_name": "\u00dcnal",
+      "team": 3,
+      "web_name": "Enes \u00dcnal"
+    },
+    {
+      "first_name": "\u00c1lvaro",
+      "id": 81,
+      "now_cost": 60,
+      "position": 4,
+      "second_name": "Rodr\u00edguez",
+      "team": 3,
+      "web_name": "Rodr\u00edguez"
+    },
+    {
+      "first_name": "Caoimh\u00edn",
+      "id": 82,
+      "now_cost": 50,
+      "position": 1,
+      "second_name": "Kelleher",
+      "team": 4,
+      "web_name": "Kelleher"
+    },
+    {
+      "first_name": "H\u00e1kon Rafn",
+      "id": 83,
+      "now_cost": 45,
+      "position": 1,
+      "second_name": "Valdimarsson",
+      "team": 4,
+      "web_name": "Valdimarsson"
+    },
+    {
+      "first_name": "Nathan",
+      "id": 84,
+      "now_cost": 55,
+      "position": 2,
+      "second_name": "Collins",
+      "team": 4,
+      "web_name": "Collins"
+    },
+    {
+      "first_name": "Sepp",
+      "id": 85,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "van den Berg",
+      "team": 4,
+      "web_name": "Van den Berg"
+    },
+    {
+      "first_name": "Keane",
+      "id": 86,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Lewis-Potter",
+      "team": 4,
+      "web_name": "Lewis-Potter"
+    },
+    {
+      "first_name": "Kristoffer",
+      "id": 87,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Ajer",
+      "team": 4,
+      "web_name": "Ajer"
+    },
+    {
+      "first_name": "Michael",
+      "id": 88,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Kayode",
+      "team": 4,
+      "web_name": "Kayode"
+    },
+    {
+      "first_name": "Rico",
+      "id": 89,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Henry",
+      "team": 4,
+      "web_name": "Henry"
+    },
+    {
+      "first_name": "Aaron",
+      "id": 90,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Hickey",
+      "team": 4,
+      "web_name": "Hickey"
+    },
+    {
+      "first_name": "Ethan",
+      "id": 91,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Pinnock",
+      "team": 4,
+      "web_name": "Pinnock"
+    },
+    {
+      "first_name": "Kim",
+      "id": 92,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Ji-soo",
+      "team": 4,
+      "web_name": "Ji-soo"
+    },
+    {
+      "first_name": "Jannik",
+      "id": 93,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Schuster",
+      "team": 4,
+      "web_name": "Schuster"
+    },
+    {
+      "first_name": "Kevin",
+      "id": 94,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Schade",
+      "team": 4,
+      "web_name": "Schade"
+    },
+    {
+      "first_name": "Dango",
+      "id": 95,
+      "now_cost": 65,
+      "position": 3,
+      "second_name": "Ouattara",
+      "team": 4,
+      "web_name": "O.Dango"
+    },
+    {
+      "first_name": "Mikkel",
+      "id": 96,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Damsgaard",
+      "team": 4,
+      "web_name": "Damsgaard"
+    },
+    {
+      "first_name": "Mathias",
+      "id": 97,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Jensen",
+      "team": 4,
+      "web_name": "Jensen"
+    },
+    {
+      "first_name": "Vitaly",
+      "id": 98,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Janelt",
+      "team": 4,
+      "web_name": "Janelt"
+    },
+    {
+      "first_name": "Antoni",
+      "id": 99,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Milambo",
+      "team": 4,
+      "web_name": "Milambo"
+    },
+    {
+      "first_name": "F\u00e1bio",
+      "id": 100,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Freitas Gouveia Carvalho",
+      "team": 4,
+      "web_name": "Carvalho"
+    },
+    {
+      "first_name": "Jordan",
+      "id": 101,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Henderson",
+      "team": 6,
+      "web_name": "Henderson"
+    },
+    {
+      "first_name": "Yehor",
+      "id": 102,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Yarmoliuk",
+      "team": 4,
+      "web_name": "Yarmoliuk"
+    },
+    {
+      "first_name": "Josh",
+      "id": 103,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Dasilva",
+      "team": 4,
+      "web_name": "Dasilva"
+    },
+    {
+      "first_name": "Frank",
+      "id": 104,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Onyeka",
+      "team": 7,
+      "web_name": "Onyeka"
+    },
+    {
+      "first_name": "Jaidon",
+      "id": 105,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Anthony",
+      "team": 4,
+      "web_name": "Anthony"
+    },
+    {
+      "first_name": "Igor Thiago",
+      "id": 106,
+      "now_cost": 80,
+      "position": 4,
+      "second_name": "Nascimento Rodrigues",
+      "team": 4,
+      "web_name": "Thiago"
+    },
+    {
+      "first_name": "Kaye",
+      "id": 107,
+      "now_cost": 45,
+      "position": 4,
+      "second_name": "Furo",
+      "team": 4,
+      "web_name": "Furo"
+    },
+    {
+      "first_name": "Callum",
+      "id": 108,
+      "now_cost": 55,
+      "position": 4,
+      "second_name": "Wilson",
+      "team": 4,
+      "web_name": "Wilson"
+    },
+    {
+      "first_name": "Bart",
+      "id": 109,
+      "now_cost": 45,
+      "position": 1,
+      "second_name": "Verbruggen",
+      "team": 5,
+      "web_name": "Verbruggen"
+    },
+    {
+      "first_name": "Carl",
+      "id": 110,
+      "now_cost": 45,
+      "position": 1,
+      "second_name": "Rushworth",
+      "team": 7,
+      "web_name": "Rushworth"
+    },
+    {
+      "first_name": "Jason",
+      "id": 111,
+      "now_cost": 40,
+      "position": 1,
+      "second_name": "Steele",
+      "team": 5,
+      "web_name": "Steele"
+    },
+    {
+      "first_name": "Jan Paul",
+      "id": 112,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "van Hecke",
+      "team": 19,
+      "web_name": "Van Hecke"
+    },
+    {
+      "first_name": "Ferdi",
+      "id": 113,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Kad\u0131o\u011flu",
+      "team": 5,
+      "web_name": "F.Kad\u0131o\u011flu"
+    },
+    {
+      "first_name": "Olivier",
+      "id": 114,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Boscagli",
+      "team": 5,
+      "web_name": "Boscagli"
+    },
+    {
+      "first_name": "Maxim",
+      "id": 115,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "De Cuyper",
+      "team": 5,
+      "web_name": "De Cuyper"
+    },
+    {
+      "first_name": "Lewis",
+      "id": 116,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Dunk",
+      "team": 5,
+      "web_name": "Dunk"
+    },
+    {
+      "first_name": "Diego",
+      "id": 117,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Coppola",
+      "team": 5,
+      "web_name": "Coppola"
+    },
+    {
+      "first_name": "Igor Julio",
+      "id": 118,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "dos Santos de Paulo",
+      "team": 5,
+      "web_name": "Igor"
+    },
+    {
+      "first_name": "Jo\u00e3o Pedro",
+      "id": 119,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Loureiro da Costa",
+      "team": 5,
+      "web_name": "Costinha"
+    },
+    {
+      "first_name": "Michael",
+      "id": 120,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Svoboda",
+      "team": 5,
+      "web_name": "Svoboda"
+    },
+    {
+      "first_name": "Mitoma",
+      "id": 121,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Kaoru",
+      "team": 5,
+      "web_name": "Mitoma"
+    },
+    {
+      "first_name": "Yankuba",
+      "id": 122,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Minteh",
+      "team": 5,
+      "web_name": "Minteh"
+    },
+    {
+      "first_name": "Jack",
+      "id": 123,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Hinshelwood",
+      "team": 5,
+      "web_name": "Hinshelwood"
+    },
+    {
+      "first_name": "Pascal",
+      "id": 124,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Gro\u00df",
+      "team": 5,
+      "web_name": "Gro\u00df"
+    },
+    {
+      "first_name": "Georginio",
+      "id": 125,
+      "now_cost": 55,
+      "position": 4,
+      "second_name": "Rutter",
+      "team": 5,
+      "web_name": "Georginio"
+    },
+    {
+      "first_name": "Matt",
+      "id": 126,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "O'Riley",
+      "team": 5,
+      "web_name": "O'Riley"
+    },
+    {
+      "first_name": "Diego",
+      "id": 127,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "G\u00f3mez Amarilla",
+      "team": 5,
+      "web_name": "Gomez"
+    },
+    {
+      "first_name": "Facundo",
+      "id": 128,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Buonanotte",
+      "team": 5,
+      "web_name": "Buonanotte"
+    },
+    {
+      "first_name": "Yasin",
+      "id": 129,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Ayari",
+      "team": 5,
+      "web_name": "Ayari"
+    },
+    {
+      "first_name": "Mats",
+      "id": 130,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Wieffer",
+      "team": 5,
+      "web_name": "Wieffer"
+    },
+    {
+      "first_name": "Carlos",
+      "id": 131,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Baleba",
+      "team": 5,
+      "web_name": "Baleba"
+    },
+    {
+      "first_name": "Harry",
+      "id": 132,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Howell",
+      "team": 5,
+      "web_name": "Howell"
+    },
+    {
+      "first_name": "Tom",
+      "id": 133,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Watson",
+      "team": 5,
+      "web_name": "Watson"
+    },
+    {
+      "first_name": "Nehemiah",
+      "id": 134,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Oriola",
+      "team": 5,
+      "web_name": "Oriola"
+    },
+    {
+      "first_name": "Zadok",
+      "id": 135,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Yohanna",
+      "team": 5,
+      "web_name": "Yohanna"
+    },
+    {
+      "first_name": "Danny",
+      "id": 136,
+      "now_cost": 60,
+      "position": 4,
+      "second_name": "Welbeck",
+      "team": 6,
+      "web_name": "Welbeck"
+    },
+    {
+      "first_name": "Stefanos",
+      "id": 137,
+      "now_cost": 55,
+      "position": 4,
+      "second_name": "Tzimas",
+      "team": 5,
+      "web_name": "Tzimas"
+    },
+    {
+      "first_name": "Charalampos",
+      "id": 138,
+      "now_cost": 55,
+      "position": 4,
+      "second_name": "Kostoulas",
+      "team": 5,
+      "web_name": "Kostoulas"
+    },
+    {
+      "first_name": "Evan",
+      "id": 139,
+      "now_cost": 50,
+      "position": 4,
+      "second_name": "Ferguson",
+      "team": 5,
+      "web_name": "Ferguson"
+    },
+    {
+      "first_name": "Robert",
+      "id": 140,
+      "now_cost": 50,
+      "position": 1,
+      "second_name": "Lynch S\u00e1nchez",
+      "team": 6,
+      "web_name": "S\u00e1nchez"
+    },
+    {
+      "first_name": "Filip",
+      "id": 141,
+      "now_cost": 50,
+      "position": 1,
+      "second_name": "J\u00f6rgensen",
+      "team": 6,
+      "web_name": "J\u00f6rgensen"
+    },
+    {
+      "first_name": "Reece",
+      "id": 142,
+      "now_cost": 55,
+      "position": 2,
+      "second_name": "James",
+      "team": 6,
+      "web_name": "James"
+    },
+    {
+      "first_name": "Trevoh",
+      "id": 143,
+      "now_cost": 55,
+      "position": 2,
+      "second_name": "Chalobah",
+      "team": 6,
+      "web_name": "Chalobah"
+    },
+    {
+      "first_name": "Malo",
+      "id": 144,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Gusto",
+      "team": 6,
+      "web_name": "Gusto"
+    },
+    {
+      "first_name": "Wesley",
+      "id": 145,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Fofana",
+      "team": 6,
+      "web_name": "Fofana"
+    },
+    {
+      "first_name": "Beno\u00eet",
+      "id": 146,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Badiashile Mukinayi",
+      "team": 6,
+      "web_name": "B.Badiashile"
+    },
+    {
+      "first_name": "Tosin",
+      "id": 147,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Adarabioyo",
+      "team": 6,
+      "web_name": "Tosin"
+    },
+    {
+      "first_name": "Jorrel",
+      "id": 148,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Hato",
+      "team": 6,
+      "web_name": "Hato"
+    },
+    {
+      "first_name": "Levi",
+      "id": 149,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Samuels Colwill",
+      "team": 6,
+      "web_name": "Colwill"
+    },
+    {
+      "first_name": "Mamadou",
+      "id": 150,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Sarr",
+      "team": 6,
+      "web_name": "M.Sarr"
+    },
+    {
+      "first_name": "Josh",
+      "id": 151,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Acheampong",
+      "team": 6,
+      "web_name": "Acheampong"
+    },
+    {
+      "first_name": "Marco",
+      "id": 152,
+      "now_cost": 55,
+      "position": 2,
+      "second_name": "Palestra",
+      "team": 6,
+      "web_name": "Palestra"
+    },
+    {
+      "first_name": "Axel",
+      "id": 153,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Disasi",
+      "team": 6,
+      "web_name": "Disasi"
+    },
+    {
+      "first_name": "Cole",
+      "id": 154,
+      "now_cost": 95,
+      "position": 3,
+      "second_name": "Palmer",
+      "team": 6,
+      "web_name": "Palmer"
+    },
+    {
+      "first_name": "Enzo",
+      "id": 155,
+      "now_cost": 70,
+      "position": 3,
+      "second_name": "Fern\u00e1ndez",
+      "team": 6,
+      "web_name": "Enzo"
+    },
+    {
+      "first_name": "Pedro",
+      "id": 156,
+      "now_cost": 65,
+      "position": 3,
+      "second_name": "Lomba Neto",
+      "team": 6,
+      "web_name": "Neto"
+    },
+    {
+      "first_name": "Est\u00eav\u00e3o",
+      "id": 157,
+      "now_cost": 65,
+      "position": 3,
+      "second_name": "Almeida de Oliveira Gon\u00e7alves",
+      "team": 6,
+      "web_name": "Est\u00eav\u00e3o"
+    },
+    {
+      "first_name": "Jamie",
+      "id": 158,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Bynoe-Gittens",
+      "team": 6,
+      "web_name": "Gittens"
+    },
+    {
+      "first_name": "Mois\u00e9s",
+      "id": 159,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Caicedo Corozo",
+      "team": 6,
+      "web_name": "Caicedo"
+    },
+    {
+      "first_name": "Alejandro",
+      "id": 160,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Garnacho Ferreyra",
+      "team": 2,
+      "web_name": "Garnacho"
+    },
+    {
+      "first_name": "Rom\u00e9o",
+      "id": 161,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Lavia",
+      "team": 6,
+      "web_name": "Lavia"
+    },
+    {
+      "first_name": "Andrey",
+      "id": 162,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Nascimento dos Santos",
+      "team": 16,
+      "web_name": "Andrey Santos"
+    },
+    {
+      "first_name": "D\u00e1rio",
+      "id": 163,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Lu\u00eds Essugo",
+      "team": 6,
+      "web_name": "D.Essugo"
+    },
+    {
+      "first_name": "Geovany",
+      "id": 164,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Quenda",
+      "team": 6,
+      "web_name": "Quenda"
+    },
+    {
+      "first_name": "Jo\u00e3o Pedro",
+      "id": 165,
+      "now_cost": 75,
+      "position": 4,
+      "second_name": "Junqueira de Jesus",
+      "team": 6,
+      "web_name": "Jo\u00e3o Pedro"
+    },
+    {
+      "first_name": "Nicolas",
+      "id": 166,
+      "now_cost": 65,
+      "position": 4,
+      "second_name": "Jackson",
+      "team": 6,
+      "web_name": "N.Jackson"
+    },
+    {
+      "first_name": "Liam",
+      "id": 167,
+      "now_cost": 55,
+      "position": 4,
+      "second_name": "Delap",
+      "team": 6,
+      "web_name": "Delap"
+    },
+    {
+      "first_name": "Marc",
+      "id": 168,
+      "now_cost": 50,
+      "position": 4,
+      "second_name": "Guiu Paz",
+      "team": 6,
+      "web_name": "Marc Guiu"
+    },
+    {
+      "first_name": "Shumaira",
+      "id": 169,
+      "now_cost": 45,
+      "position": 4,
+      "second_name": "Mheuka",
+      "team": 6,
+      "web_name": "Mheuka"
+    },
+    {
+      "first_name": "Emmanuel",
+      "id": 170,
+      "now_cost": 50,
+      "position": 4,
+      "second_name": "Emegha",
+      "team": 6,
+      "web_name": "Emegha"
+    },
+    {
+      "first_name": "Oliver",
+      "id": 171,
+      "now_cost": 40,
+      "position": 1,
+      "second_name": "Dovin",
+      "team": 7,
+      "web_name": "Dovin"
+    },
+    {
+      "first_name": "Ben",
+      "id": 172,
+      "now_cost": 45,
+      "position": 1,
+      "second_name": "Wilson",
+      "team": 7,
+      "web_name": "Wilson"
+    },
+    {
+      "first_name": "Bobby",
+      "id": 173,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Thomas",
+      "team": 7,
+      "web_name": "Thomas"
+    },
+    {
+      "first_name": "Liam",
+      "id": 174,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Kitching",
+      "team": 7,
+      "web_name": "Kitching"
+    },
+    {
+      "first_name": "Milan",
+      "id": 175,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "van Ewijk",
+      "team": 7,
+      "web_name": "van Ewijk"
+    },
+    {
+      "first_name": "Jay",
+      "id": 176,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Dasilva",
+      "team": 7,
+      "web_name": "Dasilva"
+    },
+    {
+      "first_name": "Kaine",
+      "id": 177,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Kesler-Hayden",
+      "team": 7,
+      "web_name": "Kesler-Hayden"
+    },
+    {
+      "first_name": "Jake",
+      "id": 178,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Bidwell",
+      "team": 7,
+      "web_name": "Bidwell"
+    },
+    {
+      "first_name": "Joel",
+      "id": 179,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Latibeaudiere",
+      "team": 7,
+      "web_name": "Latibeaudiere"
+    },
+    {
+      "first_name": "Luke",
+      "id": 180,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Woolfenden",
+      "team": 7,
+      "web_name": "Woolfenden"
+    },
+    {
+      "first_name": "Miguel",
+      "id": 181,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Brau",
+      "team": 7,
+      "web_name": "Brau"
+    },
+    {
+      "first_name": "Aur\u00e8le",
+      "id": 182,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Amenda",
+      "team": 7,
+      "web_name": "Amenda"
+    },
+    {
+      "first_name": "Jack",
+      "id": 183,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Rudoni",
+      "team": 7,
+      "web_name": "Rudoni"
+    },
+    {
+      "first_name": "Matt",
+      "id": 184,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Grimes",
+      "team": 7,
+      "web_name": "Grimes"
+    },
+    {
+      "first_name": "Tatsuhiro",
+      "id": 185,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Sakamoto",
+      "team": 7,
+      "web_name": "Sakamoto"
+    },
+    {
+      "first_name": "Ephron",
+      "id": 186,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Mason-Clark",
+      "team": 7,
+      "web_name": "Mason-Clark"
+    },
+    {
+      "first_name": "Josh",
+      "id": 187,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Eccles",
+      "team": 7,
+      "web_name": "Eccles"
+    },
+    {
+      "first_name": "Victor",
+      "id": 188,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Torp",
+      "team": 7,
+      "web_name": "Torp"
+    },
+    {
+      "first_name": "George",
+      "id": 189,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Shepherd",
+      "team": 7,
+      "web_name": "Shepherd"
+    },
+    {
+      "first_name": "Loum",
+      "id": 190,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Tchaouna",
+      "team": 7,
+      "web_name": "Tchaouna"
+    },
+    {
+      "first_name": "Raphael",
+      "id": 191,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Borges Rodrigues",
+      "team": 7,
+      "web_name": "Borges Rodrigues"
+    },
+    {
+      "first_name": "Kaine",
+      "id": 192,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Andrews",
+      "team": 7,
+      "web_name": "Andrews"
+    },
+    {
+      "first_name": "Haji",
+      "id": 193,
+      "now_cost": 55,
+      "position": 4,
+      "second_name": "Wright",
+      "team": 7,
+      "web_name": "Wright"
+    },
+    {
+      "first_name": "Brandon",
+      "id": 194,
+      "now_cost": 50,
+      "position": 4,
+      "second_name": "Thomas-Asante",
+      "team": 7,
+      "web_name": "Thomas-Asante"
+    },
+    {
+      "first_name": "Ellis",
+      "id": 195,
+      "now_cost": 50,
+      "position": 4,
+      "second_name": "Simms",
+      "team": 7,
+      "web_name": "Simms"
+    },
+    {
+      "first_name": "Jahnoah",
+      "id": 196,
+      "now_cost": 50,
+      "position": 4,
+      "second_name": "Markelo",
+      "team": 7,
+      "web_name": "Markelo"
+    },
+    {
+      "first_name": "Norman",
+      "id": 197,
+      "now_cost": 45,
+      "position": 4,
+      "second_name": "Bassette",
+      "team": 7,
+      "web_name": "Bassette"
+    },
+    {
+      "first_name": "Dean",
+      "id": 198,
+      "now_cost": 50,
+      "position": 1,
+      "second_name": "Henderson",
+      "team": 8,
+      "web_name": "Henderson"
+    },
+    {
+      "first_name": "Walter",
+      "id": 199,
+      "now_cost": 45,
+      "position": 1,
+      "second_name": "Ben\u00edtez",
+      "team": 8,
+      "web_name": "Benitez"
+    },
+    {
+      "first_name": "Maxence",
+      "id": 200,
+      "now_cost": 60,
+      "position": 2,
+      "second_name": "Lacroix",
+      "team": 6,
+      "web_name": "Lacroix"
+    },
+    {
+      "first_name": "Daniel",
+      "id": 201,
+      "now_cost": 55,
+      "position": 2,
+      "second_name": "Mu\u00f1oz Mej\u00eda",
+      "team": 8,
+      "web_name": "Mu\u00f1oz"
+    },
+    {
+      "first_name": "Chris",
+      "id": 202,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Richards",
+      "team": 8,
+      "web_name": "Richards"
+    },
+    {
+      "first_name": "Jaydee",
+      "id": 203,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Canvot",
+      "team": 8,
+      "web_name": "Canvot"
+    },
+    {
+      "first_name": "Tyrick",
+      "id": 204,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Mitchell",
+      "team": 8,
+      "web_name": "Mitchell"
+    },
+    {
+      "first_name": "Borna",
+      "id": 205,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Sosa",
+      "team": 8,
+      "web_name": "Sosa"
+    },
+    {
+      "first_name": "Chadi",
+      "id": 206,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Riad Dnanou",
+      "team": 8,
+      "web_name": "Chadi Riad"
+    },
+    {
+      "first_name": "Oscar",
+      "id": 207,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Mingueza",
+      "team": 8,
+      "web_name": "Mingueza"
+    },
+    {
+      "first_name": "Isma\u00efla",
+      "id": 208,
+      "now_cost": 65,
+      "position": 3,
+      "second_name": "Sarr",
+      "team": 8,
+      "web_name": "Sarr"
+    },
+    {
+      "first_name": "Brennan",
+      "id": 209,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Johnson",
+      "team": 9,
+      "web_name": "Johnson"
+    },
+    {
+      "first_name": "Adam",
+      "id": 210,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Wharton",
+      "team": 8,
+      "web_name": "Wharton"
+    },
+    {
+      "first_name": "Y\u00e9remy",
+      "id": 211,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Pino Santos",
+      "team": 8,
+      "web_name": "Yeremy"
+    },
+    {
+      "first_name": "Will",
+      "id": 212,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Hughes",
+      "team": 8,
+      "web_name": "Hughes"
+    },
+    {
+      "first_name": "Jefferson",
+      "id": 213,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Lerma Sol\u00eds",
+      "team": 8,
+      "web_name": "Lerma"
+    },
+    {
+      "first_name": "Daichi",
+      "id": 214,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Kamada",
+      "team": 8,
+      "web_name": "Kamada"
+    },
+    {
+      "first_name": "Justin",
+      "id": 215,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Devenny",
+      "team": 8,
+      "web_name": "Devenny"
+    },
+    {
+      "first_name": "Romain",
+      "id": 216,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Esse",
+      "team": 8,
+      "web_name": "Esse"
+    },
+    {
+      "first_name": "Matheus",
+      "id": 217,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Fran\u00e7a de Oliveira",
+      "team": 8,
+      "web_name": "M.Fran\u00e7a"
+    },
+    {
+      "first_name": "Cheick",
+      "id": 218,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Doucour\u00e9",
+      "team": 8,
+      "web_name": "Doucour\u00e9"
+    },
+    {
+      "first_name": "Jesurun",
+      "id": 219,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Rak-Sakyi",
+      "team": 8,
+      "web_name": "J.Rak-Sakyi"
+    },
+    {
+      "first_name": "Rio",
+      "id": 220,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Cardines",
+      "team": 8,
+      "web_name": "Cardines"
+    },
+    {
+      "first_name": "Jo\u00e9l",
+      "id": 221,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Drakes-Thomas",
+      "team": 8,
+      "web_name": "Drakes-Thomas"
+    },
+    {
+      "first_name": "J\u00f8rgen",
+      "id": 222,
+      "now_cost": 60,
+      "position": 4,
+      "second_name": "Strand Larsen",
+      "team": 8,
+      "web_name": "Strand Larsen"
+    },
+    {
+      "first_name": "Jean-Philippe",
+      "id": 223,
+      "now_cost": 65,
+      "position": 4,
+      "second_name": "Mateta",
+      "team": 8,
+      "web_name": "Mateta"
+    },
+    {
+      "first_name": "Eddie",
+      "id": 224,
+      "now_cost": 55,
+      "position": 4,
+      "second_name": "Nketiah",
+      "team": 8,
+      "web_name": "Nketiah"
+    },
+    {
+      "first_name": "Christantus",
+      "id": 225,
+      "now_cost": 50,
+      "position": 4,
+      "second_name": "Uche",
+      "team": 8,
+      "web_name": "Uche"
+    },
+    {
+      "first_name": "Jordan",
+      "id": 226,
+      "now_cost": 55,
+      "position": 1,
+      "second_name": "Pickford",
+      "team": 9,
+      "web_name": "Pickford"
+    },
+    {
+      "first_name": "Mark",
+      "id": 227,
+      "now_cost": 50,
+      "position": 1,
+      "second_name": "Travers",
+      "team": 9,
+      "web_name": "Travers"
+    },
+    {
+      "first_name": "Tom",
+      "id": 228,
+      "now_cost": 45,
+      "position": 1,
+      "second_name": "King",
+      "team": 9,
+      "web_name": "King"
+    },
+    {
+      "first_name": "James",
+      "id": 229,
+      "now_cost": 60,
+      "position": 2,
+      "second_name": "Tarkowski",
+      "team": 9,
+      "web_name": "Tarkowski"
+    },
+    {
+      "first_name": "Jarrad",
+      "id": 230,
+      "now_cost": 55,
+      "position": 2,
+      "second_name": "Branthwaite",
+      "team": 9,
+      "web_name": "Branthwaite"
+    },
+    {
+      "first_name": "Michael",
+      "id": 231,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Keane",
+      "team": 9,
+      "web_name": "Keane"
+    },
+    {
+      "first_name": "Jake",
+      "id": 232,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "O'Brien",
+      "team": 9,
+      "web_name": "O'Brien"
+    },
+    {
+      "first_name": "Vitalii",
+      "id": 233,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Mykolenko",
+      "team": 9,
+      "web_name": "Mykolenko"
+    },
+    {
+      "first_name": "Nathan",
+      "id": 234,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Patterson",
+      "team": 9,
+      "web_name": "Patterson"
+    },
+    {
+      "first_name": "Adam",
+      "id": 235,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Aznou",
+      "team": 9,
+      "web_name": "Aznou"
+    },
+    {
+      "first_name": "Kiernan",
+      "id": 236,
+      "now_cost": 65,
+      "position": 3,
+      "second_name": "Dewsbury-Hall",
+      "team": 9,
+      "web_name": "Dewsbury-Hall"
+    },
+    {
+      "first_name": "Iliman",
+      "id": 237,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Ndiaye",
+      "team": 9,
+      "web_name": "Ndiaye"
+    },
+    {
+      "first_name": "Jack",
+      "id": 238,
+      "now_cost": 65,
+      "position": 3,
+      "second_name": "Grealish",
+      "team": 15,
+      "web_name": "Grealish"
+    },
+    {
+      "first_name": "James",
+      "id": 239,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Garner",
+      "team": 9,
+      "web_name": "Garner"
+    },
+    {
+      "first_name": "Tim",
+      "id": 240,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Iroegbunam",
+      "team": 9,
+      "web_name": "Iroegbunam"
+    },
+    {
+      "first_name": "Dwight",
+      "id": 241,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "McNeil",
+      "team": 8,
+      "web_name": "McNeil"
+    },
+    {
+      "first_name": "Tyrique",
+      "id": 242,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "George",
+      "team": 9,
+      "web_name": "George"
+    },
+    {
+      "first_name": "Carlos",
+      "id": 243,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Alcaraz Dur\u00e1n",
+      "team": 9,
+      "web_name": "Alcaraz"
+    },
+    {
+      "first_name": "Harrison",
+      "id": 244,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Armstrong",
+      "team": 9,
+      "web_name": "Armstrong"
+    },
+    {
+      "first_name": "Tyler",
+      "id": 245,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Dibling",
+      "team": 9,
+      "web_name": "Dibling"
+    },
+    {
+      "first_name": "Merlin",
+      "id": 246,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "R\u00f6hl",
+      "team": 9,
+      "web_name": "R\u00f6hl"
+    },
+    {
+      "first_name": "Hayden",
+      "id": 247,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Hackney",
+      "team": 9,
+      "web_name": "Hackney"
+    },
+    {
+      "first_name": "Norberto Bercique",
+      "id": 248,
+      "now_cost": 55,
+      "position": 4,
+      "second_name": "Gomes Betuncal",
+      "team": 9,
+      "web_name": "Beto"
+    },
+    {
+      "first_name": "Thierno",
+      "id": 249,
+      "now_cost": 55,
+      "position": 4,
+      "second_name": "Barry",
+      "team": 9,
+      "web_name": "Barry"
+    },
+    {
+      "first_name": "Bernd",
+      "id": 250,
+      "now_cost": 45,
+      "position": 1,
+      "second_name": "Leno",
+      "team": 10,
+      "web_name": "Leno"
+    },
+    {
+      "first_name": "Benjamin",
+      "id": 251,
+      "now_cost": 40,
+      "position": 1,
+      "second_name": "Lecomte",
+      "team": 10,
+      "web_name": "Lecomte"
+    },
+    {
+      "first_name": "Alfie",
+      "id": 252,
+      "now_cost": 40,
+      "position": 1,
+      "second_name": "McNally",
+      "team": 10,
+      "web_name": "McNally"
+    },
+    {
+      "first_name": "Joachim",
+      "id": 253,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Andersen",
+      "team": 10,
+      "web_name": "Andersen"
+    },
+    {
+      "first_name": "Antonee",
+      "id": 254,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Robinson",
+      "team": 10,
+      "web_name": "Robinson"
+    },
+    {
+      "first_name": "Jorge",
+      "id": 255,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Cuenca Barreno",
+      "team": 10,
+      "web_name": "J.Cuenca"
+    },
+    {
+      "first_name": "Kenny",
+      "id": 256,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Tete",
+      "team": 10,
+      "web_name": "Tete"
+    },
+    {
+      "first_name": "Calvin",
+      "id": 257,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Bassey",
+      "team": 10,
+      "web_name": "Bassey"
+    },
+    {
+      "first_name": "Timothy",
+      "id": 258,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Castagne",
+      "team": 10,
+      "web_name": "Castagne"
+    },
+    {
+      "first_name": "Issa",
+      "id": 259,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Diop",
+      "team": 12,
+      "web_name": "Diop"
+    },
+    {
+      "first_name": "Harry",
+      "id": 260,
+      "now_cost": 65,
+      "position": 3,
+      "second_name": "Wilson",
+      "team": 13,
+      "web_name": "Wilson"
+    },
+    {
+      "first_name": "Alex",
+      "id": 261,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Iwobi",
+      "team": 10,
+      "web_name": "Iwobi"
+    },
+    {
+      "first_name": "Emile",
+      "id": 262,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Smith Rowe",
+      "team": 10,
+      "web_name": "Smith Rowe"
+    },
+    {
+      "first_name": "Kevin",
+      "id": 263,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Santos Lopes de Macedo",
+      "team": 10,
+      "web_name": "Kevin"
+    },
+    {
+      "first_name": "Oscar",
+      "id": 264,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Bobb",
+      "team": 10,
+      "web_name": "Bobb"
+    },
+    {
+      "first_name": "Sander",
+      "id": 265,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Berge",
+      "team": 10,
+      "web_name": "Berge"
+    },
+    {
+      "first_name": "Tom",
+      "id": 266,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Cairney",
+      "team": 10,
+      "web_name": "Cairney"
+    },
+    {
+      "first_name": "Sa\u0161a",
+      "id": 267,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Luki\u0107",
+      "team": 12,
+      "web_name": "Luki\u0107"
+    },
+    {
+      "first_name": "Josh",
+      "id": 268,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "King",
+      "team": 10,
+      "web_name": "King"
+    },
+    {
+      "first_name": "Ryan",
+      "id": 269,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Sessegnon",
+      "team": 10,
+      "web_name": "Sessegnon"
+    },
+    {
+      "first_name": "Harrison",
+      "id": 270,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Reed",
+      "team": 10,
+      "web_name": "Reed"
+    },
+    {
+      "first_name": "Rodrigo",
+      "id": 271,
+      "now_cost": 55,
+      "position": 4,
+      "second_name": "Muniz Carvalho",
+      "team": 10,
+      "web_name": "Muniz"
+    },
+    {
+      "first_name": "Jonah",
+      "id": 272,
+      "now_cost": 45,
+      "position": 4,
+      "second_name": "Kusi-Asare",
+      "team": 10,
+      "web_name": "Kusi-Asare"
+    },
+    {
+      "first_name": "Dillon",
+      "id": 273,
+      "now_cost": 40,
+      "position": 1,
+      "second_name": "Phillips",
+      "team": 11,
+      "web_name": "Phillips"
+    },
+    {
+      "first_name": "Jack",
+      "id": 274,
+      "now_cost": 45,
+      "position": 1,
+      "second_name": "Butland",
+      "team": 11,
+      "web_name": "Butland"
+    },
+    {
+      "first_name": "Harvey",
+      "id": 275,
+      "now_cost": 40,
+      "position": 1,
+      "second_name": "Cartwright",
+      "team": 11,
+      "web_name": "Cartwright"
+    },
+    {
+      "first_name": "Thimoth\u00e9e",
+      "id": 276,
+      "now_cost": 40,
+      "position": 1,
+      "second_name": "Lo-Tutala",
+      "team": 11,
+      "web_name": "Lo-Tutala"
+    },
+    {
+      "first_name": "John",
+      "id": 277,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Egan",
+      "team": 11,
+      "web_name": "Egan"
+    },
+    {
+      "first_name": "Charlie",
+      "id": 278,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Hughes",
+      "team": 11,
+      "web_name": "Hughes"
+    },
+    {
+      "first_name": "Semi",
+      "id": 279,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Ajayi",
+      "team": 11,
+      "web_name": "Ajayi"
+    },
+    {
+      "first_name": "Lewie",
+      "id": 280,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Coyle",
+      "team": 11,
+      "web_name": "Coyle"
+    },
+    {
+      "first_name": "Cody",
+      "id": 281,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Drameh",
+      "team": 11,
+      "web_name": "Drameh"
+    },
+    {
+      "first_name": "Ryan",
+      "id": 282,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Giles",
+      "team": 11,
+      "web_name": "Giles"
+    },
+    {
+      "first_name": "Matty",
+      "id": 283,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Jacob",
+      "team": 11,
+      "web_name": "Jacob"
+    },
+    {
+      "first_name": "Cathal",
+      "id": 284,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "McCarthy",
+      "team": 11,
+      "web_name": "McCarthy"
+    },
+    {
+      "first_name": "Paddy",
+      "id": 285,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "McNair",
+      "team": 11,
+      "web_name": "McNair"
+    },
+    {
+      "first_name": "Mohamed",
+      "id": 286,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Belloumi",
+      "team": 11,
+      "web_name": "Belloumi"
+    },
+    {
+      "first_name": "Liam",
+      "id": 287,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Millar",
+      "team": 11,
+      "web_name": "Millar"
+    },
+    {
+      "first_name": "Kieran",
+      "id": 288,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Dowell",
+      "team": 11,
+      "web_name": "Dowell"
+    },
+    {
+      "first_name": "Matt",
+      "id": 289,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Crooks",
+      "team": 11,
+      "web_name": "Crooks"
+    },
+    {
+      "first_name": "Regan",
+      "id": 290,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Slater",
+      "team": 11,
+      "web_name": "Slater"
+    },
+    {
+      "first_name": "Eliot",
+      "id": 291,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Matazo",
+      "team": 11,
+      "web_name": "Matazo"
+    },
+    {
+      "first_name": "Abd\u00fclkadir",
+      "id": 292,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "\u00d6m\u00fcr",
+      "team": 11,
+      "web_name": "\u00d6m\u00fcr"
+    },
+    {
+      "first_name": "Abu",
+      "id": 293,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Kamara",
+      "team": 11,
+      "web_name": "Kamara"
+    },
+    {
+      "first_name": "\u00d3scar",
+      "id": 294,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Zambrano",
+      "team": 11,
+      "web_name": "Zambrano"
+    },
+    {
+      "first_name": "Oli",
+      "id": 295,
+      "now_cost": 55,
+      "position": 4,
+      "second_name": "McBurnie",
+      "team": 11,
+      "web_name": "McBurnie"
+    },
+    {
+      "first_name": "David",
+      "id": 296,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Akintola",
+      "team": 11,
+      "web_name": "Akintola"
+    },
+    {
+      "first_name": "Darko",
+      "id": 297,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Gyabi",
+      "team": 11,
+      "web_name": "Gyabi"
+    },
+    {
+      "first_name": "Enis",
+      "id": 298,
+      "now_cost": 45,
+      "position": 4,
+      "second_name": "Destan",
+      "team": 11,
+      "web_name": "Destan"
+    },
+    {
+      "first_name": "Mason",
+      "id": 299,
+      "now_cost": 45,
+      "position": 4,
+      "second_name": "Burstow",
+      "team": 11,
+      "web_name": "Burstow"
+    },
+    {
+      "first_name": "Christian",
+      "id": 300,
+      "now_cost": 45,
+      "position": 1,
+      "second_name": "Walton",
+      "team": 12,
+      "web_name": "Walton"
+    },
+    {
+      "first_name": "Alex",
+      "id": 301,
+      "now_cost": 40,
+      "position": 1,
+      "second_name": "Palmer",
+      "team": 12,
+      "web_name": "Palmer"
+    },
+    {
+      "first_name": "David",
+      "id": 302,
+      "now_cost": 40,
+      "position": 1,
+      "second_name": "Button",
+      "team": 12,
+      "web_name": "Button"
+    },
+    {
+      "first_name": "C\u00e9dric",
+      "id": 303,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Kipr\u00e9",
+      "team": 12,
+      "web_name": "Kipr\u00e9"
+    },
+    {
+      "first_name": "Dara",
+      "id": 304,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "O'Shea",
+      "team": 12,
+      "web_name": "O'Shea"
+    },
+    {
+      "first_name": "Leif",
+      "id": 305,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Davis",
+      "team": 12,
+      "web_name": "Davis"
+    },
+    {
+      "first_name": "Jacob",
+      "id": 306,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Greaves",
+      "team": 12,
+      "web_name": "Greaves"
+    },
+    {
+      "first_name": "Ben",
+      "id": 307,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Johnson",
+      "team": 12,
+      "web_name": "Johnson"
+    },
+    {
+      "first_name": "Darnell",
+      "id": 308,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Furlong",
+      "team": 12,
+      "web_name": "Furlong"
+    },
+    {
+      "first_name": "Marcelino",
+      "id": 309,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "N\u00fa\u00f1ez",
+      "team": 12,
+      "web_name": "N\u00fa\u00f1ez"
+    },
+    {
+      "first_name": "Azor",
+      "id": 310,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Matusiwa",
+      "team": 12,
+      "web_name": "Matusiwa"
+    },
+    {
+      "first_name": "Wes",
+      "id": 311,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Burns",
+      "team": 12,
+      "web_name": "Burns"
+    },
+    {
+      "first_name": "Jack",
+      "id": 312,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Taylor",
+      "team": 12,
+      "web_name": "Taylor"
+    },
+    {
+      "first_name": "Jack",
+      "id": 313,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Clarke",
+      "team": 12,
+      "web_name": "Clarke"
+    },
+    {
+      "first_name": "Chiedozie",
+      "id": 314,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Ogbene",
+      "team": 12,
+      "web_name": "Ogbene"
+    },
+    {
+      "first_name": "Abdul",
+      "id": 315,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Fatawu",
+      "team": 12,
+      "web_name": "Fatawu"
+    },
+    {
+      "first_name": "Emersonn",
+      "id": 316,
+      "now_cost": 55,
+      "position": 4,
+      "second_name": "Correia da Silva",
+      "team": 12,
+      "web_name": "Emersonn"
+    },
+    {
+      "first_name": "George",
+      "id": 317,
+      "now_cost": 50,
+      "position": 4,
+      "second_name": "Hirst",
+      "team": 12,
+      "web_name": "Hirst"
+    },
+    {
+      "first_name": "Jaden",
+      "id": 318,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Philogene",
+      "team": 12,
+      "web_name": "Philogene"
+    },
+    {
+      "first_name": "Sam",
+      "id": 319,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Szmodics",
+      "team": 12,
+      "web_name": "Szmodics"
+    },
+    {
+      "first_name": "Chuba",
+      "id": 320,
+      "now_cost": 50,
+      "position": 4,
+      "second_name": "Akpom",
+      "team": 12,
+      "web_name": "Akpom"
+    },
+    {
+      "first_name": "Sindre",
+      "id": 321,
+      "now_cost": 45,
+      "position": 4,
+      "second_name": "Walle Egeli",
+      "team": 12,
+      "web_name": "Walle Egeli"
+    },
+    {
+      "first_name": "Ali",
+      "id": 322,
+      "now_cost": 50,
+      "position": 4,
+      "second_name": "Al-Hamadi",
+      "team": 12,
+      "web_name": "Al-Hamadi"
+    },
+    {
+      "first_name": "Kasey",
+      "id": 323,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "McAteer",
+      "team": 12,
+      "web_name": "McAteer"
+    },
+    {
+      "first_name": "Anis",
+      "id": 324,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Mehmeti",
+      "team": 12,
+      "web_name": "Mehmeti"
+    },
+    {
+      "first_name": "Karl",
+      "id": 325,
+      "now_cost": 45,
+      "position": 1,
+      "second_name": "Darlow",
+      "team": 16,
+      "web_name": "Darlow"
+    },
+    {
+      "first_name": "Lucas Estella",
+      "id": 326,
+      "now_cost": 45,
+      "position": 1,
+      "second_name": "Perri",
+      "team": 13,
+      "web_name": "Perri"
+    },
+    {
+      "first_name": "Jaka",
+      "id": 327,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Bijol",
+      "team": 13,
+      "web_name": "Bijol"
+    },
+    {
+      "first_name": "Pascal",
+      "id": 328,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Struijk",
+      "team": 5,
+      "web_name": "Struijk"
+    },
+    {
+      "first_name": "Joe",
+      "id": 329,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Rodon",
+      "team": 13,
+      "web_name": "Rodon"
+    },
+    {
+      "first_name": "Jayden",
+      "id": 330,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Bogle",
+      "team": 13,
+      "web_name": "Bogle"
+    },
+    {
+      "first_name": "Gabriel",
+      "id": 331,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Gudmundsson",
+      "team": 13,
+      "web_name": "Gudmundsson"
+    },
+    {
+      "first_name": "James",
+      "id": 332,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Justin",
+      "team": 13,
+      "web_name": "Justin"
+    },
+    {
+      "first_name": "Sebastiaan",
+      "id": 333,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Bornauw",
+      "team": 13,
+      "web_name": "Bornauw"
+    },
+    {
+      "first_name": "Tarik",
+      "id": 334,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Muharemovi\u0107",
+      "team": 13,
+      "web_name": "Muharemovi\u0107"
+    },
+    {
+      "first_name": "Anton",
+      "id": 335,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Stach",
+      "team": 13,
+      "web_name": "Stach"
+    },
+    {
+      "first_name": "Noah",
+      "id": 336,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Okafor",
+      "team": 13,
+      "web_name": "Okafor"
+    },
+    {
+      "first_name": "Brenden",
+      "id": 337,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Aaronson",
+      "team": 13,
+      "web_name": "Aaronson"
+    },
+    {
+      "first_name": "Ethan",
+      "id": 338,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Ampadu",
+      "team": 13,
+      "web_name": "Ampadu"
+    },
+    {
+      "first_name": "Sean",
+      "id": 339,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Longstaff",
+      "team": 13,
+      "web_name": "Longstaff"
+    },
+    {
+      "first_name": "Joe",
+      "id": 340,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Gelhardt",
+      "team": 11,
+      "web_name": "Gelhardt"
+    },
+    {
+      "first_name": "Wilfried",
+      "id": 341,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Gnonto",
+      "team": 13,
+      "web_name": "Gnonto"
+    },
+    {
+      "first_name": "Jack",
+      "id": 342,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Harrison",
+      "team": 13,
+      "web_name": "Harrison"
+    },
+    {
+      "first_name": "Daniel",
+      "id": 343,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "James",
+      "team": 13,
+      "web_name": "James"
+    },
+    {
+      "first_name": "Ilia",
+      "id": 344,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Gruev",
+      "team": 13,
+      "web_name": "Gruev"
+    },
+    {
+      "first_name": "Tanaka",
+      "id": 345,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Ao",
+      "team": 13,
+      "web_name": "Tanaka"
+    },
+    {
+      "first_name": "Dominic",
+      "id": 346,
+      "now_cost": 60,
+      "position": 4,
+      "second_name": "Calvert-Lewin",
+      "team": 13,
+      "web_name": "Calvert-Lewin"
+    },
+    {
+      "first_name": "Lukas",
+      "id": 347,
+      "now_cost": 55,
+      "position": 4,
+      "second_name": "Nmecha",
+      "team": 13,
+      "web_name": "Nmecha"
+    },
+    {
+      "first_name": "Jo\u00ebl",
+      "id": 348,
+      "now_cost": 50,
+      "position": 4,
+      "second_name": "Piroe",
+      "team": 13,
+      "web_name": "Piroe"
+    },
+    {
+      "first_name": "Mateo",
+      "id": 349,
+      "now_cost": 45,
+      "position": 4,
+      "second_name": "Joseph Fern\u00e1ndez-Regatillo",
+      "team": 13,
+      "web_name": "Mateo Joseph"
+    },
+    {
+      "first_name": "Alisson",
+      "id": 350,
+      "now_cost": 55,
+      "position": 1,
+      "second_name": "Becker",
+      "team": 14,
+      "web_name": "A.Becker"
+    },
+    {
+      "first_name": "Giorgi",
+      "id": 351,
+      "now_cost": 50,
+      "position": 1,
+      "second_name": "Mamardashvili",
+      "team": 14,
+      "web_name": "Mamardashvili"
+    },
+    {
+      "first_name": "Freddie",
+      "id": 352,
+      "now_cost": 40,
+      "position": 1,
+      "second_name": "Woodman",
+      "team": 14,
+      "web_name": "Woodman"
+    },
+    {
+      "first_name": "Armin",
+      "id": 353,
+      "now_cost": 40,
+      "position": 1,
+      "second_name": "Pecsi",
+      "team": 14,
+      "web_name": "Pecsi"
+    },
+    {
+      "first_name": "Vitezslav",
+      "id": 354,
+      "now_cost": 40,
+      "position": 1,
+      "second_name": "Jaros",
+      "team": 14,
+      "web_name": "Jaros"
+    },
+    {
+      "first_name": "Harvey",
+      "id": 355,
+      "now_cost": 40,
+      "position": 1,
+      "second_name": "Davies",
+      "team": 14,
+      "web_name": "Davies"
+    },
+    {
+      "first_name": "Virgil",
+      "id": 356,
+      "now_cost": 65,
+      "position": 2,
+      "second_name": "van Dijk",
+      "team": 14,
+      "web_name": "Virgil"
+    },
+    {
+      "first_name": "Jeremie",
+      "id": 357,
+      "now_cost": 55,
+      "position": 2,
+      "second_name": "Frimpong",
+      "team": 14,
+      "web_name": "Frimpong"
+    },
+    {
+      "first_name": "Milos",
+      "id": 358,
+      "now_cost": 55,
+      "position": 2,
+      "second_name": "Kerkez",
+      "team": 14,
+      "web_name": "Kerkez"
+    },
+    {
+      "first_name": "Joe",
+      "id": 359,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Gomez",
+      "team": 14,
+      "web_name": "Gomez"
+    },
+    {
+      "first_name": "Conor",
+      "id": 360,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Bradley",
+      "team": 14,
+      "web_name": "Bradley"
+    },
+    {
+      "first_name": "Wellity",
+      "id": 361,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Lucky",
+      "team": 14,
+      "web_name": "Lucky"
+    },
+    {
+      "first_name": "Jeremy",
+      "id": 362,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Jacquet",
+      "team": 14,
+      "web_name": "Jacquet"
+    },
+    {
+      "first_name": "Giovanni",
+      "id": 363,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Leoni",
+      "team": 14,
+      "web_name": "Leoni"
+    },
+    {
+      "first_name": "Kostas",
+      "id": 364,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Tsimikas",
+      "team": 14,
+      "web_name": "Tsimikas"
+    },
+    {
+      "first_name": "Calvin",
+      "id": 365,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Ramsay",
+      "team": 14,
+      "web_name": "Ramsay"
+    },
+    {
+      "first_name": "Florian",
+      "id": 366,
+      "now_cost": 75,
+      "position": 3,
+      "second_name": "Wirtz",
+      "team": 14,
+      "web_name": "Wirtz"
+    },
+    {
+      "first_name": "Cody",
+      "id": 367,
+      "now_cost": 70,
+      "position": 3,
+      "second_name": "Gakpo",
+      "team": 14,
+      "web_name": "Gakpo"
+    },
+    {
+      "first_name": "Dominik",
+      "id": 368,
+      "now_cost": 70,
+      "position": 3,
+      "second_name": "Szoboszlai",
+      "team": 14,
+      "web_name": "Szoboszlai"
+    },
+    {
+      "first_name": "Rio",
+      "id": 369,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Ngumoha",
+      "team": 14,
+      "web_name": "Ngumoha"
+    },
+    {
+      "first_name": "Federico",
+      "id": 370,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Chiesa",
+      "team": 14,
+      "web_name": "Chiesa"
+    },
+    {
+      "first_name": "Ryan",
+      "id": 371,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Gravenberch",
+      "team": 14,
+      "web_name": "Gravenberch"
+    },
+    {
+      "first_name": "Alexis",
+      "id": 372,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Mac Allister",
+      "team": 14,
+      "web_name": "Mac Allister"
+    },
+    {
+      "first_name": "Curtis",
+      "id": 373,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Jones",
+      "team": 14,
+      "web_name": "C.Jones"
+    },
+    {
+      "first_name": "Endo",
+      "id": 374,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Wataru",
+      "team": 14,
+      "web_name": "Endo"
+    },
+    {
+      "first_name": "Trey",
+      "id": 375,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Nyoni",
+      "team": 14,
+      "web_name": "Nyoni"
+    },
+    {
+      "first_name": "Stefan",
+      "id": 376,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Baj\u010deti\u0107 Maquieira",
+      "team": 14,
+      "web_name": "Bajcetic"
+    },
+    {
+      "first_name": "Victor",
+      "id": 377,
+      "now_cost": 65,
+      "position": 3,
+      "second_name": "Munoz",
+      "team": 14,
+      "web_name": "Munoz"
+    },
+    {
+      "first_name": "James",
+      "id": 378,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "McConnell",
+      "team": 14,
+      "web_name": "McConnell"
+    },
+    {
+      "first_name": "Alexander",
+      "id": 379,
+      "now_cost": 90,
+      "position": 4,
+      "second_name": "Isak",
+      "team": 14,
+      "web_name": "Isak"
+    },
+    {
+      "first_name": "Hugo",
+      "id": 380,
+      "now_cost": 75,
+      "position": 4,
+      "second_name": "Ekitik\u00e9",
+      "team": 14,
+      "web_name": "Ekitik\u00e9"
+    },
+    {
+      "first_name": "Lewis",
+      "id": 381,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Koumas",
+      "team": 14,
+      "web_name": "Koumas"
+    },
+    {
+      "first_name": "Jayden",
+      "id": 382,
+      "now_cost": 45,
+      "position": 4,
+      "second_name": "Danns",
+      "team": 14,
+      "web_name": "Danns"
+    },
+    {
+      "first_name": "Harvey",
+      "id": 383,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Elliott",
+      "team": 14,
+      "web_name": "Elliott"
+    },
+    {
+      "first_name": "Gianluigi",
+      "id": 384,
+      "now_cost": 55,
+      "position": 1,
+      "second_name": "Donnarumma",
+      "team": 15,
+      "web_name": "Donnarumma"
+    },
+    {
+      "first_name": "James",
+      "id": 385,
+      "now_cost": 50,
+      "position": 1,
+      "second_name": "Trafford",
+      "team": 13,
+      "web_name": "Trafford"
+    },
+    {
+      "first_name": "Marcus",
+      "id": 386,
+      "now_cost": 45,
+      "position": 1,
+      "second_name": "Bettinelli",
+      "team": 15,
+      "web_name": "Bettinelli"
+    },
+    {
+      "first_name": "Nico",
+      "id": 387,
+      "now_cost": 65,
+      "position": 2,
+      "second_name": "O'Reilly",
+      "team": 15,
+      "web_name": "O'Reilly"
+    },
+    {
+      "first_name": "Marc",
+      "id": 388,
+      "now_cost": 60,
+      "position": 2,
+      "second_name": "Gu\u00e9hi",
+      "team": 15,
+      "web_name": "Gu\u00e9hi"
+    },
+    {
+      "first_name": "Matheus",
+      "id": 389,
+      "now_cost": 60,
+      "position": 2,
+      "second_name": "Nunes",
+      "team": 15,
+      "web_name": "Matheus N."
+    },
+    {
+      "first_name": "R\u00faben",
+      "id": 390,
+      "now_cost": 55,
+      "position": 2,
+      "second_name": "dos Santos Gato Alves Dias",
+      "team": 15,
+      "web_name": "R\u00faben"
+    },
+    {
+      "first_name": "Jo\u0161ko",
+      "id": 391,
+      "now_cost": 55,
+      "position": 2,
+      "second_name": "Gvardiol",
+      "team": 15,
+      "web_name": "Gvardiol"
+    },
+    {
+      "first_name": "Rayan",
+      "id": 392,
+      "now_cost": 55,
+      "position": 2,
+      "second_name": "A\u00eft-Nouri",
+      "team": 15,
+      "web_name": "A\u00eft-Nouri"
+    },
+    {
+      "first_name": "Abdukodir",
+      "id": 393,
+      "now_cost": 55,
+      "position": 2,
+      "second_name": "Khusanov",
+      "team": 15,
+      "web_name": "Khusanov"
+    },
+    {
+      "first_name": "Max",
+      "id": 394,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Alleyne",
+      "team": 15,
+      "web_name": "Alleyne"
+    },
+    {
+      "first_name": "Rico",
+      "id": 395,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Lewis",
+      "team": 15,
+      "web_name": "Lewis"
+    },
+    {
+      "first_name": "Vitor",
+      "id": 396,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "de Oliveira Nunes dos Reis",
+      "team": 15,
+      "web_name": "Vitor Reis"
+    },
+    {
+      "first_name": "Antoine",
+      "id": 397,
+      "now_cost": 85,
+      "position": 3,
+      "second_name": "Semenyo",
+      "team": 15,
+      "web_name": "Semenyo"
+    },
+    {
+      "first_name": "Phil",
+      "id": 398,
+      "now_cost": 70,
+      "position": 3,
+      "second_name": "Foden",
+      "team": 15,
+      "web_name": "Foden"
+    },
+    {
+      "first_name": "Rayan",
+      "id": 399,
+      "now_cost": 75,
+      "position": 3,
+      "second_name": "Cherki",
+      "team": 15,
+      "web_name": "Cherki"
+    },
+    {
+      "first_name": "J\u00e9r\u00e9my",
+      "id": 400,
+      "now_cost": 75,
+      "position": 3,
+      "second_name": "Doku",
+      "team": 15,
+      "web_name": "Doku"
+    },
+    {
+      "first_name": "Omar",
+      "id": 401,
+      "now_cost": 70,
+      "position": 4,
+      "second_name": "Marmoush",
+      "team": 15,
+      "web_name": "Marmoush"
+    },
+    {
+      "first_name": "Rodrigo 'Rodri'",
+      "id": 402,
+      "now_cost": 65,
+      "position": 3,
+      "second_name": "Hernandez Cascante",
+      "team": 15,
+      "web_name": "Rodrigo"
+    },
+    {
+      "first_name": "S\u00e1vio",
+      "id": 403,
+      "now_cost": 65,
+      "position": 3,
+      "second_name": "Moreira de Oliveira",
+      "team": 15,
+      "web_name": "Savinho"
+    },
+    {
+      "first_name": "Tijjani",
+      "id": 404,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Reijnders",
+      "team": 15,
+      "web_name": "Reijnders"
+    },
+    {
+      "first_name": "Nico",
+      "id": 405,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Gonz\u00e1lez Iglesias",
+      "team": 15,
+      "web_name": "N.Gonzalez"
+    },
+    {
+      "first_name": "Mateo",
+      "id": 406,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Kova\u010di\u0107",
+      "team": 15,
+      "web_name": "Kova\u010di\u0107"
+    },
+    {
+      "first_name": "Claudio",
+      "id": 407,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Echeverri",
+      "team": 15,
+      "web_name": "Echeverri"
+    },
+    {
+      "first_name": "Kalvin",
+      "id": 408,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Phillips",
+      "team": 15,
+      "web_name": "Phillips"
+    },
+    {
+      "first_name": "Divine",
+      "id": 409,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Mukasa",
+      "team": 15,
+      "web_name": "Mukasa"
+    },
+    {
+      "first_name": "Jeremy",
+      "id": 410,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Monga",
+      "team": 15,
+      "web_name": "Monga"
+    },
+    {
+      "first_name": "Erling",
+      "id": 411,
+      "now_cost": 155,
+      "position": 4,
+      "second_name": "Haaland",
+      "team": 15,
+      "web_name": "Haaland"
+    },
+    {
+      "first_name": "Senne",
+      "id": 412,
+      "now_cost": 50,
+      "position": 1,
+      "second_name": "Lammens",
+      "team": 16,
+      "web_name": "Lammens"
+    },
+    {
+      "first_name": "Altay",
+      "id": 413,
+      "now_cost": 45,
+      "position": 1,
+      "second_name": "Bay\u0131nd\u0131r",
+      "team": 16,
+      "web_name": "Bayindir"
+    },
+    {
+      "first_name": "Tom",
+      "id": 414,
+      "now_cost": 40,
+      "position": 1,
+      "second_name": "Heaton",
+      "team": 16,
+      "web_name": "Heaton"
+    },
+    {
+      "first_name": "Patrick",
+      "id": 415,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Dorgu",
+      "team": 16,
+      "web_name": "Dorgu"
+    },
+    {
+      "first_name": "Matthijs",
+      "id": 416,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "de Ligt",
+      "team": 16,
+      "web_name": "De Ligt"
+    },
+    {
+      "first_name": "Diogo",
+      "id": 417,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Dalot Teixeira",
+      "team": 16,
+      "web_name": "Dalot"
+    },
+    {
+      "first_name": "Harry",
+      "id": 418,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Maguire",
+      "team": 16,
+      "web_name": "Maguire"
+    },
+    {
+      "first_name": "Lisandro",
+      "id": 419,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Mart\u00ednez",
+      "team": 16,
+      "web_name": "Martinez"
+    },
+    {
+      "first_name": "Leny",
+      "id": 420,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Yoro",
+      "team": 16,
+      "web_name": "Yoro"
+    },
+    {
+      "first_name": "Ayden",
+      "id": 421,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Heaven",
+      "team": 16,
+      "web_name": "Heaven"
+    },
+    {
+      "first_name": "Noussair",
+      "id": 422,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Mazraoui",
+      "team": 16,
+      "web_name": "Mazraoui"
+    },
+    {
+      "first_name": "Luke",
+      "id": 423,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Shaw",
+      "team": 16,
+      "web_name": "Shaw"
+    },
+    {
+      "first_name": "Harry",
+      "id": 424,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Amass",
+      "team": 16,
+      "web_name": "Amass"
+    },
+    {
+      "first_name": "Tyler",
+      "id": 425,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Fredricson",
+      "team": 16,
+      "web_name": "Fredricson"
+    },
+    {
+      "first_name": "Bruno",
+      "id": 426,
+      "now_cost": 120,
+      "position": 3,
+      "second_name": "Borges Fernandes",
+      "team": 16,
+      "web_name": "B.Fernandes"
+    },
+    {
+      "first_name": "Bryan",
+      "id": 427,
+      "now_cost": 80,
+      "position": 3,
+      "second_name": "Mbeumo",
+      "team": 16,
+      "web_name": "Mbeumo"
+    },
+    {
+      "first_name": "Matheus",
+      "id": 428,
+      "now_cost": 80,
+      "position": 3,
+      "second_name": "Santos Carneiro da Cunha",
+      "team": 16,
+      "web_name": "Cunha"
+    },
+    {
+      "first_name": "Marcus",
+      "id": 429,
+      "now_cost": 70,
+      "position": 3,
+      "second_name": "Rashford",
+      "team": 16,
+      "web_name": "Rashford"
+    },
+    {
+      "first_name": "Mason",
+      "id": 430,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Mount",
+      "team": 16,
+      "web_name": "Mount"
+    },
+    {
+      "first_name": "Amad",
+      "id": 431,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Diallo",
+      "team": 16,
+      "web_name": "Amad"
+    },
+    {
+      "first_name": "Kobbie",
+      "id": 432,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Mainoo",
+      "team": 16,
+      "web_name": "Mainoo"
+    },
+    {
+      "first_name": "Manuel",
+      "id": 433,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Ugarte Ribeiro",
+      "team": 16,
+      "web_name": "Ugarte"
+    },
+    {
+      "first_name": "Jack",
+      "id": 434,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Fletcher",
+      "team": 16,
+      "web_name": "J.Fletcher"
+    },
+    {
+      "first_name": "Shea",
+      "id": 435,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Lacey",
+      "team": 16,
+      "web_name": "Lacey"
+    },
+    {
+      "first_name": "Toby",
+      "id": 436,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Collyer",
+      "team": 16,
+      "web_name": "Collyer"
+    },
+    {
+      "first_name": "Bendito",
+      "id": 437,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Mantato",
+      "team": 16,
+      "web_name": "Bendito Mantato"
+    },
+    {
+      "first_name": "Tyler",
+      "id": 438,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Fletcher",
+      "team": 16,
+      "web_name": "Fletcher"
+    },
+    {
+      "first_name": "Benjamin",
+      "id": 439,
+      "now_cost": 70,
+      "position": 4,
+      "second_name": "Sesko",
+      "team": 16,
+      "web_name": "\u0160e\u0161ko"
+    },
+    {
+      "first_name": "Joshua",
+      "id": 440,
+      "now_cost": 55,
+      "position": 4,
+      "second_name": "Zirkzee",
+      "team": 16,
+      "web_name": "Zirkzee"
+    },
+    {
+      "first_name": "Chido",
+      "id": 441,
+      "now_cost": 45,
+      "position": 4,
+      "second_name": "Obi",
+      "team": 16,
+      "web_name": "Obi"
+    },
+    {
+      "first_name": "Nick",
+      "id": 442,
+      "now_cost": 50,
+      "position": 1,
+      "second_name": "Pope",
+      "team": 17,
+      "web_name": "Pope"
+    },
+    {
+      "first_name": "Mark",
+      "id": 443,
+      "now_cost": 45,
+      "position": 1,
+      "second_name": "Gillespie",
+      "team": 17,
+      "web_name": "Gillespie"
+    },
+    {
+      "first_name": "Ewen",
+      "id": 444,
+      "now_cost": 45,
+      "position": 1,
+      "second_name": "Jaouen",
+      "team": 17,
+      "web_name": "Jaouen"
+    },
+    {
+      "first_name": "Malick",
+      "id": 445,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Thiaw",
+      "team": 17,
+      "web_name": "Thiaw"
+    },
+    {
+      "first_name": "Fabian",
+      "id": 446,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Sch\u00e4r",
+      "team": 17,
+      "web_name": "Sch\u00e4r"
+    },
+    {
+      "first_name": "Sven",
+      "id": 447,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Botman",
+      "team": 17,
+      "web_name": "Botman"
+    },
+    {
+      "first_name": "Dan",
+      "id": 448,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Burn",
+      "team": 17,
+      "web_name": "Burn"
+    },
+    {
+      "first_name": "Lewis",
+      "id": 449,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Hall",
+      "team": 17,
+      "web_name": "Hall"
+    },
+    {
+      "first_name": "Tino",
+      "id": 450,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Livramento",
+      "team": 17,
+      "web_name": "Livramento"
+    },
+    {
+      "first_name": "Alex",
+      "id": 451,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Murphy",
+      "team": 17,
+      "web_name": "A.Murphy"
+    },
+    {
+      "first_name": "Bruno",
+      "id": 452,
+      "now_cost": 70,
+      "position": 3,
+      "second_name": "Guimar\u00e3es Rodriguez Moura",
+      "team": 1,
+      "web_name": "Bruno G."
+    },
+    {
+      "first_name": "Harvey",
+      "id": 453,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Barnes",
+      "team": 17,
+      "web_name": "Barnes"
+    },
+    {
+      "first_name": "Anthony",
+      "id": 454,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Elanga",
+      "team": 17,
+      "web_name": "Elanga"
+    },
+    {
+      "first_name": "Sandro",
+      "id": 455,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Tonali",
+      "team": 19,
+      "web_name": "Tonali"
+    },
+    {
+      "first_name": "Jacob",
+      "id": 456,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Ramsey",
+      "team": 17,
+      "web_name": "J.Ramsey"
+    },
+    {
+      "first_name": "Jacob",
+      "id": 457,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Murphy",
+      "team": 17,
+      "web_name": "J.Murphy"
+    },
+    {
+      "first_name": "Joelinton C\u00e1ssio",
+      "id": 458,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Apolin\u00e1rio de Lira",
+      "team": 17,
+      "web_name": "Joelinton"
+    },
+    {
+      "first_name": "Lewis",
+      "id": 459,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Miley",
+      "team": 17,
+      "web_name": "L.Miley"
+    },
+    {
+      "first_name": "Joe",
+      "id": 460,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Willock",
+      "team": 17,
+      "web_name": "Willock"
+    },
+    {
+      "first_name": "Bazoumana",
+      "id": 461,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Tour\u00e9",
+      "team": 17,
+      "web_name": "Tour\u00e9"
+    },
+    {
+      "first_name": "Sean",
+      "id": 462,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Steur",
+      "team": 17,
+      "web_name": "Steur"
+    },
+    {
+      "first_name": "Nick",
+      "id": 463,
+      "now_cost": 60,
+      "position": 4,
+      "second_name": "Woltemade",
+      "team": 17,
+      "web_name": "Woltemade"
+    },
+    {
+      "first_name": "Yoane",
+      "id": 464,
+      "now_cost": 60,
+      "position": 4,
+      "second_name": "Wissa",
+      "team": 17,
+      "web_name": "Wissa"
+    },
+    {
+      "first_name": "William",
+      "id": 465,
+      "now_cost": 60,
+      "position": 4,
+      "second_name": "Osula",
+      "team": 17,
+      "web_name": "Osula"
+    },
+    {
+      "first_name": "Sean",
+      "id": 466,
+      "now_cost": 45,
+      "position": 4,
+      "second_name": "Neave",
+      "team": 17,
+      "web_name": "Neave"
+    },
+    {
+      "first_name": "Matz",
+      "id": 467,
+      "now_cost": 50,
+      "position": 1,
+      "second_name": "Sels",
+      "team": 18,
+      "web_name": "Sels"
+    },
+    {
+      "first_name": "John Victor",
+      "id": 468,
+      "now_cost": 45,
+      "position": 1,
+      "second_name": "Maciel Furtado",
+      "team": 18,
+      "web_name": "John"
+    },
+    {
+      "first_name": "Neco",
+      "id": 469,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Williams",
+      "team": 18,
+      "web_name": "N.Williams"
+    },
+    {
+      "first_name": "Felipe",
+      "id": 470,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Rodrigues da Silva",
+      "team": 18,
+      "web_name": "Morato"
+    },
+    {
+      "first_name": "Nikola",
+      "id": 471,
+      "now_cost": 55,
+      "position": 2,
+      "second_name": "Milenkovi\u0107",
+      "team": 18,
+      "web_name": "Milenkovi\u0107"
+    },
+    {
+      "first_name": "Murillo",
+      "id": 472,
+      "now_cost": 55,
+      "position": 2,
+      "second_name": "Costa dos Santos",
+      "team": 18,
+      "web_name": "Murillo"
+    },
+    {
+      "first_name": "Ola",
+      "id": 473,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Aina",
+      "team": 18,
+      "web_name": "Aina"
+    },
+    {
+      "first_name": "Jair",
+      "id": 474,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Paula da Cunha Filho",
+      "team": 18,
+      "web_name": "Jair Cunha"
+    },
+    {
+      "first_name": "Nicol\u00f2",
+      "id": 475,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Savona",
+      "team": 18,
+      "web_name": "Savona"
+    },
+    {
+      "first_name": "Omar",
+      "id": 476,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Richards",
+      "team": 18,
+      "web_name": "O.Richards"
+    },
+    {
+      "first_name": "Zach",
+      "id": 477,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Abbott",
+      "team": 18,
+      "web_name": "Abbott"
+    },
+    {
+      "first_name": "Luca",
+      "id": 478,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Netz",
+      "team": 18,
+      "web_name": "Netz"
+    },
+    {
+      "first_name": "Tyler",
+      "id": 479,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Bindon",
+      "team": 18,
+      "web_name": "Bindon"
+    },
+    {
+      "first_name": "Morgan",
+      "id": 480,
+      "now_cost": 80,
+      "position": 3,
+      "second_name": "Gibbs-White",
+      "team": 18,
+      "web_name": "Gibbs-White"
+    },
+    {
+      "first_name": "Elliot",
+      "id": 481,
+      "now_cost": 65,
+      "position": 3,
+      "second_name": "Anderson",
+      "team": 15,
+      "web_name": "Anderson"
+    },
+    {
+      "first_name": "Callum",
+      "id": 482,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Hudson-Odoi",
+      "team": 18,
+      "web_name": "Hudson-Odoi"
+    },
+    {
+      "first_name": "Dan",
+      "id": 483,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Ndoye",
+      "team": 18,
+      "web_name": "Ndoye"
+    },
+    {
+      "first_name": "Omari",
+      "id": 484,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Hutchinson",
+      "team": 18,
+      "web_name": "Hutchinson"
+    },
+    {
+      "first_name": "Dilane",
+      "id": 485,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Bakwa",
+      "team": 18,
+      "web_name": "Bakwa"
+    },
+    {
+      "first_name": "James",
+      "id": 486,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "McAtee",
+      "team": 18,
+      "web_name": "McAtee"
+    },
+    {
+      "first_name": "Nicol\u00e1s",
+      "id": 487,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Dom\u00ednguez",
+      "team": 18,
+      "web_name": "Dominguez"
+    },
+    {
+      "first_name": "Ibrahim",
+      "id": 488,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Sangar\u00e9",
+      "team": 18,
+      "web_name": "Sangar\u00e9"
+    },
+    {
+      "first_name": "Ryan",
+      "id": 489,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Yates",
+      "team": 18,
+      "web_name": "Yates"
+    },
+    {
+      "first_name": "Chris",
+      "id": 490,
+      "now_cost": 60,
+      "position": 4,
+      "second_name": "Wood",
+      "team": 18,
+      "web_name": "Wood"
+    },
+    {
+      "first_name": "Igor Jesus",
+      "id": 491,
+      "now_cost": 60,
+      "position": 4,
+      "second_name": "Maciel da Cruz",
+      "team": 18,
+      "web_name": "Igor Jesus"
+    },
+    {
+      "first_name": "Taiwo",
+      "id": 492,
+      "now_cost": 55,
+      "position": 4,
+      "second_name": "Awoniyi",
+      "team": 7,
+      "web_name": "Awoniyi"
+    },
+    {
+      "first_name": "Arnaud",
+      "id": 493,
+      "now_cost": 55,
+      "position": 4,
+      "second_name": "Kalimuendo",
+      "team": 18,
+      "web_name": "Kalimuendo"
+    },
+    {
+      "first_name": "Guglielmo",
+      "id": 494,
+      "now_cost": 45,
+      "position": 1,
+      "second_name": "Vicario",
+      "team": 19,
+      "web_name": "Vicario"
+    },
+    {
+      "first_name": "Brandon",
+      "id": 495,
+      "now_cost": 40,
+      "position": 1,
+      "second_name": "Austin",
+      "team": 19,
+      "web_name": "Austin"
+    },
+    {
+      "first_name": "Anton\u00edn",
+      "id": 496,
+      "now_cost": 45,
+      "position": 1,
+      "second_name": "Kinsk\u00fd",
+      "team": 19,
+      "web_name": "Kinsky"
+    },
+    {
+      "first_name": "Martin",
+      "id": 497,
+      "now_cost": 40,
+      "position": 1,
+      "second_name": "Dubravka",
+      "team": 19,
+      "web_name": "Dubravka"
+    },
+    {
+      "first_name": "Marcos",
+      "id": 498,
+      "now_cost": 60,
+      "position": 2,
+      "second_name": "Senesi Bar\u00f3n",
+      "team": 19,
+      "web_name": "Senesi"
+    },
+    {
+      "first_name": "Pedro",
+      "id": 499,
+      "now_cost": 55,
+      "position": 2,
+      "second_name": "Porro Sauceda",
+      "team": 19,
+      "web_name": "Pedro Porro"
+    },
+    {
+      "first_name": "Cristian",
+      "id": 500,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Romero",
+      "team": 19,
+      "web_name": "Romero"
+    },
+    {
+      "first_name": "Kevin",
+      "id": 501,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Danso",
+      "team": 19,
+      "web_name": "Danso"
+    },
+    {
+      "first_name": "Andrew",
+      "id": 502,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Robertson",
+      "team": 19,
+      "web_name": "Robertson"
+    },
+    {
+      "first_name": "Micky",
+      "id": 503,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "van de Ven",
+      "team": 19,
+      "web_name": "Van de Ven"
+    },
+    {
+      "first_name": "Luka",
+      "id": 504,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Vu\u0161kovi\u0107",
+      "team": 5,
+      "web_name": "Vuskovic"
+    },
+    {
+      "first_name": "Djed",
+      "id": 505,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Spence",
+      "team": 19,
+      "web_name": "Spence"
+    },
+    {
+      "first_name": "Destiny",
+      "id": 506,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Udogie",
+      "team": 19,
+      "web_name": "Udogie"
+    },
+    {
+      "first_name": "Ashley",
+      "id": 507,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Phillips",
+      "team": 19,
+      "web_name": "Phillips"
+    },
+    {
+      "first_name": "Ben",
+      "id": 508,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Davies",
+      "team": 19,
+      "web_name": "Davies"
+    },
+    {
+      "first_name": "Jun'ai",
+      "id": 509,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Byfield",
+      "team": 19,
+      "web_name": "Byfield"
+    },
+    {
+      "first_name": "James",
+      "id": 510,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Rowswell",
+      "team": 19,
+      "web_name": "Rowswell"
+    },
+    {
+      "first_name": "Jo\u00e3o Victor",
+      "id": 511,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "de Souza Menezes",
+      "team": 19,
+      "web_name": "Souza"
+    },
+    {
+      "first_name": "Mohammed",
+      "id": 512,
+      "now_cost": 65,
+      "position": 3,
+      "second_name": "Kudus",
+      "team": 19,
+      "web_name": "Kudus"
+    },
+    {
+      "first_name": "Xavi",
+      "id": 513,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Simons",
+      "team": 19,
+      "web_name": "Xavi"
+    },
+    {
+      "first_name": "Mathys",
+      "id": 514,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Tel",
+      "team": 19,
+      "web_name": "Tel"
+    },
+    {
+      "first_name": "James",
+      "id": 515,
+      "now_cost": 65,
+      "position": 3,
+      "second_name": "Maddison",
+      "team": 19,
+      "web_name": "Maddison"
+    },
+    {
+      "first_name": "Rodrigo",
+      "id": 516,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Bentancur",
+      "team": 19,
+      "web_name": "Bentancur"
+    },
+    {
+      "first_name": "Wilson",
+      "id": 517,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Odobert",
+      "team": 19,
+      "web_name": "Odobert"
+    },
+    {
+      "first_name": "Pape Matar",
+      "id": 518,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Sarr",
+      "team": 19,
+      "web_name": "P.M.Sarr"
+    },
+    {
+      "first_name": "Conor",
+      "id": 519,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Gallagher",
+      "team": 19,
+      "web_name": "Gallagher"
+    },
+    {
+      "first_name": "Lucas",
+      "id": 520,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Bergvall",
+      "team": 19,
+      "web_name": "Bergvall"
+    },
+    {
+      "first_name": "Dejan",
+      "id": 521,
+      "now_cost": 65,
+      "position": 3,
+      "second_name": "Kulusevski",
+      "team": 19,
+      "web_name": "Kulusevski"
+    },
+    {
+      "first_name": "Archie",
+      "id": 522,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Gray",
+      "team": 19,
+      "web_name": "Gray"
+    },
+    {
+      "first_name": "Mikey",
+      "id": 523,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Moore",
+      "team": 19,
+      "web_name": "Moore"
+    },
+    {
+      "first_name": "Callum",
+      "id": 524,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Olusesi",
+      "team": 19,
+      "web_name": "Olusesi"
+    },
+    {
+      "first_name": "Mateus",
+      "id": 525,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Fernandes",
+      "team": 19,
+      "web_name": "Fernandes"
+    },
+    {
+      "first_name": "Dominic",
+      "id": 526,
+      "now_cost": 60,
+      "position": 4,
+      "second_name": "Solanke-Mitchell",
+      "team": 19,
+      "web_name": "Solanke"
+    },
+    {
+      "first_name": "Richarlison",
+      "id": 527,
+      "now_cost": 60,
+      "position": 4,
+      "second_name": "de Andrade",
+      "team": 19,
+      "web_name": "Richarlison"
+    },
+    {
+      "first_name": "Dane",
+      "id": 528,
+      "now_cost": 45,
+      "position": 4,
+      "second_name": "Scarlett",
+      "team": 19,
+      "web_name": "Scarlett"
+    },
+    {
+      "first_name": "Robin",
+      "id": 529,
+      "now_cost": 50,
+      "position": 1,
+      "second_name": "Roefs",
+      "team": 20,
+      "web_name": "Roefs"
+    },
+    {
+      "first_name": "Anthony",
+      "id": 530,
+      "now_cost": 40,
+      "position": 1,
+      "second_name": "Patterson",
+      "team": 20,
+      "web_name": "Patterson"
+    },
+    {
+      "first_name": "Melker",
+      "id": 531,
+      "now_cost": 45,
+      "position": 1,
+      "second_name": "Ellborg",
+      "team": 20,
+      "web_name": "Ellborg"
+    },
+    {
+      "first_name": "Daniel",
+      "id": 532,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Ballard",
+      "team": 20,
+      "web_name": "Ballard"
+    },
+    {
+      "first_name": "Nordi",
+      "id": 533,
+      "now_cost": 55,
+      "position": 2,
+      "second_name": "Mukiele",
+      "team": 20,
+      "web_name": "Mukiele"
+    },
+    {
+      "first_name": "Trai",
+      "id": 534,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Hume",
+      "team": 20,
+      "web_name": "Hume"
+    },
+    {
+      "first_name": "Omar",
+      "id": 535,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Alderete",
+      "team": 20,
+      "web_name": "Alderete"
+    },
+    {
+      "first_name": "Reinildo",
+      "id": 536,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Mandava",
+      "team": 20,
+      "web_name": "Reinildo"
+    },
+    {
+      "first_name": "Jenson",
+      "id": 537,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Seelt",
+      "team": 20,
+      "web_name": "Seelt"
+    },
+    {
+      "first_name": "Leo Fuhr",
+      "id": 538,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Hjelde",
+      "team": 20,
+      "web_name": "Hjelde"
+    },
+    {
+      "first_name": "Luke",
+      "id": 539,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "O'Nien",
+      "team": 20,
+      "web_name": "O'Nien"
+    },
+    {
+      "first_name": "Arthur",
+      "id": 540,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Masuaku",
+      "team": 20,
+      "web_name": "Masuaku"
+    },
+    {
+      "first_name": "Thomas",
+      "id": 541,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Meunier",
+      "team": 20,
+      "web_name": "Meunier"
+    },
+    {
+      "first_name": "Enzo",
+      "id": 542,
+      "now_cost": 60,
+      "position": 3,
+      "second_name": "Le F\u00e9e",
+      "team": 20,
+      "web_name": "E.Le F\u00e9e"
+    },
+    {
+      "first_name": "Habib",
+      "id": 543,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Diarra",
+      "team": 20,
+      "web_name": "Diarra"
+    },
+    {
+      "first_name": "Granit",
+      "id": 544,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Xhaka",
+      "team": 20,
+      "web_name": "Xhaka"
+    },
+    {
+      "first_name": "Noah",
+      "id": 545,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Sadiki",
+      "team": 20,
+      "web_name": "Sadiki"
+    },
+    {
+      "first_name": "Simon",
+      "id": 546,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Adingra",
+      "team": 20,
+      "web_name": "Adingra"
+    },
+    {
+      "first_name": "Romaine",
+      "id": 547,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Mundle",
+      "team": 20,
+      "web_name": "Mundle"
+    },
+    {
+      "first_name": "Chris",
+      "id": 548,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Rigg",
+      "team": 20,
+      "web_name": "Rigg"
+    },
+    {
+      "first_name": "Chemsdine",
+      "id": 549,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Talbi",
+      "team": 20,
+      "web_name": "Talbi"
+    },
+    {
+      "first_name": "Djiamgone Jocelin Ta",
+      "id": 550,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Bi",
+      "team": 20,
+      "web_name": "Jocelin.T"
+    },
+    {
+      "first_name": "Nilson",
+      "id": 551,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Angulo",
+      "team": 20,
+      "web_name": "Angulo"
+    },
+    {
+      "first_name": "Brian",
+      "id": 552,
+      "now_cost": 60,
+      "position": 4,
+      "second_name": "Brobbey",
+      "team": 20,
+      "web_name": "Brobbey"
+    },
+    {
+      "first_name": "Wilson",
+      "id": 553,
+      "now_cost": 55,
+      "position": 4,
+      "second_name": "Isidor",
+      "team": 20,
+      "web_name": "Isidor"
+    },
+    {
+      "first_name": "Kayne",
+      "id": 554,
+      "now_cost": 45,
+      "position": 1,
+      "second_name": "van Oevelen",
+      "team": 12,
+      "web_name": "Van Oevelen"
+    },
+    {
+      "first_name": "Remi",
+      "id": 555,
+      "now_cost": 40,
+      "position": 1,
+      "second_name": "Matthews",
+      "team": 8,
+      "web_name": "Matthews"
+    },
+    {
+      "first_name": "Matt",
+      "id": 556,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Targett",
+      "team": 11,
+      "web_name": "Targett"
+    },
+    {
+      "first_name": "Christos",
+      "id": 557,
+      "now_cost": 65,
+      "position": 3,
+      "second_name": "Tzolis",
+      "team": 1,
+      "web_name": "Tzolis"
+    },
+    {
+      "first_name": "Xaver",
+      "id": 558,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Schlager",
+      "team": 18,
+      "web_name": "Schlager"
+    },
+    {
+      "first_name": "Aladji",
+      "id": 559,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Bamba",
+      "team": 17,
+      "web_name": "Bamba"
+    },
+    {
+      "first_name": "Mike",
+      "id": 560,
+      "now_cost": 45,
+      "position": 1,
+      "second_name": "Penders",
+      "team": 6,
+      "web_name": "Penders"
+    },
+    {
+      "first_name": "Aaron",
+      "id": 561,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Anselmino",
+      "team": 6,
+      "web_name": "Anselmino"
+    },
+    {
+      "first_name": "Daizen",
+      "id": 562,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Maeda",
+      "team": 12,
+      "web_name": "Maeda"
+    },
+    {
+      "first_name": "Hidemasa",
+      "id": 563,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Morita",
+      "team": 11,
+      "web_name": "Morita"
+    },
+    {
+      "first_name": "Kjell",
+      "id": 564,
+      "now_cost": 45,
+      "position": 1,
+      "second_name": "Scherpen",
+      "team": 12,
+      "web_name": "Scherpen"
+    },
+    {
+      "first_name": "Mamadou",
+      "id": 565,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Sangar\u00e9",
+      "team": 4,
+      "web_name": "Sangar\u00e9"
+    },
+    {
+      "first_name": "Ant\u00f3nio Jo\u00e3o",
+      "id": 566,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Pereira de Albuquerque Tavares da Silva",
+      "team": 3,
+      "web_name": "Silva"
+    },
+    {
+      "first_name": "Luk\u00e1s",
+      "id": 567,
+      "now_cost": 50,
+      "position": 1,
+      "second_name": "Horn\u00edcek",
+      "team": 17,
+      "web_name": "Horn\u00ed\u010dek"
+    },
+    {
+      "first_name": "Valent\u00edn",
+      "id": 568,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Barco",
+      "team": 6,
+      "web_name": "Barco"
+    },
+    {
+      "first_name": "Gonzalo",
+      "id": 569,
+      "now_cost": 60,
+      "position": 4,
+      "second_name": "Garc\u00eda",
+      "team": 10,
+      "web_name": "Gonzalo"
+    },
+    {
+      "first_name": "C\u00e9sar",
+      "id": 570,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Palacios",
+      "team": 10,
+      "web_name": "Palacios"
+    },
+    {
+      "first_name": "Florentino Ibrain",
+      "id": 571,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Morris Lu\u00eds",
+      "team": 12,
+      "web_name": "Florentino"
+    },
+    {
+      "first_name": "Konstantinos",
+      "id": 572,
+      "now_cost": 45,
+      "position": 1,
+      "second_name": "Tzolakis",
+      "team": 11,
+      "web_name": "Tzolakis"
+    },
+    {
+      "first_name": "Juanlu",
+      "id": 573,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "S\u00e1nchez",
+      "team": 3,
+      "web_name": "Sanchez"
+    },
+    {
+      "first_name": "Jens",
+      "id": 574,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Hjert\u00f8-Dahl",
+      "team": 11,
+      "web_name": "Hjert\u00f8-Dahl"
+    },
+    {
+      "first_name": "Caleb",
+      "id": 575,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Yirenkyi",
+      "team": 7,
+      "web_name": "Yirenkyi"
+    },
+    {
+      "first_name": "Elliot",
+      "id": 576,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Stroud",
+      "team": 11,
+      "web_name": "Stroud"
+    },
+    {
+      "first_name": "Takehiro",
+      "id": 577,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Tomiyasu",
+      "team": 8,
+      "web_name": "Tomiyasu"
+    },
+    {
+      "first_name": "Mykhailo",
+      "id": 578,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Mudryk",
+      "team": 6,
+      "web_name": "Mudryk"
+    },
+    {
+      "first_name": "Ronald",
+      "id": 579,
+      "now_cost": 55,
+      "position": 2,
+      "second_name": "Araujo",
+      "team": 14,
+      "web_name": "Araujo"
+    },
+    {
+      "first_name": "Shea",
+      "id": 580,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Charles",
+      "team": 10,
+      "web_name": "Charles"
+    },
+    {
+      "first_name": "Ousmane",
+      "id": 581,
+      "now_cost": 55,
+      "position": 2,
+      "second_name": "Diomande",
+      "team": 18,
+      "web_name": "Diomande"
+    },
+    {
+      "first_name": "Brian",
+      "id": 582,
+      "now_cost": 55,
+      "position": 4,
+      "second_name": "Madjo",
+      "team": 2,
+      "web_name": "Madjo"
+    },
+    {
+      "first_name": "Pep",
+      "id": 583,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Chavarr\u00eda",
+      "team": 6,
+      "web_name": "Chavarria"
+    },
+    {
+      "first_name": "Gustavo",
+      "id": 584,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Hamer",
+      "team": 7,
+      "web_name": "Hamer"
+    },
+    {
+      "first_name": "Lucas",
+      "id": 585,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Herrington",
+      "team": 11,
+      "web_name": "Herrington"
+    },
+    {
+      "first_name": "Nobel",
+      "id": 586,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Mendy",
+      "team": 11,
+      "web_name": "Mendy"
+    },
+    {
+      "first_name": "Ger\u00f3nimo",
+      "id": 587,
+      "now_cost": 50,
+      "position": 1,
+      "second_name": "Rulli",
+      "team": 15,
+      "web_name": "Rulli"
+    },
+    {
+      "first_name": "Anan",
+      "id": 588,
+      "now_cost": 50,
+      "position": 2,
+      "second_name": "Khalaili",
+      "team": 8,
+      "web_name": "Khalaili"
+    },
+    {
+      "first_name": "Lucas",
+      "id": 589,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Gourna-Douath",
+      "team": 11,
+      "web_name": "Gourna-Douath"
+    },
+    {
+      "first_name": "Steven",
+      "id": 590,
+      "now_cost": 45,
+      "position": 1,
+      "second_name": "Benda",
+      "team": 18,
+      "web_name": "Benda"
+    },
+    {
+      "first_name": "Julio",
+      "id": 591,
+      "now_cost": 55,
+      "position": 3,
+      "second_name": "Enciso",
+      "team": 12,
+      "web_name": "Enciso"
+    },
+    {
+      "first_name": "Abdoul",
+      "id": 592,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Ouattara",
+      "team": 12,
+      "web_name": "Ouattara"
+    },
+    {
+      "first_name": "Amar",
+      "id": 593,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Dedic",
+      "team": 17,
+      "web_name": "Dedi\u0107"
+    },
+    {
+      "first_name": "Promise",
+      "id": 594,
+      "now_cost": 60,
+      "position": 4,
+      "second_name": "David",
+      "team": 5,
+      "web_name": "David"
+    },
+    {
+      "first_name": "Zavier",
+      "id": 595,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Gozo",
+      "team": 8,
+      "web_name": "Gozo"
+    },
+    {
+      "first_name": "Matteo",
+      "id": 596,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Ruggeri",
+      "team": 2,
+      "web_name": "Ruggeri"
+    },
+    {
+      "first_name": "Zion",
+      "id": 597,
+      "now_cost": 50,
+      "position": 1,
+      "second_name": "Suzuki",
+      "team": 2,
+      "web_name": "Suzuki"
+    },
+    {
+      "first_name": "Nico",
+      "id": 598,
+      "now_cost": 45,
+      "position": 2,
+      "second_name": "Elvedi",
+      "team": 13,
+      "web_name": "Elvedi"
+    },
+    {
+      "first_name": "Sidiki",
+      "id": 599,
+      "now_cost": 50,
+      "position": 4,
+      "second_name": "Cherif",
+      "team": 7,
+      "web_name": "Cherif"
+    }
+  ],
+  "teams": [
+    {
+      "id": 1,
+      "name": "Arsenal",
+      "short_name": "ARS"
+    },
+    {
+      "id": 2,
+      "name": "Aston Villa",
+      "short_name": "AVL"
+    },
+    {
+      "id": 3,
+      "name": "Bournemouth",
+      "short_name": "BOU"
+    },
+    {
+      "id": 4,
+      "name": "Brentford",
+      "short_name": "BRE"
+    },
+    {
+      "id": 5,
+      "name": "Brighton",
+      "short_name": "BHA"
+    },
+    {
+      "id": 6,
+      "name": "Chelsea",
+      "short_name": "CHE"
+    },
+    {
+      "id": 7,
+      "name": "Coventry City",
+      "short_name": "COV"
+    },
+    {
+      "id": 8,
+      "name": "Crystal Palace",
+      "short_name": "CRY"
+    },
+    {
+      "id": 9,
+      "name": "Everton",
+      "short_name": "EVE"
+    },
+    {
+      "id": 10,
+      "name": "Fulham",
+      "short_name": "FUL"
+    },
+    {
+      "id": 11,
+      "name": "Hull City",
+      "short_name": "HUL"
+    },
+    {
+      "id": 12,
+      "name": "Ipswich Town",
+      "short_name": "IPS"
+    },
+    {
+      "id": 13,
+      "name": "Leeds",
+      "short_name": "LEE"
+    },
+    {
+      "id": 14,
+      "name": "Liverpool",
+      "short_name": "LIV"
+    },
+    {
+      "id": 15,
+      "name": "Man City",
+      "short_name": "MCI"
+    },
+    {
+      "id": 16,
+      "name": "Man Utd",
+      "short_name": "MUN"
+    },
+    {
+      "id": 17,
+      "name": "Newcastle",
+      "short_name": "NEW"
+    },
+    {
+      "id": 18,
+      "name": "Nott'm Forest",
+      "short_name": "NFO"
+    },
+    {
+      "id": 19,
+      "name": "Spurs",
+      "short_name": "TOT"
+    },
+    {
+      "id": 20,
+      "name": "Sunderland",
+      "short_name": "SUN"
+    }
+  ]
+}

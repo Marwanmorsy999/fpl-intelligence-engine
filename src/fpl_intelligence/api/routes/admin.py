@@ -16,6 +16,7 @@ import logging
 import os
 from collections.abc import Callable
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Annotated
 
 import httpx
@@ -23,14 +24,27 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
-from fpl_intelligence.config import get_settings
 from fpl_intelligence.collectors.official_fpl import OfficialFPLDataProvider
+from fpl_intelligence.config import get_settings
 from fpl_intelligence.data_providers.api_football import ApiFootballConnector
 from fpl_intelligence.data_providers.football_data_org import FootballDataOrgConnector
-from fpl_intelligence.db.models import IngestionRun, RawRecord, Season
+from fpl_intelligence.db.models import (
+    Gameweek,
+    IngestionRun,
+    PlayerGameweekPerformance,
+    PlayerTeamMembership,
+    RawRecord,
+    Season,
+)
 from fpl_intelligence.db.session import SessionLocal
-from fpl_intelligence.ingestion.fpl import ingest_bootstrap, ingest_fixtures
+from fpl_intelligence.ingestion.fpl import (
+    _get_or_create_player,
+    _get_or_create_team,
+    ingest_bootstrap,
+    ingest_fixtures,
+)
 from fpl_intelligence.live_intelligence.connectors import (
     FPLAPIConnector,
     RSSConnector,
@@ -122,9 +136,7 @@ def _is_fpl_blocked(exc: BaseException) -> bool:
     if isinstance(exc, httpx.HTTPStatusError):
         return exc.response.status_code in (403, 429)
     # httpx.HTTPError covers ConnectError, timeouts, TransportError, etc.
-    if isinstance(exc, httpx.HTTPError):
-        return True
-    return False
+    return isinstance(exc, httpx.HTTPError)
 
 
 def _hash_fallback_payload(payload: object) -> str:
@@ -208,7 +220,7 @@ def _run_fpl_ingest_fallback(
             records += _save_fallback_raw_record(
                 db, "api_football", f"/fixtures?date={today}", {"response": fixtures}, season_code
             )
-        except Exception as exc:  # noqa: BLE001 - degrade gracefully
+        except Exception:  # noqa: BLE001 - degrade gracefully
             logger.warning("API-Football fixtures fetch failed during fallback.", exc_info=True)
         try:
             facts = api_football.collect_player_facts(date=today)
@@ -220,7 +232,7 @@ def _run_fpl_ingest_fallback(
                     [f.to_dict() for f in facts],
                     season_code,
                 )
-        except Exception as exc:  # noqa: BLE001 - degrade gracefully
+        except Exception:  # noqa: BLE001 - degrade gracefully
             logger.warning("API-Football player-facts fetch failed during fallback.", exc_info=True)
 
     if football_data.is_enabled():
@@ -233,8 +245,11 @@ def _run_fpl_ingest_fallback(
                 {"competitions": [c.to_dict() for c in competitions]},
                 season_code,
             )
-        except Exception as exc:  # noqa: BLE001 - degrade gracefully
-            logger.warning("football-data.org competitions fetch failed during fallback.", exc_info=True)
+        except Exception:  # noqa: BLE001 - degrade gracefully
+            logger.warning(
+                "football-data.org competitions fetch failed during fallback.",
+                exc_info=True,
+            )
         try:
             matches = football_data.fetch_matches()
             records += _save_fallback_raw_record(
@@ -244,7 +259,7 @@ def _run_fpl_ingest_fallback(
                 {"matches": [m.to_dict() for m in matches]},
                 season_code,
             )
-        except Exception as exc:  # noqa: BLE001 - degrade gracefully
+        except Exception:  # noqa: BLE001 - degrade gracefully
             logger.warning("football-data.org matches fetch failed during fallback.", exc_info=True)
 
     run.status = "SUCCESS"
@@ -278,8 +293,11 @@ def _run_scheduler_fallback(sink: Callable[..., None]) -> int:
                 )
                 sink(raw, connector=api_football, dry_run=False)
                 ingested += 1
-        except Exception as exc:  # noqa: BLE001 - degrade gracefully
-            logger.warning("API-Football fallback fetch failed during scheduler pass.", exc_info=True)
+        except Exception:  # noqa: BLE001 - degrade gracefully
+            logger.warning(
+                "API-Football fallback fetch failed during scheduler pass.",
+                exc_info=True,
+            )
     football_data = FootballDataOrgConnector()
     if football_data.is_enabled():
         try:
@@ -296,8 +314,11 @@ def _run_scheduler_fallback(sink: Callable[..., None]) -> int:
                 )
                 sink(raw, connector=football_data, dry_run=False)
                 ingested += 1
-        except Exception as exc:  # noqa: BLE001 - degrade gracefully
-            logger.warning("football-data.org fallback fetch failed during scheduler pass.", exc_info=True)
+        except Exception:  # noqa: BLE001 - degrade gracefully
+            logger.warning(
+                "football-data.org fallback fetch failed during scheduler pass.",
+                exc_info=True,
+            )
     return ingested
 
 
@@ -383,3 +404,182 @@ async def ingest_fpl_endpoint(
         return JSONResponse(
             status_code=500, content={"ok": False, "error": f"{type(exc).__name__}: {exc}"}
         )
+
+
+# --------------------------------------------------------------------------- #
+# Hotfix v1.3.4 — offline bootstrap seed
+# --------------------------------------------------------------------------- #
+# FPL blocks Vercel's datacenter IPs, so the live /api/v1/admin/ingest-fpl path
+# can never populate real teams + prices on the deployed PostgreSQL. The fix
+# commits a minimal offline snapshot (data/seed/fpl_bootstrap_seed.json, fetched
+# once from a non-blocked machine) and replays it here so PlayerTeamMembership +
+# PlayerGameweekPerformance get real values even though the live API is blocked.
+# --------------------------------------------------------------------------- #
+
+_SEED_REL = Path("data") / "seed" / "fpl_bootstrap_seed.json"
+def _resolve_seed_path() -> Path:
+    """Locate the committed seed file from the repo root *or* the Vercel bundle.
+
+    ``vercel.json`` ships ``data/seed/**`` inside the function bundle (see
+    includeFiles), so both the package-relative probe and the cwd / /var/task
+    probes resolve to the same committed file.
+    """
+    candidates = [
+        Path(__file__).resolve().parents[4] / _SEED_REL,
+        Path.cwd() / _SEED_REL,
+        Path("/var/task") / _SEED_REL,
+    ]
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    raise FileNotFoundError(
+        "fpl_bootstrap_seed.json not found; looked in "
+        + ", ".join(str(c) for c in candidates)
+    )
+
+
+def _seed_from_file(db: Session, path: Path) -> dict:
+    """Populate PlayerTeamMembership + PlayerGameweekPerformance from the seed.
+
+    Idempotent: existing memberships / price snapshots (matched by
+    player+team+season and player+gameweek) are left untouched, so re-running
+    reports zero new rows instead of duplicating data.
+    """
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    meta = payload.get("meta", {}) or {}
+    season_code = str(meta.get("season_code") or SEASON_CODE)
+    teams_raw = payload.get("teams", []) or []
+    events_raw = payload.get("events", []) or []
+    players_raw = payload.get("players", []) or []
+
+    season = _get_or_create_season(db, season_code)
+
+    team_ext_map: dict[str, int] = {}
+    for item in teams_raw:
+        provider_id = str(int(item["id"]))
+        team = _get_or_create_team(
+            db,
+            provider_id,
+            str(item.get("name", "Unknown")),
+            str(item.get("short_name", "") or item.get("name", "")[:3].upper()) or None,
+        )
+        team_ext_map[provider_id] = team.id
+
+    # Reference gameweek (lowest provider_event_id) carries the price snapshot
+    # so GET /api/v1/players can return non-null price via PlayerGameweekPerformance.
+    reference_gw = None
+    for ev in events_raw:
+        provider_event_id = int(ev["id"])
+        gw = db.scalar(
+            select(Gameweek).where(
+                Gameweek.season_id == season.id,
+                Gameweek.provider_event_id == provider_event_id,
+            )
+        )
+        if gw is None:
+            gw = Gameweek(
+                season_id=season.id,
+                provider_event_id=provider_event_id,
+                name=str(ev.get("name", f"Gameweek {provider_event_id}")),
+            )
+            db.add(gw)
+            db.flush()
+        if reference_gw is None or gw.provider_event_id < reference_gw.provider_event_id:
+            reference_gw = gw
+
+    players_seeded = 0
+    memberships_created = 0
+    performances_created = 0
+    for item in players_raw:
+        provider_id = str(int(item["id"]))
+        player = _get_or_create_player(
+            db,
+            provider_id,
+            str(item.get("first_name", "")),
+            str(item.get("second_name", "")),
+            str(item.get("web_name", "")),
+            int(item["position"]) if item.get("position") is not None else None,
+        )
+        team_provider_id = str(int(item["team"])) if item.get("team") is not None else None
+        team_id = team_ext_map.get(team_provider_id) if team_provider_id else None
+        now_cost = item.get("now_cost")
+        price = (float(now_cost) / 10.0) if now_cost is not None else None
+
+        if team_id is not None:
+            existing_membership = db.scalar(
+                select(PlayerTeamMembership).where(
+                    PlayerTeamMembership.player_id == player.id,
+                    PlayerTeamMembership.team_id == team_id,
+                    PlayerTeamMembership.season_id == season.id,
+                )
+            )
+            if existing_membership is None:
+                db.add(
+                    PlayerTeamMembership(
+                        player_id=player.id,
+                        team_id=team_id,
+                        season_id=season.id,
+                        valid_from=season.start_date,
+                    )
+                )
+                memberships_created += 1
+
+            if reference_gw is not None:
+                existing_pgp = db.scalar(
+                    select(PlayerGameweekPerformance).where(
+                        PlayerGameweekPerformance.player_id == player.id,
+                        PlayerGameweekPerformance.gameweek_id == reference_gw.id,
+                    )
+                )
+                if existing_pgp is None:
+                    db.add(
+                        PlayerGameweekPerformance(
+                            player_id=player.id,
+                            gameweek_id=reference_gw.id,
+                            season_id=season.id,
+                            team_id=team_id,
+                            price=price,
+                        )
+                    )
+                    performances_created += 1
+
+        players_seeded += 1
+
+    db.commit()
+    return {
+        "ok": True,
+        "source": str(path),
+        "season_code": season_code,
+        "players": players_seeded,
+        "memberships_created": memberships_created,
+        "performances_created": performances_created,
+    }
+
+
+@router.get("/admin/seed-from-file")
+@router.post("/admin/seed-from-file")
+async def seed_from_file_endpoint(
+    _: None = Depends(_require_cron_auth),
+) -> dict:
+    """Populate team memberships + price snapshots from the committed FPL seed.
+
+    POST /api/v1/admin/seed-from-file?secret=<CRON_SECRET> (or with the
+    ``Authorization: Bearer <CRON_SECRET>`` header). Safe to call repeatedly.
+    """
+    try:
+        path = _resolve_seed_path()
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    db = SessionLocal()
+    try:
+        return await run_in_threadpool(_seed_from_file, db, path)
+    except Exception as exc:  # noqa: BLE001 - surface for visibility
+        db.rollback()
+        logger.exception("seed-from-file failed")
+        return JSONResponse(
+            status_code=500, content={"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        )
+    finally:
+        db.close()
+

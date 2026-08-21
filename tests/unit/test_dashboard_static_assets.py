@@ -74,6 +74,29 @@ def test_calls_one_click_endpoints() -> None:
     assert "/api/v1/decisions" in script, "must call GET /api/v1/decisions"
 
 
+def test_play_names_declared_before_manual_save() -> None:
+    """Hotfix v1.3.4 — PLAYER_NAMES caused a ReferenceError in saveManual().
+
+    It must be declared exactly once (as ``let``) and populated from the player
+    list, so ``saveManual``'s writes and ``render()``'s name lookups never hit an
+    undeclared global.
+    """
+    html = STATIC_HTML.read_text(encoding="utf-8")
+    script = _extract_inline_script(html)
+    assert script.count("let PLAYER_NAMES") == 1, (
+        "PLAYER_NAMES must be declared exactly once; found "
+        f"{script.count('let PLAYER_NAMES')} occurrences"
+    )
+    assert "Object.fromEntries(ALL_PLAYERS.map(p => [p.id, p.web_name]))" in script, (
+        "PLAYER_NAMES must be populated from the loaded /api/v1/players list"
+    )
+    # saveManual must still build the 15-player squad body and POST it.
+    assert "player_ids: ids" in script
+    assert "captain_id: cap" in script
+    assert "vice_captain_id: vice" in script
+    assert "POST" in script and "/api/v1/squad" in script
+
+
 def test_inline_script_parses_with_node() -> None:
     node = shutil.which("node")
     if node is None:
