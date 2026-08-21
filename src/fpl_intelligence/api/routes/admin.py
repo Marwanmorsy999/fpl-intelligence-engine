@@ -524,6 +524,7 @@ def _seed_from_file(db: Session, path: Path) -> dict:
             str(item.get("second_name", "")),
             str(item.get("web_name", "")),
             int(item["position"]) if item.get("position") is not None else None,
+            fpl_code=item.get("code"),
         )
         team_provider_id = str(int(item["team"])) if item.get("team") is not None else None
         team_id = team_ext_map.get(team_provider_id) if team_provider_id else None

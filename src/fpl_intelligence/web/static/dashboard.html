@@ -1,583 +1,627 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FPL Intelligence - One-Click Dashboard</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; line-height: 1.6; }
-        .container { max-width: 860px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
-        header h1 { font-size: 1.6rem; color: #38bdf8; }
-        header p { color: #94a3b8; font-size: 0.95rem; margin-top: 0.25rem; }
-        .hero { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1.75rem; margin: 1.75rem 0; }
-        .hero label { display: block; font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.5rem; }
-        .input-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
-        .input-row input { flex: 1 1 220px; padding: 0.9rem 1rem; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; font-size: 1.05rem; }
-        .input-row input:focus { outline: none; border-color: #38bdf8; }
-        .analyze-btn { flex: 0 0 auto; padding: 0.9rem 1.75rem; border-radius: 8px; border: none; background: #22c55e; color: #052e16; font-size: 1.05rem; font-weight: 700; cursor: pointer; transition: background 0.15s ease; }
-        .analyze-btn:hover { background: #16a34a; }
-        .analyze-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-        .demo-btn { display: inline-block; margin-top: 0.9rem; padding: 0.7rem 1.2rem; border-radius: 8px; border: 1px dashed #38bdf8; background: transparent; color: #7dd3fc; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.15s ease; }
-        .demo-btn:hover { background: #0c2a3f; }
-        .demo-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-        .banner { display: none; margin-bottom: 1rem; padding: 0.8rem 1rem; border-radius: 8px; background: #422006; border: 1px solid #f59e0b; color: #fcd34d; font-size: 0.95rem; font-weight: 600; }
-        .preseason { display: none; margin-top: 1rem; padding: 0.9rem 1rem; border-radius: 8px; background: #1e293b; border: 1px solid #38bdf8; color: #e2e8f0; font-size: 0.95rem; }
-        .preseason strong { color: #7dd3fc; }
-        .status { margin-top: 1rem; color: #7dd3fc; font-size: 0.95rem; display: none; }
-        .error { margin-top: 1rem; padding: 0.9rem 1rem; border-radius: 8px; background: #450a0a; border: 1px solid #b91c1c; color: #fca5a5; font-size: 0.95rem; display: none; }
-        .results { display: none; }
-        .results h2.sub { font-size: 1.1rem; color: #38bdf8; margin: 1.75rem 0 0.75rem; }
-        .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 1rem; }
-        .card h3 { font-size: 1rem; color: #38bdf8; margin-bottom: 0.75rem; }
-        ul.roster { list-style: none; }
-        ul.roster li { padding: 0.4rem 0; border-bottom: 1px solid #1e293b; display: flex; align-items: center; gap: 0.6rem; }
-        ul.roster li:last-child { border-bottom: none; }
-        .pos { font-size: 0.7rem; font-weight: 700; color: #94a3b8; background: #0f172a; border-radius: 4px; padding: 0.1rem 0.4rem; min-width: 2.6rem; text-align: center; }
-        .cap-badge { font-size: 0.65rem; font-weight: 800; color: #052e16; background: #22c55e; border-radius: 4px; padding: 0.1rem 0.45rem; text-transform: uppercase; }
-        .vice-badge { font-size: 0.65rem; font-weight: 800; color: #0f172a; background: #facc15; border-radius: 4px; padding: 0.1rem 0.45rem; text-transform: uppercase; }
-        .bench li { color: #cbd5e1; }
-        .captain-hero { display: flex; align-items: center; gap: 0.75rem; }
-        .captain-hero .name { font-size: 1.25rem; font-weight: 700; color: #fff; }
-        .reason { color: #94a3b8; font-size: 0.9rem; margin-top: 0.5rem; }
-        .transfer-line { font-size: 1.05rem; }
-        .sell { color: #f87171; font-weight: 600; }
-        .buy { color: #4ade80; font-weight: 600; }
-        .arrow { color: #94a3b8; margin: 0 0.5rem; }
-        .chip-alert { background: #14532d; border: 1px solid #22c55e; border-radius: 12px; padding: 1.5rem; text-align: center; margin-bottom: 1rem; }
-        .chip-alert .chip-title { font-size: 1.4rem; font-weight: 800; color: #bbf7d0; }
-        .chip-alert .chip-sub { color: #86efac; margin-top: 0.35rem; font-size: 0.95rem; }
-        .muted { color: #94a3b8; font-size: 0.9rem; }
-        .team-meta { color: #94a3b8; font-size: 0.9rem; margin-top: 0.35rem; }
-        footer { margin-top: 2.5rem; color: #475569; font-size: 0.8rem; text-align: center; }
-        @media (max-width: 520px) { .analyze-btn { width: 100%; } }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FPL Intelligence — Professional Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #0a1120; }
+  .fg-card { background: #111c31; border: 1px solid #253348; }
+  .input-dark { width: 100%; background: #0b1526; border: 1px solid #334155; color: #e2e8f0; border-radius: 10px; padding: 0.65rem 0.8rem; font-size: 0.95rem; }
+  .input-dark:focus { outline: none; border-color: #38bdf8; box-shadow: 0 0 0 3px rgba(56,189,248,0.15); }
+  .btn-primary { background: linear-gradient(135deg, #22c55e, #16a34a); color: #052e16; font-weight: 800; border-radius: 12px; padding: 0.75rem 1.5rem; border: none; cursor: pointer; box-shadow: 0 4px 14px rgba(34,197,94,0.25); transition: filter .15s ease, transform .15s ease; }
+  .btn-primary:hover { filter: brightness(1.08); }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-ghost { background: transparent; color: #93c5fd; border: 1px dashed #334155; border-radius: 12px; padding: 0.6rem 1.1rem; font-weight: 700; cursor: pointer; font-size: 0.85rem; transition: background .15s ease; }
+  .btn-ghost:hover { background: #16233c; }
+  .btn-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
+  .pill { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.72rem; font-weight: 800; padding: 0.3rem 0.75rem; border-radius: 999px; border: 1px solid #334155; background: #0b1526; color: #94a3b8; }
+  .pill.ok { border-color: #166534; background: #052e16; color: #4ade80; }
+  .pill.bad { border-color: #7f1d1d; background: #450a0a; color: #f87171; }
+  .pitch { background: linear-gradient(165deg, #128f52 0%, #0d7745 55%, #0a5c33 100%); border-radius: 18px; border: 2px solid rgba(255,255,255,0.22); position: relative; overflow: hidden; }
+  .pitch::before { content: ""; position: absolute; inset: 0; border: 2px solid rgba(255,255,255,0.18); border-radius: 18px; margin: 7px; pointer-events: none; }
+  .pitch-mid { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: rgba(255,255,255,0.16); transform: translateX(-50%); pointer-events: none; }
+  .pitch-circle { position: absolute; left: 50%; top: 50%; width: 74px; height: 74px; border: 2px solid rgba(255,255,255,0.16); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+  .pitch-row { position: relative; z-index: 2; display: flex; justify-content: center; align-items: flex-start; gap: 0.55rem; flex-wrap: wrap; margin: 0.65rem 0; }
+  .row-label { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 0.6rem; font-weight: 800; letter-spacing: 0.08em; color: rgba(255,255,255,0.55); }
+  .player-card { width: 96px; background: rgba(10,20,40,0.86); border: 1px solid rgba(148,163,184,0.28); border-radius: 12px; padding: 0.5rem 0.4rem 0.45rem; text-align: center; position: relative; transition: transform .15s ease, box-shadow .15s ease; box-shadow: 0 4px 12px rgba(0,0,0,0.35); }
+  .player-card:hover { transform: translateY(-3px); box-shadow: 0 8px 18px rgba(0,0,0,0.45); }
+  .player-card.is-c { border-color: #facc15; box-shadow: 0 0 0 2px rgba(250,204,21,0.45), 0 4px 12px rgba(0,0,0,0.35); }
+  .player-card.is-vc { border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56,189,248,0.4), 0 4px 12px rgba(0,0,0,0.35); }
+  .player-photo { width: 56px; height: 68px; object-fit: cover; object-position: top; border-radius: 8px; margin: 0 auto; background: #1e293b; display: block; }
+  .photo-big { width: 96px; height: 116px; }
+  .avatar-fallback { width: 56px; height: 68px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; margin: 0 auto; font-size: 1.05rem; }
+  .avatar-big { width: 96px; height: 116px; font-size: 1.8rem; border-radius: 14px; }
+  .team-badge { position: absolute; top: -7px; left: -7px; width: 26px; height: 26px; background: #fff; border-radius: 50%; box-shadow: 0 1px 4px rgba(0,0,0,0.4); display: block; z-index: 3; }
+  .role-badge { position: absolute; top: -8px; right: -7px; width: 22px; height: 22px; border-radius: 50%; font-size: 0.66rem; font-weight: 800; line-height: 22px; text-align: center; z-index: 3; }
+  .role-badge.c { background: #facc15; color: #0f172a; }
+  .role-badge.vc { background: #38bdf8; color: #0f172a; }
+  .xpts-tag { display: inline-block; margin-top: 3px; padding: 0 6px; border-radius: 999px; background: rgba(8,15,30,0.9); border: 1px solid #334155; color: #7dd3fc; font-size: 0.62rem; font-weight: 700; }
+  .price-tag { font-size: 0.68rem; color: #94a3b8; font-weight: 600; margin-top: 1px; }
+  .web-name { font-size: 0.72rem; font-weight: 700; color: #e2e8f0; margin: 4px 0 1px; line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .summary-stat { background: #0b1526; border: 1px solid #253348; border-radius: 14px; padding: 0.9rem 1rem; }
+  .summary-stat .label { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8; font-weight: 700; }
+  .summary-stat .value { font-size: 1.35rem; font-weight: 800; color: #fff; margin-top: 2px; }
+  .summary-stat .sub { font-size: 0.7rem; color: #64748b; margin-top: 1px; }
+  .chip-alert { background: linear-gradient(135deg, #1e1b4b, #312e81); border: 1px solid #6366f1; border-radius: 14px; padding: 0.9rem 1.1rem; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .anim-in { animation: fadeUp .35s ease both; }
+</style>
 </head>
-<body>
-    <div class="container">
-        <header>
-            <h1>FPL Intelligence</h1>
-            <p>One click. Your optimal team, explained in plain English.</p>
-        </header>
+<body class="text-slate-200 min-h-screen antialiased">
+<div class="max-w-4xl mx-auto px-4 py-8">
 
-        <section class="hero">
-            <label for="teamId">Enter your FPL Team ID</label>
-            <div class="input-row">
-                <input type="text" id="teamId" inputmode="numeric" placeholder="e.g. 1234567" aria-label="Your FPL Team ID" autocomplete="off">
-                <button class="analyze-btn" id="analyzeBtn" type="button">Analyze My Team</button>
-            </div>
-            <div class="status" id="status" role="status" aria-live="polite"></div>
-            <div class="error" id="error" role="alert" aria-live="assertive"></div>
-            <div class="preseason" id="preseason" role="status" aria-live="polite"></div>
-            <button class="demo-btn" id="manualFallbackBtn" type="button" style="display:none; border-color: #facc15; color: #fef08a;">Enter Squad Manually</button>
-            <button class="demo-btn" id="retrySyncBtn" type="button" style="display:none; border-color: #38bdf8; color: #bae6fd;">🔄 Try Again</button>
-            <details style="margin-top: 1rem; color: #94a3b8; font-size: 0.85rem;">
-                <summary style="cursor:pointer;">Developer Tools</summary>
-                <button class="demo-btn" id="demoBtn" type="button">Try a Demo Team</button>
-            </details>
-        </section>
+  <!-- ======= Header ======= -->
+  <header class="flex flex-wrap items-center gap-3 mb-8 anim-in">
+    <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-sky-500 to-emerald-500 flex items-center justify-center text-2xl shadow-lg" aria-hidden="true">⚽</div>
+    <div class="mr-auto">
+      <h1 class="text-2xl font-extrabold tracking-tight text-white">FPL Intelligence</h1>
+      <p class="text-xs text-slate-400">Professional squad analytics for Fantasy Premier League</p>
+    </div>
+    <span class="text-xs font-bold px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-600 text-slate-300">Season 2026/27</span>
+    <span id="healthPill" class="pill">● Checking…</span>
+  </header>
 
-        
-        <section class="card" id="manualEntry" style="display:none; margin-bottom: 1rem;">
-            <h2 class="sub" style="margin-top:0;">Manual Squad Entry</h2>
-            <p class="muted" style="margin-bottom: 1rem;">Select your 15 players.</p>
-            <div id="manualForm" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;"></div>
-            <div style="margin-top: 1rem; display: flex; gap: 1rem;">
-                <div style="flex:1;"><label style="font-size:0.85rem; color:#94a3b8;">Captain:</label><br><select id="manualCap" style="width:100%; padding:0.4rem; background:#0f172a; color:#fff; border:1px solid #334155; border-radius:4px;"></select></div>
-                <div style="flex:1;"><label style="font-size:0.85rem; color:#94a3b8;">Vice-Captain:</label><br><select id="manualVice" style="width:100%; padding:0.4rem; background:#0f172a; color:#fff; border:1px solid #334155; border-radius:4px;"></select></div>
-            </div>
-            <button class="analyze-btn" id="saveManualBtn" type="button" style="margin-top: 1.5rem; width: 100%;">Save & Analyze</button>
-        </section>
+  <!-- ======= Input ======= -->
+  <section class="fg-card rounded-2xl p-6 shadow-xl mb-8 anim-in">
+    <label for="teamId" class="block text-sm font-semibold text-slate-200 mb-1">Enter your FPL Team ID</label>
+    <p class="text-xs text-slate-500 mb-4">The number in your FPL page URL, e.g. <code class="text-sky-400">fantasy.premierleague.com/entry/1234567/event</code></p>
+    <div class="flex flex-col sm:flex-row gap-3">
+      <input id="teamId" type="number" min="1" inputmode="numeric" placeholder="e.g. 1234567" class="input-dark flex-1 text-lg font-semibold" />
+      <button id="analyzeBtn" class="btn-primary text-lg px-8 whitespace-nowrap" type="button">⚡ Analyze My Team</button>
+    </div>
+    <div class="flex flex-wrap items-center gap-3 mt-4">
+      <button id="toggleManualBtn" class="btn-ghost" type="button">Enter Squad Manually</button>
+      <button id="retrySyncBtn" class="btn-ghost" type="button" style="display:none; border-color:#38bdf8; color:#bae6fd;">🔄 Try Again</button>
+      <details class="ml-auto text-slate-500 text-sm">
+        <summary class="cursor-pointer select-none">Developer Tools</summary>
+        <button id="demoBtn" class="btn-ghost mt-2" type="button">Try a Demo Team</button>
+      </details>
+    </div>
+    <div id="status" class="mt-4 text-sky-300 text-sm font-semibold" role="status" aria-live="polite" style="display:none"></div>
+    <div id="error" class="mt-4 bg-red-950/70 border border-red-700 text-red-200 rounded-xl px-4 py-3 text-sm font-semibold" role="alert" aria-live="assertive" style="display:none"></div>
+  </section>
 
-        <section class="results" id="results" aria-live="polite">
-            <div class="banner" id="demoBanner">You are viewing a DEMO squad, not your real team.</div>
-            <p class="team-meta" id="teamName"></p>
+  <!-- ======= Manual Squad Entry ======= -->
+  <section id="manualEntry" class="fg-card rounded-2xl p-6 shadow-xl mb-8" style="display:none">
+    <h2 class="text-lg font-bold text-sky-400 mb-1">Manual Squad Entry</h2>
+    <p class="text-slate-400 text-sm mb-4">Pick 2 GK · 5 DEF · 5 MID · 3 FWD, then choose your captain and vice.</p>
+    <div id="manualForm" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:0.7rem;"></div>
+    <div class="flex flex-wrap gap-4 mt-4">
+      <div class="flex-1 min-w-[150px]">
+        <label for="manualCap" class="text-xs text-slate-400 block mb-1 font-semibold">Captain</label>
+        <select id="manualCap" class="input-dark"></select>
+      </div>
+      <div class="flex-1 min-w-[150px]">
+        <label for="manualVice" class="text-xs text-slate-400 block mb-1 font-semibold">Vice-Captain</label>
+        <select id="manualVice" class="input-dark"></select>
+      </div>
+    </div>
+    <button class="btn-primary mt-5 w-full" id="saveManualBtn" type="button">Save &amp; Analyze</button>
+  </section>
 
-            <div id="chipSlot"></div>
+  <!-- ======= Results ======= -->
+  <section id="results" aria-live="polite" style="display:none">
+    <div id="demoBanner" class="mb-4 bg-amber-950/70 border border-amber-600 text-amber-200 rounded-xl px-4 py-3 text-sm font-semibold" style="display:none">⚠️ You are viewing a DEMO squad, not your real team.</div>
+    <p id="teamName" class="text-slate-400 text-sm mb-4 font-semibold"></p>
+    <div id="chipSlot" class="mb-6"></div>
 
-            <h2 class="sub">Your Best Starting 11</h2>
-            <div class="card">
-                <ul class="roster" id="startingXi"></ul>
-            </div>
+    <!-- Squad Summary Bar -->
+    <div id="summaryBar" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8"></div>
 
-            <h2 class="sub">Captain</h2>
-            <div class="card">
-                <div class="captain-hero">
-                    <span class="cap-badge">C</span>
-                    <span class="name" id="captainName">-</span>
-                </div>
-                <div class="reason" id="captainReason"></div>
-            </div>
-
-            <h2 class="sub">Transfers</h2>
-            <div class="card">
-                <div id="transferBox"></div>
-            </div>
-
-            <h2 class="sub">Your Bench</h2>
-            <div class="card">
-                <ul class="roster bench" id="benchOrder"></ul>
-            </div>
-        </section>
-
-        <footer>Powered by the FPL Intelligence Engine. Data from the official Fantasy Premier League API.</footer>
+    <!-- Pitch View -->
+    <h2 class="text-lg font-bold text-sky-400 mb-1">Recommended Starting 11</h2>
+    <p class="text-xs text-slate-500 mb-3">C = Captain (2× points) · VC = Vice-Captain · Hover any card for details</p>
+    <div id="pitch" class="pitch px-3 py-4 mb-8">
+      <div class="pitch-mid"></div>
+      <div class="pitch-circle"></div>
+      <div id="pitchRows" class="relative"></div>
     </div>
 
-    <script>
-        // IMPORTANT: Use a RELATIVE API base (empty string). The previous value
-        // window.location.origin is undefined for a Location object, so every fetch
-        // URL became a broken absolute URL (e.g. "undefined/api/v1/squad/from-fpl"),
-        // which caused the "Network error" / "network failed" failures on every
-        // dashboard button. An empty base keeps all requests same-origin & relative
-        // (e.g. "/api/v1/squad/from-fpl"), which the backend serves correctly.
-        const API = "";
-        console.log("[dashboard] script loaded. API base =", JSON.stringify(API));
+    <!-- Bench Strip -->
+    <h2 class="text-lg font-bold text-sky-400 mb-3">Bench <span class="text-slate-500 text-sm font-medium">(auto-sub order)</span></h2>
+    <div id="benchStrip" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8"></div>
 
-        // Hotfix v1.3.4: PLAYER_NAMES must be declared before saveManual() writes
-        // to it (it used to be an undeclared global -> ReferenceError crash when
-        // clicking "Save & Analyze"). It is populated:
-        //   * when /api/v1/players loads (manual entry), as an id -> web_name map;
-        //   * when /api/v1/squad/from-fpl or /api/v1/squad/demo responds.
-        // render() resolves names through name(id) for every path.
-        let PLAYER_NAMES = {};
+    <!-- Captain Spotlight -->
+    <h2 class="text-lg font-bold text-sky-400 mb-3">Captain Spotlight</h2>
+    <div id="captainHero" class="fg-card rounded-2xl p-5 shadow-xl mb-8"></div>
 
-        function name(id) {
-            return PLAYER_NAMES[id] || ("Player " + id);
-        }
-        function posLabel(code) {
-            return ({1: "GK", 2: "DEF", 3: "MID", 4: "FWD"})[code] || "";
-        }
-        function showError(msg) {
-            const el = document.getElementById("error");
-            el.textContent = msg;
-            el.style.display = "block";
-        }
-        function showPreseason(msg) {
-            const el = document.getElementById("preseason");
-            el.innerHTML = "<strong>Heads up:</strong> " + msg;
-            el.style.display = "block";
-            document.getElementById("error").style.display = "none";
-        }
+    <!-- Transfers -->
+    <h2 class="text-lg font-bold text-sky-400 mb-3">Transfer Recommendations</h2>
+    <div id="transferBox" class="fg-card rounded-2xl p-5 shadow-xl mb-8"></div>
+  </section>
 
-        async function analyze() {
-            const btn = document.getElementById("analyzeBtn");
-            const input = document.getElementById("teamId");
-            const statusEl = document.getElementById("status");
-            const results = document.getElementById("results");
-            const errorEl = document.getElementById("error");
+  <footer class="mt-8 text-slate-600 text-xs text-center">Powered by the FPL Intelligence Engine · Photos &amp; badges © Premier League · Data from the official Fantasy Premier League API</footer>
+</div>
+<script>
+"use strict";
+/* Phase 14.0 — Professional dashboard. Vanilla JS + Tailwind (CDN).
+   All API calls use relative URLs (API = "") so the page works on any origin. */
+var API = "";
+var PHOTO_BASE = "https://resources.premierleague.com/photos/110x140/";
+var BADGE_BASE = "https://resources.premierleague.com/badges/70/t";
+var ALL_PLAYERS = [];
+let PLAYER_NAMES = {};
+var POS_NAMES = { 1: "GK", 2: "DEF", 3: "MID", 4: "FWD" };
+var CHIP_LABELS = { wildcard: "Wildcard", free_hit: "Free Hit", bench_boost: "Bench Boost", triple_captain: "Triple Captain" };
+var AVATAR_COLORS = ["#2563eb", "#059669", "#d97706", "#dc2626", "#7c3aed", "#0891b2", "#be185d", "#4d7c0f"];
 
-            errorEl.style.display = "none";
-            results.style.display = "none";
-            document.getElementById("demoBanner").style.display = "none";
-            document.getElementById("preseason").style.display = "none";
+function $(id) { return document.getElementById(id); }
+function esc(s) {
+  return String(s === null || s === undefined ? "" : s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+function fmtPrice(v) { return v === null || v === undefined ? "£—m" : "£" + Number(v).toFixed(1) + "m"; }
+function fmtXp(v) { return v === null || v === undefined ? "–" : Number(v).toFixed(1); }
+function initialsOf(name) {
+  var parts = String(name || "?").trim().split(/\s+/);
+  var out = parts.map(function (w) { return w.charAt(0); }).join("");
+  return (out || "?").slice(0, 2).toUpperCase();
+}
+function avatarColor(name) {
+  var s = String(name || ""), h = 0;
+  for (var i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) >>> 0; }
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+/* Image fallbacks: broken photos become colored-initial avatars; broken badges hide. */
+window.__photoFail = function (img) {
+  var name = img.alt || "?";
+  var big = img.className.indexOf("photo-big") !== -1;
+  var d = document.createElement("div");
+  d.className = big ? "avatar-fallback avatar-big" : "avatar-fallback";
+  d.style.background = avatarColor(name);
+  d.textContent = initialsOf(name);
+  img.replaceWith(d);
+};
+window.__badgeFail = function (img) { img.style.display = "none"; };
 
-            const raw = (input.value || "").trim();
-            if (!raw || !/^[0-9]+$/.test(raw)) {
-                showError("Please enter a valid FPL Team ID (numbers only).");
-                return;
-            }
-            const entryId = Number(raw);
+function photoHTML(p, big) {
+  var name = p.web_name || ("Player " + p.id);
+  if (p.code) {
+    var cls = big ? "player-photo photo-big" : "player-photo";
+    return '<img class="' + cls + '" alt="' + esc(name) + '" loading="lazy" src="' + PHOTO_BASE + p.code + '.png" onerror="window.__photoFail(this)">';
+  }
+  var avCls = big ? "avatar-fallback avatar-big" : "avatar-fallback";
+  return '<div class="' + avCls + '" style="background:' + avatarColor(name) + '">' + esc(initialsOf(name)) + "</div>";
+}
+function badgeHTML(teamId) {
+  if (!teamId) { return ""; }
+  return '<img class="team-badge" alt="" loading="lazy" src="' + BADGE_BASE + teamId + '.png" onerror="window.__badgeFail(this)">';
+}
 
-            btn.disabled = true;
-            statusEl.style.display = "block";
-            statusEl.textContent = "Fetching your squad from FPL...";
+function setStatus(msg) { var el = $("status"); el.textContent = msg; el.style.display = "block"; }
+function showError(msg) { var el = $("error"); el.textContent = msg; el.style.display = "block"; }
+function hideMessages() { $("status").style.display = "none"; $("error").style.display = "none"; }
 
-            try {
-                const impUrl = `${API}/api/v1/squad/from-fpl`;
-                console.log("[analyze] About to call:", impUrl);
-                console.log("[analyze] Request body:", JSON.stringify({ entry_id: entryId }));
-                const imp = await fetch(impUrl, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ entry_id: entryId })
-                });
-                console.log("[analyze] squad/from-fpl response status:", imp.status);
+async function checkHealth() {
+  var pill = $("healthPill");
+  try {
+    var res = await fetch(API + "/health");
+    if (res.ok) { pill.className = "pill ok"; pill.textContent = "● Engine Healthy"; }
+    else { pill.className = "pill bad"; pill.textContent = "● Degraded"; }
+  } catch (e) { pill.className = "pill bad"; pill.textContent = "● Offline"; }
+}
 
-                if (!imp.ok) {
-                    const body = await imp.json().catch(() => ({}));
-                    console.log("[analyze] squad/from-fpl non-OK body:", body);
-                    if (imp.status === 409 && body.detail && body.detail.code === "pre_season") {
-                        showPreseason(body.detail.message);
-                        statusEl.style.display = "none";
-                        btn.disabled = false;
-                        return;
-                    }
-                    if (imp.status === 409 && body.detail === "Picks not saved yet") {
-                        showError("We found your team! But you haven't saved your Starting 11 on the official FPL site yet. Please go to fantasy.premierleague.com, set your captain and starting 11, click SAVE, and then come back here and try again.");
-                    } else if (imp.status === 404) {
-                        showError(body.detail || "No FPL team found with that ID. Please check your number.");
-                    } else if (imp.status === 503 || imp.status === 403) {
-                        showError("The official FPL website is currently blocking our servers due to deadline day traffic. Please use the 'Enter Squad Manually' button below, or try again in an hour.");
-                        document.getElementById("manualFallbackBtn").style.display = "inline-block";
-                        /* Phase 13.5: auto-sync is queued server-side, so offer a
-                           "🔄 Try Again" button that retries via /squad/retry-sync. */
-                        document.getElementById("retrySyncBtn").style.display = "inline-block";
-                    } else {
-                        showError(body.detail || "Something went wrong. Please try again.");
-                    }
-                    statusEl.style.display = "none";
-                    btn.disabled = false;
-                    return;
-                }
+async function loadPlayers() {
+  if (ALL_PLAYERS.length) { return; }
+  var res = await fetch(API + "/api/v1/players");
+  if (!res.ok) { throw new Error("Player list unavailable (" + res.status + ")"); }
+  ALL_PLAYERS = await res.json();
+  PLAYER_NAMES = Object.fromEntries(ALL_PLAYERS.map(p => [p.id, p.web_name]));
+}
 
-                console.log("[analyze] squad loaded OK from FPL");
-                const impData = await imp.json();
-                PLAYER_NAMES = impData.player_names || {};
-                document.getElementById("teamName").textContent = impData.entry_name
-                    ? `${impData.entry_name} - Gameweek ${impData.gameweek}`
-                    : `Gameweek ${impData.gameweek}`;
+function nameOf(pid, report) {
+  if (report && report.players && report.players[String(pid)] && report.players[String(pid)].web_name) {
+    return report.players[String(pid)].web_name;
+  }
+  return PLAYER_NAMES[pid] || ("Player " + pid);
+}
 
-                statusEl.textContent = "Running the math...";
-                const decUrl = `${API}/api/v1/decisions`;
-                console.log("[analyze] About to call:", decUrl);
-                const dec = await fetch(decUrl);
-                console.log("[analyze] decisions status:", dec.status);
-                if (!dec.ok) {
-                    const body = await dec.json().catch(() => ({}));
-                    showError(body.detail || "Could not generate decisions. Please try again.");
-                    statusEl.style.display = "none";
-                    btn.disabled = false;
-                    return;
-                }
-                const report = await dec.json();
-                render(report);
-                statusEl.style.display = "none";
-                results.style.display = "block";
-            } catch (e) {
-                console.error("[analyze] Error in analyze():", e);
-                showError("Network error: " + e.message);
-                statusEl.style.display = "none";
-            } finally {
-                btn.disabled = false;
-            }
-        }
+/* One-click flow: import the squad from FPL, then render the decision report. */
+async function analyze() {
+  var raw = $("teamId").value.trim();
+  if (!raw) { showError("Enter your FPL Team ID first — it is the number in your FPL page URL."); return; }
+  var entryId = parseInt(raw, 10);
+  if (!entryId || entryId < 1) { showError("That does not look like a valid FPL Team ID."); return; }
 
-        function render(report) {
-            const capId = report.captain ? report.captain.player_id : null;
-            const viceId = report.vice_captain;
+  var btn = $("analyzeBtn");
+  hideMessages();
+  $("results").style.display = "none";
+  $("manualEntry").style.display = "none";
+  btn.disabled = true;
+  setStatus("Importing your squad from FPL…");
 
-            const xi = document.getElementById("startingXi");
-            xi.innerHTML = (report.starting_xi || []).map(id => {
-                let badge = "";
-                if (id === capId) badge = '<span class="cap-badge">C</span>';
-                else if (id === viceId) badge = '<span class="vice-badge">VC</span>';
-                return `<li>${badge}<span class="pos">${posLabel((report.meta && report.meta.player_positions && report.meta.player_positions[id]) || "")}</span><span>${name(id)}</span></li>`;
-            }).join("");
-            if (!report.starting_xi || report.starting_xi.length === 0) {
-                xi.innerHTML = '<li class="muted">No starting XI available.</li>';
-            }
+  try {
+    var res = await fetch(API + "/api/v1/squad/from-fpl", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ entry_id: entryId })
+    });
+    if (res.status === 503) {
+      document.getElementById("retrySyncBtn").style.display = "inline-block";
+      throw new Error("FPL is temporarily unavailable. Press 🔄 Try Again in a few minutes — your ID is queued for sync.");
+    }
+    if (res.status === 404) { throw new Error("Could not find that FPL Team ID. Please double-check the number."); }
+    if (res.status === 409) {
+      document.getElementById("retrySyncBtn").style.display = "inline-block";
+      throw new Error("Picks not saved yet — use Enter Squad Manually for now, or Try Again closer to kickoff.");
+    }
+    if (!res.ok) {
+      var body = await res.json().catch(function () { return {}; });
+      throw new Error(body.detail || ("Import failed (" + res.status + ")."));
+    }
+    var data = await res.json();
+    if (data.player_names) { PLAYER_NAMES = data.player_names; }
+    $("teamName").textContent = (data.entry_name ? data.entry_name + " · " : "") + "Gameweek " + data.gameweek;
+    setStatus("Squad imported — running the numbers…");
+    await renderFromApi();
+  } catch (e) {
+    showError(e.message);
+    $("status").style.display = "none";
+  } finally {
+    btn.disabled = false;
+  }
+}
 
-            const bench = document.getElementById("benchOrder");
-            bench.innerHTML = (report.bench_order || []).map(id =>
-                `<li><span class="pos">${posLabel((report.meta && report.meta.player_positions && report.meta.player_positions[id]) || "")}</span><span>${name(id)}</span></li>`
-            ).join("");
-            if (!report.bench_order || report.bench_order.length === 0) {
-                bench.innerHTML = '<li class="muted">No bench information available.</li>';
-            }
+/* Phase 13.5 retry: re-runs the queued FPL import. */
+async function retrySync() {
+  var btn = $("retrySyncBtn");
+  hideMessages();
+  $("results").style.display = "none";
+  btn.disabled = true;
+  setStatus("Retrying your FPL sync…");
+  try {
+    var res = await fetch(API + "/api/v1/squad/retry-sync", { method: "POST", headers: { "Content-Type": "application/json" } });
+    if (res.status === 429) { throw new Error("Too many retries. Please wait a minute and press Try Again."); }
+    if (res.status === 404) { throw new Error("No queued sync found — enter your Team ID and Analyze again."); }
+    if (!res.ok) {
+      var body = await res.json().catch(function () { return {}; });
+      throw new Error(body.detail || ("Retry failed (" + res.status + ")."));
+    }
+    var data = await res.json();
+    if (data.player_names) { PLAYER_NAMES = data.player_names; }
+    $("teamName").textContent = (data.entry_name ? data.entry_name + " · " : "") + "Gameweek " + data.gameweek;
+    setStatus("Synced — running the numbers…");
+    await renderFromApi();
+  } catch (e) {
+    showError(e.message);
+    $("status").style.display = "none";
+  } finally {
+    btn.disabled = false;
+  }
+}
 
-            const capName = document.getElementById("captainName");
-            const capReason = document.getElementById("captainReason");
-            if (report.captain) {
-                capName.textContent = name(report.captain.player_id);
-                let txt = "";
-                if (report.captain.expected_points) txt += `Expected ${report.captain.expected_points.toFixed(1)} pts. `;
-                txt += report.captain.main_reason || "";
-                capReason.textContent = txt;
-            } else {
-                capName.textContent = "(none)";
-                capReason.textContent = "";
-            }
+async function renderFromApi() {
+  var res = await fetch(API + "/api/v1/decisions");
+  if (!res.ok) {
+    var body = await res.json().catch(function () { return {}; });
+    throw new Error(body.detail || ("Could not generate decisions (" + res.status + ")."));
+  }
+  var report = await res.json();
+  renderReport(report);
+  hideMessages();
+  $("results").style.display = "block";
+}
 
-            const tp = report.transfer_plan;
-            const tbox = document.getElementById("transferBox");
-            if (tp && (tp.transfers_out && tp.transfers_out.length) && (tp.transfers_in && tp.transfers_in.length)) {
-                const sell = tp.transfers_out.map(name).join(", ");
-                const buy = tp.transfers_in.map(name).join(", ");
-                let extra = "";
-                if (tp.expected_gain) extra = ` <span class="muted">(expected +${tp.expected_gain.toFixed(1)} pts)</span>`;
-                tbox.innerHTML = `<div class="transfer-line"><span class="sell">Sell ${sell}</span><span class="arrow">&rarr;</span><span class="buy">Buy ${buy}</span>${extra}</div>` +
-                    (tp.main_reason ? `<div class="reason">${tp.main_reason}</div>` : "");
-            } else {
-                tbox.innerHTML = '<div class="muted">No transfers recommended right now - your squad looks good.</div>';
-            }
+/* ---------- Rendering: player cards, pitch, bench ---------- */
+function playerCard(pid, report) {
+  var p = (report.players && report.players[String(pid)]) || { id: pid, web_name: nameOf(pid, report) };
+  var isC = !!(report.captain && report.captain.player_id === pid);
+  var isVC = !!(!isC && report.vice_captain === pid);
+  var cls = "player-card" + (isC ? " is-c" : "") + (isVC ? " is-vc" : "");
+  var tip = esc((p.web_name || "") + " · " + (POS_NAMES[p.position] || "?") + " · " + fmtPrice(p.price));
+  return '<div class="' + cls + '" title="' + tip + '">'
+    + badgeHTML(p.team)
+    + (isC ? '<span class="role-badge c" title="Captain">C</span>' : "")
+    + (isVC ? '<span class="role-badge vc" title="Vice-Captain">VC</span>' : "")
+    + photoHTML(p, false)
+    + '<div class="web-name">' + esc(p.web_name || ("Player " + pid)) + "</div>"
+    + '<div class="price-tag">' + fmtPrice(p.price) + "</div>"
+    + '<span class="xpts-tag">xPTS ' + fmtXp(p.expected_points) + "</span>"
+    + "</div>";
+}
 
-            const chipSlot = document.getElementById("chipSlot");
-            const cr = report.chip_recommendation;
-            if (cr && cr.chip_name) {
-                const labels = { wildcard: "Wildcard", free_hit: "Free Hit", bench_boost: "Bench Boost", triple_captain: "Triple Captain" };
-                const label = labels[cr.chip_name] || cr.chip_name;
-                chipSlot.innerHTML = `<div class="chip-alert"><div class="chip-title">Play ${label} this week!</div>` +
-                    (cr.main_reason ? `<div class="chip-sub">${cr.main_reason}</div>` : "") + `</div>`;
-            } else {
-                chipSlot.innerHTML = "";
-            }
-        }
+function posOf(pid, report) {
+  var p = report.players && report.players[String(pid)];
+  if (p && p.position !== null && p.position !== undefined) { return p.position; }
+  return ((report.meta && report.meta.player_positions) || {})[pid];
+}
 
-        async function demoTeam() {
-            const btn = document.getElementById("demoBtn");
-            const input = document.getElementById("teamId");
-            const statusEl = document.getElementById("status");
-            const results = document.getElementById("results");
-            const errorEl = document.getElementById("error");
-            const preseason = document.getElementById("preseason");
+function renderPitch(report) {
+  var xi = report.starting_xi || [];
+  var rows = [[4, "FWD"], [3, "MID"], [2, "DEF"], [1, "GK"]];
+  var placed = {};
+  var html = "";
+  rows.forEach(function (row) {
+    var ids = xi.filter(function (pid) {
+      var ok = posOf(pid, report) === row[0];
+      if (ok) { placed[pid] = true; }
+      return ok;
+    });
+    if (ids.length) {
+      html += '<div class="pitch-row"><span class="row-label">' + row[1] + "</span>"
+        + ids.map(function (pid) { return playerCard(pid, report); }).join("") + "</div>";
+    }
+  });
+  var leftovers = xi.filter(function (pid) { return !placed[pid]; });
+  if (leftovers.length) {
+    html += '<div class="pitch-row"><span class="row-label">XI</span>'
+      + leftovers.map(function (pid) { return playerCard(pid, report); }).join("") + "</div>";
+  }
+  $("pitchRows").innerHTML = html || '<p class="text-center text-white/70 text-sm py-6 relative z-10">No starting XI available.</p>';
+}
 
-            input.value = "";
-            errorEl.style.display = "none";
-            preseason.style.display = "none";
-            results.style.display = "none";
-            document.getElementById("demoBanner").style.display = "none";
+function renderBench(report) {
+  var bench = report.bench_order || [];
+  $("benchStrip").innerHTML = bench.length
+    ? bench.map(function (pid) { return playerCard(pid, report); }).join("")
+    : '<p class="text-slate-500 text-sm col-span-full">No bench information available.</p>';
+}
 
-            btn.disabled = true;
-            statusEl.style.display = "block";
-            statusEl.textContent = "Building your demo squad...";
+/* ---------- Rendering: captain spotlight + transfer cards ---------- */
+function renderCaptain(report) {
+  var box = $("captainHero");
+  var c = report.captain;
+  if (!c) { box.innerHTML = '<p class="text-slate-500 text-sm">No captain recommendation available.</p>'; return; }
+  var p = (report.players && report.players[String(c.player_id)]) || { id: c.player_id, web_name: nameOf(c.player_id, report) };
+  var conf = Math.round((c.confidence || 0) * 100);
+  var metaLine = [POS_NAMES[p.position], p.team ? "Team " + p.team : "", fmtPrice(p.price)]
+    .filter(function (x) { return x; }).join(" · ");
+  var html = '<div class="flex flex-col sm:flex-row items-center gap-5">'
+    + '<div class="relative shrink-0">' + badgeHTML(p.team)
+    + '<span class="role-badge c">C</span>' + photoHTML(p, true) + "</div>"
+    + '<div class="flex-1 text-center sm:text-left">'
+    + '<div class="text-xs font-bold text-sky-400 uppercase tracking-wide">Armband Verdict</div>'
+    + '<div class="text-2xl font-extrabold text-white">' + esc(p.web_name || "Player") + "</div>"
+    + '<div class="text-sm text-slate-400">' + esc(metaLine) + "</div>"
+    + '<div class="mt-2 text-3xl font-extrabold text-emerald-400">' + fmtXp(c.expected_points)
+    + ' <span class="text-sm text-slate-400 font-semibold">expected pts as captain</span></div>'
+    + "</div></div>"
+    + (c.main_reason ? '<p class="mt-4 text-sm text-slate-300 leading-relaxed border-t border-slate-700/60 pt-3">💡 ' + esc(c.main_reason) + "</p>" : "")
+    + (c.main_risk ? '<p class="mt-2 text-sm text-amber-300/90">⚠️ Risk: ' + esc(c.main_risk) + "</p>" : "");
+  if (conf) {
+    html += '<div class="mt-3"><div class="text-xs text-slate-500 mb-1">Confidence ' + conf + "%</div>"
+      + '<div class="h-1.5 rounded-full bg-slate-700 overflow-hidden"><div class="h-full bg-gradient-to-r from-sky-500 to-emerald-400" style="width:' + conf + '%"></div></div></div>';
+  }
+  box.innerHTML = html;
+}
 
-            try {
-                const impUrl = `${API}/api/v1/squad/demo`;
-                console.log("[demo] About to call:", impUrl);
-                console.log("[demo] Request body:", "{}");
-                const imp = await fetch(impUrl, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                });
-                console.log("[demo] squad/demo response status:", imp.status);
+function transferCard(pid, report, dir) {
+  var p = (report.players && report.players[String(pid)]) || { id: pid, web_name: nameOf(pid, report) };
+  var accent = dir === "out" ? "border-red-500/40 bg-red-950/30" : "border-emerald-500/40 bg-emerald-950/30";
+  var label = dir === "out"
+    ? '<span class="text-red-400 font-bold text-xs tracking-wide">OUT</span>'
+    : '<span class="text-emerald-400 font-bold text-xs tracking-wide">IN</span>';
+  return '<div class="flex items-center gap-3 rounded-xl border p-3 ' + accent + '">'
+    + '<div class="relative shrink-0">' + badgeHTML(p.team) + photoHTML(p, false) + "</div>"
+    + '<div class="min-w-0 text-left"><div>' + label + "</div>"
+    + '<div class="font-bold text-white text-sm truncate">' + esc(p.web_name || ("Player " + pid)) + "</div>"
+    + '<div class="text-xs text-slate-400">' + esc(POS_NAMES[p.position] || "") + " · " + fmtPrice(p.price) + "</div></div></div>";
+}
 
-                if (!imp.ok) {
-                    const body = await imp.json().catch(() => ({}));
-                    console.log("[demo] squad/demo non-OK body:", body);
-                    showError(body.detail || "Could not build a demo squad. Please try again.");
-                    statusEl.style.display = "none";
-                    btn.disabled = false;
-                    return;
-                }
+/* ---------- Rendering: transfers, summary bar, chip alert ---------- */
+function renderTransfers(report) {
+  var box = $("transferBox");
+  var tp = report.transfer_plan;
+  var outs = (tp && tp.transfers_out) || [];
+  var ins = (tp && tp.transfers_in) || [];
+  if (!outs.length && !ins.length) {
+    box.innerHTML = '<div class="text-center py-4">'
+      + '<div class="text-3xl mb-2">🧘</div>'
+      + '<div class="text-lg font-bold text-emerald-400">No transfers recommended</div>'
+      + '<p class="text-sm text-slate-400 mt-1">The math says hold — '
+      + esc((tp && tp.main_reason) || "your squad already looks optimal for this gameweek.") + "</p></div>";
+    return;
+  }
+  var pairs = Math.max(outs.length, ins.length);
+  var rowsHtml = "";
+  for (var i = 0; i < pairs; i++) {
+    rowsHtml += '<div class="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] items-center gap-3 my-2 first:mt-0">'
+      + (outs[i] ? transferCard(outs[i], report, "out") : "<div></div>")
+      + '<div class="text-2xl font-extrabold text-slate-500 text-center">→</div>'
+      + (ins[i] ? transferCard(ins[i], report, "in") : "<div></div>")
+      + "</div>";
+  }
+  var gain = tp && tp.expected_gain ? '<span class="text-emerald-400 font-bold">Expected gain: +' + Number(tp.expected_gain).toFixed(1) + " pts</span>" : "";
+  var hit = tp && tp.hit_cost ? '<span class="text-red-400 font-bold">Costs a ' + tp.hit_cost + "-pt hit</span>" : "";
+  box.innerHTML = rowsHtml
+    + (gain || hit ? '<div class="flex flex-wrap gap-4 justify-center mt-4 text-sm">' + gain + hit + "</div>" : "")
+    + (tp && tp.main_reason ? '<p class="mt-3 text-sm text-slate-300 leading-relaxed border-t border-slate-700/60 pt-3">💡 ' + esc(tp.main_reason) + "</p>" : "")
+    + (tp && tp.main_risk ? '<p class="mt-2 text-sm text-amber-300/90">⚠️ Risk: ' + esc(tp.main_risk) + "</p>" : "");
+}
 
-                console.log("[demo] demo squad loaded OK");
-                const impData = await imp.json();
-                PLAYER_NAMES = impData.player_names || {};
-                document.getElementById("teamName").textContent = impData.entry_name
-                    ? `${impData.entry_name} - Gameweek ${impData.gameweek}`
-                    : `Gameweek ${impData.gameweek}`;
+function renderSummary(report) {
+  var s = (report.meta && report.meta.squad_summary) || {};
+  var chips = (s.chips_available || []).map(function (c) { return CHIP_LABELS[c] || c; });
+  var stats = [
+    { label: "Team Value", value: "£" + Number(s.team_value || 0).toFixed(1) + "m", sub: "15 players + bank" },
+    { label: "In The Bank", value: "£" + Number(s.bank || 0).toFixed(1) + "m", sub: "available to spend" },
+    { label: "Free Transfers", value: String(s.free_transfers === undefined ? "–" : s.free_transfers), sub: "this gameweek" },
+    { label: "Chips Available", value: chips.length ? String(chips.length) : "0", sub: chips.length ? chips.join(", ") : "all used" }
+  ];
+  $("summaryBar").innerHTML = stats.map(function (st) {
+    return '<div class="summary-stat"><div class="label">' + st.label
+      + '</div><div class="value">' + esc(st.value)
+      + '</div><div class="sub">' + esc(st.sub) + "</div></div>";
+  }).join("");
+}
 
-                statusEl.textContent = "Running the math...";
-                const decUrl = `${API}/api/v1/decisions`;
-                console.log("[demo] About to call:", decUrl);
-                const dec = await fetch(decUrl);
-                console.log("[demo] decisions status:", dec.status);
-                if (!dec.ok) {
-                    const body = await dec.json().catch(() => ({}));
-                    showError(body.detail || "Could not generate decisions. Please try again.");
-                    statusEl.style.display = "none";
-                    btn.disabled = false;
-                    return;
-                }
-                const report = await dec.json();
-                render(report);
-                document.getElementById("demoBanner").style.display = "block";
-                statusEl.style.display = "none";
-                results.style.display = "block";
-            } catch (e) {
-                console.error("[demo] Error in demoTeam():", e);
-                showError("Network error: " + e.message);
-                statusEl.style.display = "none";
-            } finally {
-                btn.disabled = false;
-            }
-        }
+function renderChip(report) {
+  var cr = report.chip_recommendation;
+  var slot = $("chipSlot");
+  if (cr && cr.chip_name) {
+    var label = CHIP_LABELS[cr.chip_name] || cr.chip_name;
+    slot.innerHTML = '<div class="chip-alert"><div class="text-indigo-200 font-extrabold">🎯 Play ' + esc(label) + " this week!</div>"
+      + (cr.main_reason ? '<div class="text-xs text-indigo-300/80 mt-1">' + esc(cr.main_reason) + "</div>" : "") + "</div>";
+  } else { slot.innerHTML = ""; }
+}
 
-        
-        async function retrySync() {
-            const btn = document.getElementById("retrySyncBtn");
-            const statusEl = document.getElementById("status");
-            const errorEl = document.getElementById("error");
-            const results = document.getElementById("results");
-            errorEl.style.display = "none";
-            results.style.display = "none";
-            btn.disabled = true;
-            statusEl.style.display = "block";
-            statusEl.textContent = "Retrying your FPL sync...";
-            try {
-                const url = `${API}/api/v1/squad/retry-sync`;
-                console.log("[retry] About to call:", url);
-                const res = await fetch(url, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                });
-                console.log("[retry] retry-sync response status:", res.status);
-                if (!res.ok) {
-                    const body = await res.json().catch(() => ({}));
-                    if (res.status === 429) {
-                        showError("You've tried too many times. Please wait a minute, then press Try Again.");
-                    } else if (res.status === 404) {
-                        showError("No pending squad sync found. Enter your Team ID again below.");
-                    } else {
-                        showError(body.detail || "The sync could not complete. Please try again in a few minutes.");
-                    }
-                    statusEl.style.display = "none";
-                    btn.disabled = false;
-                    return;
-                }
-                const impData = await res.json();
-                PLAYER_NAMES = impData.player_names || {};
-                document.getElementById("teamName").textContent = impData.entry_name
-                    ? `${impData.entry_name} - Gameweek ${impData.gameweek}`
-                    : `Gameweek ${impData.gameweek}`;
-                document.getElementById("retrySyncBtn").style.display = "none";
-                statusEl.textContent = "Running the math...";
-                const decUrl = `${API}/api/v1/decisions`;
-                const dec = await fetch(decUrl);
-                if (!dec.ok) {
-                    const body = await dec.json().catch(() => ({}));
-                    showError(body.detail || "Could not generate decisions. Please try again.");
-                    statusEl.style.display = "none";
-                    btn.disabled = false;
-                    return;
-                }
-                const report = await dec.json();
-                render(report);
-                statusEl.style.display = "none";
-                results.style.display = "block";
-            } catch (e) {
-                console.error("[retry] Error in retrySync():", e);
-                showError("Network error: " + e.message);
-                statusEl.style.display = "none";
-            } finally {
-                btn.disabled = false;
-            }
-        }
+function renderReport(report) {
+  renderSummary(report);
+  renderChip(report);
+  renderPitch(report);
+  renderBench(report);
+  renderCaptain(report);
+  renderTransfers(report);
+}
 
-        document.getElementById("manualFallbackBtn").addEventListener("click", loadManualEntry);
-        document.getElementById("saveManualBtn").addEventListener("click", saveManual);
-        document.getElementById("retrySyncBtn").addEventListener("click", retrySync);
+/* ---------- Demo squad (no FPL account needed) ---------- */
+async function demoTeam() {
+  var btn = $("demoBtn");
+  hideMessages();
+  $("results").style.display = "none";
+  $("manualEntry").style.display = "none";
+  $("teamId").value = "";
+  btn.disabled = true;
+  setStatus("Building a demo squad…");
+  try {
+    var res = await fetch(API + "/api/v1/squad/demo", { method: "POST", headers: { "Content-Type": "application/json" } });
+    if (!res.ok) {
+      var body = await res.json().catch(function () { return {}; });
+      throw new Error(body.detail || "Could not build a demo squad.");
+    }
+    var data = await res.json();
+    if (data.player_names) { PLAYER_NAMES = data.player_names; }
+    $("demoBanner").style.display = "block";
+    $("teamName").textContent = (data.entry_name ? data.entry_name + " · " : "") + "Gameweek " + data.gameweek;
+    setStatus("Demo ready — running the numbers…");
+    await renderFromApi();
+  } catch (e) {
+    $("demoBanner").style.display = "none";
+    showError(e.message);
+    $("status").style.display = "none";
+  } finally {
+    btn.disabled = false;
+  }
+}
 
-        let ALL_PLAYERS = [];
-        async function loadManualEntry() {
-            document.getElementById("manualEntry").style.display = "block";
-            document.getElementById("error").style.display = "none";
-            const btn = document.getElementById("saveManualBtn");
-            if (ALL_PLAYERS.length === 0) {
-                btn.textContent = "Loading players...";
-                btn.disabled = true;
-                try {
-                    const playersUrl = `${API}/api/v1/players`;
-                    console.log("[manual] About to call:", playersUrl);
-                    const res = await fetch(playersUrl);
-                    console.log("[manual] players status:", res.status);
-                    ALL_PLAYERS = await res.json();
-                    // Hotfix v1.3.4: build the id -> web_name map so saveManual()
-                    // and render() can resolve names and the PLAYER_NAMES[id]
-                    // writes below never hit an undeclared variable.
-                    PLAYER_NAMES = Object.fromEntries(ALL_PLAYERS.map(p => [p.id, p.web_name]));
-                } catch(e) {
-                    console.error("[manual] Failed to load players in loadManualEntry():", e);
-                }
-                btn.textContent = "Save & Analyze";
-                btn.disabled = false;
-            }
-            const form = document.getElementById("manualForm");
-            if(form.innerHTML === "") {
-                const positions = [{code:1, name:"GK", count:2}, {code:2, name:"DEF", count:5}, {code:3, name:"MID", count:5}, {code:4, name:"FWD", count:3}];
-                let html = "";
-                positions.forEach(p => {
-                    const players = ALL_PLAYERS.filter(x => x.position === p.code);
-                    const opts = "<option value=''>-- Select --</option>" + players.map(x => `<option value="${x.id}">${x.web_name}</option>`).join("");
-                    for(let i=1; i<=p.count; i++) {
-                        html += `<div><label style="font-size:0.85rem; color:#94a3b8;">${p.name} ${i}</label><br> <select class="manual-player" data-pos="${p.code}" onchange="updateCaptains()" style="width:100%; padding:0.4rem; background:#0f172a; color:#fff; border:1px solid #334155; border-radius:4px;">${opts}</select></div>`;
-                    }
-                });
-                form.innerHTML = html;
-            }
-        }
-        function updateCaptains() {
-            const selects = Array.from(document.querySelectorAll(".manual-player"));
-            const cap = document.getElementById("manualCap");
-            const vice = document.getElementById("manualVice");
-            const ids = selects.map(s => s.value).filter(x => x);
-            let opts = "<option value=''>-- Select --</option>";
-            ids.forEach(id => {
-                const p = ALL_PLAYERS.find(x => x.id == id);
-                if(p) opts += `<option value="${p.id}">${p.web_name}</option>`;
-            });
-            const oldCap = cap.value;
-            const oldVice = vice.value;
-            cap.innerHTML = opts;
-            vice.innerHTML = opts;
-            cap.value = oldCap;
-            vice.value = oldVice;
-        }
-        async function saveManual() {
-            const selects = Array.from(document.querySelectorAll(".manual-player"));
-            const ids = selects.map(s => parseInt(s.value)).filter(x => !isNaN(x));
-            if(ids.length !== 15) return showError("Please select exactly 15 players.");
-            const uniqueIds = new Set(ids);
-            if(uniqueIds.size !== 15) return showError("You have selected duplicate players. Please ensure all 15 players are unique.");
-            const cap = parseInt(document.getElementById("manualCap").value);
-            const vice = parseInt(document.getElementById("manualVice").value);
-            if(!cap || !vice) return showError("Please select a captain and vice-captain.");
-            if(cap === vice) return showError("Captain and vice-captain must be different.");
-            const squad = {
-                player_ids: ids,
-                captain_id: cap,
-                vice_captain_id: vice,
-                bank: 0,
-                free_transfers: 1,
-                chips_available: [],
-                gameweek: 1,
-                player_positions: {},
-                player_prices: {},
-                player_teams: {}
-            };
-            ids.forEach(id => {
-                const p = ALL_PLAYERS.find(x => x.id === id);
-                if(p) {
-                    squad.player_positions[id] = p.position || 1;
-                    squad.player_prices[id] = p.price || 5.0;
-                    squad.player_teams[id] = p.team || 1;
-                    PLAYER_NAMES[id] = p.web_name;
-                }
-            });
-            const statusEl = document.getElementById("status");
-            const btn = document.getElementById("saveManualBtn");
-            btn.disabled = true;
-            statusEl.style.display = "block";
-            statusEl.textContent = "Saving manual squad...";
-            document.getElementById("error").style.display = "none";
-            try {
-                const squadUrl = `${API}/api/v1/squad`;
-                console.log("[manual] About to call:", squadUrl);
-                console.log("[manual] Request body:", JSON.stringify(squad));
-                const res = await fetch(squadUrl, {
-                    method: "POST",
-                    headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify(squad)
-                });
-                console.log("[manual] squad save status:", res.status);
-                if(!res.ok) throw new Error("Failed to save squad (" + res.status + ")");
+/* ---------- Manual squad entry ---------- */
+function manualPicks() {
+  return Array.prototype.map.call(document.querySelectorAll(".manual-pick"), function (sel) {
+    return sel.value ? parseInt(sel.value, 10) : 0;
+  });
+}
 
-                document.getElementById("teamName").textContent = "Manual Squad";
-                statusEl.textContent = "Running the math...";
-                const decUrl = `${API}/api/v1/decisions`;
-                console.log("[manual] About to call:", decUrl);
-                const dec = await fetch(decUrl);
-                console.log("[manual] decisions status:", dec.status);
-                if (!dec.ok) throw new Error("Failed to generate decisions (" + dec.status + ")");
+function refreshManualCaptains() {
+  var ids = manualPicks().filter(function (id) { return id; });
+  var opts = ids.map(function (id) {
+    var p = ALL_PLAYERS.find(function (x) { return x.id === id; });
+    return '<option value="' + id + '">' + esc(p ? p.web_name : id) + "</option>";
+  }).join("");
+  ["manualCap", "manualVice"].forEach(function (fid) {
+    var sel = $(fid);
+    var cur = sel.value;
+    sel.innerHTML = '<option value="">— pick —</option>' + opts;
+    if (cur && ids.indexOf(parseInt(cur, 10)) !== -1) { sel.value = cur; }
+  });
+}
 
-                console.log("[manual] rendering decisions report");
-                render(await dec.json());
-                document.getElementById("manualEntry").style.display = "none";
-                document.getElementById("results").style.display = "block";
-                statusEl.style.display = "none";
-            } catch(e) {
-                console.error("[manual] Error in saveManual():", e);
-                showError(e.message);
-                statusEl.style.display = "none";
-            }
-            btn.disabled = false;
-        }
+function buildManualForm() {
+  var groups = [[1, "Goalkeeper", 2], [2, "Defender", 5], [3, "Midfielder", 5], [4, "Forward", 3]];
+  var html = "";
+  groups.forEach(function (g) {
+    var pool = ALL_PLAYERS.filter(function (p) { return p.position === g[0]; });
+    for (var i = 0; i < g[2]; i++) {
+      html += '<div><label class="text-xs text-slate-400 block mb-1 font-semibold">' + g[1] + " " + (i + 1) + '</label>'
+        + '<select class="input-dark manual-pick" data-pos="' + g[0] + '"><option value="">— pick —</option>'
+        + pool.map(function (p) {
+          return '<option value="' + p.id + '">' + esc(p.web_name) + " (" + fmtPrice(p.price) + ")</option>";
+        }).join("") + "</select></div>";
+    }
+  });
+  $("manualForm").innerHTML = html;
+  Array.prototype.forEach.call(document.querySelectorAll(".manual-pick"), function (sel) {
+    sel.addEventListener("change", refreshManualCaptains);
+  });
+  refreshManualCaptains();
+}
 
-        document.getElementById("analyzeBtn").addEventListener("click", analyze);
-        document.getElementById("teamId").addEventListener("keydown", (e) => {
-            if (e.key === "Enter" || e.key === "NumpadEnter" || e.keyCode === 13) analyze();
-        });
-        document.getElementById("demoBtn").addEventListener("click", demoTeam);
-    </script>
+async function toggleManual() {
+  var section = $("manualEntry");
+  var show = section.style.display === "none";
+  hideMessages();
+  if (!show) { section.style.display = "none"; return; }
+  try {
+    setStatus("Loading the player list…");
+    await loadPlayers();
+    buildManualForm();
+    section.style.display = "block";
+    $("status").style.display = "none";
+  } catch (e) {
+    showError(e.message);
+    $("status").style.display = "none";
+  }
+}
+
+async function saveManual() {
+  var ids = manualPicks();
+  if (ids.some(function (id) { return !id; })) { showError("Please pick all 15 players (2 GK, 5 DEF, 5 MID, 3 FWD)."); return; }
+  if (new Set(ids).size !== 15) { showError("Duplicate players selected — each of the 15 picks must be unique."); return; }
+  var cap = parseInt($("manualCap").value, 10);
+  var vice = parseInt($("manualVice").value, 10);
+  if (!cap || !vice) { showError("Please select a captain and a vice-captain."); return; }
+  if (cap === vice) { showError("Captain and vice-captain must be different players."); return; }
+  var squad = {
+    player_ids: ids,
+    captain_id: cap,
+    vice_captain_id: vice,
+    bank: 0,
+    free_transfers: 1,
+    chips_available: [],
+    gameweek: 1,
+    player_positions: {},
+    player_prices: {},
+    player_teams: {}
+  };
+  ids.forEach(function (id) {
+    var p = ALL_PLAYERS.find(function (x) { return x.id === id; });
+    if (p) {
+      squad.player_positions[id] = p.position || 1;
+      squad.player_prices[id] = p.price || 5.0;
+      squad.player_teams[id] = p.team || 1;
+      PLAYER_NAMES[id] = p.web_name;
+    }
+  });
+  var btn = $("saveManualBtn");
+  hideMessages();
+  $("results").style.display = "none";
+  btn.disabled = true;
+  setStatus("Saving your squad…");
+  try {
+    var res = await fetch(API + "/api/v1/squad", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(squad)
+    });
+    if (!res.ok) {
+      var body = await res.json().catch(function () { return {}; });
+      throw new Error(body.detail || ("Failed to save squad (" + res.status + ")."));
+    }
+    $("teamName").textContent = "Manual Squad · Gameweek 1";
+    setStatus("Saved — running the numbers…");
+    await renderFromApi();
+    $("manualEntry").style.display = "none";
+  } catch (e) {
+    showError(e.message);
+    $("status").style.display = "none";
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* ---------- Boot ---------- */
+checkHealth();
+document.getElementById("analyzeBtn").addEventListener("click", analyze);
+document.getElementById("teamId").addEventListener("keydown", function (e) {
+  if (e.key === "Enter" || e.key === "NumpadEnter" || e.keyCode === 13) { e.preventDefault(); analyze(); }
+});
+document.getElementById("demoBtn").addEventListener("click", demoTeam);
+document.getElementById("toggleManualBtn").addEventListener("click", toggleManual);
+document.getElementById("saveManualBtn").addEventListener("click", saveManual);
+document.getElementById("retrySyncBtn").addEventListener("click", retrySync);
+</script>
 </body>
 </html>

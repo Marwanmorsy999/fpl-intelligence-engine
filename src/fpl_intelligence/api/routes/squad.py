@@ -22,6 +22,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from fpl_intelligence.api import deps
 from fpl_intelligence.config import get_settings
@@ -29,7 +31,7 @@ from fpl_intelligence.data_providers.decision_bridge import (
     FactCollectionService,
     FactOverrideProvider,
 )
-from fpl_intelligence.db.models import Player
+from fpl_intelligence.db.models import Player, PlayerExternalId
 from fpl_intelligence.optimization.provider import DecisionPredictionProvider
 from fpl_intelligence.squad.bridge import DecisionOptimizerBridge
 from fpl_intelligence.squad.demo import build_demo_squad
@@ -43,6 +45,7 @@ from fpl_intelligence.squad.fpl_import import (
 from fpl_intelligence.squad.models import (
     DecisionReport,
     FromFplResponse,
+    PlayerDetail,
     SquadStateCreate,
     SquadStateResponse,
 )
@@ -93,6 +96,93 @@ async def get_squad(db: GetDB) -> SquadStateResponse | None:
     return SquadService(session=db).get_squad()
 
 
+def _build_player_details(
+    db: Session,
+    report: DecisionReport,
+    squad: SquadStateResponse,
+    provider: DecisionPredictionProvider,
+) -> dict[str, PlayerDetail]:
+    """Enrich the decision report with per-player details for the dashboard.
+
+    Looks up ``web_name``, ``team``, ``position``, ``price``, ``code``, and
+    expected points (xPTS) for every player referenced in the report so the
+    frontend can render photos, badges, and prices without a separate API
+    round-trip.
+    """
+    # --- collect every player id referenced in the report --------------------
+    player_ids: set[int] = set()
+    player_ids.update(report.starting_xi)
+    player_ids.update(report.bench_order)
+    if report.captain is not None:
+        player_ids.add(report.captain.player_id)
+    if report.vice_captain is not None:
+        player_ids.add(report.vice_captain)
+    if report.transfer_plan is not None:
+        player_ids.update(report.transfer_plan.transfers_in)
+        player_ids.update(report.transfer_plan.transfers_out)
+
+    # --- batch-fetch xPTS predictions from the provider ----------------------
+    try:
+        predictions = provider.get_squad_predictions(
+            list(player_ids), [report.gameweek]
+        )
+    except Exception:  # noqa: BLE001 - xPTS is best-effort, never break the request
+        predictions = {}
+    gw_preds = predictions.get(report.gameweek, {})
+
+    details: dict[str, PlayerDetail] = {}
+    for pid in sorted(player_ids):
+        # Try DB lookup by internal id (demo squads use internal DB ids).
+        player = db.get(Player, pid)
+
+        # If not found, try resolving an FPL element id via PlayerExternalId
+        # (real imports store FPL element ids as player_ids).
+        if player is None:
+            for provider_key in ("official_fpl", "fpl"):
+                ext = db.scalar(
+                    select(PlayerExternalId).where(
+                        PlayerExternalId.provider == provider_key,
+                        PlayerExternalId.provider_player_id == str(pid),
+                    )
+                )
+                if ext is not None:
+                    player = db.get(Player, ext.player_id)
+                    break
+
+        # --- assemble PlayerDetail ------------------------------------------
+        if player is not None:
+            web_name = player.web_name
+            position = player.position_code
+            code = player.fpl_code
+        else:
+            web_name = f"Player {pid}"
+            position = None
+            # Plausible fallback for the PL photo URL; onerror handles 404s.
+            code = pid
+
+        # Squad metadata (from FPL bootstrap) is the authoritative source for
+        # team/price/position when available — it is current and complete.
+        team = squad.player_teams.get(pid) if squad.player_teams else None
+        price = squad.player_prices.get(pid) if squad.player_prices else None
+        if position is None and squad.player_positions:
+            position = squad.player_positions.get(pid)
+
+        pred = gw_preds.get(pid)
+        expected_points = round(pred.expected_points, 2) if pred is not None else None
+
+        details[str(pid)] = PlayerDetail(
+            id=pid,
+            web_name=web_name,
+            team=team,
+            position=position,
+            price=price,
+            code=code,
+            expected_points=expected_points,
+        )
+
+    return details
+
+
 @router.get("/decisions", response_model=DecisionReport)
 async def get_decisions(
     db: GetDB,
@@ -109,6 +199,11 @@ async def get_decisions(
     baseline predictions accordingly. If live facts cannot be obtained the
     request degrades gracefully to the baseline quantitative predictions and
     still succeeds — it never fails because of an upstream API problem.
+
+    The response includes a ``players`` map with enriched details (web_name,
+    team, position, price, code, expected_points) for every player in the
+    report, so the dashboard can render photos, badges, and prices without
+    additional lookups.
     """
     squad = SquadService(session=db).get_squad()
     if squad is None:
@@ -139,6 +234,17 @@ async def get_decisions(
     report.meta["live_fact_sources"] = sorted(
         {o.source.value for o in applied_overrides}
     )
+    # --- squad summary for the dashboard's summary bar -----------------------
+    prices = squad.player_prices or {}
+    total_value = round(sum(prices.values()) + float(squad.bank), 1)
+    report.meta["squad_summary"] = {
+        "team_value": total_value,
+        "bank": round(float(squad.bank), 1),
+        "free_transfers": squad.free_transfers,
+        "chips_available": list(squad.chips_available or []),
+    }
+    # Enrich with per-player details (names, teams, prices, codes, xPTS).
+    report.players = _build_player_details(db, report, squad, effective_provider)
     return report
 
 

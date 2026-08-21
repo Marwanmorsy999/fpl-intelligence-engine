@@ -33,6 +33,9 @@ class PlayerSummary(BaseModel):
     team: int | None = None
     position: int | None = None
     price: float | None = None
+    #: FPL element code used for Premier-League-CDN photo URLs. May be ``null``
+    #: when the player was seeded without a code (falls back to initials avatar).
+    code: int | None = None
 
 
 def _latest_team_id(db: Session, player_id: int) -> int | None:
@@ -81,6 +84,7 @@ async def list_players(
             team=_latest_team_id(db, p.id),
             position=p.position_code,
             price=_latest_price(db, p.id),
+            code=p.fpl_code,
         )
         for p in players
     ]

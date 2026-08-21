@@ -42,7 +42,8 @@ def test_list_players_returns_ingested_rows(client: TestClient) -> None:
     body = resp.json()
     assert len(body) == 4
     first = body[0]
-    assert set(first.keys()) == {"id", "web_name", "team", "position", "price"}
+    # Phase 14.0: payload extended with ``code`` (PL-CDN photo key).
+    assert set(first.keys()) == {"id", "web_name", "team", "position", "price", "code"}
     assert isinstance(first["id"], int)
     assert isinstance(first["web_name"], str)
     # Haaland (player 4) is a FWD (position 4) on team 4 with price 6.5.

@@ -44,3 +44,7 @@ test_results.xml
 /volumes/
 
 .vercel
+
+.codegraph/
+.kilo/
+.playwright-mcp/

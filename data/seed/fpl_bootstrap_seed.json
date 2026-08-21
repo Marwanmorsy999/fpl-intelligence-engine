@@ -164,9 +164,10 @@
       "id": 1,
       "now_cost": 60,
       "position": 1,
-      "second_name": "Raya Mart\u00edn",
+      "second_name": "Raya Martín",
       "team": 1,
-      "web_name": "Raya"
+      "web_name": "Raya",
+      "code": 1
     },
     {
       "first_name": "Kepa",
@@ -175,7 +176,8 @@
       "position": 1,
       "second_name": "Arrizabalaga Revuelta",
       "team": 1,
-      "web_name": "Arrizabalaga"
+      "web_name": "Arrizabalaga",
+      "code": 2
     },
     {
       "first_name": "Illan",
@@ -184,25 +186,28 @@
       "position": 1,
       "second_name": "Meslier",
       "team": 1,
-      "web_name": "Meslier"
+      "web_name": "Meslier",
+      "code": 3
     },
     {
       "first_name": "Gabriel",
       "id": 4,
       "now_cost": 80,
       "position": 2,
-      "second_name": "dos Santos Magalh\u00e3es",
+      "second_name": "dos Santos Magalhães",
       "team": 1,
-      "web_name": "Gabriel"
+      "web_name": "Gabriel",
+      "code": 4
     },
     {
-      "first_name": "Jurri\u00ebn",
+      "first_name": "Jurriën",
       "id": 5,
       "now_cost": 65,
       "position": 2,
       "second_name": "Timber",
       "team": 1,
-      "web_name": "J.Timber"
+      "web_name": "J.Timber",
+      "code": 5
     },
     {
       "first_name": "William",
@@ -211,7 +216,8 @@
       "position": 2,
       "second_name": "Saliba",
       "team": 1,
-      "web_name": "Saliba"
+      "web_name": "Saliba",
+      "code": 6
     },
     {
       "first_name": "Myles",
@@ -220,7 +226,8 @@
       "position": 3,
       "second_name": "Lewis-Skelly",
       "team": 1,
-      "web_name": "Lewis-Skelly"
+      "web_name": "Lewis-Skelly",
+      "code": 7
     },
     {
       "first_name": "Riccardo",
@@ -229,16 +236,18 @@
       "position": 2,
       "second_name": "Calafiori",
       "team": 1,
-      "web_name": "Calafiori"
+      "web_name": "Calafiori",
+      "code": 8
     },
     {
       "first_name": "Piero",
       "id": 9,
       "now_cost": 55,
       "position": 2,
-      "second_name": "Hincapi\u00e9",
+      "second_name": "Hincapié",
       "team": 1,
-      "web_name": "Hincapie"
+      "web_name": "Hincapie",
+      "code": 9
     },
     {
       "first_name": "Benjamin",
@@ -247,7 +256,8 @@
       "position": 2,
       "second_name": "White",
       "team": 1,
-      "web_name": "White"
+      "web_name": "White",
+      "code": 10
     },
     {
       "first_name": "Cristhian",
@@ -256,7 +266,8 @@
       "position": 2,
       "second_name": "Mosquera",
       "team": 1,
-      "web_name": "Mosquera"
+      "web_name": "Mosquera",
+      "code": 11
     },
     {
       "first_name": "Bukayo",
@@ -265,7 +276,8 @@
       "position": 3,
       "second_name": "Saka",
       "team": 1,
-      "web_name": "Saka"
+      "web_name": "Saka",
+      "code": 12
     },
     {
       "first_name": "Declan",
@@ -274,7 +286,8 @@
       "position": 3,
       "second_name": "Rice",
       "team": 1,
-      "web_name": "Rice"
+      "web_name": "Rice",
+      "code": 13
     },
     {
       "first_name": "Eberechi",
@@ -283,16 +296,18 @@
       "position": 3,
       "second_name": "Eze",
       "team": 1,
-      "web_name": "Eze"
+      "web_name": "Eze",
+      "code": 14
     },
     {
       "first_name": "Martin",
       "id": 15,
       "now_cost": 65,
       "position": 3,
-      "second_name": "\u00d8degaard",
+      "second_name": "Ødegaard",
       "team": 1,
-      "web_name": "\u00d8degaard"
+      "web_name": "Ødegaard",
+      "code": 15
     },
     {
       "first_name": "Noni",
@@ -301,16 +316,18 @@
       "position": 3,
       "second_name": "Madueke",
       "team": 1,
-      "web_name": "Madueke"
+      "web_name": "Madueke",
+      "code": 16
     },
     {
       "first_name": "Mikel",
       "id": 17,
       "now_cost": 60,
       "position": 3,
-      "second_name": "Merino Zaz\u00f3n",
+      "second_name": "Merino Zazón",
       "team": 1,
-      "web_name": "Merino"
+      "web_name": "Merino",
+      "code": 17
     },
     {
       "first_name": "Gabriel",
@@ -319,16 +336,18 @@
       "position": 3,
       "second_name": "Martinelli Silva",
       "team": 1,
-      "web_name": "Martinelli"
+      "web_name": "Martinelli",
+      "code": 18
     },
     {
-      "first_name": "Mart\u00edn",
+      "first_name": "Martín",
       "id": 19,
       "now_cost": 55,
       "position": 3,
-      "second_name": "Zubimendi Ib\u00e1\u00f1ez",
+      "second_name": "Zubimendi Ibáñez",
       "team": 1,
-      "web_name": "Zubimendi"
+      "web_name": "Zubimendi",
+      "code": 19
     },
     {
       "first_name": "Max",
@@ -337,16 +356,18 @@
       "position": 3,
       "second_name": "Dowman",
       "team": 1,
-      "web_name": "Dowman"
+      "web_name": "Dowman",
+      "code": 20
     },
     {
       "first_name": "Christian",
       "id": 21,
       "now_cost": 50,
       "position": 3,
-      "second_name": "N\u00f8rgaard",
+      "second_name": "Nørgaard",
       "team": 9,
-      "web_name": "N\u00f8rgaard"
+      "web_name": "Nørgaard",
+      "code": 21
     },
     {
       "first_name": "Ethan",
@@ -355,16 +376,18 @@
       "position": 3,
       "second_name": "Nwaneri",
       "team": 1,
-      "web_name": "Nwaneri"
+      "web_name": "Nwaneri",
+      "code": 22
     },
     {
-      "first_name": "F\u00e1bio",
+      "first_name": "Fábio",
       "id": 23,
       "now_cost": 55,
       "position": 3,
       "second_name": "Ferreira Vieira",
       "team": 1,
-      "web_name": "F\u00e1bio Vieira"
+      "web_name": "Fábio Vieira",
+      "code": 23
     },
     {
       "first_name": "Reiss",
@@ -373,16 +396,18 @@
       "position": 3,
       "second_name": "Nelson",
       "team": 1,
-      "web_name": "Nelson"
+      "web_name": "Nelson",
+      "code": 24
     },
     {
       "first_name": "Viktor",
       "id": 25,
       "now_cost": 75,
       "position": 4,
-      "second_name": "Gy\u00f6keres",
+      "second_name": "Gyökeres",
       "team": 1,
-      "web_name": "Gy\u00f6keres"
+      "web_name": "Gyökeres",
+      "code": 25
     },
     {
       "first_name": "Kai",
@@ -391,7 +416,8 @@
       "position": 4,
       "second_name": "Havertz",
       "team": 1,
-      "web_name": "Havertz"
+      "web_name": "Havertz",
+      "code": 26
     },
     {
       "first_name": "Gabriel",
@@ -400,16 +426,18 @@
       "position": 4,
       "second_name": "Fernando de Jesus",
       "team": 1,
-      "web_name": "G.Jesus"
+      "web_name": "G.Jesus",
+      "code": 27
     },
     {
       "first_name": "Emiliano",
       "id": 28,
       "now_cost": 50,
       "position": 1,
-      "second_name": "Mart\u00ednez Romero",
+      "second_name": "Martínez Romero",
       "team": 2,
-      "web_name": "Martinez"
+      "web_name": "Martinez",
+      "code": 28
     },
     {
       "first_name": "Marco",
@@ -418,7 +446,8 @@
       "position": 1,
       "second_name": "Bizot",
       "team": 2,
-      "web_name": "M.Bizot"
+      "web_name": "M.Bizot",
+      "code": 29
     },
     {
       "first_name": "Lucas",
@@ -427,7 +456,8 @@
       "position": 2,
       "second_name": "Digne",
       "team": 2,
-      "web_name": "Digne"
+      "web_name": "Digne",
+      "code": 30
     },
     {
       "first_name": "Ezri",
@@ -436,7 +466,8 @@
       "position": 2,
       "second_name": "Konsa Ngoyo",
       "team": 2,
-      "web_name": "Konsa"
+      "web_name": "Konsa",
+      "code": 31
     },
     {
       "first_name": "Matty",
@@ -445,7 +476,8 @@
       "position": 2,
       "second_name": "Cash",
       "team": 2,
-      "web_name": "Cash"
+      "web_name": "Cash",
+      "code": 32
     },
     {
       "first_name": "Tyrone",
@@ -454,7 +486,8 @@
       "position": 2,
       "second_name": "Mings",
       "team": 2,
-      "web_name": "Mings"
+      "web_name": "Mings",
+      "code": 33
     },
     {
       "first_name": "Pau",
@@ -463,7 +496,8 @@
       "position": 2,
       "second_name": "Torres",
       "team": 2,
-      "web_name": "Pau"
+      "web_name": "Pau",
+      "code": 34
     },
     {
       "first_name": "Lamare",
@@ -472,7 +506,8 @@
       "position": 3,
       "second_name": "Bogarde",
       "team": 2,
-      "web_name": "Bogarde"
+      "web_name": "Bogarde",
+      "code": 35
     },
     {
       "first_name": "Ian",
@@ -481,25 +516,28 @@
       "position": 2,
       "second_name": "Maatsen",
       "team": 2,
-      "web_name": "Maatsen"
+      "web_name": "Maatsen",
+      "code": 36
     },
     {
       "first_name": "Victor",
       "id": 37,
       "now_cost": 45,
       "position": 2,
-      "second_name": "Lindel\u00f6f",
+      "second_name": "Lindelöf",
       "team": 2,
-      "web_name": "Lindel\u00f6f"
+      "web_name": "Lindelöf",
+      "code": 37
     },
     {
-      "first_name": "Andr\u00e9s",
+      "first_name": "Andrés",
       "id": 38,
       "now_cost": 40,
       "position": 2,
-      "second_name": "Garc\u00eda",
+      "second_name": "García",
       "team": 2,
-      "web_name": "A.Garc\u00eda"
+      "web_name": "A.García",
+      "code": 38
     },
     {
       "first_name": "Kosta",
@@ -508,7 +546,8 @@
       "position": 2,
       "second_name": "Nedeljkovic",
       "team": 2,
-      "web_name": "Nedeljkovic"
+      "web_name": "Nedeljkovic",
+      "code": 39
     },
     {
       "first_name": "Morgan",
@@ -517,16 +556,18 @@
       "position": 3,
       "second_name": "Rogers",
       "team": 6,
-      "web_name": "Rogers"
+      "web_name": "Rogers",
+      "code": 40
     },
     {
       "first_name": "Emiliano",
       "id": 41,
       "now_cost": 60,
       "position": 3,
-      "second_name": "Buend\u00eda Stati",
+      "second_name": "Buendía Stati",
       "team": 2,
-      "web_name": "Buend\u00eda"
+      "web_name": "Buendía",
+      "code": 41
     },
     {
       "first_name": "Evann",
@@ -535,7 +576,8 @@
       "position": 3,
       "second_name": "Guessand",
       "team": 8,
-      "web_name": "Guessand"
+      "web_name": "Guessand",
+      "code": 42
     },
     {
       "first_name": "Youri",
@@ -544,7 +586,8 @@
       "position": 3,
       "second_name": "Tielemans",
       "team": 16,
-      "web_name": "Tielemans"
+      "web_name": "Tielemans",
+      "code": 43
     },
     {
       "first_name": "Leon",
@@ -553,7 +596,8 @@
       "position": 3,
       "second_name": "Bailey",
       "team": 2,
-      "web_name": "Bailey"
+      "web_name": "Bailey",
+      "code": 44
     },
     {
       "first_name": "John",
@@ -562,7 +606,8 @@
       "position": 3,
       "second_name": "McGinn",
       "team": 2,
-      "web_name": "McGinn"
+      "web_name": "McGinn",
+      "code": 45
     },
     {
       "first_name": "Ross",
@@ -571,7 +616,8 @@
       "position": 3,
       "second_name": "Barkley",
       "team": 2,
-      "web_name": "Barkley"
+      "web_name": "Barkley",
+      "code": 46
     },
     {
       "first_name": "Boubacar",
@@ -580,7 +626,8 @@
       "position": 3,
       "second_name": "Kamara",
       "team": 2,
-      "web_name": "Kamara"
+      "web_name": "Kamara",
+      "code": 47
     },
     {
       "first_name": "Amadou",
@@ -589,7 +636,8 @@
       "position": 3,
       "second_name": "Onana",
       "team": 2,
-      "web_name": "Onana"
+      "web_name": "Onana",
+      "code": 48
     },
     {
       "first_name": "Samuel",
@@ -598,7 +646,8 @@
       "position": 3,
       "second_name": "Iling-Junior",
       "team": 2,
-      "web_name": "Iling Jr"
+      "web_name": "Iling Jr",
+      "code": 49
     },
     {
       "first_name": "Bradley",
@@ -607,7 +656,8 @@
       "position": 3,
       "second_name": "Burrowes",
       "team": 2,
-      "web_name": "Burrowes"
+      "web_name": "Burrowes",
+      "code": 50
     },
     {
       "first_name": "George",
@@ -616,7 +666,8 @@
       "position": 3,
       "second_name": "Hemmings",
       "team": 2,
-      "web_name": "George Hemmings"
+      "web_name": "George Hemmings",
+      "code": 51
     },
     {
       "first_name": "Alysson Edward Franco",
@@ -625,7 +676,8 @@
       "position": 3,
       "second_name": "da Rocha dos Santos",
       "team": 2,
-      "web_name": "Alysson"
+      "web_name": "Alysson",
+      "code": 52
     },
     {
       "first_name": "Johan",
@@ -634,7 +686,8 @@
       "position": 3,
       "second_name": "Manzambi",
       "team": 2,
-      "web_name": "Manzambi"
+      "web_name": "Manzambi",
+      "code": 53
     },
     {
       "first_name": "Joao",
@@ -643,7 +696,8 @@
       "position": 3,
       "second_name": "Gomes",
       "team": 2,
-      "web_name": "Gomes"
+      "web_name": "Gomes",
+      "code": 54
     },
     {
       "first_name": "Ollie",
@@ -652,7 +706,8 @@
       "position": 4,
       "second_name": "Watkins",
       "team": 2,
-      "web_name": "Watkins"
+      "web_name": "Watkins",
+      "code": 55
     },
     {
       "first_name": "Tammy",
@@ -661,16 +716,18 @@
       "position": 4,
       "second_name": "Abraham",
       "team": 2,
-      "web_name": "Abraham"
+      "web_name": "Abraham",
+      "code": 56
     },
     {
-      "first_name": "\u0110or\u0111e",
+      "first_name": "Đorđe",
       "id": 57,
       "now_cost": 45,
       "position": 1,
-      "second_name": "Petrovi\u0107",
+      "second_name": "Petrović",
       "team": 3,
-      "web_name": "Petrovi\u0107"
+      "web_name": "Petrović",
+      "code": 57
     },
     {
       "first_name": "Fraser",
@@ -679,7 +736,8 @@
       "position": 1,
       "second_name": "Forster",
       "team": 3,
-      "web_name": "Forster"
+      "web_name": "Forster",
+      "code": 58
     },
     {
       "first_name": "Will",
@@ -688,7 +746,8 @@
       "position": 1,
       "second_name": "Dennis",
       "team": 3,
-      "web_name": "Dennis"
+      "web_name": "Dennis",
+      "code": 59
     },
     {
       "first_name": "James",
@@ -697,7 +756,8 @@
       "position": 2,
       "second_name": "Hill",
       "team": 3,
-      "web_name": "Hill"
+      "web_name": "Hill",
+      "code": 60
     },
     {
       "first_name": "Adrien",
@@ -706,16 +766,18 @@
       "position": 2,
       "second_name": "Truffert",
       "team": 3,
-      "web_name": "Truffert"
+      "web_name": "Truffert",
+      "code": 61
     },
     {
-      "first_name": "Bafod\u00e9",
+      "first_name": "Bafodé",
       "id": 62,
       "now_cost": 50,
       "position": 2,
-      "second_name": "Diakit\u00e9",
+      "second_name": "Diakité",
       "team": 3,
-      "web_name": "Diakit\u00e9"
+      "web_name": "Diakité",
+      "code": 62
     },
     {
       "first_name": "Veljko",
@@ -724,7 +786,8 @@
       "position": 2,
       "second_name": "Milosavljevic",
       "team": 3,
-      "web_name": "Milosavljevi\u0107"
+      "web_name": "Milosavljević",
+      "code": 63
     },
     {
       "first_name": "Adam",
@@ -733,16 +796,18 @@
       "position": 2,
       "second_name": "Smith",
       "team": 3,
-      "web_name": "Smith"
+      "web_name": "Smith",
+      "code": 64
     },
     {
-      "first_name": "Juli\u00e1n",
+      "first_name": "Julián",
       "id": 65,
       "now_cost": 45,
       "position": 2,
-      "second_name": "Araujo Z\u00fa\u00f1iga",
+      "second_name": "Araujo Zúñiga",
       "team": 3,
-      "web_name": "J.Araujo"
+      "web_name": "J.Araujo",
+      "code": 65
     },
     {
       "first_name": "Julio",
@@ -751,16 +816,18 @@
       "position": 2,
       "second_name": "Soler Barreto",
       "team": 3,
-      "web_name": "Soler"
+      "web_name": "Soler",
+      "code": 66
     },
     {
       "first_name": "Rayan Vitor",
       "id": 67,
       "now_cost": 65,
       "position": 3,
-      "second_name": "Simpl\u00edcio Rocha",
+      "second_name": "Simplício Rocha",
       "team": 3,
-      "web_name": "Rayan"
+      "web_name": "Rayan",
+      "code": 67
     },
     {
       "first_name": "Marcus",
@@ -769,7 +836,8 @@
       "position": 3,
       "second_name": "Tavernier",
       "team": 3,
-      "web_name": "Tavernier"
+      "web_name": "Tavernier",
+      "code": 68
     },
     {
       "first_name": "Alex",
@@ -778,7 +846,8 @@
       "position": 3,
       "second_name": "Scott",
       "team": 3,
-      "web_name": "Scott"
+      "web_name": "Scott",
+      "code": 69
     },
     {
       "first_name": "Justin",
@@ -787,7 +856,8 @@
       "position": 3,
       "second_name": "Kluivert",
       "team": 3,
-      "web_name": "Kluivert"
+      "web_name": "Kluivert",
+      "code": 70
     },
     {
       "first_name": "Lewis",
@@ -796,7 +866,8 @@
       "position": 3,
       "second_name": "Cook",
       "team": 3,
-      "web_name": "Cook"
+      "web_name": "Cook",
+      "code": 71
     },
     {
       "first_name": "Ben",
@@ -805,7 +876,8 @@
       "position": 3,
       "second_name": "Gannon-Doak",
       "team": 3,
-      "web_name": "Gannon-Doak"
+      "web_name": "Gannon-Doak",
+      "code": 72
     },
     {
       "first_name": "Tyler",
@@ -814,7 +886,8 @@
       "position": 3,
       "second_name": "Adams",
       "team": 3,
-      "web_name": "Adams"
+      "web_name": "Adams",
+      "code": 73
     },
     {
       "first_name": "David",
@@ -823,7 +896,8 @@
       "position": 3,
       "second_name": "Brooks",
       "team": 3,
-      "web_name": "Brooks"
+      "web_name": "Brooks",
+      "code": 74
     },
     {
       "first_name": "Ryan",
@@ -832,16 +906,18 @@
       "position": 3,
       "second_name": "Christie",
       "team": 3,
-      "web_name": "Christie"
+      "web_name": "Christie",
+      "code": 75
     },
     {
       "first_name": "Alex",
       "id": 76,
       "now_cost": 50,
       "position": 3,
-      "second_name": "T\u00f3th",
+      "second_name": "Tóth",
       "team": 3,
-      "web_name": "T\u00f3th.A"
+      "web_name": "Tóth.A",
+      "code": 76
     },
     {
       "first_name": "Amine",
@@ -850,7 +926,8 @@
       "position": 3,
       "second_name": "Adli",
       "team": 3,
-      "web_name": "Adli"
+      "web_name": "Adli",
+      "code": 77
     },
     {
       "first_name": "Junior",
@@ -859,7 +936,8 @@
       "position": 3,
       "second_name": "Kroupi",
       "team": 3,
-      "web_name": "Kroupi.Jr"
+      "web_name": "Kroupi.Jr",
+      "code": 78
     },
     {
       "first_name": "Francisco Evanilson",
@@ -868,43 +946,48 @@
       "position": 4,
       "second_name": "de Lima Barbosa",
       "team": 3,
-      "web_name": "Evanilson"
+      "web_name": "Evanilson",
+      "code": 79
     },
     {
       "first_name": "Enes",
       "id": 80,
       "now_cost": 55,
       "position": 4,
-      "second_name": "\u00dcnal",
+      "second_name": "Ünal",
       "team": 3,
-      "web_name": "Enes \u00dcnal"
+      "web_name": "Enes Ünal",
+      "code": 80
     },
     {
-      "first_name": "\u00c1lvaro",
+      "first_name": "Álvaro",
       "id": 81,
       "now_cost": 60,
       "position": 4,
-      "second_name": "Rodr\u00edguez",
+      "second_name": "Rodríguez",
       "team": 3,
-      "web_name": "Rodr\u00edguez"
+      "web_name": "Rodríguez",
+      "code": 81
     },
     {
-      "first_name": "Caoimh\u00edn",
+      "first_name": "Caoimhín",
       "id": 82,
       "now_cost": 50,
       "position": 1,
       "second_name": "Kelleher",
       "team": 4,
-      "web_name": "Kelleher"
+      "web_name": "Kelleher",
+      "code": 82
     },
     {
-      "first_name": "H\u00e1kon Rafn",
+      "first_name": "Hákon Rafn",
       "id": 83,
       "now_cost": 45,
       "position": 1,
       "second_name": "Valdimarsson",
       "team": 4,
-      "web_name": "Valdimarsson"
+      "web_name": "Valdimarsson",
+      "code": 83
     },
     {
       "first_name": "Nathan",
@@ -913,7 +996,8 @@
       "position": 2,
       "second_name": "Collins",
       "team": 4,
-      "web_name": "Collins"
+      "web_name": "Collins",
+      "code": 84
     },
     {
       "first_name": "Sepp",
@@ -922,7 +1006,8 @@
       "position": 2,
       "second_name": "van den Berg",
       "team": 4,
-      "web_name": "Van den Berg"
+      "web_name": "Van den Berg",
+      "code": 85
     },
     {
       "first_name": "Keane",
@@ -931,7 +1016,8 @@
       "position": 3,
       "second_name": "Lewis-Potter",
       "team": 4,
-      "web_name": "Lewis-Potter"
+      "web_name": "Lewis-Potter",
+      "code": 86
     },
     {
       "first_name": "Kristoffer",
@@ -940,7 +1026,8 @@
       "position": 2,
       "second_name": "Ajer",
       "team": 4,
-      "web_name": "Ajer"
+      "web_name": "Ajer",
+      "code": 87
     },
     {
       "first_name": "Michael",
@@ -949,7 +1036,8 @@
       "position": 2,
       "second_name": "Kayode",
       "team": 4,
-      "web_name": "Kayode"
+      "web_name": "Kayode",
+      "code": 88
     },
     {
       "first_name": "Rico",
@@ -958,7 +1046,8 @@
       "position": 2,
       "second_name": "Henry",
       "team": 4,
-      "web_name": "Henry"
+      "web_name": "Henry",
+      "code": 89
     },
     {
       "first_name": "Aaron",
@@ -967,7 +1056,8 @@
       "position": 2,
       "second_name": "Hickey",
       "team": 4,
-      "web_name": "Hickey"
+      "web_name": "Hickey",
+      "code": 90
     },
     {
       "first_name": "Ethan",
@@ -976,7 +1066,8 @@
       "position": 2,
       "second_name": "Pinnock",
       "team": 4,
-      "web_name": "Pinnock"
+      "web_name": "Pinnock",
+      "code": 91
     },
     {
       "first_name": "Kim",
@@ -985,7 +1076,8 @@
       "position": 2,
       "second_name": "Ji-soo",
       "team": 4,
-      "web_name": "Ji-soo"
+      "web_name": "Ji-soo",
+      "code": 92
     },
     {
       "first_name": "Jannik",
@@ -994,7 +1086,8 @@
       "position": 2,
       "second_name": "Schuster",
       "team": 4,
-      "web_name": "Schuster"
+      "web_name": "Schuster",
+      "code": 93
     },
     {
       "first_name": "Kevin",
@@ -1003,7 +1096,8 @@
       "position": 3,
       "second_name": "Schade",
       "team": 4,
-      "web_name": "Schade"
+      "web_name": "Schade",
+      "code": 94
     },
     {
       "first_name": "Dango",
@@ -1012,7 +1106,8 @@
       "position": 3,
       "second_name": "Ouattara",
       "team": 4,
-      "web_name": "O.Dango"
+      "web_name": "O.Dango",
+      "code": 95
     },
     {
       "first_name": "Mikkel",
@@ -1021,7 +1116,8 @@
       "position": 3,
       "second_name": "Damsgaard",
       "team": 4,
-      "web_name": "Damsgaard"
+      "web_name": "Damsgaard",
+      "code": 96
     },
     {
       "first_name": "Mathias",
@@ -1030,7 +1126,8 @@
       "position": 3,
       "second_name": "Jensen",
       "team": 4,
-      "web_name": "Jensen"
+      "web_name": "Jensen",
+      "code": 97
     },
     {
       "first_name": "Vitaly",
@@ -1039,7 +1136,8 @@
       "position": 3,
       "second_name": "Janelt",
       "team": 4,
-      "web_name": "Janelt"
+      "web_name": "Janelt",
+      "code": 98
     },
     {
       "first_name": "Antoni",
@@ -1048,16 +1146,18 @@
       "position": 3,
       "second_name": "Milambo",
       "team": 4,
-      "web_name": "Milambo"
+      "web_name": "Milambo",
+      "code": 99
     },
     {
-      "first_name": "F\u00e1bio",
+      "first_name": "Fábio",
       "id": 100,
       "now_cost": 50,
       "position": 3,
       "second_name": "Freitas Gouveia Carvalho",
       "team": 4,
-      "web_name": "Carvalho"
+      "web_name": "Carvalho",
+      "code": 100
     },
     {
       "first_name": "Jordan",
@@ -1066,7 +1166,8 @@
       "position": 3,
       "second_name": "Henderson",
       "team": 6,
-      "web_name": "Henderson"
+      "web_name": "Henderson",
+      "code": 101
     },
     {
       "first_name": "Yehor",
@@ -1075,7 +1176,8 @@
       "position": 3,
       "second_name": "Yarmoliuk",
       "team": 4,
-      "web_name": "Yarmoliuk"
+      "web_name": "Yarmoliuk",
+      "code": 102
     },
     {
       "first_name": "Josh",
@@ -1084,7 +1186,8 @@
       "position": 3,
       "second_name": "Dasilva",
       "team": 4,
-      "web_name": "Dasilva"
+      "web_name": "Dasilva",
+      "code": 103
     },
     {
       "first_name": "Frank",
@@ -1093,7 +1196,8 @@
       "position": 3,
       "second_name": "Onyeka",
       "team": 7,
-      "web_name": "Onyeka"
+      "web_name": "Onyeka",
+      "code": 104
     },
     {
       "first_name": "Jaidon",
@@ -1102,7 +1206,8 @@
       "position": 3,
       "second_name": "Anthony",
       "team": 4,
-      "web_name": "Anthony"
+      "web_name": "Anthony",
+      "code": 105
     },
     {
       "first_name": "Igor Thiago",
@@ -1111,7 +1216,8 @@
       "position": 4,
       "second_name": "Nascimento Rodrigues",
       "team": 4,
-      "web_name": "Thiago"
+      "web_name": "Thiago",
+      "code": 106
     },
     {
       "first_name": "Kaye",
@@ -1120,7 +1226,8 @@
       "position": 4,
       "second_name": "Furo",
       "team": 4,
-      "web_name": "Furo"
+      "web_name": "Furo",
+      "code": 107
     },
     {
       "first_name": "Callum",
@@ -1129,7 +1236,8 @@
       "position": 4,
       "second_name": "Wilson",
       "team": 4,
-      "web_name": "Wilson"
+      "web_name": "Wilson",
+      "code": 108
     },
     {
       "first_name": "Bart",
@@ -1138,7 +1246,8 @@
       "position": 1,
       "second_name": "Verbruggen",
       "team": 5,
-      "web_name": "Verbruggen"
+      "web_name": "Verbruggen",
+      "code": 109
     },
     {
       "first_name": "Carl",
@@ -1147,7 +1256,8 @@
       "position": 1,
       "second_name": "Rushworth",
       "team": 7,
-      "web_name": "Rushworth"
+      "web_name": "Rushworth",
+      "code": 110
     },
     {
       "first_name": "Jason",
@@ -1156,7 +1266,8 @@
       "position": 1,
       "second_name": "Steele",
       "team": 5,
-      "web_name": "Steele"
+      "web_name": "Steele",
+      "code": 111
     },
     {
       "first_name": "Jan Paul",
@@ -1165,16 +1276,18 @@
       "position": 2,
       "second_name": "van Hecke",
       "team": 19,
-      "web_name": "Van Hecke"
+      "web_name": "Van Hecke",
+      "code": 112
     },
     {
       "first_name": "Ferdi",
       "id": 113,
       "now_cost": 45,
       "position": 2,
-      "second_name": "Kad\u0131o\u011flu",
+      "second_name": "Kadıoğlu",
       "team": 5,
-      "web_name": "F.Kad\u0131o\u011flu"
+      "web_name": "F.Kadıoğlu",
+      "code": 113
     },
     {
       "first_name": "Olivier",
@@ -1183,7 +1296,8 @@
       "position": 2,
       "second_name": "Boscagli",
       "team": 5,
-      "web_name": "Boscagli"
+      "web_name": "Boscagli",
+      "code": 114
     },
     {
       "first_name": "Maxim",
@@ -1192,7 +1306,8 @@
       "position": 2,
       "second_name": "De Cuyper",
       "team": 5,
-      "web_name": "De Cuyper"
+      "web_name": "De Cuyper",
+      "code": 115
     },
     {
       "first_name": "Lewis",
@@ -1201,7 +1316,8 @@
       "position": 2,
       "second_name": "Dunk",
       "team": 5,
-      "web_name": "Dunk"
+      "web_name": "Dunk",
+      "code": 116
     },
     {
       "first_name": "Diego",
@@ -1210,7 +1326,8 @@
       "position": 2,
       "second_name": "Coppola",
       "team": 5,
-      "web_name": "Coppola"
+      "web_name": "Coppola",
+      "code": 117
     },
     {
       "first_name": "Igor Julio",
@@ -1219,16 +1336,18 @@
       "position": 2,
       "second_name": "dos Santos de Paulo",
       "team": 5,
-      "web_name": "Igor"
+      "web_name": "Igor",
+      "code": 118
     },
     {
-      "first_name": "Jo\u00e3o Pedro",
+      "first_name": "João Pedro",
       "id": 119,
       "now_cost": 45,
       "position": 2,
       "second_name": "Loureiro da Costa",
       "team": 5,
-      "web_name": "Costinha"
+      "web_name": "Costinha",
+      "code": 119
     },
     {
       "first_name": "Michael",
@@ -1237,7 +1356,8 @@
       "position": 2,
       "second_name": "Svoboda",
       "team": 5,
-      "web_name": "Svoboda"
+      "web_name": "Svoboda",
+      "code": 120
     },
     {
       "first_name": "Mitoma",
@@ -1246,7 +1366,8 @@
       "position": 3,
       "second_name": "Kaoru",
       "team": 5,
-      "web_name": "Mitoma"
+      "web_name": "Mitoma",
+      "code": 121
     },
     {
       "first_name": "Yankuba",
@@ -1255,7 +1376,8 @@
       "position": 3,
       "second_name": "Minteh",
       "team": 5,
-      "web_name": "Minteh"
+      "web_name": "Minteh",
+      "code": 122
     },
     {
       "first_name": "Jack",
@@ -1264,16 +1386,18 @@
       "position": 3,
       "second_name": "Hinshelwood",
       "team": 5,
-      "web_name": "Hinshelwood"
+      "web_name": "Hinshelwood",
+      "code": 123
     },
     {
       "first_name": "Pascal",
       "id": 124,
       "now_cost": 55,
       "position": 3,
-      "second_name": "Gro\u00df",
+      "second_name": "Groß",
       "team": 5,
-      "web_name": "Gro\u00df"
+      "web_name": "Groß",
+      "code": 124
     },
     {
       "first_name": "Georginio",
@@ -1282,7 +1406,8 @@
       "position": 4,
       "second_name": "Rutter",
       "team": 5,
-      "web_name": "Georginio"
+      "web_name": "Georginio",
+      "code": 125
     },
     {
       "first_name": "Matt",
@@ -1291,16 +1416,18 @@
       "position": 3,
       "second_name": "O'Riley",
       "team": 5,
-      "web_name": "O'Riley"
+      "web_name": "O'Riley",
+      "code": 126
     },
     {
       "first_name": "Diego",
       "id": 127,
       "now_cost": 50,
       "position": 3,
-      "second_name": "G\u00f3mez Amarilla",
+      "second_name": "Gómez Amarilla",
       "team": 5,
-      "web_name": "Gomez"
+      "web_name": "Gomez",
+      "code": 127
     },
     {
       "first_name": "Facundo",
@@ -1309,7 +1436,8 @@
       "position": 3,
       "second_name": "Buonanotte",
       "team": 5,
-      "web_name": "Buonanotte"
+      "web_name": "Buonanotte",
+      "code": 128
     },
     {
       "first_name": "Yasin",
@@ -1318,7 +1446,8 @@
       "position": 3,
       "second_name": "Ayari",
       "team": 5,
-      "web_name": "Ayari"
+      "web_name": "Ayari",
+      "code": 129
     },
     {
       "first_name": "Mats",
@@ -1327,7 +1456,8 @@
       "position": 2,
       "second_name": "Wieffer",
       "team": 5,
-      "web_name": "Wieffer"
+      "web_name": "Wieffer",
+      "code": 130
     },
     {
       "first_name": "Carlos",
@@ -1336,7 +1466,8 @@
       "position": 3,
       "second_name": "Baleba",
       "team": 5,
-      "web_name": "Baleba"
+      "web_name": "Baleba",
+      "code": 131
     },
     {
       "first_name": "Harry",
@@ -1345,7 +1476,8 @@
       "position": 3,
       "second_name": "Howell",
       "team": 5,
-      "web_name": "Howell"
+      "web_name": "Howell",
+      "code": 132
     },
     {
       "first_name": "Tom",
@@ -1354,7 +1486,8 @@
       "position": 3,
       "second_name": "Watson",
       "team": 5,
-      "web_name": "Watson"
+      "web_name": "Watson",
+      "code": 133
     },
     {
       "first_name": "Nehemiah",
@@ -1363,7 +1496,8 @@
       "position": 3,
       "second_name": "Oriola",
       "team": 5,
-      "web_name": "Oriola"
+      "web_name": "Oriola",
+      "code": 134
     },
     {
       "first_name": "Zadok",
@@ -1372,7 +1506,8 @@
       "position": 3,
       "second_name": "Yohanna",
       "team": 5,
-      "web_name": "Yohanna"
+      "web_name": "Yohanna",
+      "code": 135
     },
     {
       "first_name": "Danny",
@@ -1381,7 +1516,8 @@
       "position": 4,
       "second_name": "Welbeck",
       "team": 6,
-      "web_name": "Welbeck"
+      "web_name": "Welbeck",
+      "code": 136
     },
     {
       "first_name": "Stefanos",
@@ -1390,7 +1526,8 @@
       "position": 4,
       "second_name": "Tzimas",
       "team": 5,
-      "web_name": "Tzimas"
+      "web_name": "Tzimas",
+      "code": 137
     },
     {
       "first_name": "Charalampos",
@@ -1399,7 +1536,8 @@
       "position": 4,
       "second_name": "Kostoulas",
       "team": 5,
-      "web_name": "Kostoulas"
+      "web_name": "Kostoulas",
+      "code": 138
     },
     {
       "first_name": "Evan",
@@ -1408,25 +1546,28 @@
       "position": 4,
       "second_name": "Ferguson",
       "team": 5,
-      "web_name": "Ferguson"
+      "web_name": "Ferguson",
+      "code": 139
     },
     {
       "first_name": "Robert",
       "id": 140,
       "now_cost": 50,
       "position": 1,
-      "second_name": "Lynch S\u00e1nchez",
+      "second_name": "Lynch Sánchez",
       "team": 6,
-      "web_name": "S\u00e1nchez"
+      "web_name": "Sánchez",
+      "code": 140
     },
     {
       "first_name": "Filip",
       "id": 141,
       "now_cost": 50,
       "position": 1,
-      "second_name": "J\u00f6rgensen",
+      "second_name": "Jörgensen",
       "team": 6,
-      "web_name": "J\u00f6rgensen"
+      "web_name": "Jörgensen",
+      "code": 141
     },
     {
       "first_name": "Reece",
@@ -1435,7 +1576,8 @@
       "position": 2,
       "second_name": "James",
       "team": 6,
-      "web_name": "James"
+      "web_name": "James",
+      "code": 142
     },
     {
       "first_name": "Trevoh",
@@ -1444,7 +1586,8 @@
       "position": 2,
       "second_name": "Chalobah",
       "team": 6,
-      "web_name": "Chalobah"
+      "web_name": "Chalobah",
+      "code": 143
     },
     {
       "first_name": "Malo",
@@ -1453,7 +1596,8 @@
       "position": 2,
       "second_name": "Gusto",
       "team": 6,
-      "web_name": "Gusto"
+      "web_name": "Gusto",
+      "code": 144
     },
     {
       "first_name": "Wesley",
@@ -1462,16 +1606,18 @@
       "position": 2,
       "second_name": "Fofana",
       "team": 6,
-      "web_name": "Fofana"
+      "web_name": "Fofana",
+      "code": 145
     },
     {
-      "first_name": "Beno\u00eet",
+      "first_name": "Benoît",
       "id": 146,
       "now_cost": 45,
       "position": 2,
       "second_name": "Badiashile Mukinayi",
       "team": 6,
-      "web_name": "B.Badiashile"
+      "web_name": "B.Badiashile",
+      "code": 146
     },
     {
       "first_name": "Tosin",
@@ -1480,7 +1626,8 @@
       "position": 2,
       "second_name": "Adarabioyo",
       "team": 6,
-      "web_name": "Tosin"
+      "web_name": "Tosin",
+      "code": 147
     },
     {
       "first_name": "Jorrel",
@@ -1489,7 +1636,8 @@
       "position": 2,
       "second_name": "Hato",
       "team": 6,
-      "web_name": "Hato"
+      "web_name": "Hato",
+      "code": 148
     },
     {
       "first_name": "Levi",
@@ -1498,7 +1646,8 @@
       "position": 2,
       "second_name": "Samuels Colwill",
       "team": 6,
-      "web_name": "Colwill"
+      "web_name": "Colwill",
+      "code": 149
     },
     {
       "first_name": "Mamadou",
@@ -1507,7 +1656,8 @@
       "position": 2,
       "second_name": "Sarr",
       "team": 6,
-      "web_name": "M.Sarr"
+      "web_name": "M.Sarr",
+      "code": 150
     },
     {
       "first_name": "Josh",
@@ -1516,7 +1666,8 @@
       "position": 2,
       "second_name": "Acheampong",
       "team": 6,
-      "web_name": "Acheampong"
+      "web_name": "Acheampong",
+      "code": 151
     },
     {
       "first_name": "Marco",
@@ -1525,7 +1676,8 @@
       "position": 2,
       "second_name": "Palestra",
       "team": 6,
-      "web_name": "Palestra"
+      "web_name": "Palestra",
+      "code": 152
     },
     {
       "first_name": "Axel",
@@ -1534,7 +1686,8 @@
       "position": 2,
       "second_name": "Disasi",
       "team": 6,
-      "web_name": "Disasi"
+      "web_name": "Disasi",
+      "code": 153
     },
     {
       "first_name": "Cole",
@@ -1543,16 +1696,18 @@
       "position": 3,
       "second_name": "Palmer",
       "team": 6,
-      "web_name": "Palmer"
+      "web_name": "Palmer",
+      "code": 154
     },
     {
       "first_name": "Enzo",
       "id": 155,
       "now_cost": 70,
       "position": 3,
-      "second_name": "Fern\u00e1ndez",
+      "second_name": "Fernández",
       "team": 6,
-      "web_name": "Enzo"
+      "web_name": "Enzo",
+      "code": 155
     },
     {
       "first_name": "Pedro",
@@ -1561,16 +1716,18 @@
       "position": 3,
       "second_name": "Lomba Neto",
       "team": 6,
-      "web_name": "Neto"
+      "web_name": "Neto",
+      "code": 156
     },
     {
-      "first_name": "Est\u00eav\u00e3o",
+      "first_name": "Estêvão",
       "id": 157,
       "now_cost": 65,
       "position": 3,
-      "second_name": "Almeida de Oliveira Gon\u00e7alves",
+      "second_name": "Almeida de Oliveira Gonçalves",
       "team": 6,
-      "web_name": "Est\u00eav\u00e3o"
+      "web_name": "Estêvão",
+      "code": 157
     },
     {
       "first_name": "Jamie",
@@ -1579,16 +1736,18 @@
       "position": 3,
       "second_name": "Bynoe-Gittens",
       "team": 6,
-      "web_name": "Gittens"
+      "web_name": "Gittens",
+      "code": 158
     },
     {
-      "first_name": "Mois\u00e9s",
+      "first_name": "Moisés",
       "id": 159,
       "now_cost": 55,
       "position": 3,
       "second_name": "Caicedo Corozo",
       "team": 6,
-      "web_name": "Caicedo"
+      "web_name": "Caicedo",
+      "code": 159
     },
     {
       "first_name": "Alejandro",
@@ -1597,16 +1756,18 @@
       "position": 3,
       "second_name": "Garnacho Ferreyra",
       "team": 2,
-      "web_name": "Garnacho"
+      "web_name": "Garnacho",
+      "code": 160
     },
     {
-      "first_name": "Rom\u00e9o",
+      "first_name": "Roméo",
       "id": 161,
       "now_cost": 50,
       "position": 3,
       "second_name": "Lavia",
       "team": 6,
-      "web_name": "Lavia"
+      "web_name": "Lavia",
+      "code": 161
     },
     {
       "first_name": "Andrey",
@@ -1615,16 +1776,18 @@
       "position": 3,
       "second_name": "Nascimento dos Santos",
       "team": 16,
-      "web_name": "Andrey Santos"
+      "web_name": "Andrey Santos",
+      "code": 162
     },
     {
-      "first_name": "D\u00e1rio",
+      "first_name": "Dário",
       "id": 163,
       "now_cost": 45,
       "position": 3,
-      "second_name": "Lu\u00eds Essugo",
+      "second_name": "Luís Essugo",
       "team": 6,
-      "web_name": "D.Essugo"
+      "web_name": "D.Essugo",
+      "code": 163
     },
     {
       "first_name": "Geovany",
@@ -1633,16 +1796,18 @@
       "position": 3,
       "second_name": "Quenda",
       "team": 6,
-      "web_name": "Quenda"
+      "web_name": "Quenda",
+      "code": 164
     },
     {
-      "first_name": "Jo\u00e3o Pedro",
+      "first_name": "João Pedro",
       "id": 165,
       "now_cost": 75,
       "position": 4,
       "second_name": "Junqueira de Jesus",
       "team": 6,
-      "web_name": "Jo\u00e3o Pedro"
+      "web_name": "João Pedro",
+      "code": 165
     },
     {
       "first_name": "Nicolas",
@@ -1651,7 +1816,8 @@
       "position": 4,
       "second_name": "Jackson",
       "team": 6,
-      "web_name": "N.Jackson"
+      "web_name": "N.Jackson",
+      "code": 166
     },
     {
       "first_name": "Liam",
@@ -1660,7 +1826,8 @@
       "position": 4,
       "second_name": "Delap",
       "team": 6,
-      "web_name": "Delap"
+      "web_name": "Delap",
+      "code": 167
     },
     {
       "first_name": "Marc",
@@ -1669,7 +1836,8 @@
       "position": 4,
       "second_name": "Guiu Paz",
       "team": 6,
-      "web_name": "Marc Guiu"
+      "web_name": "Marc Guiu",
+      "code": 168
     },
     {
       "first_name": "Shumaira",
@@ -1678,7 +1846,8 @@
       "position": 4,
       "second_name": "Mheuka",
       "team": 6,
-      "web_name": "Mheuka"
+      "web_name": "Mheuka",
+      "code": 169
     },
     {
       "first_name": "Emmanuel",
@@ -1687,7 +1856,8 @@
       "position": 4,
       "second_name": "Emegha",
       "team": 6,
-      "web_name": "Emegha"
+      "web_name": "Emegha",
+      "code": 170
     },
     {
       "first_name": "Oliver",
@@ -1696,7 +1866,8 @@
       "position": 1,
       "second_name": "Dovin",
       "team": 7,
-      "web_name": "Dovin"
+      "web_name": "Dovin",
+      "code": 171
     },
     {
       "first_name": "Ben",
@@ -1705,7 +1876,8 @@
       "position": 1,
       "second_name": "Wilson",
       "team": 7,
-      "web_name": "Wilson"
+      "web_name": "Wilson",
+      "code": 172
     },
     {
       "first_name": "Bobby",
@@ -1714,7 +1886,8 @@
       "position": 2,
       "second_name": "Thomas",
       "team": 7,
-      "web_name": "Thomas"
+      "web_name": "Thomas",
+      "code": 173
     },
     {
       "first_name": "Liam",
@@ -1723,7 +1896,8 @@
       "position": 2,
       "second_name": "Kitching",
       "team": 7,
-      "web_name": "Kitching"
+      "web_name": "Kitching",
+      "code": 174
     },
     {
       "first_name": "Milan",
@@ -1732,7 +1906,8 @@
       "position": 2,
       "second_name": "van Ewijk",
       "team": 7,
-      "web_name": "van Ewijk"
+      "web_name": "van Ewijk",
+      "code": 175
     },
     {
       "first_name": "Jay",
@@ -1741,7 +1916,8 @@
       "position": 2,
       "second_name": "Dasilva",
       "team": 7,
-      "web_name": "Dasilva"
+      "web_name": "Dasilva",
+      "code": 176
     },
     {
       "first_name": "Kaine",
@@ -1750,7 +1926,8 @@
       "position": 2,
       "second_name": "Kesler-Hayden",
       "team": 7,
-      "web_name": "Kesler-Hayden"
+      "web_name": "Kesler-Hayden",
+      "code": 177
     },
     {
       "first_name": "Jake",
@@ -1759,7 +1936,8 @@
       "position": 2,
       "second_name": "Bidwell",
       "team": 7,
-      "web_name": "Bidwell"
+      "web_name": "Bidwell",
+      "code": 178
     },
     {
       "first_name": "Joel",
@@ -1768,7 +1946,8 @@
       "position": 2,
       "second_name": "Latibeaudiere",
       "team": 7,
-      "web_name": "Latibeaudiere"
+      "web_name": "Latibeaudiere",
+      "code": 179
     },
     {
       "first_name": "Luke",
@@ -1777,7 +1956,8 @@
       "position": 2,
       "second_name": "Woolfenden",
       "team": 7,
-      "web_name": "Woolfenden"
+      "web_name": "Woolfenden",
+      "code": 180
     },
     {
       "first_name": "Miguel",
@@ -1786,16 +1966,18 @@
       "position": 2,
       "second_name": "Brau",
       "team": 7,
-      "web_name": "Brau"
+      "web_name": "Brau",
+      "code": 181
     },
     {
-      "first_name": "Aur\u00e8le",
+      "first_name": "Aurèle",
       "id": 182,
       "now_cost": 40,
       "position": 2,
       "second_name": "Amenda",
       "team": 7,
-      "web_name": "Amenda"
+      "web_name": "Amenda",
+      "code": 182
     },
     {
       "first_name": "Jack",
@@ -1804,7 +1986,8 @@
       "position": 3,
       "second_name": "Rudoni",
       "team": 7,
-      "web_name": "Rudoni"
+      "web_name": "Rudoni",
+      "code": 183
     },
     {
       "first_name": "Matt",
@@ -1813,7 +1996,8 @@
       "position": 3,
       "second_name": "Grimes",
       "team": 7,
-      "web_name": "Grimes"
+      "web_name": "Grimes",
+      "code": 184
     },
     {
       "first_name": "Tatsuhiro",
@@ -1822,7 +2006,8 @@
       "position": 3,
       "second_name": "Sakamoto",
       "team": 7,
-      "web_name": "Sakamoto"
+      "web_name": "Sakamoto",
+      "code": 185
     },
     {
       "first_name": "Ephron",
@@ -1831,7 +2016,8 @@
       "position": 3,
       "second_name": "Mason-Clark",
       "team": 7,
-      "web_name": "Mason-Clark"
+      "web_name": "Mason-Clark",
+      "code": 186
     },
     {
       "first_name": "Josh",
@@ -1840,7 +2026,8 @@
       "position": 3,
       "second_name": "Eccles",
       "team": 7,
-      "web_name": "Eccles"
+      "web_name": "Eccles",
+      "code": 187
     },
     {
       "first_name": "Victor",
@@ -1849,7 +2036,8 @@
       "position": 3,
       "second_name": "Torp",
       "team": 7,
-      "web_name": "Torp"
+      "web_name": "Torp",
+      "code": 188
     },
     {
       "first_name": "George",
@@ -1858,7 +2046,8 @@
       "position": 3,
       "second_name": "Shepherd",
       "team": 7,
-      "web_name": "Shepherd"
+      "web_name": "Shepherd",
+      "code": 189
     },
     {
       "first_name": "Loum",
@@ -1867,7 +2056,8 @@
       "position": 3,
       "second_name": "Tchaouna",
       "team": 7,
-      "web_name": "Tchaouna"
+      "web_name": "Tchaouna",
+      "code": 190
     },
     {
       "first_name": "Raphael",
@@ -1876,7 +2066,8 @@
       "position": 3,
       "second_name": "Borges Rodrigues",
       "team": 7,
-      "web_name": "Borges Rodrigues"
+      "web_name": "Borges Rodrigues",
+      "code": 191
     },
     {
       "first_name": "Kaine",
@@ -1885,7 +2076,8 @@
       "position": 3,
       "second_name": "Andrews",
       "team": 7,
-      "web_name": "Andrews"
+      "web_name": "Andrews",
+      "code": 192
     },
     {
       "first_name": "Haji",
@@ -1894,7 +2086,8 @@
       "position": 4,
       "second_name": "Wright",
       "team": 7,
-      "web_name": "Wright"
+      "web_name": "Wright",
+      "code": 193
     },
     {
       "first_name": "Brandon",
@@ -1903,7 +2096,8 @@
       "position": 4,
       "second_name": "Thomas-Asante",
       "team": 7,
-      "web_name": "Thomas-Asante"
+      "web_name": "Thomas-Asante",
+      "code": 194
     },
     {
       "first_name": "Ellis",
@@ -1912,7 +2106,8 @@
       "position": 4,
       "second_name": "Simms",
       "team": 7,
-      "web_name": "Simms"
+      "web_name": "Simms",
+      "code": 195
     },
     {
       "first_name": "Jahnoah",
@@ -1921,7 +2116,8 @@
       "position": 4,
       "second_name": "Markelo",
       "team": 7,
-      "web_name": "Markelo"
+      "web_name": "Markelo",
+      "code": 196
     },
     {
       "first_name": "Norman",
@@ -1930,7 +2126,8 @@
       "position": 4,
       "second_name": "Bassette",
       "team": 7,
-      "web_name": "Bassette"
+      "web_name": "Bassette",
+      "code": 197
     },
     {
       "first_name": "Dean",
@@ -1939,16 +2136,18 @@
       "position": 1,
       "second_name": "Henderson",
       "team": 8,
-      "web_name": "Henderson"
+      "web_name": "Henderson",
+      "code": 198
     },
     {
       "first_name": "Walter",
       "id": 199,
       "now_cost": 45,
       "position": 1,
-      "second_name": "Ben\u00edtez",
+      "second_name": "Benítez",
       "team": 8,
-      "web_name": "Benitez"
+      "web_name": "Benitez",
+      "code": 199
     },
     {
       "first_name": "Maxence",
@@ -1957,16 +2156,18 @@
       "position": 2,
       "second_name": "Lacroix",
       "team": 6,
-      "web_name": "Lacroix"
+      "web_name": "Lacroix",
+      "code": 200
     },
     {
       "first_name": "Daniel",
       "id": 201,
       "now_cost": 55,
       "position": 2,
-      "second_name": "Mu\u00f1oz Mej\u00eda",
+      "second_name": "Muñoz Mejía",
       "team": 8,
-      "web_name": "Mu\u00f1oz"
+      "web_name": "Muñoz",
+      "code": 201
     },
     {
       "first_name": "Chris",
@@ -1975,7 +2176,8 @@
       "position": 2,
       "second_name": "Richards",
       "team": 8,
-      "web_name": "Richards"
+      "web_name": "Richards",
+      "code": 202
     },
     {
       "first_name": "Jaydee",
@@ -1984,7 +2186,8 @@
       "position": 2,
       "second_name": "Canvot",
       "team": 8,
-      "web_name": "Canvot"
+      "web_name": "Canvot",
+      "code": 203
     },
     {
       "first_name": "Tyrick",
@@ -1993,7 +2196,8 @@
       "position": 2,
       "second_name": "Mitchell",
       "team": 8,
-      "web_name": "Mitchell"
+      "web_name": "Mitchell",
+      "code": 204
     },
     {
       "first_name": "Borna",
@@ -2002,7 +2206,8 @@
       "position": 2,
       "second_name": "Sosa",
       "team": 8,
-      "web_name": "Sosa"
+      "web_name": "Sosa",
+      "code": 205
     },
     {
       "first_name": "Chadi",
@@ -2011,7 +2216,8 @@
       "position": 2,
       "second_name": "Riad Dnanou",
       "team": 8,
-      "web_name": "Chadi Riad"
+      "web_name": "Chadi Riad",
+      "code": 206
     },
     {
       "first_name": "Oscar",
@@ -2020,16 +2226,18 @@
       "position": 2,
       "second_name": "Mingueza",
       "team": 8,
-      "web_name": "Mingueza"
+      "web_name": "Mingueza",
+      "code": 207
     },
     {
-      "first_name": "Isma\u00efla",
+      "first_name": "Ismaïla",
       "id": 208,
       "now_cost": 65,
       "position": 3,
       "second_name": "Sarr",
       "team": 8,
-      "web_name": "Sarr"
+      "web_name": "Sarr",
+      "code": 208
     },
     {
       "first_name": "Brennan",
@@ -2038,7 +2246,8 @@
       "position": 3,
       "second_name": "Johnson",
       "team": 9,
-      "web_name": "Johnson"
+      "web_name": "Johnson",
+      "code": 209
     },
     {
       "first_name": "Adam",
@@ -2047,16 +2256,18 @@
       "position": 3,
       "second_name": "Wharton",
       "team": 8,
-      "web_name": "Wharton"
+      "web_name": "Wharton",
+      "code": 210
     },
     {
-      "first_name": "Y\u00e9remy",
+      "first_name": "Yéremy",
       "id": 211,
       "now_cost": 55,
       "position": 3,
       "second_name": "Pino Santos",
       "team": 8,
-      "web_name": "Yeremy"
+      "web_name": "Yeremy",
+      "code": 211
     },
     {
       "first_name": "Will",
@@ -2065,16 +2276,18 @@
       "position": 3,
       "second_name": "Hughes",
       "team": 8,
-      "web_name": "Hughes"
+      "web_name": "Hughes",
+      "code": 212
     },
     {
       "first_name": "Jefferson",
       "id": 213,
       "now_cost": 50,
       "position": 3,
-      "second_name": "Lerma Sol\u00eds",
+      "second_name": "Lerma Solís",
       "team": 8,
-      "web_name": "Lerma"
+      "web_name": "Lerma",
+      "code": 213
     },
     {
       "first_name": "Daichi",
@@ -2083,7 +2296,8 @@
       "position": 3,
       "second_name": "Kamada",
       "team": 8,
-      "web_name": "Kamada"
+      "web_name": "Kamada",
+      "code": 214
     },
     {
       "first_name": "Justin",
@@ -2092,7 +2306,8 @@
       "position": 3,
       "second_name": "Devenny",
       "team": 8,
-      "web_name": "Devenny"
+      "web_name": "Devenny",
+      "code": 215
     },
     {
       "first_name": "Romain",
@@ -2101,25 +2316,28 @@
       "position": 3,
       "second_name": "Esse",
       "team": 8,
-      "web_name": "Esse"
+      "web_name": "Esse",
+      "code": 216
     },
     {
       "first_name": "Matheus",
       "id": 217,
       "now_cost": 50,
       "position": 3,
-      "second_name": "Fran\u00e7a de Oliveira",
+      "second_name": "França de Oliveira",
       "team": 8,
-      "web_name": "M.Fran\u00e7a"
+      "web_name": "M.França",
+      "code": 217
     },
     {
       "first_name": "Cheick",
       "id": 218,
       "now_cost": 50,
       "position": 3,
-      "second_name": "Doucour\u00e9",
+      "second_name": "Doucouré",
       "team": 8,
-      "web_name": "Doucour\u00e9"
+      "web_name": "Doucouré",
+      "code": 218
     },
     {
       "first_name": "Jesurun",
@@ -2128,7 +2346,8 @@
       "position": 3,
       "second_name": "Rak-Sakyi",
       "team": 8,
-      "web_name": "J.Rak-Sakyi"
+      "web_name": "J.Rak-Sakyi",
+      "code": 219
     },
     {
       "first_name": "Rio",
@@ -2137,25 +2356,28 @@
       "position": 2,
       "second_name": "Cardines",
       "team": 8,
-      "web_name": "Cardines"
+      "web_name": "Cardines",
+      "code": 220
     },
     {
-      "first_name": "Jo\u00e9l",
+      "first_name": "Joél",
       "id": 221,
       "now_cost": 45,
       "position": 3,
       "second_name": "Drakes-Thomas",
       "team": 8,
-      "web_name": "Drakes-Thomas"
+      "web_name": "Drakes-Thomas",
+      "code": 221
     },
     {
-      "first_name": "J\u00f8rgen",
+      "first_name": "Jørgen",
       "id": 222,
       "now_cost": 60,
       "position": 4,
       "second_name": "Strand Larsen",
       "team": 8,
-      "web_name": "Strand Larsen"
+      "web_name": "Strand Larsen",
+      "code": 222
     },
     {
       "first_name": "Jean-Philippe",
@@ -2164,7 +2386,8 @@
       "position": 4,
       "second_name": "Mateta",
       "team": 8,
-      "web_name": "Mateta"
+      "web_name": "Mateta",
+      "code": 223
     },
     {
       "first_name": "Eddie",
@@ -2173,7 +2396,8 @@
       "position": 4,
       "second_name": "Nketiah",
       "team": 8,
-      "web_name": "Nketiah"
+      "web_name": "Nketiah",
+      "code": 224
     },
     {
       "first_name": "Christantus",
@@ -2182,7 +2406,8 @@
       "position": 4,
       "second_name": "Uche",
       "team": 8,
-      "web_name": "Uche"
+      "web_name": "Uche",
+      "code": 225
     },
     {
       "first_name": "Jordan",
@@ -2191,7 +2416,8 @@
       "position": 1,
       "second_name": "Pickford",
       "team": 9,
-      "web_name": "Pickford"
+      "web_name": "Pickford",
+      "code": 226
     },
     {
       "first_name": "Mark",
@@ -2200,7 +2426,8 @@
       "position": 1,
       "second_name": "Travers",
       "team": 9,
-      "web_name": "Travers"
+      "web_name": "Travers",
+      "code": 227
     },
     {
       "first_name": "Tom",
@@ -2209,7 +2436,8 @@
       "position": 1,
       "second_name": "King",
       "team": 9,
-      "web_name": "King"
+      "web_name": "King",
+      "code": 228
     },
     {
       "first_name": "James",
@@ -2218,7 +2446,8 @@
       "position": 2,
       "second_name": "Tarkowski",
       "team": 9,
-      "web_name": "Tarkowski"
+      "web_name": "Tarkowski",
+      "code": 229
     },
     {
       "first_name": "Jarrad",
@@ -2227,7 +2456,8 @@
       "position": 2,
       "second_name": "Branthwaite",
       "team": 9,
-      "web_name": "Branthwaite"
+      "web_name": "Branthwaite",
+      "code": 230
     },
     {
       "first_name": "Michael",
@@ -2236,7 +2466,8 @@
       "position": 2,
       "second_name": "Keane",
       "team": 9,
-      "web_name": "Keane"
+      "web_name": "Keane",
+      "code": 231
     },
     {
       "first_name": "Jake",
@@ -2245,7 +2476,8 @@
       "position": 2,
       "second_name": "O'Brien",
       "team": 9,
-      "web_name": "O'Brien"
+      "web_name": "O'Brien",
+      "code": 232
     },
     {
       "first_name": "Vitalii",
@@ -2254,7 +2486,8 @@
       "position": 2,
       "second_name": "Mykolenko",
       "team": 9,
-      "web_name": "Mykolenko"
+      "web_name": "Mykolenko",
+      "code": 233
     },
     {
       "first_name": "Nathan",
@@ -2263,7 +2496,8 @@
       "position": 2,
       "second_name": "Patterson",
       "team": 9,
-      "web_name": "Patterson"
+      "web_name": "Patterson",
+      "code": 234
     },
     {
       "first_name": "Adam",
@@ -2272,7 +2506,8 @@
       "position": 2,
       "second_name": "Aznou",
       "team": 9,
-      "web_name": "Aznou"
+      "web_name": "Aznou",
+      "code": 235
     },
     {
       "first_name": "Kiernan",
@@ -2281,7 +2516,8 @@
       "position": 3,
       "second_name": "Dewsbury-Hall",
       "team": 9,
-      "web_name": "Dewsbury-Hall"
+      "web_name": "Dewsbury-Hall",
+      "code": 236
     },
     {
       "first_name": "Iliman",
@@ -2290,7 +2526,8 @@
       "position": 3,
       "second_name": "Ndiaye",
       "team": 9,
-      "web_name": "Ndiaye"
+      "web_name": "Ndiaye",
+      "code": 237
     },
     {
       "first_name": "Jack",
@@ -2299,7 +2536,8 @@
       "position": 3,
       "second_name": "Grealish",
       "team": 15,
-      "web_name": "Grealish"
+      "web_name": "Grealish",
+      "code": 238
     },
     {
       "first_name": "James",
@@ -2308,7 +2546,8 @@
       "position": 3,
       "second_name": "Garner",
       "team": 9,
-      "web_name": "Garner"
+      "web_name": "Garner",
+      "code": 239
     },
     {
       "first_name": "Tim",
@@ -2317,7 +2556,8 @@
       "position": 3,
       "second_name": "Iroegbunam",
       "team": 9,
-      "web_name": "Iroegbunam"
+      "web_name": "Iroegbunam",
+      "code": 240
     },
     {
       "first_name": "Dwight",
@@ -2326,7 +2566,8 @@
       "position": 3,
       "second_name": "McNeil",
       "team": 8,
-      "web_name": "McNeil"
+      "web_name": "McNeil",
+      "code": 241
     },
     {
       "first_name": "Tyrique",
@@ -2335,16 +2576,18 @@
       "position": 3,
       "second_name": "George",
       "team": 9,
-      "web_name": "George"
+      "web_name": "George",
+      "code": 242
     },
     {
       "first_name": "Carlos",
       "id": 243,
       "now_cost": 50,
       "position": 3,
-      "second_name": "Alcaraz Dur\u00e1n",
+      "second_name": "Alcaraz Durán",
       "team": 9,
-      "web_name": "Alcaraz"
+      "web_name": "Alcaraz",
+      "code": 243
     },
     {
       "first_name": "Harrison",
@@ -2353,7 +2596,8 @@
       "position": 3,
       "second_name": "Armstrong",
       "team": 9,
-      "web_name": "Armstrong"
+      "web_name": "Armstrong",
+      "code": 244
     },
     {
       "first_name": "Tyler",
@@ -2362,16 +2606,18 @@
       "position": 3,
       "second_name": "Dibling",
       "team": 9,
-      "web_name": "Dibling"
+      "web_name": "Dibling",
+      "code": 245
     },
     {
       "first_name": "Merlin",
       "id": 246,
       "now_cost": 50,
       "position": 3,
-      "second_name": "R\u00f6hl",
+      "second_name": "Röhl",
       "team": 9,
-      "web_name": "R\u00f6hl"
+      "web_name": "Röhl",
+      "code": 246
     },
     {
       "first_name": "Hayden",
@@ -2380,7 +2626,8 @@
       "position": 3,
       "second_name": "Hackney",
       "team": 9,
-      "web_name": "Hackney"
+      "web_name": "Hackney",
+      "code": 247
     },
     {
       "first_name": "Norberto Bercique",
@@ -2389,7 +2636,8 @@
       "position": 4,
       "second_name": "Gomes Betuncal",
       "team": 9,
-      "web_name": "Beto"
+      "web_name": "Beto",
+      "code": 248
     },
     {
       "first_name": "Thierno",
@@ -2398,7 +2646,8 @@
       "position": 4,
       "second_name": "Barry",
       "team": 9,
-      "web_name": "Barry"
+      "web_name": "Barry",
+      "code": 249
     },
     {
       "first_name": "Bernd",
@@ -2407,7 +2656,8 @@
       "position": 1,
       "second_name": "Leno",
       "team": 10,
-      "web_name": "Leno"
+      "web_name": "Leno",
+      "code": 250
     },
     {
       "first_name": "Benjamin",
@@ -2416,7 +2666,8 @@
       "position": 1,
       "second_name": "Lecomte",
       "team": 10,
-      "web_name": "Lecomte"
+      "web_name": "Lecomte",
+      "code": 251
     },
     {
       "first_name": "Alfie",
@@ -2425,7 +2676,8 @@
       "position": 1,
       "second_name": "McNally",
       "team": 10,
-      "web_name": "McNally"
+      "web_name": "McNally",
+      "code": 252
     },
     {
       "first_name": "Joachim",
@@ -2434,7 +2686,8 @@
       "position": 2,
       "second_name": "Andersen",
       "team": 10,
-      "web_name": "Andersen"
+      "web_name": "Andersen",
+      "code": 253
     },
     {
       "first_name": "Antonee",
@@ -2443,7 +2696,8 @@
       "position": 2,
       "second_name": "Robinson",
       "team": 10,
-      "web_name": "Robinson"
+      "web_name": "Robinson",
+      "code": 254
     },
     {
       "first_name": "Jorge",
@@ -2452,7 +2706,8 @@
       "position": 2,
       "second_name": "Cuenca Barreno",
       "team": 10,
-      "web_name": "J.Cuenca"
+      "web_name": "J.Cuenca",
+      "code": 255
     },
     {
       "first_name": "Kenny",
@@ -2461,7 +2716,8 @@
       "position": 2,
       "second_name": "Tete",
       "team": 10,
-      "web_name": "Tete"
+      "web_name": "Tete",
+      "code": 256
     },
     {
       "first_name": "Calvin",
@@ -2470,7 +2726,8 @@
       "position": 2,
       "second_name": "Bassey",
       "team": 10,
-      "web_name": "Bassey"
+      "web_name": "Bassey",
+      "code": 257
     },
     {
       "first_name": "Timothy",
@@ -2479,7 +2736,8 @@
       "position": 2,
       "second_name": "Castagne",
       "team": 10,
-      "web_name": "Castagne"
+      "web_name": "Castagne",
+      "code": 258
     },
     {
       "first_name": "Issa",
@@ -2488,7 +2746,8 @@
       "position": 2,
       "second_name": "Diop",
       "team": 12,
-      "web_name": "Diop"
+      "web_name": "Diop",
+      "code": 259
     },
     {
       "first_name": "Harry",
@@ -2497,7 +2756,8 @@
       "position": 3,
       "second_name": "Wilson",
       "team": 13,
-      "web_name": "Wilson"
+      "web_name": "Wilson",
+      "code": 260
     },
     {
       "first_name": "Alex",
@@ -2506,7 +2766,8 @@
       "position": 3,
       "second_name": "Iwobi",
       "team": 10,
-      "web_name": "Iwobi"
+      "web_name": "Iwobi",
+      "code": 261
     },
     {
       "first_name": "Emile",
@@ -2515,7 +2776,8 @@
       "position": 3,
       "second_name": "Smith Rowe",
       "team": 10,
-      "web_name": "Smith Rowe"
+      "web_name": "Smith Rowe",
+      "code": 262
     },
     {
       "first_name": "Kevin",
@@ -2524,7 +2786,8 @@
       "position": 3,
       "second_name": "Santos Lopes de Macedo",
       "team": 10,
-      "web_name": "Kevin"
+      "web_name": "Kevin",
+      "code": 263
     },
     {
       "first_name": "Oscar",
@@ -2533,7 +2796,8 @@
       "position": 3,
       "second_name": "Bobb",
       "team": 10,
-      "web_name": "Bobb"
+      "web_name": "Bobb",
+      "code": 264
     },
     {
       "first_name": "Sander",
@@ -2542,7 +2806,8 @@
       "position": 3,
       "second_name": "Berge",
       "team": 10,
-      "web_name": "Berge"
+      "web_name": "Berge",
+      "code": 265
     },
     {
       "first_name": "Tom",
@@ -2551,16 +2816,18 @@
       "position": 3,
       "second_name": "Cairney",
       "team": 10,
-      "web_name": "Cairney"
+      "web_name": "Cairney",
+      "code": 266
     },
     {
-      "first_name": "Sa\u0161a",
+      "first_name": "Saša",
       "id": 267,
       "now_cost": 50,
       "position": 3,
-      "second_name": "Luki\u0107",
+      "second_name": "Lukić",
       "team": 12,
-      "web_name": "Luki\u0107"
+      "web_name": "Lukić",
+      "code": 267
     },
     {
       "first_name": "Josh",
@@ -2569,7 +2836,8 @@
       "position": 3,
       "second_name": "King",
       "team": 10,
-      "web_name": "King"
+      "web_name": "King",
+      "code": 268
     },
     {
       "first_name": "Ryan",
@@ -2578,7 +2846,8 @@
       "position": 2,
       "second_name": "Sessegnon",
       "team": 10,
-      "web_name": "Sessegnon"
+      "web_name": "Sessegnon",
+      "code": 269
     },
     {
       "first_name": "Harrison",
@@ -2587,7 +2856,8 @@
       "position": 3,
       "second_name": "Reed",
       "team": 10,
-      "web_name": "Reed"
+      "web_name": "Reed",
+      "code": 270
     },
     {
       "first_name": "Rodrigo",
@@ -2596,7 +2866,8 @@
       "position": 4,
       "second_name": "Muniz Carvalho",
       "team": 10,
-      "web_name": "Muniz"
+      "web_name": "Muniz",
+      "code": 271
     },
     {
       "first_name": "Jonah",
@@ -2605,7 +2876,8 @@
       "position": 4,
       "second_name": "Kusi-Asare",
       "team": 10,
-      "web_name": "Kusi-Asare"
+      "web_name": "Kusi-Asare",
+      "code": 272
     },
     {
       "first_name": "Dillon",
@@ -2614,7 +2886,8 @@
       "position": 1,
       "second_name": "Phillips",
       "team": 11,
-      "web_name": "Phillips"
+      "web_name": "Phillips",
+      "code": 273
     },
     {
       "first_name": "Jack",
@@ -2623,7 +2896,8 @@
       "position": 1,
       "second_name": "Butland",
       "team": 11,
-      "web_name": "Butland"
+      "web_name": "Butland",
+      "code": 274
     },
     {
       "first_name": "Harvey",
@@ -2632,16 +2906,18 @@
       "position": 1,
       "second_name": "Cartwright",
       "team": 11,
-      "web_name": "Cartwright"
+      "web_name": "Cartwright",
+      "code": 275
     },
     {
-      "first_name": "Thimoth\u00e9e",
+      "first_name": "Thimothée",
       "id": 276,
       "now_cost": 40,
       "position": 1,
       "second_name": "Lo-Tutala",
       "team": 11,
-      "web_name": "Lo-Tutala"
+      "web_name": "Lo-Tutala",
+      "code": 276
     },
     {
       "first_name": "John",
@@ -2650,7 +2926,8 @@
       "position": 2,
       "second_name": "Egan",
       "team": 11,
-      "web_name": "Egan"
+      "web_name": "Egan",
+      "code": 277
     },
     {
       "first_name": "Charlie",
@@ -2659,7 +2936,8 @@
       "position": 2,
       "second_name": "Hughes",
       "team": 11,
-      "web_name": "Hughes"
+      "web_name": "Hughes",
+      "code": 278
     },
     {
       "first_name": "Semi",
@@ -2668,7 +2946,8 @@
       "position": 2,
       "second_name": "Ajayi",
       "team": 11,
-      "web_name": "Ajayi"
+      "web_name": "Ajayi",
+      "code": 279
     },
     {
       "first_name": "Lewie",
@@ -2677,7 +2956,8 @@
       "position": 2,
       "second_name": "Coyle",
       "team": 11,
-      "web_name": "Coyle"
+      "web_name": "Coyle",
+      "code": 280
     },
     {
       "first_name": "Cody",
@@ -2686,7 +2966,8 @@
       "position": 2,
       "second_name": "Drameh",
       "team": 11,
-      "web_name": "Drameh"
+      "web_name": "Drameh",
+      "code": 281
     },
     {
       "first_name": "Ryan",
@@ -2695,7 +2976,8 @@
       "position": 2,
       "second_name": "Giles",
       "team": 11,
-      "web_name": "Giles"
+      "web_name": "Giles",
+      "code": 282
     },
     {
       "first_name": "Matty",
@@ -2704,7 +2986,8 @@
       "position": 2,
       "second_name": "Jacob",
       "team": 11,
-      "web_name": "Jacob"
+      "web_name": "Jacob",
+      "code": 283
     },
     {
       "first_name": "Cathal",
@@ -2713,7 +2996,8 @@
       "position": 2,
       "second_name": "McCarthy",
       "team": 11,
-      "web_name": "McCarthy"
+      "web_name": "McCarthy",
+      "code": 284
     },
     {
       "first_name": "Paddy",
@@ -2722,7 +3006,8 @@
       "position": 2,
       "second_name": "McNair",
       "team": 11,
-      "web_name": "McNair"
+      "web_name": "McNair",
+      "code": 285
     },
     {
       "first_name": "Mohamed",
@@ -2731,7 +3016,8 @@
       "position": 3,
       "second_name": "Belloumi",
       "team": 11,
-      "web_name": "Belloumi"
+      "web_name": "Belloumi",
+      "code": 286
     },
     {
       "first_name": "Liam",
@@ -2740,7 +3026,8 @@
       "position": 3,
       "second_name": "Millar",
       "team": 11,
-      "web_name": "Millar"
+      "web_name": "Millar",
+      "code": 287
     },
     {
       "first_name": "Kieran",
@@ -2749,7 +3036,8 @@
       "position": 3,
       "second_name": "Dowell",
       "team": 11,
-      "web_name": "Dowell"
+      "web_name": "Dowell",
+      "code": 288
     },
     {
       "first_name": "Matt",
@@ -2758,7 +3046,8 @@
       "position": 3,
       "second_name": "Crooks",
       "team": 11,
-      "web_name": "Crooks"
+      "web_name": "Crooks",
+      "code": 289
     },
     {
       "first_name": "Regan",
@@ -2767,7 +3056,8 @@
       "position": 3,
       "second_name": "Slater",
       "team": 11,
-      "web_name": "Slater"
+      "web_name": "Slater",
+      "code": 290
     },
     {
       "first_name": "Eliot",
@@ -2776,16 +3066,18 @@
       "position": 3,
       "second_name": "Matazo",
       "team": 11,
-      "web_name": "Matazo"
+      "web_name": "Matazo",
+      "code": 291
     },
     {
-      "first_name": "Abd\u00fclkadir",
+      "first_name": "Abdülkadir",
       "id": 292,
       "now_cost": 50,
       "position": 3,
-      "second_name": "\u00d6m\u00fcr",
+      "second_name": "Ömür",
       "team": 11,
-      "web_name": "\u00d6m\u00fcr"
+      "web_name": "Ömür",
+      "code": 292
     },
     {
       "first_name": "Abu",
@@ -2794,16 +3086,18 @@
       "position": 3,
       "second_name": "Kamara",
       "team": 11,
-      "web_name": "Kamara"
+      "web_name": "Kamara",
+      "code": 293
     },
     {
-      "first_name": "\u00d3scar",
+      "first_name": "Óscar",
       "id": 294,
       "now_cost": 45,
       "position": 3,
       "second_name": "Zambrano",
       "team": 11,
-      "web_name": "Zambrano"
+      "web_name": "Zambrano",
+      "code": 294
     },
     {
       "first_name": "Oli",
@@ -2812,7 +3106,8 @@
       "position": 4,
       "second_name": "McBurnie",
       "team": 11,
-      "web_name": "McBurnie"
+      "web_name": "McBurnie",
+      "code": 295
     },
     {
       "first_name": "David",
@@ -2821,7 +3116,8 @@
       "position": 3,
       "second_name": "Akintola",
       "team": 11,
-      "web_name": "Akintola"
+      "web_name": "Akintola",
+      "code": 296
     },
     {
       "first_name": "Darko",
@@ -2830,7 +3126,8 @@
       "position": 3,
       "second_name": "Gyabi",
       "team": 11,
-      "web_name": "Gyabi"
+      "web_name": "Gyabi",
+      "code": 297
     },
     {
       "first_name": "Enis",
@@ -2839,7 +3136,8 @@
       "position": 4,
       "second_name": "Destan",
       "team": 11,
-      "web_name": "Destan"
+      "web_name": "Destan",
+      "code": 298
     },
     {
       "first_name": "Mason",
@@ -2848,7 +3146,8 @@
       "position": 4,
       "second_name": "Burstow",
       "team": 11,
-      "web_name": "Burstow"
+      "web_name": "Burstow",
+      "code": 299
     },
     {
       "first_name": "Christian",
@@ -2857,7 +3156,8 @@
       "position": 1,
       "second_name": "Walton",
       "team": 12,
-      "web_name": "Walton"
+      "web_name": "Walton",
+      "code": 300
     },
     {
       "first_name": "Alex",
@@ -2866,7 +3166,8 @@
       "position": 1,
       "second_name": "Palmer",
       "team": 12,
-      "web_name": "Palmer"
+      "web_name": "Palmer",
+      "code": 301
     },
     {
       "first_name": "David",
@@ -2875,16 +3176,18 @@
       "position": 1,
       "second_name": "Button",
       "team": 12,
-      "web_name": "Button"
+      "web_name": "Button",
+      "code": 302
     },
     {
-      "first_name": "C\u00e9dric",
+      "first_name": "Cédric",
       "id": 303,
       "now_cost": 40,
       "position": 2,
-      "second_name": "Kipr\u00e9",
+      "second_name": "Kipré",
       "team": 12,
-      "web_name": "Kipr\u00e9"
+      "web_name": "Kipré",
+      "code": 303
     },
     {
       "first_name": "Dara",
@@ -2893,7 +3196,8 @@
       "position": 2,
       "second_name": "O'Shea",
       "team": 12,
-      "web_name": "O'Shea"
+      "web_name": "O'Shea",
+      "code": 304
     },
     {
       "first_name": "Leif",
@@ -2902,7 +3206,8 @@
       "position": 2,
       "second_name": "Davis",
       "team": 12,
-      "web_name": "Davis"
+      "web_name": "Davis",
+      "code": 305
     },
     {
       "first_name": "Jacob",
@@ -2911,7 +3216,8 @@
       "position": 2,
       "second_name": "Greaves",
       "team": 12,
-      "web_name": "Greaves"
+      "web_name": "Greaves",
+      "code": 306
     },
     {
       "first_name": "Ben",
@@ -2920,7 +3226,8 @@
       "position": 2,
       "second_name": "Johnson",
       "team": 12,
-      "web_name": "Johnson"
+      "web_name": "Johnson",
+      "code": 307
     },
     {
       "first_name": "Darnell",
@@ -2929,16 +3236,18 @@
       "position": 2,
       "second_name": "Furlong",
       "team": 12,
-      "web_name": "Furlong"
+      "web_name": "Furlong",
+      "code": 308
     },
     {
       "first_name": "Marcelino",
       "id": 309,
       "now_cost": 50,
       "position": 3,
-      "second_name": "N\u00fa\u00f1ez",
+      "second_name": "Núñez",
       "team": 12,
-      "web_name": "N\u00fa\u00f1ez"
+      "web_name": "Núñez",
+      "code": 309
     },
     {
       "first_name": "Azor",
@@ -2947,7 +3256,8 @@
       "position": 3,
       "second_name": "Matusiwa",
       "team": 12,
-      "web_name": "Matusiwa"
+      "web_name": "Matusiwa",
+      "code": 310
     },
     {
       "first_name": "Wes",
@@ -2956,7 +3266,8 @@
       "position": 3,
       "second_name": "Burns",
       "team": 12,
-      "web_name": "Burns"
+      "web_name": "Burns",
+      "code": 311
     },
     {
       "first_name": "Jack",
@@ -2965,7 +3276,8 @@
       "position": 3,
       "second_name": "Taylor",
       "team": 12,
-      "web_name": "Taylor"
+      "web_name": "Taylor",
+      "code": 312
     },
     {
       "first_name": "Jack",
@@ -2974,7 +3286,8 @@
       "position": 3,
       "second_name": "Clarke",
       "team": 12,
-      "web_name": "Clarke"
+      "web_name": "Clarke",
+      "code": 313
     },
     {
       "first_name": "Chiedozie",
@@ -2983,7 +3296,8 @@
       "position": 3,
       "second_name": "Ogbene",
       "team": 12,
-      "web_name": "Ogbene"
+      "web_name": "Ogbene",
+      "code": 314
     },
     {
       "first_name": "Abdul",
@@ -2992,7 +3306,8 @@
       "position": 3,
       "second_name": "Fatawu",
       "team": 12,
-      "web_name": "Fatawu"
+      "web_name": "Fatawu",
+      "code": 315
     },
     {
       "first_name": "Emersonn",
@@ -3001,7 +3316,8 @@
       "position": 4,
       "second_name": "Correia da Silva",
       "team": 12,
-      "web_name": "Emersonn"
+      "web_name": "Emersonn",
+      "code": 316
     },
     {
       "first_name": "George",
@@ -3010,7 +3326,8 @@
       "position": 4,
       "second_name": "Hirst",
       "team": 12,
-      "web_name": "Hirst"
+      "web_name": "Hirst",
+      "code": 317
     },
     {
       "first_name": "Jaden",
@@ -3019,7 +3336,8 @@
       "position": 3,
       "second_name": "Philogene",
       "team": 12,
-      "web_name": "Philogene"
+      "web_name": "Philogene",
+      "code": 318
     },
     {
       "first_name": "Sam",
@@ -3028,7 +3346,8 @@
       "position": 3,
       "second_name": "Szmodics",
       "team": 12,
-      "web_name": "Szmodics"
+      "web_name": "Szmodics",
+      "code": 319
     },
     {
       "first_name": "Chuba",
@@ -3037,7 +3356,8 @@
       "position": 4,
       "second_name": "Akpom",
       "team": 12,
-      "web_name": "Akpom"
+      "web_name": "Akpom",
+      "code": 320
     },
     {
       "first_name": "Sindre",
@@ -3046,7 +3366,8 @@
       "position": 4,
       "second_name": "Walle Egeli",
       "team": 12,
-      "web_name": "Walle Egeli"
+      "web_name": "Walle Egeli",
+      "code": 321
     },
     {
       "first_name": "Ali",
@@ -3055,7 +3376,8 @@
       "position": 4,
       "second_name": "Al-Hamadi",
       "team": 12,
-      "web_name": "Al-Hamadi"
+      "web_name": "Al-Hamadi",
+      "code": 322
     },
     {
       "first_name": "Kasey",
@@ -3064,7 +3386,8 @@
       "position": 3,
       "second_name": "McAteer",
       "team": 12,
-      "web_name": "McAteer"
+      "web_name": "McAteer",
+      "code": 323
     },
     {
       "first_name": "Anis",
@@ -3073,7 +3396,8 @@
       "position": 3,
       "second_name": "Mehmeti",
       "team": 12,
-      "web_name": "Mehmeti"
+      "web_name": "Mehmeti",
+      "code": 324
     },
     {
       "first_name": "Karl",
@@ -3082,7 +3406,8 @@
       "position": 1,
       "second_name": "Darlow",
       "team": 16,
-      "web_name": "Darlow"
+      "web_name": "Darlow",
+      "code": 325
     },
     {
       "first_name": "Lucas Estella",
@@ -3091,7 +3416,8 @@
       "position": 1,
       "second_name": "Perri",
       "team": 13,
-      "web_name": "Perri"
+      "web_name": "Perri",
+      "code": 326
     },
     {
       "first_name": "Jaka",
@@ -3100,7 +3426,8 @@
       "position": 2,
       "second_name": "Bijol",
       "team": 13,
-      "web_name": "Bijol"
+      "web_name": "Bijol",
+      "code": 327
     },
     {
       "first_name": "Pascal",
@@ -3109,7 +3436,8 @@
       "position": 2,
       "second_name": "Struijk",
       "team": 5,
-      "web_name": "Struijk"
+      "web_name": "Struijk",
+      "code": 328
     },
     {
       "first_name": "Joe",
@@ -3118,7 +3446,8 @@
       "position": 2,
       "second_name": "Rodon",
       "team": 13,
-      "web_name": "Rodon"
+      "web_name": "Rodon",
+      "code": 329
     },
     {
       "first_name": "Jayden",
@@ -3127,7 +3456,8 @@
       "position": 2,
       "second_name": "Bogle",
       "team": 13,
-      "web_name": "Bogle"
+      "web_name": "Bogle",
+      "code": 330
     },
     {
       "first_name": "Gabriel",
@@ -3136,7 +3466,8 @@
       "position": 2,
       "second_name": "Gudmundsson",
       "team": 13,
-      "web_name": "Gudmundsson"
+      "web_name": "Gudmundsson",
+      "code": 331
     },
     {
       "first_name": "James",
@@ -3145,7 +3476,8 @@
       "position": 2,
       "second_name": "Justin",
       "team": 13,
-      "web_name": "Justin"
+      "web_name": "Justin",
+      "code": 332
     },
     {
       "first_name": "Sebastiaan",
@@ -3154,16 +3486,18 @@
       "position": 2,
       "second_name": "Bornauw",
       "team": 13,
-      "web_name": "Bornauw"
+      "web_name": "Bornauw",
+      "code": 333
     },
     {
       "first_name": "Tarik",
       "id": 334,
       "now_cost": 50,
       "position": 2,
-      "second_name": "Muharemovi\u0107",
+      "second_name": "Muharemović",
       "team": 13,
-      "web_name": "Muharemovi\u0107"
+      "web_name": "Muharemović",
+      "code": 334
     },
     {
       "first_name": "Anton",
@@ -3172,7 +3506,8 @@
       "position": 3,
       "second_name": "Stach",
       "team": 13,
-      "web_name": "Stach"
+      "web_name": "Stach",
+      "code": 335
     },
     {
       "first_name": "Noah",
@@ -3181,7 +3516,8 @@
       "position": 3,
       "second_name": "Okafor",
       "team": 13,
-      "web_name": "Okafor"
+      "web_name": "Okafor",
+      "code": 336
     },
     {
       "first_name": "Brenden",
@@ -3190,7 +3526,8 @@
       "position": 3,
       "second_name": "Aaronson",
       "team": 13,
-      "web_name": "Aaronson"
+      "web_name": "Aaronson",
+      "code": 337
     },
     {
       "first_name": "Ethan",
@@ -3199,7 +3536,8 @@
       "position": 3,
       "second_name": "Ampadu",
       "team": 13,
-      "web_name": "Ampadu"
+      "web_name": "Ampadu",
+      "code": 338
     },
     {
       "first_name": "Sean",
@@ -3208,7 +3546,8 @@
       "position": 3,
       "second_name": "Longstaff",
       "team": 13,
-      "web_name": "Longstaff"
+      "web_name": "Longstaff",
+      "code": 339
     },
     {
       "first_name": "Joe",
@@ -3217,7 +3556,8 @@
       "position": 3,
       "second_name": "Gelhardt",
       "team": 11,
-      "web_name": "Gelhardt"
+      "web_name": "Gelhardt",
+      "code": 340
     },
     {
       "first_name": "Wilfried",
@@ -3226,7 +3566,8 @@
       "position": 3,
       "second_name": "Gnonto",
       "team": 13,
-      "web_name": "Gnonto"
+      "web_name": "Gnonto",
+      "code": 341
     },
     {
       "first_name": "Jack",
@@ -3235,7 +3576,8 @@
       "position": 3,
       "second_name": "Harrison",
       "team": 13,
-      "web_name": "Harrison"
+      "web_name": "Harrison",
+      "code": 342
     },
     {
       "first_name": "Daniel",
@@ -3244,7 +3586,8 @@
       "position": 3,
       "second_name": "James",
       "team": 13,
-      "web_name": "James"
+      "web_name": "James",
+      "code": 343
     },
     {
       "first_name": "Ilia",
@@ -3253,7 +3596,8 @@
       "position": 3,
       "second_name": "Gruev",
       "team": 13,
-      "web_name": "Gruev"
+      "web_name": "Gruev",
+      "code": 344
     },
     {
       "first_name": "Tanaka",
@@ -3262,7 +3606,8 @@
       "position": 3,
       "second_name": "Ao",
       "team": 13,
-      "web_name": "Tanaka"
+      "web_name": "Tanaka",
+      "code": 345
     },
     {
       "first_name": "Dominic",
@@ -3271,7 +3616,8 @@
       "position": 4,
       "second_name": "Calvert-Lewin",
       "team": 13,
-      "web_name": "Calvert-Lewin"
+      "web_name": "Calvert-Lewin",
+      "code": 346
     },
     {
       "first_name": "Lukas",
@@ -3280,25 +3626,28 @@
       "position": 4,
       "second_name": "Nmecha",
       "team": 13,
-      "web_name": "Nmecha"
+      "web_name": "Nmecha",
+      "code": 347
     },
     {
-      "first_name": "Jo\u00ebl",
+      "first_name": "Joël",
       "id": 348,
       "now_cost": 50,
       "position": 4,
       "second_name": "Piroe",
       "team": 13,
-      "web_name": "Piroe"
+      "web_name": "Piroe",
+      "code": 348
     },
     {
       "first_name": "Mateo",
       "id": 349,
       "now_cost": 45,
       "position": 4,
-      "second_name": "Joseph Fern\u00e1ndez-Regatillo",
+      "second_name": "Joseph Fernández-Regatillo",
       "team": 13,
-      "web_name": "Mateo Joseph"
+      "web_name": "Mateo Joseph",
+      "code": 349
     },
     {
       "first_name": "Alisson",
@@ -3307,7 +3656,8 @@
       "position": 1,
       "second_name": "Becker",
       "team": 14,
-      "web_name": "A.Becker"
+      "web_name": "A.Becker",
+      "code": 350
     },
     {
       "first_name": "Giorgi",
@@ -3316,7 +3666,8 @@
       "position": 1,
       "second_name": "Mamardashvili",
       "team": 14,
-      "web_name": "Mamardashvili"
+      "web_name": "Mamardashvili",
+      "code": 351
     },
     {
       "first_name": "Freddie",
@@ -3325,7 +3676,8 @@
       "position": 1,
       "second_name": "Woodman",
       "team": 14,
-      "web_name": "Woodman"
+      "web_name": "Woodman",
+      "code": 352
     },
     {
       "first_name": "Armin",
@@ -3334,7 +3686,8 @@
       "position": 1,
       "second_name": "Pecsi",
       "team": 14,
-      "web_name": "Pecsi"
+      "web_name": "Pecsi",
+      "code": 353
     },
     {
       "first_name": "Vitezslav",
@@ -3343,7 +3696,8 @@
       "position": 1,
       "second_name": "Jaros",
       "team": 14,
-      "web_name": "Jaros"
+      "web_name": "Jaros",
+      "code": 354
     },
     {
       "first_name": "Harvey",
@@ -3352,7 +3706,8 @@
       "position": 1,
       "second_name": "Davies",
       "team": 14,
-      "web_name": "Davies"
+      "web_name": "Davies",
+      "code": 355
     },
     {
       "first_name": "Virgil",
@@ -3361,7 +3716,8 @@
       "position": 2,
       "second_name": "van Dijk",
       "team": 14,
-      "web_name": "Virgil"
+      "web_name": "Virgil",
+      "code": 356
     },
     {
       "first_name": "Jeremie",
@@ -3370,7 +3726,8 @@
       "position": 2,
       "second_name": "Frimpong",
       "team": 14,
-      "web_name": "Frimpong"
+      "web_name": "Frimpong",
+      "code": 357
     },
     {
       "first_name": "Milos",
@@ -3379,7 +3736,8 @@
       "position": 2,
       "second_name": "Kerkez",
       "team": 14,
-      "web_name": "Kerkez"
+      "web_name": "Kerkez",
+      "code": 358
     },
     {
       "first_name": "Joe",
@@ -3388,7 +3746,8 @@
       "position": 2,
       "second_name": "Gomez",
       "team": 14,
-      "web_name": "Gomez"
+      "web_name": "Gomez",
+      "code": 359
     },
     {
       "first_name": "Conor",
@@ -3397,7 +3756,8 @@
       "position": 2,
       "second_name": "Bradley",
       "team": 14,
-      "web_name": "Bradley"
+      "web_name": "Bradley",
+      "code": 360
     },
     {
       "first_name": "Wellity",
@@ -3406,7 +3766,8 @@
       "position": 2,
       "second_name": "Lucky",
       "team": 14,
-      "web_name": "Lucky"
+      "web_name": "Lucky",
+      "code": 361
     },
     {
       "first_name": "Jeremy",
@@ -3415,7 +3776,8 @@
       "position": 2,
       "second_name": "Jacquet",
       "team": 14,
-      "web_name": "Jacquet"
+      "web_name": "Jacquet",
+      "code": 362
     },
     {
       "first_name": "Giovanni",
@@ -3424,7 +3786,8 @@
       "position": 2,
       "second_name": "Leoni",
       "team": 14,
-      "web_name": "Leoni"
+      "web_name": "Leoni",
+      "code": 363
     },
     {
       "first_name": "Kostas",
@@ -3433,7 +3796,8 @@
       "position": 2,
       "second_name": "Tsimikas",
       "team": 14,
-      "web_name": "Tsimikas"
+      "web_name": "Tsimikas",
+      "code": 364
     },
     {
       "first_name": "Calvin",
@@ -3442,7 +3806,8 @@
       "position": 2,
       "second_name": "Ramsay",
       "team": 14,
-      "web_name": "Ramsay"
+      "web_name": "Ramsay",
+      "code": 365
     },
     {
       "first_name": "Florian",
@@ -3451,7 +3816,8 @@
       "position": 3,
       "second_name": "Wirtz",
       "team": 14,
-      "web_name": "Wirtz"
+      "web_name": "Wirtz",
+      "code": 366
     },
     {
       "first_name": "Cody",
@@ -3460,7 +3826,8 @@
       "position": 3,
       "second_name": "Gakpo",
       "team": 14,
-      "web_name": "Gakpo"
+      "web_name": "Gakpo",
+      "code": 367
     },
     {
       "first_name": "Dominik",
@@ -3469,7 +3836,8 @@
       "position": 3,
       "second_name": "Szoboszlai",
       "team": 14,
-      "web_name": "Szoboszlai"
+      "web_name": "Szoboszlai",
+      "code": 368
     },
     {
       "first_name": "Rio",
@@ -3478,7 +3846,8 @@
       "position": 3,
       "second_name": "Ngumoha",
       "team": 14,
-      "web_name": "Ngumoha"
+      "web_name": "Ngumoha",
+      "code": 369
     },
     {
       "first_name": "Federico",
@@ -3487,7 +3856,8 @@
       "position": 3,
       "second_name": "Chiesa",
       "team": 14,
-      "web_name": "Chiesa"
+      "web_name": "Chiesa",
+      "code": 370
     },
     {
       "first_name": "Ryan",
@@ -3496,7 +3866,8 @@
       "position": 3,
       "second_name": "Gravenberch",
       "team": 14,
-      "web_name": "Gravenberch"
+      "web_name": "Gravenberch",
+      "code": 371
     },
     {
       "first_name": "Alexis",
@@ -3505,7 +3876,8 @@
       "position": 3,
       "second_name": "Mac Allister",
       "team": 14,
-      "web_name": "Mac Allister"
+      "web_name": "Mac Allister",
+      "code": 372
     },
     {
       "first_name": "Curtis",
@@ -3514,7 +3886,8 @@
       "position": 3,
       "second_name": "Jones",
       "team": 14,
-      "web_name": "C.Jones"
+      "web_name": "C.Jones",
+      "code": 373
     },
     {
       "first_name": "Endo",
@@ -3523,7 +3896,8 @@
       "position": 3,
       "second_name": "Wataru",
       "team": 14,
-      "web_name": "Endo"
+      "web_name": "Endo",
+      "code": 374
     },
     {
       "first_name": "Trey",
@@ -3532,16 +3906,18 @@
       "position": 3,
       "second_name": "Nyoni",
       "team": 14,
-      "web_name": "Nyoni"
+      "web_name": "Nyoni",
+      "code": 375
     },
     {
       "first_name": "Stefan",
       "id": 376,
       "now_cost": 50,
       "position": 3,
-      "second_name": "Baj\u010deti\u0107 Maquieira",
+      "second_name": "Bajčetić Maquieira",
       "team": 14,
-      "web_name": "Bajcetic"
+      "web_name": "Bajcetic",
+      "code": 376
     },
     {
       "first_name": "Victor",
@@ -3550,7 +3926,8 @@
       "position": 3,
       "second_name": "Munoz",
       "team": 14,
-      "web_name": "Munoz"
+      "web_name": "Munoz",
+      "code": 377
     },
     {
       "first_name": "James",
@@ -3559,7 +3936,8 @@
       "position": 3,
       "second_name": "McConnell",
       "team": 14,
-      "web_name": "McConnell"
+      "web_name": "McConnell",
+      "code": 378
     },
     {
       "first_name": "Alexander",
@@ -3568,16 +3946,18 @@
       "position": 4,
       "second_name": "Isak",
       "team": 14,
-      "web_name": "Isak"
+      "web_name": "Isak",
+      "code": 379
     },
     {
       "first_name": "Hugo",
       "id": 380,
       "now_cost": 75,
       "position": 4,
-      "second_name": "Ekitik\u00e9",
+      "second_name": "Ekitiké",
       "team": 14,
-      "web_name": "Ekitik\u00e9"
+      "web_name": "Ekitiké",
+      "code": 380
     },
     {
       "first_name": "Lewis",
@@ -3586,7 +3966,8 @@
       "position": 3,
       "second_name": "Koumas",
       "team": 14,
-      "web_name": "Koumas"
+      "web_name": "Koumas",
+      "code": 381
     },
     {
       "first_name": "Jayden",
@@ -3595,7 +3976,8 @@
       "position": 4,
       "second_name": "Danns",
       "team": 14,
-      "web_name": "Danns"
+      "web_name": "Danns",
+      "code": 382
     },
     {
       "first_name": "Harvey",
@@ -3604,7 +3986,8 @@
       "position": 3,
       "second_name": "Elliott",
       "team": 14,
-      "web_name": "Elliott"
+      "web_name": "Elliott",
+      "code": 383
     },
     {
       "first_name": "Gianluigi",
@@ -3613,7 +3996,8 @@
       "position": 1,
       "second_name": "Donnarumma",
       "team": 15,
-      "web_name": "Donnarumma"
+      "web_name": "Donnarumma",
+      "code": 384
     },
     {
       "first_name": "James",
@@ -3622,7 +4006,8 @@
       "position": 1,
       "second_name": "Trafford",
       "team": 13,
-      "web_name": "Trafford"
+      "web_name": "Trafford",
+      "code": 385
     },
     {
       "first_name": "Marcus",
@@ -3631,7 +4016,8 @@
       "position": 1,
       "second_name": "Bettinelli",
       "team": 15,
-      "web_name": "Bettinelli"
+      "web_name": "Bettinelli",
+      "code": 386
     },
     {
       "first_name": "Nico",
@@ -3640,16 +4026,18 @@
       "position": 2,
       "second_name": "O'Reilly",
       "team": 15,
-      "web_name": "O'Reilly"
+      "web_name": "O'Reilly",
+      "code": 387
     },
     {
       "first_name": "Marc",
       "id": 388,
       "now_cost": 60,
       "position": 2,
-      "second_name": "Gu\u00e9hi",
+      "second_name": "Guéhi",
       "team": 15,
-      "web_name": "Gu\u00e9hi"
+      "web_name": "Guéhi",
+      "code": 388
     },
     {
       "first_name": "Matheus",
@@ -3658,34 +4046,38 @@
       "position": 2,
       "second_name": "Nunes",
       "team": 15,
-      "web_name": "Matheus N."
+      "web_name": "Matheus N.",
+      "code": 389
     },
     {
-      "first_name": "R\u00faben",
+      "first_name": "Rúben",
       "id": 390,
       "now_cost": 55,
       "position": 2,
       "second_name": "dos Santos Gato Alves Dias",
       "team": 15,
-      "web_name": "R\u00faben"
+      "web_name": "Rúben",
+      "code": 390
     },
     {
-      "first_name": "Jo\u0161ko",
+      "first_name": "Joško",
       "id": 391,
       "now_cost": 55,
       "position": 2,
       "second_name": "Gvardiol",
       "team": 15,
-      "web_name": "Gvardiol"
+      "web_name": "Gvardiol",
+      "code": 391
     },
     {
       "first_name": "Rayan",
       "id": 392,
       "now_cost": 55,
       "position": 2,
-      "second_name": "A\u00eft-Nouri",
+      "second_name": "Aït-Nouri",
       "team": 15,
-      "web_name": "A\u00eft-Nouri"
+      "web_name": "Aït-Nouri",
+      "code": 392
     },
     {
       "first_name": "Abdukodir",
@@ -3694,7 +4086,8 @@
       "position": 2,
       "second_name": "Khusanov",
       "team": 15,
-      "web_name": "Khusanov"
+      "web_name": "Khusanov",
+      "code": 393
     },
     {
       "first_name": "Max",
@@ -3703,7 +4096,8 @@
       "position": 2,
       "second_name": "Alleyne",
       "team": 15,
-      "web_name": "Alleyne"
+      "web_name": "Alleyne",
+      "code": 394
     },
     {
       "first_name": "Rico",
@@ -3712,7 +4106,8 @@
       "position": 2,
       "second_name": "Lewis",
       "team": 15,
-      "web_name": "Lewis"
+      "web_name": "Lewis",
+      "code": 395
     },
     {
       "first_name": "Vitor",
@@ -3721,7 +4116,8 @@
       "position": 2,
       "second_name": "de Oliveira Nunes dos Reis",
       "team": 15,
-      "web_name": "Vitor Reis"
+      "web_name": "Vitor Reis",
+      "code": 396
     },
     {
       "first_name": "Antoine",
@@ -3730,7 +4126,8 @@
       "position": 3,
       "second_name": "Semenyo",
       "team": 15,
-      "web_name": "Semenyo"
+      "web_name": "Semenyo",
+      "code": 397
     },
     {
       "first_name": "Phil",
@@ -3739,7 +4136,8 @@
       "position": 3,
       "second_name": "Foden",
       "team": 15,
-      "web_name": "Foden"
+      "web_name": "Foden",
+      "code": 398
     },
     {
       "first_name": "Rayan",
@@ -3748,16 +4146,18 @@
       "position": 3,
       "second_name": "Cherki",
       "team": 15,
-      "web_name": "Cherki"
+      "web_name": "Cherki",
+      "code": 399
     },
     {
-      "first_name": "J\u00e9r\u00e9my",
+      "first_name": "Jérémy",
       "id": 400,
       "now_cost": 75,
       "position": 3,
       "second_name": "Doku",
       "team": 15,
-      "web_name": "Doku"
+      "web_name": "Doku",
+      "code": 400
     },
     {
       "first_name": "Omar",
@@ -3766,7 +4166,8 @@
       "position": 4,
       "second_name": "Marmoush",
       "team": 15,
-      "web_name": "Marmoush"
+      "web_name": "Marmoush",
+      "code": 401
     },
     {
       "first_name": "Rodrigo 'Rodri'",
@@ -3775,16 +4176,18 @@
       "position": 3,
       "second_name": "Hernandez Cascante",
       "team": 15,
-      "web_name": "Rodrigo"
+      "web_name": "Rodrigo",
+      "code": 402
     },
     {
-      "first_name": "S\u00e1vio",
+      "first_name": "Sávio",
       "id": 403,
       "now_cost": 65,
       "position": 3,
       "second_name": "Moreira de Oliveira",
       "team": 15,
-      "web_name": "Savinho"
+      "web_name": "Savinho",
+      "code": 403
     },
     {
       "first_name": "Tijjani",
@@ -3793,25 +4196,28 @@
       "position": 3,
       "second_name": "Reijnders",
       "team": 15,
-      "web_name": "Reijnders"
+      "web_name": "Reijnders",
+      "code": 404
     },
     {
       "first_name": "Nico",
       "id": 405,
       "now_cost": 55,
       "position": 3,
-      "second_name": "Gonz\u00e1lez Iglesias",
+      "second_name": "González Iglesias",
       "team": 15,
-      "web_name": "N.Gonzalez"
+      "web_name": "N.Gonzalez",
+      "code": 405
     },
     {
       "first_name": "Mateo",
       "id": 406,
       "now_cost": 55,
       "position": 3,
-      "second_name": "Kova\u010di\u0107",
+      "second_name": "Kovačić",
       "team": 15,
-      "web_name": "Kova\u010di\u0107"
+      "web_name": "Kovačić",
+      "code": 406
     },
     {
       "first_name": "Claudio",
@@ -3820,7 +4226,8 @@
       "position": 3,
       "second_name": "Echeverri",
       "team": 15,
-      "web_name": "Echeverri"
+      "web_name": "Echeverri",
+      "code": 407
     },
     {
       "first_name": "Kalvin",
@@ -3829,7 +4236,8 @@
       "position": 3,
       "second_name": "Phillips",
       "team": 15,
-      "web_name": "Phillips"
+      "web_name": "Phillips",
+      "code": 408
     },
     {
       "first_name": "Divine",
@@ -3838,7 +4246,8 @@
       "position": 3,
       "second_name": "Mukasa",
       "team": 15,
-      "web_name": "Mukasa"
+      "web_name": "Mukasa",
+      "code": 409
     },
     {
       "first_name": "Jeremy",
@@ -3847,7 +4256,8 @@
       "position": 3,
       "second_name": "Monga",
       "team": 15,
-      "web_name": "Monga"
+      "web_name": "Monga",
+      "code": 410
     },
     {
       "first_name": "Erling",
@@ -3856,7 +4266,8 @@
       "position": 4,
       "second_name": "Haaland",
       "team": 15,
-      "web_name": "Haaland"
+      "web_name": "Haaland",
+      "code": 411
     },
     {
       "first_name": "Senne",
@@ -3865,16 +4276,18 @@
       "position": 1,
       "second_name": "Lammens",
       "team": 16,
-      "web_name": "Lammens"
+      "web_name": "Lammens",
+      "code": 412
     },
     {
       "first_name": "Altay",
       "id": 413,
       "now_cost": 45,
       "position": 1,
-      "second_name": "Bay\u0131nd\u0131r",
+      "second_name": "Bayındır",
       "team": 16,
-      "web_name": "Bayindir"
+      "web_name": "Bayindir",
+      "code": 413
     },
     {
       "first_name": "Tom",
@@ -3883,7 +4296,8 @@
       "position": 1,
       "second_name": "Heaton",
       "team": 16,
-      "web_name": "Heaton"
+      "web_name": "Heaton",
+      "code": 414
     },
     {
       "first_name": "Patrick",
@@ -3892,7 +4306,8 @@
       "position": 3,
       "second_name": "Dorgu",
       "team": 16,
-      "web_name": "Dorgu"
+      "web_name": "Dorgu",
+      "code": 415
     },
     {
       "first_name": "Matthijs",
@@ -3901,7 +4316,8 @@
       "position": 2,
       "second_name": "de Ligt",
       "team": 16,
-      "web_name": "De Ligt"
+      "web_name": "De Ligt",
+      "code": 416
     },
     {
       "first_name": "Diogo",
@@ -3910,7 +4326,8 @@
       "position": 2,
       "second_name": "Dalot Teixeira",
       "team": 16,
-      "web_name": "Dalot"
+      "web_name": "Dalot",
+      "code": 417
     },
     {
       "first_name": "Harry",
@@ -3919,16 +4336,18 @@
       "position": 2,
       "second_name": "Maguire",
       "team": 16,
-      "web_name": "Maguire"
+      "web_name": "Maguire",
+      "code": 418
     },
     {
       "first_name": "Lisandro",
       "id": 419,
       "now_cost": 50,
       "position": 2,
-      "second_name": "Mart\u00ednez",
+      "second_name": "Martínez",
       "team": 16,
-      "web_name": "Martinez"
+      "web_name": "Martinez",
+      "code": 419
     },
     {
       "first_name": "Leny",
@@ -3937,7 +4356,8 @@
       "position": 2,
       "second_name": "Yoro",
       "team": 16,
-      "web_name": "Yoro"
+      "web_name": "Yoro",
+      "code": 420
     },
     {
       "first_name": "Ayden",
@@ -3946,7 +4366,8 @@
       "position": 2,
       "second_name": "Heaven",
       "team": 16,
-      "web_name": "Heaven"
+      "web_name": "Heaven",
+      "code": 421
     },
     {
       "first_name": "Noussair",
@@ -3955,7 +4376,8 @@
       "position": 2,
       "second_name": "Mazraoui",
       "team": 16,
-      "web_name": "Mazraoui"
+      "web_name": "Mazraoui",
+      "code": 422
     },
     {
       "first_name": "Luke",
@@ -3964,7 +4386,8 @@
       "position": 2,
       "second_name": "Shaw",
       "team": 16,
-      "web_name": "Shaw"
+      "web_name": "Shaw",
+      "code": 423
     },
     {
       "first_name": "Harry",
@@ -3973,7 +4396,8 @@
       "position": 2,
       "second_name": "Amass",
       "team": 16,
-      "web_name": "Amass"
+      "web_name": "Amass",
+      "code": 424
     },
     {
       "first_name": "Tyler",
@@ -3982,7 +4406,8 @@
       "position": 2,
       "second_name": "Fredricson",
       "team": 16,
-      "web_name": "Fredricson"
+      "web_name": "Fredricson",
+      "code": 425
     },
     {
       "first_name": "Bruno",
@@ -3991,7 +4416,8 @@
       "position": 3,
       "second_name": "Borges Fernandes",
       "team": 16,
-      "web_name": "B.Fernandes"
+      "web_name": "B.Fernandes",
+      "code": 426
     },
     {
       "first_name": "Bryan",
@@ -4000,7 +4426,8 @@
       "position": 3,
       "second_name": "Mbeumo",
       "team": 16,
-      "web_name": "Mbeumo"
+      "web_name": "Mbeumo",
+      "code": 427
     },
     {
       "first_name": "Matheus",
@@ -4009,7 +4436,8 @@
       "position": 3,
       "second_name": "Santos Carneiro da Cunha",
       "team": 16,
-      "web_name": "Cunha"
+      "web_name": "Cunha",
+      "code": 428
     },
     {
       "first_name": "Marcus",
@@ -4018,7 +4446,8 @@
       "position": 3,
       "second_name": "Rashford",
       "team": 16,
-      "web_name": "Rashford"
+      "web_name": "Rashford",
+      "code": 429
     },
     {
       "first_name": "Mason",
@@ -4027,7 +4456,8 @@
       "position": 3,
       "second_name": "Mount",
       "team": 16,
-      "web_name": "Mount"
+      "web_name": "Mount",
+      "code": 430
     },
     {
       "first_name": "Amad",
@@ -4036,7 +4466,8 @@
       "position": 3,
       "second_name": "Diallo",
       "team": 16,
-      "web_name": "Amad"
+      "web_name": "Amad",
+      "code": 431
     },
     {
       "first_name": "Kobbie",
@@ -4045,7 +4476,8 @@
       "position": 3,
       "second_name": "Mainoo",
       "team": 16,
-      "web_name": "Mainoo"
+      "web_name": "Mainoo",
+      "code": 432
     },
     {
       "first_name": "Manuel",
@@ -4054,7 +4486,8 @@
       "position": 3,
       "second_name": "Ugarte Ribeiro",
       "team": 16,
-      "web_name": "Ugarte"
+      "web_name": "Ugarte",
+      "code": 433
     },
     {
       "first_name": "Jack",
@@ -4063,7 +4496,8 @@
       "position": 3,
       "second_name": "Fletcher",
       "team": 16,
-      "web_name": "J.Fletcher"
+      "web_name": "J.Fletcher",
+      "code": 434
     },
     {
       "first_name": "Shea",
@@ -4072,7 +4506,8 @@
       "position": 3,
       "second_name": "Lacey",
       "team": 16,
-      "web_name": "Lacey"
+      "web_name": "Lacey",
+      "code": 435
     },
     {
       "first_name": "Toby",
@@ -4081,7 +4516,8 @@
       "position": 3,
       "second_name": "Collyer",
       "team": 16,
-      "web_name": "Collyer"
+      "web_name": "Collyer",
+      "code": 436
     },
     {
       "first_name": "Bendito",
@@ -4090,7 +4526,8 @@
       "position": 3,
       "second_name": "Mantato",
       "team": 16,
-      "web_name": "Bendito Mantato"
+      "web_name": "Bendito Mantato",
+      "code": 437
     },
     {
       "first_name": "Tyler",
@@ -4099,7 +4536,8 @@
       "position": 3,
       "second_name": "Fletcher",
       "team": 16,
-      "web_name": "Fletcher"
+      "web_name": "Fletcher",
+      "code": 438
     },
     {
       "first_name": "Benjamin",
@@ -4108,7 +4546,8 @@
       "position": 4,
       "second_name": "Sesko",
       "team": 16,
-      "web_name": "\u0160e\u0161ko"
+      "web_name": "Šeško",
+      "code": 439
     },
     {
       "first_name": "Joshua",
@@ -4117,7 +4556,8 @@
       "position": 4,
       "second_name": "Zirkzee",
       "team": 16,
-      "web_name": "Zirkzee"
+      "web_name": "Zirkzee",
+      "code": 440
     },
     {
       "first_name": "Chido",
@@ -4126,7 +4566,8 @@
       "position": 4,
       "second_name": "Obi",
       "team": 16,
-      "web_name": "Obi"
+      "web_name": "Obi",
+      "code": 441
     },
     {
       "first_name": "Nick",
@@ -4135,7 +4576,8 @@
       "position": 1,
       "second_name": "Pope",
       "team": 17,
-      "web_name": "Pope"
+      "web_name": "Pope",
+      "code": 442
     },
     {
       "first_name": "Mark",
@@ -4144,7 +4586,8 @@
       "position": 1,
       "second_name": "Gillespie",
       "team": 17,
-      "web_name": "Gillespie"
+      "web_name": "Gillespie",
+      "code": 443
     },
     {
       "first_name": "Ewen",
@@ -4153,7 +4596,8 @@
       "position": 1,
       "second_name": "Jaouen",
       "team": 17,
-      "web_name": "Jaouen"
+      "web_name": "Jaouen",
+      "code": 444
     },
     {
       "first_name": "Malick",
@@ -4162,16 +4606,18 @@
       "position": 2,
       "second_name": "Thiaw",
       "team": 17,
-      "web_name": "Thiaw"
+      "web_name": "Thiaw",
+      "code": 445
     },
     {
       "first_name": "Fabian",
       "id": 446,
       "now_cost": 50,
       "position": 2,
-      "second_name": "Sch\u00e4r",
+      "second_name": "Schär",
       "team": 17,
-      "web_name": "Sch\u00e4r"
+      "web_name": "Schär",
+      "code": 446
     },
     {
       "first_name": "Sven",
@@ -4180,7 +4626,8 @@
       "position": 2,
       "second_name": "Botman",
       "team": 17,
-      "web_name": "Botman"
+      "web_name": "Botman",
+      "code": 447
     },
     {
       "first_name": "Dan",
@@ -4189,7 +4636,8 @@
       "position": 2,
       "second_name": "Burn",
       "team": 17,
-      "web_name": "Burn"
+      "web_name": "Burn",
+      "code": 448
     },
     {
       "first_name": "Lewis",
@@ -4198,7 +4646,8 @@
       "position": 2,
       "second_name": "Hall",
       "team": 17,
-      "web_name": "Hall"
+      "web_name": "Hall",
+      "code": 449
     },
     {
       "first_name": "Tino",
@@ -4207,7 +4656,8 @@
       "position": 2,
       "second_name": "Livramento",
       "team": 17,
-      "web_name": "Livramento"
+      "web_name": "Livramento",
+      "code": 450
     },
     {
       "first_name": "Alex",
@@ -4216,16 +4666,18 @@
       "position": 2,
       "second_name": "Murphy",
       "team": 17,
-      "web_name": "A.Murphy"
+      "web_name": "A.Murphy",
+      "code": 451
     },
     {
       "first_name": "Bruno",
       "id": 452,
       "now_cost": 70,
       "position": 3,
-      "second_name": "Guimar\u00e3es Rodriguez Moura",
+      "second_name": "Guimarães Rodriguez Moura",
       "team": 1,
-      "web_name": "Bruno G."
+      "web_name": "Bruno G.",
+      "code": 452
     },
     {
       "first_name": "Harvey",
@@ -4234,7 +4686,8 @@
       "position": 3,
       "second_name": "Barnes",
       "team": 17,
-      "web_name": "Barnes"
+      "web_name": "Barnes",
+      "code": 453
     },
     {
       "first_name": "Anthony",
@@ -4243,7 +4696,8 @@
       "position": 3,
       "second_name": "Elanga",
       "team": 17,
-      "web_name": "Elanga"
+      "web_name": "Elanga",
+      "code": 454
     },
     {
       "first_name": "Sandro",
@@ -4252,7 +4706,8 @@
       "position": 3,
       "second_name": "Tonali",
       "team": 19,
-      "web_name": "Tonali"
+      "web_name": "Tonali",
+      "code": 455
     },
     {
       "first_name": "Jacob",
@@ -4261,7 +4716,8 @@
       "position": 3,
       "second_name": "Ramsey",
       "team": 17,
-      "web_name": "J.Ramsey"
+      "web_name": "J.Ramsey",
+      "code": 456
     },
     {
       "first_name": "Jacob",
@@ -4270,16 +4726,18 @@
       "position": 3,
       "second_name": "Murphy",
       "team": 17,
-      "web_name": "J.Murphy"
+      "web_name": "J.Murphy",
+      "code": 457
     },
     {
-      "first_name": "Joelinton C\u00e1ssio",
+      "first_name": "Joelinton Cássio",
       "id": 458,
       "now_cost": 55,
       "position": 3,
-      "second_name": "Apolin\u00e1rio de Lira",
+      "second_name": "Apolinário de Lira",
       "team": 17,
-      "web_name": "Joelinton"
+      "web_name": "Joelinton",
+      "code": 458
     },
     {
       "first_name": "Lewis",
@@ -4288,7 +4746,8 @@
       "position": 3,
       "second_name": "Miley",
       "team": 17,
-      "web_name": "L.Miley"
+      "web_name": "L.Miley",
+      "code": 459
     },
     {
       "first_name": "Joe",
@@ -4297,16 +4756,18 @@
       "position": 3,
       "second_name": "Willock",
       "team": 17,
-      "web_name": "Willock"
+      "web_name": "Willock",
+      "code": 460
     },
     {
       "first_name": "Bazoumana",
       "id": 461,
       "now_cost": 60,
       "position": 3,
-      "second_name": "Tour\u00e9",
+      "second_name": "Touré",
       "team": 17,
-      "web_name": "Tour\u00e9"
+      "web_name": "Touré",
+      "code": 461
     },
     {
       "first_name": "Sean",
@@ -4315,7 +4776,8 @@
       "position": 3,
       "second_name": "Steur",
       "team": 17,
-      "web_name": "Steur"
+      "web_name": "Steur",
+      "code": 462
     },
     {
       "first_name": "Nick",
@@ -4324,7 +4786,8 @@
       "position": 4,
       "second_name": "Woltemade",
       "team": 17,
-      "web_name": "Woltemade"
+      "web_name": "Woltemade",
+      "code": 463
     },
     {
       "first_name": "Yoane",
@@ -4333,7 +4796,8 @@
       "position": 4,
       "second_name": "Wissa",
       "team": 17,
-      "web_name": "Wissa"
+      "web_name": "Wissa",
+      "code": 464
     },
     {
       "first_name": "William",
@@ -4342,7 +4806,8 @@
       "position": 4,
       "second_name": "Osula",
       "team": 17,
-      "web_name": "Osula"
+      "web_name": "Osula",
+      "code": 465
     },
     {
       "first_name": "Sean",
@@ -4351,7 +4816,8 @@
       "position": 4,
       "second_name": "Neave",
       "team": 17,
-      "web_name": "Neave"
+      "web_name": "Neave",
+      "code": 466
     },
     {
       "first_name": "Matz",
@@ -4360,7 +4826,8 @@
       "position": 1,
       "second_name": "Sels",
       "team": 18,
-      "web_name": "Sels"
+      "web_name": "Sels",
+      "code": 467
     },
     {
       "first_name": "John Victor",
@@ -4369,7 +4836,8 @@
       "position": 1,
       "second_name": "Maciel Furtado",
       "team": 18,
-      "web_name": "John"
+      "web_name": "John",
+      "code": 468
     },
     {
       "first_name": "Neco",
@@ -4378,7 +4846,8 @@
       "position": 2,
       "second_name": "Williams",
       "team": 18,
-      "web_name": "N.Williams"
+      "web_name": "N.Williams",
+      "code": 469
     },
     {
       "first_name": "Felipe",
@@ -4387,16 +4856,18 @@
       "position": 2,
       "second_name": "Rodrigues da Silva",
       "team": 18,
-      "web_name": "Morato"
+      "web_name": "Morato",
+      "code": 470
     },
     {
       "first_name": "Nikola",
       "id": 471,
       "now_cost": 55,
       "position": 2,
-      "second_name": "Milenkovi\u0107",
+      "second_name": "Milenković",
       "team": 18,
-      "web_name": "Milenkovi\u0107"
+      "web_name": "Milenković",
+      "code": 471
     },
     {
       "first_name": "Murillo",
@@ -4405,7 +4876,8 @@
       "position": 2,
       "second_name": "Costa dos Santos",
       "team": 18,
-      "web_name": "Murillo"
+      "web_name": "Murillo",
+      "code": 472
     },
     {
       "first_name": "Ola",
@@ -4414,7 +4886,8 @@
       "position": 2,
       "second_name": "Aina",
       "team": 18,
-      "web_name": "Aina"
+      "web_name": "Aina",
+      "code": 473
     },
     {
       "first_name": "Jair",
@@ -4423,16 +4896,18 @@
       "position": 2,
       "second_name": "Paula da Cunha Filho",
       "team": 18,
-      "web_name": "Jair Cunha"
+      "web_name": "Jair Cunha",
+      "code": 474
     },
     {
-      "first_name": "Nicol\u00f2",
+      "first_name": "Nicolò",
       "id": 475,
       "now_cost": 45,
       "position": 2,
       "second_name": "Savona",
       "team": 18,
-      "web_name": "Savona"
+      "web_name": "Savona",
+      "code": 475
     },
     {
       "first_name": "Omar",
@@ -4441,7 +4916,8 @@
       "position": 2,
       "second_name": "Richards",
       "team": 18,
-      "web_name": "O.Richards"
+      "web_name": "O.Richards",
+      "code": 476
     },
     {
       "first_name": "Zach",
@@ -4450,7 +4926,8 @@
       "position": 2,
       "second_name": "Abbott",
       "team": 18,
-      "web_name": "Abbott"
+      "web_name": "Abbott",
+      "code": 477
     },
     {
       "first_name": "Luca",
@@ -4459,7 +4936,8 @@
       "position": 2,
       "second_name": "Netz",
       "team": 18,
-      "web_name": "Netz"
+      "web_name": "Netz",
+      "code": 478
     },
     {
       "first_name": "Tyler",
@@ -4468,7 +4946,8 @@
       "position": 2,
       "second_name": "Bindon",
       "team": 18,
-      "web_name": "Bindon"
+      "web_name": "Bindon",
+      "code": 479
     },
     {
       "first_name": "Morgan",
@@ -4477,7 +4956,8 @@
       "position": 3,
       "second_name": "Gibbs-White",
       "team": 18,
-      "web_name": "Gibbs-White"
+      "web_name": "Gibbs-White",
+      "code": 480
     },
     {
       "first_name": "Elliot",
@@ -4486,7 +4966,8 @@
       "position": 3,
       "second_name": "Anderson",
       "team": 15,
-      "web_name": "Anderson"
+      "web_name": "Anderson",
+      "code": 481
     },
     {
       "first_name": "Callum",
@@ -4495,7 +4976,8 @@
       "position": 3,
       "second_name": "Hudson-Odoi",
       "team": 18,
-      "web_name": "Hudson-Odoi"
+      "web_name": "Hudson-Odoi",
+      "code": 482
     },
     {
       "first_name": "Dan",
@@ -4504,7 +4986,8 @@
       "position": 3,
       "second_name": "Ndoye",
       "team": 18,
-      "web_name": "Ndoye"
+      "web_name": "Ndoye",
+      "code": 483
     },
     {
       "first_name": "Omari",
@@ -4513,7 +4996,8 @@
       "position": 3,
       "second_name": "Hutchinson",
       "team": 18,
-      "web_name": "Hutchinson"
+      "web_name": "Hutchinson",
+      "code": 484
     },
     {
       "first_name": "Dilane",
@@ -4522,7 +5006,8 @@
       "position": 3,
       "second_name": "Bakwa",
       "team": 18,
-      "web_name": "Bakwa"
+      "web_name": "Bakwa",
+      "code": 485
     },
     {
       "first_name": "James",
@@ -4531,25 +5016,28 @@
       "position": 3,
       "second_name": "McAtee",
       "team": 18,
-      "web_name": "McAtee"
+      "web_name": "McAtee",
+      "code": 486
     },
     {
-      "first_name": "Nicol\u00e1s",
+      "first_name": "Nicolás",
       "id": 487,
       "now_cost": 50,
       "position": 3,
-      "second_name": "Dom\u00ednguez",
+      "second_name": "Domínguez",
       "team": 18,
-      "web_name": "Dominguez"
+      "web_name": "Dominguez",
+      "code": 487
     },
     {
       "first_name": "Ibrahim",
       "id": 488,
       "now_cost": 50,
       "position": 3,
-      "second_name": "Sangar\u00e9",
+      "second_name": "Sangaré",
       "team": 18,
-      "web_name": "Sangar\u00e9"
+      "web_name": "Sangaré",
+      "code": 488
     },
     {
       "first_name": "Ryan",
@@ -4558,7 +5046,8 @@
       "position": 3,
       "second_name": "Yates",
       "team": 18,
-      "web_name": "Yates"
+      "web_name": "Yates",
+      "code": 489
     },
     {
       "first_name": "Chris",
@@ -4567,7 +5056,8 @@
       "position": 4,
       "second_name": "Wood",
       "team": 18,
-      "web_name": "Wood"
+      "web_name": "Wood",
+      "code": 490
     },
     {
       "first_name": "Igor Jesus",
@@ -4576,7 +5066,8 @@
       "position": 4,
       "second_name": "Maciel da Cruz",
       "team": 18,
-      "web_name": "Igor Jesus"
+      "web_name": "Igor Jesus",
+      "code": 491
     },
     {
       "first_name": "Taiwo",
@@ -4585,7 +5076,8 @@
       "position": 4,
       "second_name": "Awoniyi",
       "team": 7,
-      "web_name": "Awoniyi"
+      "web_name": "Awoniyi",
+      "code": 492
     },
     {
       "first_name": "Arnaud",
@@ -4594,7 +5086,8 @@
       "position": 4,
       "second_name": "Kalimuendo",
       "team": 18,
-      "web_name": "Kalimuendo"
+      "web_name": "Kalimuendo",
+      "code": 493
     },
     {
       "first_name": "Guglielmo",
@@ -4603,7 +5096,8 @@
       "position": 1,
       "second_name": "Vicario",
       "team": 19,
-      "web_name": "Vicario"
+      "web_name": "Vicario",
+      "code": 494
     },
     {
       "first_name": "Brandon",
@@ -4612,16 +5106,18 @@
       "position": 1,
       "second_name": "Austin",
       "team": 19,
-      "web_name": "Austin"
+      "web_name": "Austin",
+      "code": 495
     },
     {
-      "first_name": "Anton\u00edn",
+      "first_name": "Antonín",
       "id": 496,
       "now_cost": 45,
       "position": 1,
-      "second_name": "Kinsk\u00fd",
+      "second_name": "Kinský",
       "team": 19,
-      "web_name": "Kinsky"
+      "web_name": "Kinsky",
+      "code": 496
     },
     {
       "first_name": "Martin",
@@ -4630,16 +5126,18 @@
       "position": 1,
       "second_name": "Dubravka",
       "team": 19,
-      "web_name": "Dubravka"
+      "web_name": "Dubravka",
+      "code": 497
     },
     {
       "first_name": "Marcos",
       "id": 498,
       "now_cost": 60,
       "position": 2,
-      "second_name": "Senesi Bar\u00f3n",
+      "second_name": "Senesi Barón",
       "team": 19,
-      "web_name": "Senesi"
+      "web_name": "Senesi",
+      "code": 498
     },
     {
       "first_name": "Pedro",
@@ -4648,7 +5146,8 @@
       "position": 2,
       "second_name": "Porro Sauceda",
       "team": 19,
-      "web_name": "Pedro Porro"
+      "web_name": "Pedro Porro",
+      "code": 499
     },
     {
       "first_name": "Cristian",
@@ -4657,7 +5156,8 @@
       "position": 2,
       "second_name": "Romero",
       "team": 19,
-      "web_name": "Romero"
+      "web_name": "Romero",
+      "code": 500
     },
     {
       "first_name": "Kevin",
@@ -4666,7 +5166,8 @@
       "position": 2,
       "second_name": "Danso",
       "team": 19,
-      "web_name": "Danso"
+      "web_name": "Danso",
+      "code": 501
     },
     {
       "first_name": "Andrew",
@@ -4675,7 +5176,8 @@
       "position": 2,
       "second_name": "Robertson",
       "team": 19,
-      "web_name": "Robertson"
+      "web_name": "Robertson",
+      "code": 502
     },
     {
       "first_name": "Micky",
@@ -4684,16 +5186,18 @@
       "position": 2,
       "second_name": "van de Ven",
       "team": 19,
-      "web_name": "Van de Ven"
+      "web_name": "Van de Ven",
+      "code": 503
     },
     {
       "first_name": "Luka",
       "id": 504,
       "now_cost": 50,
       "position": 2,
-      "second_name": "Vu\u0161kovi\u0107",
+      "second_name": "Vušković",
       "team": 5,
-      "web_name": "Vuskovic"
+      "web_name": "Vuskovic",
+      "code": 504
     },
     {
       "first_name": "Djed",
@@ -4702,7 +5206,8 @@
       "position": 2,
       "second_name": "Spence",
       "team": 19,
-      "web_name": "Spence"
+      "web_name": "Spence",
+      "code": 505
     },
     {
       "first_name": "Destiny",
@@ -4711,7 +5216,8 @@
       "position": 2,
       "second_name": "Udogie",
       "team": 19,
-      "web_name": "Udogie"
+      "web_name": "Udogie",
+      "code": 506
     },
     {
       "first_name": "Ashley",
@@ -4720,7 +5226,8 @@
       "position": 2,
       "second_name": "Phillips",
       "team": 19,
-      "web_name": "Phillips"
+      "web_name": "Phillips",
+      "code": 507
     },
     {
       "first_name": "Ben",
@@ -4729,7 +5236,8 @@
       "position": 2,
       "second_name": "Davies",
       "team": 19,
-      "web_name": "Davies"
+      "web_name": "Davies",
+      "code": 508
     },
     {
       "first_name": "Jun'ai",
@@ -4738,7 +5246,8 @@
       "position": 2,
       "second_name": "Byfield",
       "team": 19,
-      "web_name": "Byfield"
+      "web_name": "Byfield",
+      "code": 509
     },
     {
       "first_name": "James",
@@ -4747,16 +5256,18 @@
       "position": 2,
       "second_name": "Rowswell",
       "team": 19,
-      "web_name": "Rowswell"
+      "web_name": "Rowswell",
+      "code": 510
     },
     {
-      "first_name": "Jo\u00e3o Victor",
+      "first_name": "João Victor",
       "id": 511,
       "now_cost": 40,
       "position": 2,
       "second_name": "de Souza Menezes",
       "team": 19,
-      "web_name": "Souza"
+      "web_name": "Souza",
+      "code": 511
     },
     {
       "first_name": "Mohammed",
@@ -4765,7 +5276,8 @@
       "position": 3,
       "second_name": "Kudus",
       "team": 19,
-      "web_name": "Kudus"
+      "web_name": "Kudus",
+      "code": 512
     },
     {
       "first_name": "Xavi",
@@ -4774,7 +5286,8 @@
       "position": 3,
       "second_name": "Simons",
       "team": 19,
-      "web_name": "Xavi"
+      "web_name": "Xavi",
+      "code": 513
     },
     {
       "first_name": "Mathys",
@@ -4783,7 +5296,8 @@
       "position": 3,
       "second_name": "Tel",
       "team": 19,
-      "web_name": "Tel"
+      "web_name": "Tel",
+      "code": 514
     },
     {
       "first_name": "James",
@@ -4792,7 +5306,8 @@
       "position": 3,
       "second_name": "Maddison",
       "team": 19,
-      "web_name": "Maddison"
+      "web_name": "Maddison",
+      "code": 515
     },
     {
       "first_name": "Rodrigo",
@@ -4801,7 +5316,8 @@
       "position": 3,
       "second_name": "Bentancur",
       "team": 19,
-      "web_name": "Bentancur"
+      "web_name": "Bentancur",
+      "code": 516
     },
     {
       "first_name": "Wilson",
@@ -4810,7 +5326,8 @@
       "position": 3,
       "second_name": "Odobert",
       "team": 19,
-      "web_name": "Odobert"
+      "web_name": "Odobert",
+      "code": 517
     },
     {
       "first_name": "Pape Matar",
@@ -4819,7 +5336,8 @@
       "position": 3,
       "second_name": "Sarr",
       "team": 19,
-      "web_name": "P.M.Sarr"
+      "web_name": "P.M.Sarr",
+      "code": 518
     },
     {
       "first_name": "Conor",
@@ -4828,7 +5346,8 @@
       "position": 3,
       "second_name": "Gallagher",
       "team": 19,
-      "web_name": "Gallagher"
+      "web_name": "Gallagher",
+      "code": 519
     },
     {
       "first_name": "Lucas",
@@ -4837,7 +5356,8 @@
       "position": 3,
       "second_name": "Bergvall",
       "team": 19,
-      "web_name": "Bergvall"
+      "web_name": "Bergvall",
+      "code": 520
     },
     {
       "first_name": "Dejan",
@@ -4846,7 +5366,8 @@
       "position": 3,
       "second_name": "Kulusevski",
       "team": 19,
-      "web_name": "Kulusevski"
+      "web_name": "Kulusevski",
+      "code": 521
     },
     {
       "first_name": "Archie",
@@ -4855,7 +5376,8 @@
       "position": 3,
       "second_name": "Gray",
       "team": 19,
-      "web_name": "Gray"
+      "web_name": "Gray",
+      "code": 522
     },
     {
       "first_name": "Mikey",
@@ -4864,7 +5386,8 @@
       "position": 3,
       "second_name": "Moore",
       "team": 19,
-      "web_name": "Moore"
+      "web_name": "Moore",
+      "code": 523
     },
     {
       "first_name": "Callum",
@@ -4873,7 +5396,8 @@
       "position": 3,
       "second_name": "Olusesi",
       "team": 19,
-      "web_name": "Olusesi"
+      "web_name": "Olusesi",
+      "code": 524
     },
     {
       "first_name": "Mateus",
@@ -4882,7 +5406,8 @@
       "position": 3,
       "second_name": "Fernandes",
       "team": 19,
-      "web_name": "Fernandes"
+      "web_name": "Fernandes",
+      "code": 525
     },
     {
       "first_name": "Dominic",
@@ -4891,7 +5416,8 @@
       "position": 4,
       "second_name": "Solanke-Mitchell",
       "team": 19,
-      "web_name": "Solanke"
+      "web_name": "Solanke",
+      "code": 526
     },
     {
       "first_name": "Richarlison",
@@ -4900,7 +5426,8 @@
       "position": 4,
       "second_name": "de Andrade",
       "team": 19,
-      "web_name": "Richarlison"
+      "web_name": "Richarlison",
+      "code": 527
     },
     {
       "first_name": "Dane",
@@ -4909,7 +5436,8 @@
       "position": 4,
       "second_name": "Scarlett",
       "team": 19,
-      "web_name": "Scarlett"
+      "web_name": "Scarlett",
+      "code": 528
     },
     {
       "first_name": "Robin",
@@ -4918,7 +5446,8 @@
       "position": 1,
       "second_name": "Roefs",
       "team": 20,
-      "web_name": "Roefs"
+      "web_name": "Roefs",
+      "code": 529
     },
     {
       "first_name": "Anthony",
@@ -4927,7 +5456,8 @@
       "position": 1,
       "second_name": "Patterson",
       "team": 20,
-      "web_name": "Patterson"
+      "web_name": "Patterson",
+      "code": 530
     },
     {
       "first_name": "Melker",
@@ -4936,7 +5466,8 @@
       "position": 1,
       "second_name": "Ellborg",
       "team": 20,
-      "web_name": "Ellborg"
+      "web_name": "Ellborg",
+      "code": 531
     },
     {
       "first_name": "Daniel",
@@ -4945,7 +5476,8 @@
       "position": 2,
       "second_name": "Ballard",
       "team": 20,
-      "web_name": "Ballard"
+      "web_name": "Ballard",
+      "code": 532
     },
     {
       "first_name": "Nordi",
@@ -4954,7 +5486,8 @@
       "position": 2,
       "second_name": "Mukiele",
       "team": 20,
-      "web_name": "Mukiele"
+      "web_name": "Mukiele",
+      "code": 533
     },
     {
       "first_name": "Trai",
@@ -4963,7 +5496,8 @@
       "position": 2,
       "second_name": "Hume",
       "team": 20,
-      "web_name": "Hume"
+      "web_name": "Hume",
+      "code": 534
     },
     {
       "first_name": "Omar",
@@ -4972,7 +5506,8 @@
       "position": 2,
       "second_name": "Alderete",
       "team": 20,
-      "web_name": "Alderete"
+      "web_name": "Alderete",
+      "code": 535
     },
     {
       "first_name": "Reinildo",
@@ -4981,7 +5516,8 @@
       "position": 2,
       "second_name": "Mandava",
       "team": 20,
-      "web_name": "Reinildo"
+      "web_name": "Reinildo",
+      "code": 536
     },
     {
       "first_name": "Jenson",
@@ -4990,7 +5526,8 @@
       "position": 2,
       "second_name": "Seelt",
       "team": 20,
-      "web_name": "Seelt"
+      "web_name": "Seelt",
+      "code": 537
     },
     {
       "first_name": "Leo Fuhr",
@@ -4999,7 +5536,8 @@
       "position": 2,
       "second_name": "Hjelde",
       "team": 20,
-      "web_name": "Hjelde"
+      "web_name": "Hjelde",
+      "code": 538
     },
     {
       "first_name": "Luke",
@@ -5008,7 +5546,8 @@
       "position": 2,
       "second_name": "O'Nien",
       "team": 20,
-      "web_name": "O'Nien"
+      "web_name": "O'Nien",
+      "code": 539
     },
     {
       "first_name": "Arthur",
@@ -5017,7 +5556,8 @@
       "position": 2,
       "second_name": "Masuaku",
       "team": 20,
-      "web_name": "Masuaku"
+      "web_name": "Masuaku",
+      "code": 540
     },
     {
       "first_name": "Thomas",
@@ -5026,16 +5566,18 @@
       "position": 2,
       "second_name": "Meunier",
       "team": 20,
-      "web_name": "Meunier"
+      "web_name": "Meunier",
+      "code": 541
     },
     {
       "first_name": "Enzo",
       "id": 542,
       "now_cost": 60,
       "position": 3,
-      "second_name": "Le F\u00e9e",
+      "second_name": "Le Fée",
       "team": 20,
-      "web_name": "E.Le F\u00e9e"
+      "web_name": "E.Le Fée",
+      "code": 542
     },
     {
       "first_name": "Habib",
@@ -5044,7 +5586,8 @@
       "position": 3,
       "second_name": "Diarra",
       "team": 20,
-      "web_name": "Diarra"
+      "web_name": "Diarra",
+      "code": 543
     },
     {
       "first_name": "Granit",
@@ -5053,7 +5596,8 @@
       "position": 3,
       "second_name": "Xhaka",
       "team": 20,
-      "web_name": "Xhaka"
+      "web_name": "Xhaka",
+      "code": 544
     },
     {
       "first_name": "Noah",
@@ -5062,7 +5606,8 @@
       "position": 3,
       "second_name": "Sadiki",
       "team": 20,
-      "web_name": "Sadiki"
+      "web_name": "Sadiki",
+      "code": 545
     },
     {
       "first_name": "Simon",
@@ -5071,7 +5616,8 @@
       "position": 3,
       "second_name": "Adingra",
       "team": 20,
-      "web_name": "Adingra"
+      "web_name": "Adingra",
+      "code": 546
     },
     {
       "first_name": "Romaine",
@@ -5080,7 +5626,8 @@
       "position": 3,
       "second_name": "Mundle",
       "team": 20,
-      "web_name": "Mundle"
+      "web_name": "Mundle",
+      "code": 547
     },
     {
       "first_name": "Chris",
@@ -5089,7 +5636,8 @@
       "position": 3,
       "second_name": "Rigg",
       "team": 20,
-      "web_name": "Rigg"
+      "web_name": "Rigg",
+      "code": 548
     },
     {
       "first_name": "Chemsdine",
@@ -5098,7 +5646,8 @@
       "position": 3,
       "second_name": "Talbi",
       "team": 20,
-      "web_name": "Talbi"
+      "web_name": "Talbi",
+      "code": 549
     },
     {
       "first_name": "Djiamgone Jocelin Ta",
@@ -5107,7 +5656,8 @@
       "position": 3,
       "second_name": "Bi",
       "team": 20,
-      "web_name": "Jocelin.T"
+      "web_name": "Jocelin.T",
+      "code": 550
     },
     {
       "first_name": "Nilson",
@@ -5116,7 +5666,8 @@
       "position": 3,
       "second_name": "Angulo",
       "team": 20,
-      "web_name": "Angulo"
+      "web_name": "Angulo",
+      "code": 551
     },
     {
       "first_name": "Brian",
@@ -5125,7 +5676,8 @@
       "position": 4,
       "second_name": "Brobbey",
       "team": 20,
-      "web_name": "Brobbey"
+      "web_name": "Brobbey",
+      "code": 552
     },
     {
       "first_name": "Wilson",
@@ -5134,7 +5686,8 @@
       "position": 4,
       "second_name": "Isidor",
       "team": 20,
-      "web_name": "Isidor"
+      "web_name": "Isidor",
+      "code": 553
     },
     {
       "first_name": "Kayne",
@@ -5143,7 +5696,8 @@
       "position": 1,
       "second_name": "van Oevelen",
       "team": 12,
-      "web_name": "Van Oevelen"
+      "web_name": "Van Oevelen",
+      "code": 554
     },
     {
       "first_name": "Remi",
@@ -5152,7 +5706,8 @@
       "position": 1,
       "second_name": "Matthews",
       "team": 8,
-      "web_name": "Matthews"
+      "web_name": "Matthews",
+      "code": 555
     },
     {
       "first_name": "Matt",
@@ -5161,7 +5716,8 @@
       "position": 2,
       "second_name": "Targett",
       "team": 11,
-      "web_name": "Targett"
+      "web_name": "Targett",
+      "code": 556
     },
     {
       "first_name": "Christos",
@@ -5170,7 +5726,8 @@
       "position": 3,
       "second_name": "Tzolis",
       "team": 1,
-      "web_name": "Tzolis"
+      "web_name": "Tzolis",
+      "code": 557
     },
     {
       "first_name": "Xaver",
@@ -5179,7 +5736,8 @@
       "position": 3,
       "second_name": "Schlager",
       "team": 18,
-      "web_name": "Schlager"
+      "web_name": "Schlager",
+      "code": 558
     },
     {
       "first_name": "Aladji",
@@ -5188,7 +5746,8 @@
       "position": 3,
       "second_name": "Bamba",
       "team": 17,
-      "web_name": "Bamba"
+      "web_name": "Bamba",
+      "code": 559
     },
     {
       "first_name": "Mike",
@@ -5197,7 +5756,8 @@
       "position": 1,
       "second_name": "Penders",
       "team": 6,
-      "web_name": "Penders"
+      "web_name": "Penders",
+      "code": 560
     },
     {
       "first_name": "Aaron",
@@ -5206,7 +5766,8 @@
       "position": 2,
       "second_name": "Anselmino",
       "team": 6,
-      "web_name": "Anselmino"
+      "web_name": "Anselmino",
+      "code": 561
     },
     {
       "first_name": "Daizen",
@@ -5215,7 +5776,8 @@
       "position": 3,
       "second_name": "Maeda",
       "team": 12,
-      "web_name": "Maeda"
+      "web_name": "Maeda",
+      "code": 562
     },
     {
       "first_name": "Hidemasa",
@@ -5224,7 +5786,8 @@
       "position": 3,
       "second_name": "Morita",
       "team": 11,
-      "web_name": "Morita"
+      "web_name": "Morita",
+      "code": 563
     },
     {
       "first_name": "Kjell",
@@ -5233,70 +5796,78 @@
       "position": 1,
       "second_name": "Scherpen",
       "team": 12,
-      "web_name": "Scherpen"
+      "web_name": "Scherpen",
+      "code": 564
     },
     {
       "first_name": "Mamadou",
       "id": 565,
       "now_cost": 55,
       "position": 3,
-      "second_name": "Sangar\u00e9",
+      "second_name": "Sangaré",
       "team": 4,
-      "web_name": "Sangar\u00e9"
+      "web_name": "Sangaré",
+      "code": 565
     },
     {
-      "first_name": "Ant\u00f3nio Jo\u00e3o",
+      "first_name": "António João",
       "id": 566,
       "now_cost": 50,
       "position": 2,
       "second_name": "Pereira de Albuquerque Tavares da Silva",
       "team": 3,
-      "web_name": "Silva"
+      "web_name": "Silva",
+      "code": 566
     },
     {
-      "first_name": "Luk\u00e1s",
+      "first_name": "Lukás",
       "id": 567,
       "now_cost": 50,
       "position": 1,
-      "second_name": "Horn\u00edcek",
+      "second_name": "Hornícek",
       "team": 17,
-      "web_name": "Horn\u00ed\u010dek"
+      "web_name": "Horníček",
+      "code": 567
     },
     {
-      "first_name": "Valent\u00edn",
+      "first_name": "Valentín",
       "id": 568,
       "now_cost": 55,
       "position": 3,
       "second_name": "Barco",
       "team": 6,
-      "web_name": "Barco"
+      "web_name": "Barco",
+      "code": 568
     },
     {
       "first_name": "Gonzalo",
       "id": 569,
       "now_cost": 60,
       "position": 4,
-      "second_name": "Garc\u00eda",
+      "second_name": "García",
       "team": 10,
-      "web_name": "Gonzalo"
+      "web_name": "Gonzalo",
+      "code": 569
     },
     {
-      "first_name": "C\u00e9sar",
+      "first_name": "César",
       "id": 570,
       "now_cost": 55,
       "position": 3,
       "second_name": "Palacios",
       "team": 10,
-      "web_name": "Palacios"
+      "web_name": "Palacios",
+      "code": 570
     },
     {
       "first_name": "Florentino Ibrain",
       "id": 571,
       "now_cost": 50,
       "position": 3,
-      "second_name": "Morris Lu\u00eds",
+      "second_name": "Morris Luís",
       "team": 12,
-      "web_name": "Florentino"
+      "web_name": "Florentino",
+      "code": 571
     },
     {
       "first_name": "Konstantinos",
@@ -5305,25 +5876,28 @@
       "position": 1,
       "second_name": "Tzolakis",
       "team": 11,
-      "web_name": "Tzolakis"
+      "web_name": "Tzolakis",
+      "code": 572
     },
     {
       "first_name": "Juanlu",
       "id": 573,
       "now_cost": 45,
       "position": 2,
-      "second_name": "S\u00e1nchez",
+      "second_name": "Sánchez",
       "team": 3,
-      "web_name": "Sanchez"
+      "web_name": "Sanchez",
+      "code": 573
     },
     {
       "first_name": "Jens",
       "id": 574,
       "now_cost": 50,
       "position": 3,
-      "second_name": "Hjert\u00f8-Dahl",
+      "second_name": "Hjertø-Dahl",
       "team": 11,
-      "web_name": "Hjert\u00f8-Dahl"
+      "web_name": "Hjertø-Dahl",
+      "code": 574
     },
     {
       "first_name": "Caleb",
@@ -5332,7 +5906,8 @@
       "position": 3,
       "second_name": "Yirenkyi",
       "team": 7,
-      "web_name": "Yirenkyi"
+      "web_name": "Yirenkyi",
+      "code": 575
     },
     {
       "first_name": "Elliot",
@@ -5341,7 +5916,8 @@
       "position": 3,
       "second_name": "Stroud",
       "team": 11,
-      "web_name": "Stroud"
+      "web_name": "Stroud",
+      "code": 576
     },
     {
       "first_name": "Takehiro",
@@ -5350,7 +5926,8 @@
       "position": 2,
       "second_name": "Tomiyasu",
       "team": 8,
-      "web_name": "Tomiyasu"
+      "web_name": "Tomiyasu",
+      "code": 577
     },
     {
       "first_name": "Mykhailo",
@@ -5359,7 +5936,8 @@
       "position": 3,
       "second_name": "Mudryk",
       "team": 6,
-      "web_name": "Mudryk"
+      "web_name": "Mudryk",
+      "code": 578
     },
     {
       "first_name": "Ronald",
@@ -5368,7 +5946,8 @@
       "position": 2,
       "second_name": "Araujo",
       "team": 14,
-      "web_name": "Araujo"
+      "web_name": "Araujo",
+      "code": 579
     },
     {
       "first_name": "Shea",
@@ -5377,7 +5956,8 @@
       "position": 3,
       "second_name": "Charles",
       "team": 10,
-      "web_name": "Charles"
+      "web_name": "Charles",
+      "code": 580
     },
     {
       "first_name": "Ousmane",
@@ -5386,7 +5966,8 @@
       "position": 2,
       "second_name": "Diomande",
       "team": 18,
-      "web_name": "Diomande"
+      "web_name": "Diomande",
+      "code": 581
     },
     {
       "first_name": "Brian",
@@ -5395,16 +5976,18 @@
       "position": 4,
       "second_name": "Madjo",
       "team": 2,
-      "web_name": "Madjo"
+      "web_name": "Madjo",
+      "code": 582
     },
     {
       "first_name": "Pep",
       "id": 583,
       "now_cost": 50,
       "position": 2,
-      "second_name": "Chavarr\u00eda",
+      "second_name": "Chavarría",
       "team": 6,
-      "web_name": "Chavarria"
+      "web_name": "Chavarria",
+      "code": 583
     },
     {
       "first_name": "Gustavo",
@@ -5413,7 +5996,8 @@
       "position": 3,
       "second_name": "Hamer",
       "team": 7,
-      "web_name": "Hamer"
+      "web_name": "Hamer",
+      "code": 584
     },
     {
       "first_name": "Lucas",
@@ -5422,7 +6006,8 @@
       "position": 2,
       "second_name": "Herrington",
       "team": 11,
-      "web_name": "Herrington"
+      "web_name": "Herrington",
+      "code": 585
     },
     {
       "first_name": "Nobel",
@@ -5431,16 +6016,18 @@
       "position": 2,
       "second_name": "Mendy",
       "team": 11,
-      "web_name": "Mendy"
+      "web_name": "Mendy",
+      "code": 586
     },
     {
-      "first_name": "Ger\u00f3nimo",
+      "first_name": "Gerónimo",
       "id": 587,
       "now_cost": 50,
       "position": 1,
       "second_name": "Rulli",
       "team": 15,
-      "web_name": "Rulli"
+      "web_name": "Rulli",
+      "code": 587
     },
     {
       "first_name": "Anan",
@@ -5449,7 +6036,8 @@
       "position": 2,
       "second_name": "Khalaili",
       "team": 8,
-      "web_name": "Khalaili"
+      "web_name": "Khalaili",
+      "code": 588
     },
     {
       "first_name": "Lucas",
@@ -5458,7 +6046,8 @@
       "position": 3,
       "second_name": "Gourna-Douath",
       "team": 11,
-      "web_name": "Gourna-Douath"
+      "web_name": "Gourna-Douath",
+      "code": 589
     },
     {
       "first_name": "Steven",
@@ -5467,7 +6056,8 @@
       "position": 1,
       "second_name": "Benda",
       "team": 18,
-      "web_name": "Benda"
+      "web_name": "Benda",
+      "code": 590
     },
     {
       "first_name": "Julio",
@@ -5476,7 +6066,8 @@
       "position": 3,
       "second_name": "Enciso",
       "team": 12,
-      "web_name": "Enciso"
+      "web_name": "Enciso",
+      "code": 591
     },
     {
       "first_name": "Abdoul",
@@ -5485,7 +6076,8 @@
       "position": 2,
       "second_name": "Ouattara",
       "team": 12,
-      "web_name": "Ouattara"
+      "web_name": "Ouattara",
+      "code": 592
     },
     {
       "first_name": "Amar",
@@ -5494,7 +6086,8 @@
       "position": 2,
       "second_name": "Dedic",
       "team": 17,
-      "web_name": "Dedi\u0107"
+      "web_name": "Dedić",
+      "code": 593
     },
     {
       "first_name": "Promise",
@@ -5503,7 +6096,8 @@
       "position": 4,
       "second_name": "David",
       "team": 5,
-      "web_name": "David"
+      "web_name": "David",
+      "code": 594
     },
     {
       "first_name": "Zavier",
@@ -5512,7 +6106,8 @@
       "position": 3,
       "second_name": "Gozo",
       "team": 8,
-      "web_name": "Gozo"
+      "web_name": "Gozo",
+      "code": 595
     },
     {
       "first_name": "Matteo",
@@ -5521,7 +6116,8 @@
       "position": 2,
       "second_name": "Ruggeri",
       "team": 2,
-      "web_name": "Ruggeri"
+      "web_name": "Ruggeri",
+      "code": 596
     },
     {
       "first_name": "Zion",
@@ -5530,7 +6126,8 @@
       "position": 1,
       "second_name": "Suzuki",
       "team": 2,
-      "web_name": "Suzuki"
+      "web_name": "Suzuki",
+      "code": 597
     },
     {
       "first_name": "Nico",
@@ -5539,7 +6136,8 @@
       "position": 2,
       "second_name": "Elvedi",
       "team": 13,
-      "web_name": "Elvedi"
+      "web_name": "Elvedi",
+      "code": 598
     },
     {
       "first_name": "Sidiki",
@@ -5548,7 +6146,8 @@
       "position": 4,
       "second_name": "Cherif",
       "team": 7,
-      "web_name": "Cherif"
+      "web_name": "Cherif",
+      "code": 599
     }
   ],
   "teams": [

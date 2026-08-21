@@ -12,7 +12,6 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
-    Index,
     Integer,
     String,
     Text,
@@ -102,6 +101,9 @@ class Player(Base):
     second_name: Mapped[str] = mapped_column(String(100), nullable=False)
     web_name: Mapped[str] = mapped_column(String(100), nullable=False)
     position_code: Mapped[int | None] = mapped_column(Integer)
+    #: FPL element ``code`` — the numeric key the official Premier League CDN uses
+    #: for player photo URLs (``resources.premierleague.com/photos/players/110x140/{code}.png``).
+    fpl_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     external_ids: Mapped[list[PlayerExternalId]] = relationship(
         back_populates="player", cascade="all, delete-orphan"
@@ -441,4 +443,6 @@ class RawRecord(Base):
     payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     season_code: Mapped[str | None] = mapped_column(String(20))
 
-    __table_args__ = (UniqueConstraint("source", "endpoint", "payload_hash", name="uq_raw_payload"),)
+    __table_args__ = (
+        UniqueConstraint("source", "endpoint", "payload_hash", name="uq_raw_payload"),
+    )

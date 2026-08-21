@@ -106,6 +106,7 @@ def _get_or_create_player(
     second_name: str,
     web_name: str,
     position_code: int | None,
+    fpl_code: int | None = None,
 ) -> Player:
     """Resolve a player by their official_fpl id, creating the mapping if needed."""
     ext = db.scalar(
@@ -120,6 +121,8 @@ def _get_or_create_player(
         player.second_name = second_name
         player.web_name = web_name
         player.position_code = position_code
+        if fpl_code is not None:
+            player.fpl_code = fpl_code
         return player
 
     player = Player(
@@ -127,6 +130,7 @@ def _get_or_create_player(
         second_name=second_name,
         web_name=web_name,
         position_code=position_code,
+        fpl_code=fpl_code,
     )
     db.add(player)
     db.flush()
@@ -204,6 +208,7 @@ def ingest_bootstrap(db: Session, provider: OfficialFPLDataProvider, season_code
                 str(item.get("second_name", "")),
                 str(item.get("web_name", "")),
                 int(item["element_type"]) if item.get("element_type") else None,
+                fpl_code=item.get("code"),
             )
 
             # Link the player to their current team and seed a current-price
@@ -290,11 +295,16 @@ def ingest_fixtures(db: Session, provider: OfficialFPLDataProvider, season_code:
             )
             kickoff_time = None
             if item.get("kickoff_time"):
-                kickoff_time = datetime.fromisoformat(str(item["kickoff_time"]).replace("Z", "+00:00"))
+                kickoff_time = datetime.fromisoformat(
+                    str(item["kickoff_time"]).replace("Z", "+00:00")
+                )
 
             home_provider_id = str(int(item["team_h"]))
             away_provider_id = str(int(item["team_a"]))
-            if home_provider_id not in provider_team_map or away_provider_id not in provider_team_map:
+            if (
+                home_provider_id not in provider_team_map
+                or away_provider_id not in provider_team_map
+            ):
                 raise ValueError(
                     f"Fixture {provider_id} references unknown team provider IDs "
                     f"{home_provider_id} and/or {away_provider_id}"
