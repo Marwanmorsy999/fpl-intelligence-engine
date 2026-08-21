@@ -123,8 +123,14 @@
     </div>
 
     <script>
-        const API = window.location.origin;
-        let PLAYER_NAMES = {};
+        // IMPORTANT: Use a RELATIVE API base (empty string). The previous value
+        // window.location.origin is undefined for a Location object, so every fetch
+        // URL became a broken absolute URL (e.g. "undefined/api/v1/squad/from-fpl"),
+        // which caused the "Network error" / "network failed" failures on every
+        // dashboard button. An empty base keeps all requests same-origin & relative
+        // (e.g. "/api/v1/squad/from-fpl"), which the backend serves correctly.
+        const API = "";
+        console.log("[dashboard] script loaded. API base =", JSON.stringify(API));
 
         function name(id) {
             return PLAYER_NAMES[id] || ("Player " + id);
@@ -168,14 +174,19 @@
             statusEl.textContent = "Fetching your squad from FPL...";
 
             try {
-                const imp = await fetch(`${API}/api/v1/squad/from-fpl`, {
+                const impUrl = `${API}/api/v1/squad/from-fpl`;
+                console.log("[analyze] About to call:", impUrl);
+                console.log("[analyze] Request body:", JSON.stringify({ entry_id: entryId }));
+                const imp = await fetch(impUrl, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ entry_id: entryId })
                 });
+                console.log("[analyze] squad/from-fpl response status:", imp.status);
 
                 if (!imp.ok) {
                     const body = await imp.json().catch(() => ({}));
+                    console.log("[analyze] squad/from-fpl non-OK body:", body);
                     if (imp.status === 409 && body.detail && body.detail.code === "pre_season") {
                         showPreseason(body.detail.message);
                         statusEl.style.display = "none";
@@ -185,11 +196,10 @@
                     if (imp.status === 409 && body.detail === "Picks not saved yet") {
                         showError("We found your team! But you haven't saved your Starting 11 on the official FPL site yet. Please go to fantasy.premierleague.com, set your captain and starting 11, click SAVE, and then come back here and try again.");
                     } else if (imp.status === 404) {
-                        showError(body.detail || "Could not find FPL Team ID. Please check your number.");
+                        showError(body.detail || "No FPL team found with that ID. Please check your number.");
                     } else if (imp.status === 503 || imp.status === 403) {
                         showError("The official FPL website is currently blocking our servers due to deadline day traffic. Please use the 'Enter Squad Manually' button below, or try again in an hour.");
                         document.getElementById("manualFallbackBtn").style.display = "inline-block";
-                        showError(body.detail || "FPL API is temporarily down, please try again in 5 minutes.");
                     } else {
                         showError(body.detail || "Something went wrong. Please try again.");
                     }
@@ -198,6 +208,7 @@
                     return;
                 }
 
+                console.log("[analyze] squad loaded OK from FPL");
                 const impData = await imp.json();
                 PLAYER_NAMES = impData.player_names || {};
                 document.getElementById("teamName").textContent = impData.entry_name
@@ -205,7 +216,10 @@
                     : `Gameweek ${impData.gameweek}`;
 
                 statusEl.textContent = "Running the math...";
-                const dec = await fetch(`${API}/api/v1/decisions`);
+                const decUrl = `${API}/api/v1/decisions`;
+                console.log("[analyze] About to call:", decUrl);
+                const dec = await fetch(decUrl);
+                console.log("[analyze] decisions status:", dec.status);
                 if (!dec.ok) {
                     const body = await dec.json().catch(() => ({}));
                     showError(body.detail || "Could not generate decisions. Please try again.");
@@ -218,6 +232,7 @@
                 statusEl.style.display = "none";
                 results.style.display = "block";
             } catch (e) {
+                console.error("[analyze] Error in analyze():", e);
                 showError("Network error: " + e.message);
                 statusEl.style.display = "none";
             } finally {
@@ -305,19 +320,25 @@
             statusEl.textContent = "Building your demo squad...";
 
             try {
-                const imp = await fetch(`${API}/api/v1/squad/demo`, {
+                const impUrl = `${API}/api/v1/squad/demo`;
+                console.log("[demo] About to call:", impUrl);
+                console.log("[demo] Request body:", "{}");
+                const imp = await fetch(impUrl, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                 });
+                console.log("[demo] squad/demo response status:", imp.status);
 
                 if (!imp.ok) {
                     const body = await imp.json().catch(() => ({}));
+                    console.log("[demo] squad/demo non-OK body:", body);
                     showError(body.detail || "Could not build a demo squad. Please try again.");
                     statusEl.style.display = "none";
                     btn.disabled = false;
                     return;
                 }
 
+                console.log("[demo] demo squad loaded OK");
                 const impData = await imp.json();
                 PLAYER_NAMES = impData.player_names || {};
                 document.getElementById("teamName").textContent = impData.entry_name
@@ -325,7 +346,10 @@
                     : `Gameweek ${impData.gameweek}`;
 
                 statusEl.textContent = "Running the math...";
-                const dec = await fetch(`${API}/api/v1/decisions`);
+                const decUrl = `${API}/api/v1/decisions`;
+                console.log("[demo] About to call:", decUrl);
+                const dec = await fetch(decUrl);
+                console.log("[demo] decisions status:", dec.status);
                 if (!dec.ok) {
                     const body = await dec.json().catch(() => ({}));
                     showError(body.detail || "Could not generate decisions. Please try again.");
@@ -339,6 +363,7 @@
                 statusEl.style.display = "none";
                 results.style.display = "block";
             } catch (e) {
+                console.error("[demo] Error in demoTeam():", e);
                 showError("Network error: " + e.message);
                 statusEl.style.display = "none";
             } finally {
@@ -359,9 +384,14 @@
                 btn.textContent = "Loading players...";
                 btn.disabled = true;
                 try {
-                    const res = await fetch(`${API}/api/v1/players`);
+                    const playersUrl = `${API}/api/v1/players`;
+                    console.log("[manual] About to call:", playersUrl);
+                    const res = await fetch(playersUrl);
+                    console.log("[manual] players status:", res.status);
                     ALL_PLAYERS = await res.json();
-                } catch(e) {}
+                } catch(e) {
+                    console.error("[manual] Failed to load players in loadManualEntry():", e);
+                }
                 btn.textContent = "Save & Analyze";
                 btn.disabled = false;
             }
@@ -434,23 +464,32 @@
             statusEl.textContent = "Saving manual squad...";
             document.getElementById("error").style.display = "none";
             try {
-                const res = await fetch(`${API}/api/v1/squad`, {
+                const squadUrl = `${API}/api/v1/squad`;
+                console.log("[manual] About to call:", squadUrl);
+                console.log("[manual] Request body:", JSON.stringify(squad));
+                const res = await fetch(squadUrl, {
                     method: "POST",
                     headers: {"Content-Type": "application/json"},
                     body: JSON.stringify(squad)
                 });
-                if(!res.ok) throw new Error("Failed to save squad");
-                
+                console.log("[manual] squad save status:", res.status);
+                if(!res.ok) throw new Error("Failed to save squad (" + res.status + ")");
+
                 document.getElementById("teamName").textContent = "Manual Squad";
                 statusEl.textContent = "Running the math...";
-                const dec = await fetch(`${API}/api/v1/decisions`);
-                if (!dec.ok) throw new Error("Failed to generate decisions");
-                
+                const decUrl = `${API}/api/v1/decisions`;
+                console.log("[manual] About to call:", decUrl);
+                const dec = await fetch(decUrl);
+                console.log("[manual] decisions status:", dec.status);
+                if (!dec.ok) throw new Error("Failed to generate decisions (" + dec.status + ")");
+
+                console.log("[manual] rendering decisions report");
                 render(await dec.json());
                 document.getElementById("manualEntry").style.display = "none";
                 document.getElementById("results").style.display = "block";
                 statusEl.style.display = "none";
             } catch(e) {
+                console.error("[manual] Error in saveManual():", e);
                 showError(e.message);
                 statusEl.style.display = "none";
             }
@@ -459,7 +498,7 @@
 
         document.getElementById("analyzeBtn").addEventListener("click", analyze);
         document.getElementById("teamId").addEventListener("keydown", (e) => {
-            if (e.key === "Enter") analyze();
+            if (e.key === "Enter" || e.key === "NumpadEnter" || e.keyCode === 13) analyze();
         });
         document.getElementById("demoBtn").addEventListener("click", demoTeam);
     </script>
