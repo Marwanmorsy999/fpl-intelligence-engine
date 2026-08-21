@@ -22,18 +22,19 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from fpl_intelligence.api import deps
-from fpl_intelligence.db.models import Player
 from fpl_intelligence.data_providers.decision_bridge import (
     FactCollectionService,
     FactOverrideProvider,
 )
+from fpl_intelligence.db.models import Player
 from fpl_intelligence.optimization.provider import DecisionPredictionProvider
 from fpl_intelligence.squad.bridge import DecisionOptimizerBridge
 from fpl_intelligence.squad.demo import build_demo_squad
 from fpl_intelligence.squad.fpl_import import (
     FplApiUnavailable,
     FplEntryNotFound,
-    FplPicksUnavailable,
+    FplPicksNotSaved,
+    FplRateLimitBlocked,
     FplSquadImporter,
 )
 from fpl_intelligence.squad.models import (
@@ -136,16 +137,16 @@ async def import_squad_from_fpl(
             status_code=404,
             detail="Could not find FPL Team ID. Please check your number.",
         ) from exc
-    except FplPicksUnavailable as exc:
-        # The entry exists but the season hasn't opened: friendly, non-scary.
+    except FplPicksNotSaved as exc:
         raise HTTPException(
             status_code=409,
-            detail={
-                "code": "pre_season",
-                "message": str(exc),
-                "entry_name": exc.entry_name,
-                "gameweek": exc.gameweek,
-            },
+            detail="Picks not saved yet",
+        ) from exc
+    except FplRateLimitBlocked as exc:
+        logger.warning("FPL import failed (Rate limit): %s", exc)
+        raise HTTPException(
+            status_code=503,
+            detail="FPL API blocked by rate limit",
         ) from exc
     except FplApiUnavailable as exc:
         logger.warning("FPL import failed (API unavailable): %s", exc)
@@ -181,10 +182,10 @@ async def demo_squad(db: GetDB) -> FromFplResponse:
             detail="Demo squad unavailable: not enough players ingested yet.",
         ) from exc
 
-    player_names = {
-        pid: (db.get(Player, pid).web_name if db.get(Player, pid) else f"Player {pid}")
-        for pid in squad.player_ids
-    }
+    player_names = {}
+    for pid in squad.player_ids:
+        p = db.get(Player, pid)
+        player_names[pid] = p.web_name if p else f"Player {pid}"
 
     saved = SquadService(session=db).set_squad(squad)
     return FromFplResponse(

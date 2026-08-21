@@ -69,7 +69,23 @@
             <div class="status" id="status" role="status" aria-live="polite"></div>
             <div class="error" id="error" role="alert" aria-live="assertive"></div>
             <div class="preseason" id="preseason" role="status" aria-live="polite"></div>
-            <button class="demo-btn" id="demoBtn" type="button">Try a Demo Team (no FPL account needed)</button>
+            <button class="demo-btn" id="manualFallbackBtn" type="button" style="display:none; border-color: #facc15; color: #fef08a;">Enter Squad Manually</button>
+            <details style="margin-top: 1rem; color: #94a3b8; font-size: 0.85rem;">
+                <summary style="cursor:pointer;">Developer Tools</summary>
+                <button class="demo-btn" id="demoBtn" type="button">Try a Demo Team</button>
+            </details>
+        </section>
+
+        
+        <section class="card" id="manualEntry" style="display:none; margin-bottom: 1rem;">
+            <h2 class="sub" style="margin-top:0;">Manual Squad Entry</h2>
+            <p class="muted" style="margin-bottom: 1rem;">Select your 15 players.</p>
+            <div id="manualForm" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;"></div>
+            <div style="margin-top: 1rem; display: flex; gap: 1rem;">
+                <div style="flex:1;"><label style="font-size:0.85rem; color:#94a3b8;">Captain:</label><br><select id="manualCap" style="width:100%; padding:0.4rem; background:#0f172a; color:#fff; border:1px solid #334155; border-radius:4px;"></select></div>
+                <div style="flex:1;"><label style="font-size:0.85rem; color:#94a3b8;">Vice-Captain:</label><br><select id="manualVice" style="width:100%; padding:0.4rem; background:#0f172a; color:#fff; border:1px solid #334155; border-radius:4px;"></select></div>
+            </div>
+            <button class="analyze-btn" id="saveManualBtn" type="button" style="margin-top: 1.5rem; width: 100%;">Save & Analyze</button>
         </section>
 
         <section class="results" id="results" aria-live="polite">
@@ -166,9 +182,13 @@
                         btn.disabled = false;
                         return;
                     }
-                    if (imp.status === 404) {
+                    if (imp.status === 409 && body.detail === "Picks not saved yet") {
+                        showError("We found your team! But you haven't saved your Starting 11 on the official FPL site yet. Please go to fantasy.premierleague.com, set your captain and starting 11, click SAVE, and then come back here and try again.");
+                    } else if (imp.status === 404) {
                         showError(body.detail || "Could not find FPL Team ID. Please check your number.");
-                    } else if (imp.status === 503) {
+                    } else if (imp.status === 503 || imp.status === 403) {
+                        showError("The official FPL website is currently blocking our servers due to deadline day traffic. Please use the 'Enter Squad Manually' button below, or try again in an hour.");
+                        document.getElementById("manualFallbackBtn").style.display = "inline-block";
                         showError(body.detail || "FPL API is temporarily down, please try again in 5 minutes.");
                     } else {
                         showError(body.detail || "Something went wrong. Please try again.");
@@ -324,6 +344,117 @@
             } finally {
                 btn.disabled = false;
             }
+        }
+
+        
+        document.getElementById("manualFallbackBtn").addEventListener("click", loadManualEntry);
+        document.getElementById("saveManualBtn").addEventListener("click", saveManual);
+
+        let ALL_PLAYERS = [];
+        async function loadManualEntry() {
+            document.getElementById("manualEntry").style.display = "block";
+            document.getElementById("error").style.display = "none";
+            const btn = document.getElementById("saveManualBtn");
+            if (ALL_PLAYERS.length === 0) {
+                btn.textContent = "Loading players...";
+                btn.disabled = true;
+                try {
+                    const res = await fetch(`${API}/api/v1/players`);
+                    ALL_PLAYERS = await res.json();
+                } catch(e) {}
+                btn.textContent = "Save & Analyze";
+                btn.disabled = false;
+            }
+            const form = document.getElementById("manualForm");
+            if(form.innerHTML === "") {
+                const positions = [{code:1, name:"GK", count:2}, {code:2, name:"DEF", count:5}, {code:3, name:"MID", count:5}, {code:4, name:"FWD", count:3}];
+                let html = "";
+                positions.forEach(p => {
+                    const players = ALL_PLAYERS.filter(x => x.position === p.code);
+                    const opts = "<option value=''>-- Select --</option>" + players.map(x => `<option value="${x.id}">${x.web_name}</option>`).join("");
+                    for(let i=1; i<=p.count; i++) {
+                        html += `<div><label style="font-size:0.85rem; color:#94a3b8;">${p.name} ${i}</label><br> <select class="manual-player" data-pos="${p.code}" onchange="updateCaptains()" style="width:100%; padding:0.4rem; background:#0f172a; color:#fff; border:1px solid #334155; border-radius:4px;">${opts}</select></div>`;
+                    }
+                });
+                form.innerHTML = html;
+            }
+        }
+        function updateCaptains() {
+            const selects = Array.from(document.querySelectorAll(".manual-player"));
+            const cap = document.getElementById("manualCap");
+            const vice = document.getElementById("manualVice");
+            const ids = selects.map(s => s.value).filter(x => x);
+            let opts = "<option value=''>-- Select --</option>";
+            ids.forEach(id => {
+                const p = ALL_PLAYERS.find(x => x.id == id);
+                if(p) opts += `<option value="${p.id}">${p.web_name}</option>`;
+            });
+            const oldCap = cap.value;
+            const oldVice = vice.value;
+            cap.innerHTML = opts;
+            vice.innerHTML = opts;
+            cap.value = oldCap;
+            vice.value = oldVice;
+        }
+        async function saveManual() {
+            const selects = Array.from(document.querySelectorAll(".manual-player"));
+            const ids = selects.map(s => parseInt(s.value)).filter(x => !isNaN(x));
+            if(ids.length !== 15) return showError("Please select exactly 15 players.");
+            const uniqueIds = new Set(ids);
+            if(uniqueIds.size !== 15) return showError("You have selected duplicate players. Please ensure all 15 players are unique.");
+            const cap = parseInt(document.getElementById("manualCap").value);
+            const vice = parseInt(document.getElementById("manualVice").value);
+            if(!cap || !vice) return showError("Please select a captain and vice-captain.");
+            if(cap === vice) return showError("Captain and vice-captain must be different.");
+            const squad = {
+                player_ids: ids,
+                captain_id: cap,
+                vice_captain_id: vice,
+                bank: 0,
+                free_transfers: 1,
+                chips_available: [],
+                gameweek: 1,
+                player_positions: {},
+                player_prices: {},
+                player_teams: {}
+            };
+            ids.forEach(id => {
+                const p = ALL_PLAYERS.find(x => x.id === id);
+                if(p) {
+                    squad.player_positions[id] = p.position || 1;
+                    squad.player_prices[id] = p.price || 5.0;
+                    squad.player_teams[id] = p.team || 1;
+                    PLAYER_NAMES[id] = p.web_name;
+                }
+            });
+            const statusEl = document.getElementById("status");
+            const btn = document.getElementById("saveManualBtn");
+            btn.disabled = true;
+            statusEl.style.display = "block";
+            statusEl.textContent = "Saving manual squad...";
+            document.getElementById("error").style.display = "none";
+            try {
+                const res = await fetch(`${API}/api/v1/squad`, {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify(squad)
+                });
+                if(!res.ok) throw new Error("Failed to save squad");
+                
+                document.getElementById("teamName").textContent = "Manual Squad";
+                statusEl.textContent = "Running the math...";
+                const dec = await fetch(`${API}/api/v1/decisions`);
+                if (!dec.ok) throw new Error("Failed to generate decisions");
+                
+                render(await dec.json());
+                document.getElementById("manualEntry").style.display = "none";
+                document.getElementById("results").style.display = "block";
+                statusEl.style.display = "none";
+            } catch(e) {
+                showError(e.message);
+                statusEl.style.display = "none";
+            }
+            btn.disabled = false;
         }
 
         document.getElementById("analyzeBtn").addEventListener("click", analyze);

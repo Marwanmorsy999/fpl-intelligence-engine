@@ -30,7 +30,7 @@ from fpl_intelligence.squad.fpl_import import (
     FplApiUnavailable,
     FplEntryNotFound,
     FplImportResult,
-    FplPicksUnavailable,
+    FplPicksNotSaved,
     FplSquadImporter,
 )
 from fpl_intelligence.squad.models import SquadStateCreate
@@ -348,12 +348,12 @@ class TestDemoSquad:
         assert dec.json()["gameweek"] == 1
 
 
-class TestPreSeasonMessage:
-    """The picks-404 (pre-season) path returns a friendly payload, not a 5xx."""
+class TestPicksNotSavedMessage:
+    """The picks-404 path returns a 409."""
 
     def test_preseason_picks_404_returns_friendly_message(self, client, monkeypatch) -> None:
         async def fake(entry_id, db=None):
-            raise FplPicksUnavailable(entry_name="CAPTAIN OB", gameweek=1)
+            raise FplPicksNotSaved("Picks not saved yet")
 
         monkeypatch.setattr(
             fpl_import_mod.FplSquadImporter, "build_squad_from_entry", staticmethod(fake)
@@ -361,7 +361,4 @@ class TestPreSeasonMessage:
 
         resp = client.post("/api/v1/squad/from-fpl", json={"entry_id": 794561})
         assert resp.status_code == 409
-        detail = resp.json()["detail"]
-        assert detail["code"] == "pre_season"
-        assert "CAPTAIN OB" in detail["message"]
-        assert "hasn't opened yet" in detail["message"]
+        assert resp.json()["detail"] == "Picks not saved yet"

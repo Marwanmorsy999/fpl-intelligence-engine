@@ -44,6 +44,15 @@ class FplApiUnavailable(FplImportError):
     """The FPL API is unreachable / returning server errors."""
 
 
+class FplRateLimitBlocked(FplImportError):
+    """FPL API blocked by rate limit (HTTP 403)."""
+
+
+class FplPicksNotSaved(FplImportError):
+    """Picks not saved yet (HTTP 404)."""
+
+
+
 class FplPicksUnavailable(FplImportError):
     """The entry exists but its picks are unavailable (pre-season).
 
@@ -114,14 +123,7 @@ class FplSquadImporter:
                 picks_payload = await self._get_json(
                     client, f"/api/entry/{entry_id}/event/{gameweek}/picks/"
                 )
-            except FplApiUnavailable as exc:
-                # A 404 on the picks endpoint while the entry itself resolved
-                # means the season hasn't opened yet (pre-season). Convert to a
-                # friendly, actionable error rather than a generic 5xx.
-                if "/picks/" in str(exc):
-                    raise FplPicksUnavailable(
-                        entry_name=entry_name, gameweek=gameweek
-                    ) from exc
+            except FplPicksNotSaved:
                 raise
             bootstrap = await self._get_json(client, "/api/bootstrap-static/")
         except FplEntryNotFound:
@@ -143,9 +145,13 @@ class FplSquadImporter:
 
     async def _get_json(self, client: httpx.AsyncClient, path: str) -> dict[str, Any]:
         response = await client.get(f"{self._base_url}{path}")
+        if response.status_code == 403:
+            raise FplRateLimitBlocked("FPL API blocked by rate limit")
         if response.status_code == 404:
             if path.startswith("/api/entry/") and path.endswith("/"):
                 raise FplEntryNotFound(f"FPL entry not found: {path}")
+            if "/picks/" in path:
+                raise FplPicksNotSaved("Picks not saved yet")
             raise FplApiUnavailable(f"FPL resource not found: {path}")
         response.raise_for_status()
         data = response.json()
