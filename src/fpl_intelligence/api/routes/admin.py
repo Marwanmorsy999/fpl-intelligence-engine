@@ -797,7 +797,46 @@ async def migrate_fpl_code_endpoint() -> dict:
 
 
 # --------------------------------------------------------------------------- #
-# v1.5.1 hotfix — apply migration 0016 (players.fpl_element_id) to production
+# TEMPORARY: Alembic version check endpoint (for debugging migration 0016)
+# --------------------------------------------------------------------------- #
+
+
+@router.get("/admin/alembic-version")
+async def alembic_version_check() -> dict:
+    """Report the current alembic migration version and column presence.
+
+    TEMPORARY diagnostic endpoint — remove after migration is confirmed.
+    """
+    db = SessionLocal()
+    try:
+        insp = sa_inspect(db.get_bind())
+        columns = [c["name"] for c in insp.get_columns("players")]
+        has_fpl_element_id = "fpl_element_id" in columns
+        has_fpl_code = "fpl_code" in columns
+
+        version = None
+        if insp.has_table("alembic_version"):
+            row = db.execute(text("SELECT version_num FROM alembic_version")).first()
+            version = row[0] if row else None
+
+        return {
+            "ok": True,
+            "alembic_version": version,
+            "expected_version": "0016_player_fpl_element_id",
+            "behind": version != "0016",
+            "columns": {
+                "fpl_code": has_fpl_code,
+                "fpl_element_id": has_fpl_element_id,
+            },
+        }
+    except Exception as exc:  # noqa: BLE001 - surface for visibility
+        logger.exception("alembic-version check failed")
+        return JSONResponse(
+            status_code=500,
+            content={"ok": False, "error": f"{type(exc).__name__}: {exc}"},
+        )
+    finally:
+        db.close()
 # --------------------------------------------------------------------------- #
 # Squad imports store OFFICIAL FPL element ids as player_ids, and the decisions
 # enrichment now joins them via ``players.fpl_element_id`` (migration 0016).

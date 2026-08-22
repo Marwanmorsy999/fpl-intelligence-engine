@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import httpx
@@ -11,6 +12,8 @@ from sqlalchemy.orm import Session
 from fpl_intelligence.config import get_settings
 from fpl_intelligence.db.models import Player, PlayerExternalId
 from fpl_intelligence.squad.models import SquadStateCreate
+
+logger = logging.getLogger(__name__)
 
 _FPL_ELEMENT_TYPE_TO_POSITION = {1: 1, 2: 2, 3: 3, 4: 4}
 
@@ -110,22 +113,29 @@ class FplSquadImporter:
         self, entry_id: int, db: Session | None = None
     ) -> FplImportResult:
         """Resolve an FPL entry ID into a :class:`FplImportResult`."""
+        logger.info("build_squad_from_entry: START entry_id=%s db=%s", entry_id, db is not None)
         own_client = self._client is None
         client = self._client or httpx.AsyncClient(
             timeout=self._timeout, follow_redirects=True, headers=_BROWSER_HEADERS
         )
         try:
+            logger.info("build_squad_from_entry: fetching entry %s", entry_id)
             entry = await self._get_json(client, f"/api/entry/{entry_id}/")
             gameweek = entry.get("current_event") or 1
             entry_name = entry.get("name")
+            logger.info("build_squad_from_entry: entry fetched gameweek=%s name=%s", gameweek, entry_name)
 
             try:
+                logger.info("build_squad_from_entry: fetching picks for gw %s", gameweek)
                 picks_payload = await self._get_json(
                     client, f"/api/entry/{entry_id}/event/{gameweek}/picks/"
                 )
+                logger.info("build_squad_from_entry: picks fetched count=%s", len(picks_payload.get("picks", [])))
             except FplPicksNotSaved:
                 raise
+            logger.info("build_squad_from_entry: fetching bootstrap")
             bootstrap = await self._get_json(client, "/api/bootstrap-static/")
+            logger.info("build_squad_from_entry: bootstrap fetched elements=%s", len(bootstrap.get("elements", [])))
         except FplEntryNotFound:
             raise
         except (httpx.HTTPStatusError, httpx.HTTPError, ValueError) as exc:
@@ -134,14 +144,21 @@ class FplSquadImporter:
             if own_client:
                 await client.aclose()
 
-        return self._build_result(
-            entry=entry,
-            picks_payload=picks_payload,
-            bootstrap=bootstrap,
-            gameweek=gameweek,
-            entry_name=entry_name,
-            db=db,
-        )
+        logger.info("build_squad_from_entry: calling _build_result")
+        try:
+            result = self._build_result(
+                entry=entry,
+                picks_payload=picks_payload,
+                bootstrap=bootstrap,
+                gameweek=gameweek,
+                entry_name=entry_name,
+                db=db,
+            )
+            logger.info("build_squad_from_entry: _build_result OK player_names=%s", len(result.player_names))
+            return result
+        except Exception as exc:
+            logger.exception("build_squad_from_entry: _build_result FAILED: %s", exc)
+            raise
 
     async def _get_json(self, client: httpx.AsyncClient, path: str) -> dict[str, Any]:
         response = await client.get(f"{self._base_url}{path}")
@@ -254,15 +271,23 @@ class FplSquadImporter:
         db: Session | None,
     ) -> dict[int, str]:
         names: dict[int, str] = {}
+        logger.info("_resolve_player_names: START element_ids=%s db=%s", element_ids, db is not None)
         for el in element_ids:
             name = bootstrap_names.get(el) or f"Player {el}"
             if db is not None:
                 # Primary: direct join on the official FPL element id column
                 # (never our internal auto-increment id). Fallback: the legacy
                 # external-id mapping table.
-                player = db.scalar(select(Player).where(Player.fpl_element_id == el))
+                logger.info("_resolve_player_names: querying fpl_element_id=%s", el)
+                try:
+                    player = db.scalar(select(Player).where(Player.fpl_element_id == el))
+                    logger.info("_resolve_player_names: fpl_element_id=%s match=%s", el, player is not None)
+                except Exception as exc:
+                    logger.exception("_resolve_player_names: fpl_element_id query FAILED for el=%s: %s", el, exc)
+                    raise
                 if player is None:
                     for ext_provider in ("official_fpl", "fpl"):
+                        logger.info("_resolve_player_names: trying external_id provider=%s el=%s", ext_provider, el)
                         ext = db.execute(
                             select(PlayerExternalId).where(
                                 PlayerExternalId.provider == ext_provider,
@@ -271,8 +296,10 @@ class FplSquadImporter:
                         ).scalar_one_or_none()
                         if ext is not None:
                             player = db.get(Player, ext.player_id)
+                            logger.info("_resolve_player_names: external_id resolved el=%s -> player_id=%s", el, ext.player_id)
                             break
                 if player is not None:
                     name = player.web_name
             names[el] = name
+        logger.info("_resolve_player_names: DONE names=%s", names)
         return names
