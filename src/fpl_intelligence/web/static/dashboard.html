@@ -524,7 +524,8 @@ function renderChainBanner(report) {
     var mc = chain.market_check.fixtures_matched != null ? " · " + chain.market_check.fixtures_matched + " fixtures" : "";
     noteLines.push('<span class="chain-note ok">Market check: agrees' + mc + "</span>");
   }
-  if (notes.weather_severe_fixtures != null && notes.weather_severe_fixtures !== 0) {
+  if (notes.weather_severe_fixtures != null && notes.weather_severe_fixtures !== 0
+      && !(Array.isArray(notes.weather_severe_fixtures) && notes.weather_severe_fixtures.length === 0)) {
     noteLines.push('<span class="chain-note">Severe-weather fixtures: ' + notes.weather_severe_fixtures + "</span>");
   }
   if (noteLines.length) {

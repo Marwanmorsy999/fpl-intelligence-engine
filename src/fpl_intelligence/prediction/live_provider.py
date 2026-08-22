@@ -782,6 +782,7 @@ class PredictionChainResult:
             "data_quality": self.resolved.data_quality,
             "covered_players": self.resolved.covered,
             "levels_considered": len(self.levels),
+            "notes": self.resolved.notes,
             "chain": [level.meta() for level in self.levels],
         }
 
