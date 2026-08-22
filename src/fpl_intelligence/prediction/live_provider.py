@@ -870,6 +870,12 @@ class LivePredictionProvider:
         self._weather_error: str | None = None
         #: most recent :meth:`resolve_chain` outcome, for cheap meta re-reads
         self.last_result: PredictionChainResult | None = None
+        #: Per-gameweek cache for :meth:`resolve_chain` results.
+        #: Eliminates N+1 redundant chain resolutions when the optimizers call
+        #: :meth:`get_player_prediction` hundreds of times for the same gameweek
+        #: (one call per player). The cache lives for the provider instance
+        #: lifetime (one request), so each fresh request sees a cold cache.
+        self._chain_cache: dict[int, PredictionChainResult] = {}
 
     # -- lazily-built shared state ----------------------------------------------
 
@@ -921,9 +927,18 @@ class LivePredictionProvider:
     def resolve_chain(self, gameweek: int) -> PredictionChainResult:
         """Run every level best-first and return the full chain outcome.
 
-        Raises :class:`PredictionUnavailableError` only when no level can
+        Raises :class:`PredictionUnavailableError` when no level can
         produce any number at all (empty universe).
+
+        Results are cached per-gameweek for the lifetime of this provider
+        instance. Repeated calls for the same gameweek (common during
+        optimization, where :meth:`get_player_prediction` is invoked once per
+        player) return the cached result instead of re-running the entire
+        chain — eliminating the N+1 redundancy that caused 504 timeouts.
         """
+        if gameweek in self._chain_cache:
+            return self._chain_cache[gameweek]
+
         _t_start = time.perf_counter()
         catalog = self.player_catalog()
         logger.info("resolve_chain gw=%d: player_catalog %.3fs", gameweek, time.perf_counter() - _t_start)
@@ -990,6 +1005,7 @@ class LivePredictionProvider:
         )
         self.last_result = result
         logger.info("resolve_chain gw=%d: total %.3fs (source=%s)", gameweek, time.perf_counter() - _t_start, result.source)
+        self._chain_cache[gameweek] = result
         return result
 
     def _label_predictions(
