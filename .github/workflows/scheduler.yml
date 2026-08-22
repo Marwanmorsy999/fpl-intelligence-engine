@@ -23,11 +23,11 @@ jobs:
       - name: Invoke admin scheduler endpoint
         env:
           VERCEL_DEPLOY_URL: ${{ secrets.VERCEL_DEPLOY_URL }}
-          ADMIN_SECRET_KEY: ${{ secrets.ADMIN_SECRET_KEY }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           curl -fsS -X POST \
             "$VERCEL_DEPLOY_URL/api/v1/admin/run-scheduler" \
-            -H "X-Admin-Secret: $ADMIN_SECRET_KEY" \
+            -H "Authorization: Bearer $CRON_SECRET" \
             -H "Content-Type: application/json" \
             -d '{}'
 

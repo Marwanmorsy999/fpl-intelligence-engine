@@ -132,6 +132,9 @@ def test_seed_requires_cron_secret(client: TestClient, monkeypatch: pytest.Monke
     monkeypatch.setenv("CRON_SECRET", "secret")
     denied = client.get("/api/v1/admin/seed-from-file")
     assert denied.status_code == 401
-    ok = client.get("/api/v1/admin/seed-from-file", params={"secret": "secret"})
+    ok = client.get(
+        "/api/v1/admin/seed-from-file",
+        headers={"Authorization": "Bearer secret"},
+    )
     assert ok.status_code == 200
     assert ok.json()["ok"] is True

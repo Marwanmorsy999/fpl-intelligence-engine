@@ -160,13 +160,13 @@ configured via `vercel.json` (Vercel does **not** use a `Procfile`).
 The `scheduler.yml` workflow runs on two cron schedules:
 
 - `0 * * * *` — hourly: `POST /api/v1/admin/run-scheduler` (authenticated with
-  the `X-Admin-Secret` header).
+  the `Authorization: Bearer <CRON_SECRET>` header).
 - `*/10 * * * *` — every 10 minutes: `GET /api/v1/health` to keep the
   serverless function warm (avoids Vercel's cold-start latency).
 
 Go to ** repo → Settings → Secrets and variables → Actions** and add the two
 secrets from §6.3. The workflow reads them as `secrets.VERCEL_DEPLOY_URL` and
-`secrets.ADMIN_SECRET_KEY`. You can also trigger it manually via
+`secrets.CRON_SECRET`. You can also trigger it manually via
 **Actions → Run workflow**.
 
 ### 6.3 Required environment variables
@@ -177,7 +177,7 @@ secrets from §6.3. The workflow reads them as `secrets.VERCEL_DEPLOY_URL` and
 | ---------------------------- | --------------------------------------------------------------- |
 | `DATABASE_URL`               | Supabase Postgres, `postgresql+psycopg://...` form              |
 | `APP_ENV`                    | `production`                                                    |
-| `ADMIN_SECRET_KEY`           | a strong random string (must match GitHub `ADMIN_SECRET_KEY`)  |
+| `CRON_SECRET`                | a strong random string (must match GitHub `CRON_SECRET`)        |
 | `FPL_API_USE_LIVE_LLM`       | `false` (safe default — no live LLM calls)                     |
 | `SERVE_STATIC_DASHBOARD`     | `false` (Vercel hosts the API only)                            |
 | `CORS_ORIGINS`               | comma-separated frontend origins, or empty                    |
@@ -192,11 +192,11 @@ secrets from §6.3. The workflow reads them as `secrets.VERCEL_DEPLOY_URL` and
 | Secret                | Value                                                        |
 | --------------------- | ----------------------------------------------------------- |
 | `VERCEL_DEPLOY_URL`   | `https://<your-app>.vercel.app` (no trailing slash)         |
-| `ADMIN_SECRET_KEY`    | **identical** value to Vercel's `ADMIN_SECRET_KEY`          |
+| `CRON_SECRET`         | **identical** value to Vercel's `CRON_SECRET`               |
 
 > The `/api/v1/admin/run-scheduler` endpoint only accepts requests whose
-> `X-Admin-Secret` header equals Vercel's `ADMIN_SECRET_KEY`. Because GitHub
-> sends `secrets.ADMIN_SECRET_KEY`, the two values **must be the same**.
+> `Authorization: Bearer` header equals Vercel's `CRON_SECRET`. Because GitHub
+> sends `secrets.CRON_SECRET`, the two values **must be the same**.
 
 ---
 

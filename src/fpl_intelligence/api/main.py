@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 
 from fpl_intelligence import __version__
-from fpl_intelligence.api.deps import assert_no_static_stub_in_production
+from fpl_intelligence.api.deps import assert_no_static_stub_in_production, GetDB
 from fpl_intelligence.api.routes.admin import router as admin_router
 from fpl_intelligence.api.routes.intelligence import router as intelligence_router
 from fpl_intelligence.api.routes.players import router as players_router
@@ -55,5 +55,12 @@ def root_redirect() -> RedirectResponse:
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok", "version": __version__}
+async def health(db: GetDB) -> dict[str, str]:
+    try:
+        db.execute(__import__("sqlalchemy").text("SELECT 1"))
+        db_status = "connected"
+        status = "ok"
+    except Exception as exc:  # noqa: BLE001 - health must never crash
+        db_status = f"error: {exc}"
+        status = "degraded"
+    return {"status": status, "db": db_status, "version": __version__}

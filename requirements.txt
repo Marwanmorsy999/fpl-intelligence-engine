@@ -32,8 +32,4 @@ scipy>=1.11,<2
 python-telegram-bot>=21.0,<22
 
 # --- auth / server (prod) ---
-bcrypt>=4.0
-python-jose[cryptography]>=3.3
-gunicorn>=21.0
 requests>=2.31
-kubernetes>=20.6

@@ -4,9 +4,9 @@ Vercel cannot run the long-lived ``worker`` / ``bot`` PaaS processes, so the
 periodic jobs are exposed as HTTP endpoints triggered by Vercel Cron (or by a
 manual curl). Both GET and POST are accepted: Vercel Cron issues GET requests.
 
-Auth: when ``CRON_SECRET`` is configured, requests must carry either the
+Auth: when ``CRON_SECRET`` is configured, requests must carry the
 ``Authorization: Bearer <CRON_SECRET>`` header (which Vercel Cron sends
-automatically) or a ``?secret=<CRON_SECRET>`` query parameter for manual use.
+automatically).
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, select, text
@@ -86,15 +86,18 @@ _BROWSER_HEADERS = {
 
 def _require_cron_auth(
     authorization: Annotated[str | None, Header()] = None,
-    secret: Annotated[str | None, Query()] = None,
 ) -> None:
-    """Reject requests that cannot prove they are cron-originated."""
+    """Reject requests that cannot prove they are cron-originated.
+
+    Standardized on ``Authorization: Bearer <CRON_SECRET>`` — the single auth
+    mechanism that Vercel Cron sends automatically. The legacy ``?secret=``
+    query parameter is no longer accepted.
+    """
     expected = os.environ.get("CRON_SECRET")
     if not expected:
         # No secret configured: open (dev convenience). Set CRON_SECRET in prod.
         return
-    ok = authorization == f"Bearer {expected}" or secret == expected
-    if not ok:
+    if authorization != f"Bearer {expected}":
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
@@ -592,8 +595,8 @@ async def seed_from_file_endpoint(
 ) -> dict:
     """Populate team memberships + price snapshots from the committed FPL seed.
 
-    POST /api/v1/admin/seed-from-file?secret=<CRON_SECRET> (or with the
-    ``Authorization: Bearer <CRON_SECRET>`` header). Safe to call repeatedly.
+    POST /api/v1/admin/seed-from-file with the
+    ``Authorization: Bearer <CRON_SECRET>`` header. Safe to call repeatedly.
     """
     try:
         path = _resolve_seed_path()

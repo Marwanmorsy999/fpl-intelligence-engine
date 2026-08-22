@@ -307,15 +307,15 @@ def test_run_scheduler_posts_to_admin_endpoint() -> None:
     assert "/api/v1/admin/run-scheduler" in lowered
 
 
-def test_run_scheduler_sends_x_admin_secret_header() -> None:
+def test_run_scheduler_sends_bearer_auth_header() -> None:
     wf = _load_scheduler()
     step = wf["jobs"]["run-scheduler"]["steps"][0]
     run = step["run"]
     lowered = run.lower()
-    assert "x-admin-secret" in lowered
-    assert "$admin_secret_key" in lowered
+    assert "authorization: bearer" in lowered
+    assert "$cron_secret" in lowered
     env = step.get("env", {})
-    assert "secrets.admin_secret_key" in str(env.get("ADMIN_SECRET_KEY", "")).lower()
+    assert "secrets.cron_secret" in str(env.get("CRON_SECRET", "")).lower()
 
 
 def test_run_scheduler_uses_deploy_url_secret() -> None:
