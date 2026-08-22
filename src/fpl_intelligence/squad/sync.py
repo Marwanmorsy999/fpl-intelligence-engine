@@ -94,7 +94,7 @@ async def run_pending_sync(db: Session) -> FplImportResult:
         _mark(db, row, FAILED)
         raise
 
-    SquadService(session=db).set_squad(result.squad)
+    SquadService(session=db).set_squad(result.squad, session_id=str(row.entry_id))
     _mark(db, row, SYNCED)
     await send_squad_synced_notification(result.entry_name)
     return result

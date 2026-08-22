@@ -79,6 +79,13 @@ class SquadStateCreate(BaseModel):
         "rather than imported from a real FPL account.",
         examples=[False],
     )
+    session_id: str | None = Field(
+        default=None,
+        description="Optional session key isolating this squad row. When omitted "
+        "the service falls back to DEFAULT_SESSION_ID (shared global row). For "
+        "per-user isolation pass the user's FPL entry_id here.",
+        examples=["1234567"],
+    )
 
 
 class SquadStateResponse(SquadStateCreate):

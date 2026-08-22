@@ -33,34 +33,34 @@ class TestSquadServiceSessionBinding:
 
     def test_set_and_get(self, db_session) -> None:
         svc = SquadService(session=db_session)
-        stored = svc.set_squad(_payload())
+        stored = svc.set_squad(_payload(), session_id="binding_user")
         assert stored.gameweek == 5
         assert stored.updated_at is not None
 
-        fetched = svc.get_squad()
+        fetched = svc.get_squad(session_id="binding_user")
         assert fetched is not None
         assert fetched.player_ids == list(range(1, 16))
         assert fetched.gameweek == 5
 
     def test_get_returns_none_when_empty(self, db_session) -> None:
         svc = SquadService(session=db_session)
-        assert svc.get_squad() is None
+        assert svc.get_squad(session_id="empty_user") is None
 
     def test_set_replaces_previous(self, db_session) -> None:
         svc = SquadService(session=db_session)
-        svc.set_squad(_payload(gameweek=1))
-        svc.set_squad(_payload(gameweek=5, player_ids=list(range(10, 25)), captain_id=20))
-        current = svc.get_squad()
+        svc.set_squad(_payload(gameweek=1), session_id="replace_user")
+        svc.set_squad(_payload(gameweek=5, player_ids=list(range(10, 25)), captain_id=20), session_id="replace_user")
+        current = svc.get_squad(session_id="replace_user")
         assert current is not None
         assert current.gameweek == 5
         assert current.player_ids == list(range(10, 25))
 
     def test_clear_removes_state(self, db_session) -> None:
         svc = SquadService(session=db_session)
-        svc.set_squad(_payload())
-        assert svc.get_squad() is not None
-        svc.clear()
-        assert svc.get_squad() is None
+        svc.set_squad(_payload(), session_id="clear_user")
+        assert svc.get_squad(session_id="clear_user") is not None
+        svc.clear(session_id="clear_user")
+        assert svc.get_squad(session_id="clear_user") is None
 
 
 class TestSquadServiceSessionFactory:
@@ -69,11 +69,11 @@ class TestSquadServiceSessionFactory:
     def test_set_and_get_via_factory(self, db_session) -> None:
         factory = sessionmaker(bind=db_session.get_bind(), expire_on_commit=False)
         svc = SquadService(session_factory=factory)
-        svc.set_squad(_payload(gameweek=7))
+        svc.set_squad(_payload(gameweek=7), session_id="factory_user")
 
         # A brand-new service (simulating a process restart) sees the data.
         svc2 = SquadService(session_factory=factory)
-        fetched = svc2.get_squad()
+        fetched = svc2.get_squad(session_id="factory_user")
         assert fetched is not None
         assert fetched.gameweek == 7
 
@@ -103,9 +103,9 @@ class TestSquadServiceInMemoryFallback:
 
     def test_in_memory_set_get(self) -> None:
         svc = SquadService()
-        svc.set_squad(_payload(gameweek=4))
-        assert svc.get_squad().gameweek == 4  # type: ignore[union-attr]
+        svc.set_squad(_payload(gameweek=4), session_id="mem_user")
+        assert svc.get_squad(session_id="mem_user").gameweek == 4  # type: ignore[union-attr]
 
     def test_in_memory_requires_no_db(self) -> None:
         svc = SquadService()
-        assert svc.get_squad() is None
+        assert svc.get_squad(session_id="no_db_user") is None
