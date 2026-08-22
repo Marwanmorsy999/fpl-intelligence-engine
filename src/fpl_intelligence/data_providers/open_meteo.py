@@ -156,7 +156,7 @@ class OpenMeteoConnector:
         base_url: str = OPEN_METEO_FORECAST_URL,
         cache: Any = None,
         http_client: httpx.Client | None = None,
-        timeout: float = 15.0,
+        timeout: float = 4.0,
         ttl_seconds: int = 6 * 3600,
     ) -> None:
         self._base_url = base_url.rstrip("/")

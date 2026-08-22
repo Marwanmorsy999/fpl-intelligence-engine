@@ -187,7 +187,7 @@ class OddsApiConnector:
         base_url: str = ODDS_API_BASE_URL,
         cache: Any = None,
         http_client: httpx.Client | None = None,
-        timeout: float = 15.0,
+        timeout: float = 4.0,
         ttl_seconds: int = ODDS_TTL_SECONDS,
         regions: str = REGIONS,
         markets: str = MARKETS,

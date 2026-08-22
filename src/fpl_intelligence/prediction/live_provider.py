@@ -37,6 +37,8 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -526,23 +528,37 @@ def _weather_adjustments_for_fixtures(
 
     The stadium belongs to the *home* team; a severe forecast there penalises
     both attacks equally (documented -0.3 from :mod:`open_meteo`).
+
+    Per-stadium fetches are parallelised with a ThreadPoolExecutor so the worst-
+    case latency is a single timeout (not N x timeout for N stadiums).
     """
     adjustments: dict[int, float] = {}
     reasons: list[str] = []
     if weather is None:
         return adjustments, reasons
-    seen_stadia: set[int] = set()
+    home_id_to_fixture: dict[int, dict[str, int]] = {}
     for fx in fixtures:
         home_id = fx["home_team_id"]
-        if home_id in seen_stadia:
-            continue
-        seen_stadia.add(home_id)
-        outlook = weather.fetch_matchday_outlook(home_id)
-        if outlook is None or outlook.severity != "severe":
-            continue
-        adjustments[home_id] = outlook.adjustment
-        adjustments[fx["away_team_id"]] = outlook.adjustment
-        reasons.append(f"{outlook.stadium}: {outlook.reason}")
+        if home_id not in home_id_to_fixture:
+            home_id_to_fixture[home_id] = fx
+    if not home_id_to_fixture:
+        return adjustments, reasons
+
+    def _fetch(home_id: int) -> tuple[int, Any]:
+        return home_id, weather.fetch_matchday_outlook(home_id)
+
+    with ThreadPoolExecutor(max_workers=min(len(home_id_to_fixture), 5)) as executor:
+        futures = {
+            executor.submit(_fetch, hid): hid for hid in home_id_to_fixture
+        }
+        for future in as_completed(futures):
+            home_id, outlook = future.result()
+            if outlook is None or outlook.severity != "severe":
+                continue
+            fx = home_id_to_fixture[home_id]
+            adjustments[home_id] = outlook.adjustment
+            adjustments[fx["away_team_id"]] = outlook.adjustment
+            reasons.append(f"{outlook.stadium}: {outlook.reason}")
     return adjustments, reasons
 
 
@@ -618,25 +634,39 @@ def _proxy_points_for_gameweek(
     notes["fixtures_found"] = len(fixtures)
 
     team_names = _team_names(db)
-    market_probs: dict[int, float] = {}
-    market_detail: list[dict[str, Any]] = []
-    if odds is not None and odds.enabled and fixtures:
+
+    def _fetch_market() -> tuple[dict[int, float], list[dict[str, Any]]]:
+        if odds is None or not odds.enabled or not fixtures:
+            return {}, []
+        _t0 = time.perf_counter()
         try:
             snapshot = odds.fetch_epl_odds()
+            if snapshot is not None:
+                probs, detail = _market_probs_for_fixtures(
+                    fixtures, team_names, snapshot.matches
+                )
+                return probs, detail
         except Exception:  # noqa: BLE001 - graceful degradation contract
-            snapshot = None
-        if snapshot is not None:
-            market_probs, market_detail = _market_probs_for_fixtures(
-                fixtures, team_names, snapshot.matches
-            )
-    notes["market_fixtures_matched"] = len(market_detail)
+            pass
+        logger.warning("proxy market fetch %.3fs (degraded)", time.perf_counter() - _t0)
+        return {}, []
 
-    weather_adj: dict[int, float] = {}
-    weather_reasons: list[str] = []
-    if fixtures:
-        weather_adj, weather_reasons = _weather_adjustments_for_fixtures(
-            fixtures, weather
-        )
+    def _fetch_weather() -> tuple[dict[int, float], list[str]]:
+        if not fixtures:
+            return {}, []
+        _t0 = time.perf_counter()
+        result = _weather_adjustments_for_fixtures(fixtures, weather)
+        logger.info("proxy weather fetch %.3fs", time.perf_counter() - _t0)
+        return result
+
+    _t0 = time.perf_counter()
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        market_future = executor.submit(_fetch_market)
+        weather_future = executor.submit(_fetch_weather)
+        market_probs, market_detail = market_future.result()
+        weather_adj, weather_reasons = weather_future.result()
+    logger.info("proxy enrichment total %.3fs", time.perf_counter() - _t0)
+    notes["market_fixtures_matched"] = len(market_detail)
     notes["weather_severe_fixtures"] = weather_reasons
 
     # --- Understat per-90 context (offline snapshot; latest season wins) --------
@@ -894,8 +924,14 @@ class LivePredictionProvider:
         Raises :class:`PredictionUnavailableError` only when no level can
         produce any number at all (empty universe).
         """
+        _t_start = time.perf_counter()
         catalog = self.player_catalog()
+        logger.info("resolve_chain gw=%d: player_catalog %.3fs", gameweek, time.perf_counter() - _t_start)
+
+        _t0 = time.perf_counter()
         understat_index = self.understat_index()
+        logger.info("resolve_chain gw=%d: understat_index %.3fs", gameweek, time.perf_counter() - _t0)
+
         levels: list[ChainLevel] = []
 
         # Level 1 — model-backtest (raw points dict; wrapped here).
@@ -925,6 +961,7 @@ class LivePredictionProvider:
             levels.append(baseline_level)
 
         # Level 3 — pre-season-proxy-v2 (always attempted as the floor).
+        _t0 = time.perf_counter()
         try:
             proxy_level = _proxy_points_for_gameweek(
                 self.session,
@@ -937,6 +974,7 @@ class LivePredictionProvider:
         except Exception as exc:  # noqa: BLE001 - levels are independent
             logger.warning("Level 3 pre-season-proxy-v2 failed: %s", exc)
             proxy_level = None
+        logger.info("resolve_chain gw=%d: proxy_level %.3fs", gameweek, time.perf_counter() - _t0)
         if proxy_level is not None and proxy_level.points:
             levels.append(proxy_level)
 
@@ -951,6 +989,7 @@ class LivePredictionProvider:
             gameweek=gameweek, levels=levels, resolved=levels[-1]
         )
         self.last_result = result
+        logger.info("resolve_chain gw=%d: total %.3fs (source=%s)", gameweek, time.perf_counter() - _t_start, result.source)
         return result
 
     def _label_predictions(
