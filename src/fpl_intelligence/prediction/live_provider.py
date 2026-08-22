@@ -68,7 +68,7 @@ QUALITY_PROXY = "heuristic-proxy-enriched"
 #: Human-readable chain labels surfaced in the dashboard banner/badges.
 SOURCE_LABELS: dict[str, str] = {
     SOURCE_BACKTEST: "Backtest model",
-    SOURCE_BASELINE: "Baseline model",
+    SOURCE_BASELINE: "Baseline model (2025/26 features)",
     SOURCE_PROXY: "Pre-season proxy v2 (price + fixtures + xG + market)",
 }
 
@@ -758,6 +758,12 @@ def _score_proxy_universe(
             "start": round(_clamp(0.30 + 0.65 * est_share, 0.30, 0.95), 3),
             "conf": round(_clamp(confidence, 0.20, 0.60), 3),
             "compl": round(_clamp(completeness, 0.30, 0.70), 3),
+            "breakdown": {
+                "base": round(base, 2),
+                "xg_xa_term": round(x90 * share, 2),
+                "market_term": round(bump, 2),
+                "weather_term": round(weather_adj.get(team_id, 0.0), 2),
+            },
         }
 
     return ChainLevel(
@@ -1001,7 +1007,7 @@ class LivePredictionProvider:
             )
 
         result = PredictionChainResult(
-            gameweek=gameweek, levels=levels, resolved=levels[-1]
+            gameweek=gameweek, levels=levels, resolved=levels[0]
         )
         self.last_result = result
         logger.info("resolve_chain gw=%d: total %.3fs (source=%s)", gameweek, time.perf_counter() - _t_start, result.source)
@@ -1167,13 +1173,20 @@ class LivePredictionProvider:
         meta = self.last_result.meta()
         if self._odds_error:
             meta["market_check"] = {"enabled": False, "reason": self._odds_error}
-        elif self.last_result.resolved.notes.get("market_fixtures_matched") is not None:
-            meta["market_check"] = {
-                "enabled": True,
-                "fixtures_matched": self.last_result.resolved.notes[
-                    "market_fixtures_matched"
-                ],
-            }
+        else:
+            # Find the proxy level in the chain to report market_check status.
+            proxy_level = next(
+                (lvl for lvl in self.last_result.levels if lvl.source == SOURCE_PROXY),
+                None,
+            )
+            if proxy_level is not None:
+                matched = proxy_level.notes.get("market_fixtures_matched")
+                meta["market_check"] = {
+                    "enabled": True,
+                    "fixtures_matched": matched if matched is not None else 0,
+                }
+            else:
+                meta["market_check"] = {"enabled": True, "fixtures_matched": 0}
         return meta
 
 

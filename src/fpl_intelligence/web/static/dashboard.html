@@ -172,6 +172,14 @@
     <!-- Transfers -->
     <h2 class="text-lg font-bold text-sky-400 mb-3">Transfer Recommendations</h2>
     <div id="transferBox" class="fg-card rounded-2xl p-5 shadow-xl mb-8"></div>
+
+    <!-- AI Analyst -->
+    <h2 class="text-lg font-bold text-sky-400 mb-3">AI Analyst</h2>
+    <div id="analystBox" class="fg-card rounded-2xl p-5 shadow-xl mb-8"></div>
+
+    <!-- Data Sources -->
+    <h2 class="text-lg font-bold text-sky-400 mb-3">Data Sources</h2>
+    <div id="dataSourcesBox" class="fg-card rounded-2xl p-5 shadow-xl mb-8"></div>
   </section>
 
   <footer class="mt-8 text-slate-600 text-xs text-center">Powered by the FPL Intelligence Engine · Photos &amp; badges © Premier League · Data from the official Fantasy Premier League API</footer>
@@ -360,7 +368,10 @@ async function analyze() {
     });
     if (res.status === 503) {
       document.getElementById("retrySyncBtn").style.display = "inline-block";
-      throw new Error("FPL is blocking our servers right now. Your ID is saved and we retry automatically. Meanwhile: press \uD83D\uDD04 Try Again, or type your squad below using Enter Squad Manually.");
+      var body503 = await res.json().catch(function () { return {}; });
+      var detail = body503.detail || "FPL is blocking our servers right now.";
+      showError(detail + " Your ID is saved — we retry daily at 06:30 UTC and will Telegram you on success.");
+      return;
     }
     if (res.status === 404) { throw new Error("Could not find that FPL Team ID. Please double-check the number."); }
     if (res.status === 403) {
@@ -377,8 +388,9 @@ async function analyze() {
     }
     var data = await res.json();
     if (data.player_names) { PLAYER_NAMES = data.player_names; }
+    var syncNote = data.sync_status ? '<div class="mt-2 text-xs text-slate-500">📋 ' + esc(data.sync_status) + "</div>" : "";
     $("teamName").textContent = (data.entry_name ? data.entry_name + " · " : "") + "Gameweek " + data.gameweek;
-    setStatus("Squad imported — running the numbers…");
+    $("status").innerHTML = "Squad imported — running the numbers…" + syncNote;
     await renderFromApi();
   } catch (e) {
     showError(e.message);
@@ -461,10 +473,28 @@ function playerCard(pid, report) {
   if (p.prediction_source) { xpTip += " · " + esc(p.prediction_source); }
   if (p.minutes_estimate != null) { xpTip += " · ~" + Number(p.minutes_estimate).toFixed(0) + " min"; }
   if (p.start_prob != null) { xpTip += " · " + Math.round(p.start_prob * 100) + "% start"; }
+  if (p.xpts_breakdown) {
+    var b = p.xpts_breakdown;
+    xpTip += " | base " + Number(b.base || 0).toFixed(2);
+    if (b.xg_xa_term) { xpTip += " + xG/xA " + Number(b.xg_xa_term).toFixed(2); }
+    if (b.market_term) { xpTip += " + market " + Number(b.market_term).toFixed(2); }
+    if (b.weather_term) { xpTip += " + weather " + Number(b.weather_term).toFixed(2); }
+  }
   /* xG/xA lines ONLY for Understat-matched players (never fabricated). */
   var xaStr = (p.xg != null && p.xa != null)
     ? '<div class="price-tag">xG ' + Number(p.xg).toFixed(2) + ' · xA ' + Number(p.xa).toFixed(2) + "</div>"
     : "";
+  /* xPTS breakdown line: only when the proxy level produced one. */
+  var bdStr = "";
+  if (p.xpts_breakdown) {
+    var bb = p.xpts_breakdown;
+    var parts = [];
+    if (bb.base != null) { parts.push("base " + Number(bb.base).toFixed(2)); }
+    if (bb.xg_xa_term) { parts.push("xG/xA +" + Number(bb.xg_xa_term).toFixed(2)); }
+    if (bb.market_term) { parts.push("market +" + Number(bb.market_term).toFixed(2)); }
+    if (bb.weather_term && bb.weather_term !== 0) { parts.push("weather " + Number(bb.weather_term).toFixed(2)); }
+    if (parts.length) { bdStr = '<div class="price-tag" style="color:#7dd3fc">' + parts.join(" · ") + "</div>"; }
+  }
   return '<div class="' + cls + '" title="' + tip + '">'
     + badgeHTML(p.team)
     + (isC ? '<span class="role-badge c" title="Captain">C</span>' : "")
@@ -474,6 +504,7 @@ function playerCard(pid, report) {
     + '<div class="price-tag">' + fmtPrice(p.price) + "</div>"
     + '<span class="xpts-tag" title="' + esc(xpTip) + '">xPTS ' + fmtXp(p.expected_points) + "</span>"
     + xaStr
+    + bdStr
     + "</div>";
 }
 
@@ -672,6 +703,55 @@ function renderReport(report) {
   renderBench(report);
   renderCaptain(report);
   renderTransfers(report);
+  renderAnalyst(report);
+  renderDataSources();
+}
+
+/* ---------- AI Analyst + Data Sources ---------- */
+function renderAnalyst(report) {
+  var box = $("analystBox");
+  if (!CURRENT_SESSION_ID) { box.innerHTML = ""; return; }
+  box.innerHTML = '<p class="text-slate-400 text-sm">Analyzing your squad…</p>';
+  var url = API + "/api/v1/analyst/summary?session_id=" + encodeURIComponent(CURRENT_SESSION_ID);
+  fetch(url).then(function (r) { return r.ok ? r.json() : null; }).then(function (data) {
+    if (!data) { box.innerHTML = '<p class="text-slate-500 text-sm">Analyst unavailable.</p>'; return; }
+    box.innerHTML = '<p class="text-slate-200 text-sm leading-relaxed">' + esc(data.summary || "No summary available.") + "</p>"
+      + (data.model ? '<p class="mt-2 text-xs text-slate-500">Model: ' + esc(data.model) + "</p>" : "");
+  }).catch(function () {
+    box.innerHTML = '<p class="text-slate-500 text-sm">Analyst temporarily unavailable.</p>';
+  });
+}
+
+function renderDataSources() {
+  var box = $("dataSourcesBox");
+  box.innerHTML = '<p class="text-slate-400 text-sm">Checking data sources…</p>';
+  fetch(API + "/api/v1/data-sources").then(function (r) { return r.ok ? r.json() : null; }).then(function (data) {
+    if (!data || !data.sources) { box.innerHTML = '<p class="text-slate-500 text-sm">Source status unavailable.</p>'; return; }
+    var sources = data.sources;
+    var rows = [];
+    function row(key, label) {
+      var s = sources[key] || {};
+      var status = s.status || "unknown";
+      var dot = (status === "ok" || status === "live" || status === "enabled") ? "ok"
+        : (status === "blocked" || status === "outage" || status === "off") ? "bad" : "";
+      var detailText = s.detail || "";
+      rows.push('<div class="flex items-center justify-between py-2 border-b border-slate-700/40 last:border-0">'
+        + '<div><span class="text-sm font-semibold text-slate-200">' + esc(label) + "</span>"
+        + (detailText ? '<div class="text-xs text-slate-500">' + esc(detailText) + "</div>" : "") + "</div>"
+        + (dot ? '<span class="pill ' + dot + '">' + esc(status) + "</span>" : '<span class="pill">' + esc(status) + "</span>")
+        + "</div>");
+    }
+    row("fpl_import", "FPL Import");
+    row("odds_api", "Odds API (market check)");
+    row("understat", "Understat (xG/xA)");
+    row("weather", "Weather (Open-Meteo)");
+    row("pl_photos", "PL Photos & Badges");
+    row("llm", "AI Analyst (LLM)");
+    var asof = data.as_of ? '<div class="mt-2 text-xs text-slate-600">Updated: ' + esc(data.as_of) + "</div>" : "";
+    box.innerHTML = '<div class="space-y-1">' + rows.join("") + "</div>" + asof;
+  }).catch(function () {
+    box.innerHTML = '<p class="text-slate-500 text-sm">Source status unavailable.</p>';
+  });
 }
 
 /* ---------- Demo squad (no FPL account needed) ---------- */

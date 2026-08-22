@@ -37,6 +37,7 @@ from fpl_intelligence.data_providers.understat import (
 )
 from fpl_intelligence.db.models import Player, PlayerExternalId
 from fpl_intelligence.optimization.provider import DecisionPredictionProvider
+from fpl_intelligence.prediction.live_provider import SOURCE_PROXY
 from fpl_intelligence.squad.bridge import DecisionOptimizerBridge
 from fpl_intelligence.squad.demo import build_demo_squad
 from fpl_intelligence.squad.fpl_import import (
@@ -276,6 +277,15 @@ def _build_player_details(
                 except Exception:  # noqa: BLE001 — skip unparseable rows
                     pass
 
+        # xPTS breakdown: only when the resolved level is the proxy (it is the
+        # only level that documents a formula). Baseline/backtest levels serve
+        # from history/backtest and have no per-player breakdown to disclose.
+        breakdown = None
+        if pred is not None and getattr(pred, "source", None) == SOURCE_PROXY:
+            raw_breakdown = pred.breakdown if hasattr(pred, "breakdown") else None
+            if raw_breakdown and isinstance(raw_breakdown, dict):
+                breakdown = {k: round(float(v), 2) for k, v in raw_breakdown.items()}
+
         details[str(pid)] = PlayerDetail(
             id=pid,
             web_name=web_name,
@@ -290,6 +300,7 @@ def _build_player_details(
             start_prob=start_prob,
             xg=xg,
             xa=xa,
+            xpts_breakdown=breakdown,
         )
 
     return details
@@ -474,6 +485,16 @@ async def import_squad_from_fpl(
             status_code=503,
             detail="FPL API is temporarily down, please try again in 5 minutes.",
         ) from exc
+    except Exception as exc:  # noqa: BLE001 - catch-all for honest failure
+        logger.exception("FPL import failed (unexpected): %s", exc)
+        try:
+            save_pending_sync(db, payload.entry_id)
+        except Exception as sync_exc:  # noqa: BLE001
+            logger.warning("save_pending_sync failed: %s", sync_exc)
+        raise HTTPException(
+            status_code=503,
+            detail=f"FPL import failed (external): {type(exc).__name__}. Your ID is saved — we retry automatically and will Telegram you on success.",
+        ) from exc
 
     saved = SquadService(session=db).set_squad(result.squad, session_id=str(payload.entry_id))
     # Never cache responses that are specific to a session.
@@ -483,6 +504,7 @@ async def import_squad_from_fpl(
         player_names=result.player_names,
         entry_name=result.entry_name,
         gameweek=result.gameweek,
+        sync_status="Synced successfully.",
     )
 
 

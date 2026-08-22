@@ -159,6 +159,9 @@ class PlayerDetail(BaseModel):
     xg: float | None = None
     #: Last-season xA/90 from Understat — ``None`` for non-Understat-matched players.
     xa: float | None = None
+    #: xPTS breakdown: base(price) + xG/xA term + market term + weather term.
+    #: ``None`` when the resolved chain level does not produce a breakdown.
+    xpts_breakdown: dict[str, float] | None = None
 
 
 class DecisionReport(BaseModel):
@@ -197,4 +200,9 @@ class FromFplResponse(BaseModel):
     is_demo: bool = Field(
         default=False,
         description="True when the squad was built by the demo builder.",
+    )
+    #: When the import was queued (rate-limited), the sync status message.
+    sync_status: str | None = Field(
+        default=None,
+        description="Human-readable sync status when the import was queued.",
     )

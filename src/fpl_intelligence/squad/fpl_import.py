@@ -156,9 +156,11 @@ class FplSquadImporter:
             )
             logger.info("build_squad_from_entry: _build_result OK player_names=%s", len(result.player_names))
             return result
-        except Exception as exc:
-            logger.exception("build_squad_from_entry: _build_result FAILED: %s", exc)
+        except FplImportError:
             raise
+        except Exception as exc:  # noqa: BLE001 - convert unexpected errors to FplApiUnavailable
+            logger.exception("build_squad_from_entry: _build_result FAILED: %s", exc)
+            raise FplApiUnavailable(f"FPL response parse failed: {type(exc).__name__}: {exc}") from exc
 
     async def _get_json(self, client: httpx.AsyncClient, path: str) -> dict[str, Any]:
         response = await client.get(f"{self._base_url}{path}")

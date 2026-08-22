@@ -142,9 +142,11 @@ class TestDecisionsLiveChain:
         assert resp.status_code == 200
         chain = resp.json()["meta"]["chain"]
 
-        assert chain["source"] == "pre-season-proxy-v2"
-        assert chain["source_label"] == "Pre-season proxy v2 (price + fixtures + xG + market)"
-        assert chain["data_quality"] == "heuristic-proxy-enriched"
+        # Phase 17.0: the baseline model now resolves (25% coverage gate passed)
+        # because the seed catalog + ingested history cover the full universe.
+        assert chain["source"] == "baseline-model"
+        assert chain["source_label"] == "Baseline model (2025/26 features)"
+        assert chain["data_quality"] == "ingested-gameweek-history"
         assert isinstance(chain["covered_players"], int)
         assert chain["covered_players"] >= 11
 

@@ -185,7 +185,11 @@ class MultiTransferPlanner:
                     )
         
         action_type_str = "Hit" if best_eval.hit_cost > 0 else ("Free Transfer" if best_action.action_type == ActionType.TRANSFER else "Roll Transfer")
-        
+
+        # Deciding margin: EV gain over the next-best option (roll).
+        margin = round(best_eval.net_points, 2)
+        reason = f"{action_type_str}: +{margin} EV over next option."
+
         return Recommendation(
             action=best_action,
             expected_gain=best_eval.net_points,
@@ -194,6 +198,6 @@ class MultiTransferPlanner:
             upside_case=best_eval.net_points + 5.0,
             probability_positive=best_eval.probability_beat_roll,
             confidence=0.7,
-            main_reason=f"{action_type_str} provides better horizon EV.",
+            main_reason=reason,
             main_risk="Opportunity cost of transfer flexibility." if best_action.action_type == ActionType.TRANSFER else "Missed points on bench.",
         )
