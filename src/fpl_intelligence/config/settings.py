@@ -25,6 +25,18 @@ class Settings(BaseSettings):
     retry_sync_rate_limit: int = 10
     retry_sync_rate_window_seconds: int = 60
 
+    # --- Phase 15.0 — real prediction chain ----------------------------------
+    # Which DecisionPredictionProvider /api/v1/decisions resolves to:
+    #   * "live"   — LivePredictionProvider fallback chain (backtest ->
+    #                baseline model -> labelled pre-season proxy v2). Default.
+    #   * "static" — StaticPredictionProvider hardcoded stub. Tests/dry-run
+    #                ONLY; startup fails fast when app_env=production.
+    prediction_provider: str = "live"
+    # The Odds API key (optional free tier, https://the-odds-api.com). When
+    # absent the market-check enrichment is disabled with a warning — never a
+    # crash. Free tier: 500 credits/month; the connector caches 12h.
+    the_odds_api_key: str = ""
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 

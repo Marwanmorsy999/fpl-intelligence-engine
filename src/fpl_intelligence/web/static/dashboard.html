@@ -38,7 +38,16 @@
   .role-badge { position: absolute; top: -8px; right: -7px; width: 22px; height: 22px; border-radius: 50%; font-size: 0.66rem; font-weight: 800; line-height: 22px; text-align: center; z-index: 3; }
   .role-badge.c { background: #facc15; color: #0f172a; }
   .role-badge.vc { background: #38bdf8; color: #0f172a; }
-  .xpts-tag { display: inline-block; margin-top: 3px; padding: 0 6px; border-radius: 999px; background: rgba(8,15,30,0.9); border: 1px solid #334155; color: #7dd3fc; font-size: 0.62rem; font-weight: 700; }
+  .xpts-tag { display: inline-block; margin-top: 3px; padding: 0 6px; border-radius: 999px; background: rgba(8,15,30,0.9); border: 1px solid #334155; color: #7dd3fc; font-size: 0.62rem; font-weight: 700; cursor: help; }
+  .price-tag { font-size: 0.68rem; color: #94a3b8; font-weight: 600; margin-top: 1px; }
+  .web-name { font-size: 0.72rem; font-weight: 700; color: #e2e8f0; margin: 4px 0 1px; line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chain-banner { background: linear-gradient(135deg, #0c1f3d, #0e2a4e); border: 1px solid #1e3a5f; border-radius: 14px; padding: 0.7rem 1rem; }
+  .chain-banner .chain-label { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; color: #7dd3fc; font-weight: 700; }
+  .chain-banner .chain-value { font-size: 0.95rem; font-weight: 700; color: #fff; }
+  .chain-banner .chain-quality { font-size: 0.72rem; color: #94a3b8; }
+  .chain-note { font-size: 0.68rem; color: #94a3b8; }
+  .chain-note.ok { color: #4ade80; }
+  .chain-note.no { color: #f87171; }
   .price-tag { font-size: 0.68rem; color: #94a3b8; font-weight: 600; margin-top: 1px; }
   .web-name { font-size: 0.72rem; font-weight: 700; color: #e2e8f0; margin: 4px 0 1px; line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .summary-stat { background: #0b1526; border: 1px solid #253348; border-radius: 14px; padding: 0.9rem 1rem; }
@@ -107,6 +116,9 @@
     <div id="demoBanner" class="mb-4 bg-amber-950/70 border border-amber-600 text-amber-200 rounded-xl px-4 py-3 text-sm font-semibold" style="display:none">⚠️ You are viewing a DEMO squad, not your real team.</div>
     <p id="teamName" class="text-slate-400 text-sm mb-4 font-semibold"></p>
     <div id="chipSlot" class="mb-6"></div>
+
+    <!-- Chain provenance banner: honest disclosure of the prediction source -->
+    <div id="chainBanner" class="mb-6"></div>
 
     <!-- Squad Summary Bar -->
     <div id="summaryBar" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8"></div>
@@ -312,7 +324,17 @@ function playerCard(pid, report) {
   var isC = !!(report.captain && report.captain.player_id === pid);
   var isVC = !!(!isC && report.vice_captain === pid);
   var cls = "player-card" + (isC ? " is-c" : "") + (isVC ? " is-vc" : "");
-  var tip = esc((p.web_name || "") + " · " + (POS_NAMES[p.position] || "?") + " · " + fmtPrice(p.price));
+  var posStr = POS_NAMES[p.position] || "?";
+  var tip = esc((p.web_name || "") + " · " + posStr + " · " + fmtPrice(p.price));
+  /* xPTS tooltip: disclose source + minutes/start estimate (honest UI). */
+  var xpTip = "xPTS " + fmtXp(p.expected_points);
+  if (p.prediction_source) { xpTip += " · " + esc(p.prediction_source); }
+  if (p.minutes_estimate != null) { xpTip += " · ~" + Number(p.minutes_estimate).toFixed(0) + " min"; }
+  if (p.start_prob != null) { xpTip += " · " + Math.round(p.start_prob * 100) + "% start"; }
+  /* xG/xA lines ONLY for Understat-matched players (never fabricated). */
+  var xaStr = (p.xg != null && p.xa != null)
+    ? '<div class="price-tag">xG ' + Number(p.xg).toFixed(2) + ' · xA ' + Number(p.xa).toFixed(2) + "</div>"
+    : "";
   return '<div class="' + cls + '" title="' + tip + '">'
     + badgeHTML(p.team)
     + (isC ? '<span class="role-badge c" title="Captain">C</span>' : "")
@@ -320,7 +342,8 @@ function playerCard(pid, report) {
     + photoHTML(p, false)
     + '<div class="web-name">' + esc(p.web_name || ("Player " + pid)) + "</div>"
     + '<div class="price-tag">' + fmtPrice(p.price) + "</div>"
-    + '<span class="xpts-tag">xPTS ' + fmtXp(p.expected_points) + "</span>"
+    + '<span class="xpts-tag" title="' + esc(xpTip) + '">xPTS ' + fmtXp(p.expected_points) + "</span>"
+    + xaStr
     + "</div>";
 }
 
@@ -382,6 +405,20 @@ function renderCaptain(report) {
     + "</div></div>"
     + (c.main_reason ? '<p class="mt-4 text-sm text-slate-300 leading-relaxed border-t border-slate-700/60 pt-3">💡 ' + esc(c.main_reason) + "</p>" : "")
     + (c.main_risk ? '<p class="mt-2 text-sm text-amber-300/90">⚠️ Risk: ' + esc(c.main_risk) + "</p>" : "");
+  /* Chain-note context for the captain: market check + weather ONLY when present. */
+  var chain = report.meta && report.meta.chain;
+  if (chain) {
+    var notes = chain.notes || {};
+    if (chain.market_check && chain.market_check.enabled === true) {
+      var mc = chain.market_check.fixtures_matched != null ? " (" + chain.market_check.fixtures_matched + " fixtures)" : "";
+      html += '<p class="mt-2 text-sm text-emerald-300/90">📈 Market check agrees' + esc(mc) + "</p>";
+    } else if (chain.market_check && chain.market_check.enabled === false) {
+      html += '<p class="mt-2 text-sm text-slate-500">📈 Market check: unavailable</p>';
+    }
+    if (notes.weather_severe_fixtures != null && notes.weather_severe_fixtures !== 0) {
+      html += '<p class="mt-2 text-sm text-amber-300/90">🌧 Severe-weather fixtures: ' + notes.weather_severe_fixtures + "</p>";
+    }
+  }
   if (conf) {
     html += '<div class="mt-3"><div class="text-xs text-slate-500 mb-1">Confidence ' + conf + "%</div>"
       + '<div class="h-1.5 rounded-full bg-slate-700 overflow-hidden"><div class="h-full bg-gradient-to-r from-sky-500 to-emerald-400" style="width:' + conf + '%"></div></div></div>';
@@ -459,9 +496,47 @@ function renderChip(report) {
   } else { slot.innerHTML = ""; }
 }
 
+/* ---------- Chain provenance banner (honest disclosure) ---------- */
+function renderChainBanner(report) {
+  var slot = $("chainBanner");
+  var chain = report.meta && report.meta.chain;
+  if (!chain) { slot.innerHTML = ""; return; }
+  var label = esc(chain.source_label || chain.source || "prediction engine");
+  var quality = esc(chain.data_quality || "");
+  var html = '<div class="chain-banner flex flex-wrap items-center gap-x-4 gap-y-1">'
+    + '<div><div class="chain-label">Prediction source</div>'
+    + '<div class="chain-value">' + label + "</div></div>"
+    + (quality ? '<div><div class="chain-label">Data quality</div><div class="chain-quality">' + quality + "</div></div>" : "")
+    + (chain.covered_players != null ? '<div><div class="chain-label">Players covered</div><div class="chain-quality">' + chain.covered_players + "</div></div>" : "")
+    + "</div>";
+  /* Notes row: market check + weather, ONLY when the data actually exists. */
+  var notes = chain.notes || {};
+  var noteLines = [];
+  if (typeof notes.understat_matched === "number") {
+    noteLines.push('<span class="chain-note">Understat matched: ' + notes.understat_matched + " players</span>");
+  }
+  if (notes.understat_players_matched != null) {
+    noteLines.push('<span class="chain-note">Understat matched: ' + notes.understat_players_matched + " players</span>");
+  }
+  if (chain.market_check && chain.market_check.enabled === false) {
+    noteLines.push('<span class="chain-note no">Market check: off' + (chain.market_check.reason ? ' (' + esc(chain.market_check.reason) + ')' : "") + "</span>");
+  } else if (chain.market_check && chain.market_check.enabled === true) {
+    var mc = chain.market_check.fixtures_matched != null ? " · " + chain.market_check.fixtures_matched + " fixtures" : "";
+    noteLines.push('<span class="chain-note ok">Market check: agrees' + mc + "</span>");
+  }
+  if (notes.weather_severe_fixtures != null && notes.weather_severe_fixtures !== 0) {
+    noteLines.push('<span class="chain-note">Severe-weather fixtures: ' + notes.weather_severe_fixtures + "</span>");
+  }
+  if (noteLines.length) {
+    html += '<div class="w-full pt-1 flex flex-wrap gap-3">' + noteLines.join("") + "</div>";
+  }
+  slot.innerHTML = html;
+}
+
 function renderReport(report) {
   renderSummary(report);
   renderChip(report);
+  renderChainBanner(report);
   renderPitch(report);
   renderBench(report);
   renderCaptain(report);

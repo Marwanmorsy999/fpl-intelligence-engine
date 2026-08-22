@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 
 from fpl_intelligence import __version__
+from fpl_intelligence.api.deps import assert_no_static_stub_in_production
 from fpl_intelligence.api.routes.admin import router as admin_router
 from fpl_intelligence.api.routes.intelligence import router as intelligence_router
 from fpl_intelligence.api.routes.players import router as players_router
@@ -13,6 +14,12 @@ from fpl_intelligence.config import get_settings
 from fpl_intelligence.web.dashboard import router as dashboard_router
 
 settings = get_settings()
+
+# Phase 15.0 — fail fast when a production deployment would serve the hardcoded
+# StaticPredictionProvider stub (fake 5.5 xPTS for every player). This is the
+# startup guard promised by the prediction-chain design; see deps.py.
+assert_no_static_stub_in_production()
+
 
 # Serverless platforms capture stdout/stderr verbatim, and httpx logs full
 # request URLs (which embed the Telegram bot token) at INFO level. Mute those

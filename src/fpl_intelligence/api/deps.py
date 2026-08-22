@@ -19,6 +19,7 @@ from typing import Annotated
 from fastapi import Depends, Header, HTTPException
 from sqlalchemy.orm import Session
 
+from fpl_intelligence.config import get_settings
 from fpl_intelligence.db.session import get_db as _get_db_session
 from fpl_intelligence.live_intelligence.analyst import AIAnalyst
 from fpl_intelligence.live_intelligence.bridge import (
@@ -64,17 +65,55 @@ def get_llm_provider(x_fpl_llm_mode: Annotated[str | None, Header()] = None) -> 
         ) from exc
 
 
-def get_prediction_provider() -> DecisionPredictionProvider:
-    """Return the quantitative prediction provider.
+def assert_no_static_stub_in_production() -> None:
+    """Fail fast when a production deployment would serve the hardcoded stub.
 
-    Defaults to the deterministic, offline
-    :class:`~fpl_intelligence.live_intelligence.bridge.StaticPredictionProvider`
-    so the API can answer instantly and without any network or real-data
-    dependency. Deployments may override this dependency with a real provider.
+    Called once at import time by :mod:`fpl_intelligence.api.main`. A production
+    environment resolving :class:`StaticPredictionProvider` means every user
+    sees fake 5.5-point predictions — exactly the Phase 15.0 defect this guard
+    exists to prevent. Set ``PREDICTION_PROVIDER=live`` (or unset it) to fix.
     """
-    from fpl_intelligence.live_intelligence.bridge import StaticPredictionProvider
+    settings = get_settings()
+    if (
+        settings.app_env.strip().lower() == "production"
+        and settings.prediction_provider.strip().lower() == "static"
+    ):
+        raise RuntimeError(
+            "PREDICTION_PROVIDER=static is forbidden in APP_ENV=production: "
+            "it serves the hardcoded StaticPredictionProvider stub (5.5 xPTS "
+            "for everyone). Use PREDICTION_PROVIDER=live."
+        )
 
-    return StaticPredictionProvider()
+
+def get_prediction_provider(db: GetDB) -> DecisionPredictionProvider:
+    """Return the quantitative prediction provider (Phase 15.0 chain).
+
+    * ``PREDICTION_PROVIDER=live`` (default) resolves the
+      :class:`~fpl_intelligence.prediction.live_provider.LivePredictionProvider`
+      whose documented fallback chain is:
+
+      1. ``model-backtest``       — latest successful backtest's player_predictions.
+      2. ``baseline-model``       — Phase 5 baselines over ingested gameweek features.
+      3. ``pre-season-proxy-v2``  — price percentile x FDR x Understat xG/xA
+                                    (offline snapshot) x market implied probs.
+      4. ``static-stub``          — ONLY when explicitly configured for tests.
+
+      Every prediction carries its ``source`` and ``data_quality`` label so the
+      UI can never present a proxy as computed form.
+    * ``PREDICTION_PROVIDER=static`` resolves the deterministic offline stub —
+      unit tests and ``--dry-run`` only. Production startup refuses it (see
+      :func:`assert_no_static_stub_in_production`).
+    """
+    settings = get_settings()
+    if settings.prediction_provider.strip().lower() == "static":
+        from fpl_intelligence.live_intelligence.bridge import StaticPredictionProvider
+
+        return StaticPredictionProvider()
+
+    from fpl_intelligence.prediction.live_provider import LivePredictionProvider
+
+    return LivePredictionProvider(session=db)
+
 
 
 def get_prediction_builder(

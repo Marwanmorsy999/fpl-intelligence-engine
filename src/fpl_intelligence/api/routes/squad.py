@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
@@ -30,6 +30,10 @@ from fpl_intelligence.config import get_settings
 from fpl_intelligence.data_providers.decision_bridge import (
     FactCollectionService,
     FactOverrideProvider,
+)
+from fpl_intelligence.data_providers.understat import (
+    UnderstatConnector,
+    build_stats_from_row,
 )
 from fpl_intelligence.db.models import Player, PlayerExternalId
 from fpl_intelligence.optimization.provider import DecisionPredictionProvider
@@ -101,6 +105,7 @@ def _build_player_details(
     report: DecisionReport,
     squad: SquadStateResponse,
     provider: DecisionPredictionProvider,
+    understat_index: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, PlayerDetail]:
     """Enrich the decision report with per-player details for the dashboard.
 
@@ -108,7 +113,21 @@ def _build_player_details(
     expected points (xPTS) for every player referenced in the report so the
     frontend can render photos, badges, and prices without a separate API
     round-trip.
+
+    When the resolved provider is a :class:`LivePredictionProvider`, each
+    prediction carries its ``source`` / ``data_quality`` labels plus
+    ``expected_minutes`` and ``start_probability`` — all surfaced here so the
+    UI can never present a heuristic proxy as a computed model output.
+
+    ``understat_index`` is the live provider's name-keyed Understat snapshot
+    index (passed in from the route, which holds the base provider, so this
+    works whether or not the provider is wrapped in a
+    :class:`FactOverrideProvider`). Players matched in the index get real
+    xg/xa_per_90 values; everyone else gets ``None`` and the dashboard must
+    NOT render xG/xA lines for them.
     """
+    uindex = understat_index or {}
+
     # --- collect every player id referenced in the report --------------------
     player_ids: set[int] = set()
     player_ids.update(report.starting_xi)
@@ -168,7 +187,41 @@ def _build_player_details(
             position = squad.player_positions.get(pid)
 
         pred = gw_preds.get(pid)
-        expected_points = round(pred.expected_points, 2) if pred is not None else None
+        if pred is not None:
+            expected_points = round(pred.expected_points, 2)
+            # LabeledPlayerPrediction carries source/data_quality; plain
+            # PlayerPrediction (e.g. after a FactOverride) does not — guard.
+            prediction_source = getattr(pred, "source", None) or None
+            data_quality = getattr(pred, "data_quality", None) or None
+            minutes_estimate = (
+                round(float(pred.expected_minutes), 1)
+                if pred.expected_minutes is not None
+                else None
+            )
+            start_prob = (
+                round(float(pred.start_probability), 3)
+                if pred.start_probability is not None
+                else None
+            )
+        else:
+            expected_points = None
+            prediction_source = None
+            data_quality = None
+            minutes_estimate = None
+            start_prob = None
+
+        # Understat xG/xA: ONLY for genuinely matched players, never fabricated.
+        xg = None
+        xa = None
+        if uindex and web_name:
+            row = UnderstatConnector.match_player(uindex, web_name)
+            if row is not None:
+                try:
+                    stats = build_stats_from_row(row)
+                    xg = round(float(stats.xg_per_90), 2)
+                    xa = round(float(stats.xa_per_90), 2)
+                except Exception:  # noqa: BLE001 — skip unparseable rows
+                    pass
 
         details[str(pid)] = PlayerDetail(
             id=pid,
@@ -178,6 +231,12 @@ def _build_player_details(
             price=price,
             code=code,
             expected_points=expected_points,
+            prediction_source=prediction_source,
+            data_quality=data_quality,
+            minutes_estimate=minutes_estimate,
+            start_prob=start_prob,
+            xg=xg,
+            xa=xa,
         )
 
     return details
@@ -234,6 +293,16 @@ async def get_decisions(
     report.meta["live_fact_sources"] = sorted(
         {o.source.value for o in applied_overrides}
     )
+
+    # --- chain provenance: which level actually served the numbers ------------
+    # ``provider`` is the base quantitative provider (LivePredictionProvider in
+    # production). FactOverrideProvider does not expose chain_meta, so we read
+    # provenance from the *base* provider — the labels describe the underlying
+    # quantitative signal, which is what the honest UI must disclose.
+    chain_meta = _resolve_chain_meta(provider, report.gameweek)
+    if chain_meta is not None:
+        report.meta["chain"] = chain_meta
+
     # --- squad summary for the dashboard's summary bar -----------------------
     prices = squad.player_prices or {}
     total_value = round(sum(prices.values()) + float(squad.bank), 1)
@@ -243,9 +312,50 @@ async def get_decisions(
         "free_transfers": squad.free_transfers,
         "chips_available": list(squad.chips_available or []),
     }
+
+    # --- Understat xG/xA enrichment (matched players only) -------------------
+    # The index is name-keyed; matching happens inside _build_player_details
+    # where each player's web_name is already resolved.
+    understat_index = _resolve_understat_index(provider)
+
     # Enrich with per-player details (names, teams, prices, codes, xPTS).
-    report.players = _build_player_details(db, report, squad, effective_provider)
+    report.players = _build_player_details(
+        db, report, squad, effective_provider, understat_index=understat_index
+    )
     return report
+
+
+def _resolve_chain_meta(
+    provider: DecisionPredictionProvider, gameweek: int
+) -> dict[str, Any] | None:
+    """Read provenance from a live provider; ``None`` for the static stub."""
+    meta_getter = getattr(provider, "chain_meta", None)
+    if not callable(meta_getter):
+        return None
+    try:
+        return meta_getter(gameweek)
+    except Exception as exc:  # noqa: BLE001 — provenance is best-effort
+        logger.warning("chain_meta failed for gw%s: %s", gameweek, exc)
+        return None
+
+
+def _resolve_understat_index(
+    provider: DecisionPredictionProvider,
+) -> dict[str, dict[str, Any]] | None:
+    """Return the live provider's name-keyed Understat index, if available.
+
+    Only ``LivePredictionProvider`` exposes ``understat_index``. Returns an
+    empty dict when enrichment is disabled/unavailable so callers can skip
+    matching gracefully — never fabricating xG/xA for unmatched players.
+    """
+    index_getter = getattr(provider, "understat_index", None)
+    if not callable(index_getter):
+        return None
+    try:
+        return index_getter() or {}
+    except Exception as exc:  # noqa: BLE001 — enrichment is best-effort
+        logger.warning("understat_index failed: %s", exc)
+        return {}
 
 
 class FromFplRequest(BaseModel):

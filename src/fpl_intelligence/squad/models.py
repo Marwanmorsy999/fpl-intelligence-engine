@@ -138,6 +138,20 @@ class PlayerDetail(BaseModel):
     code: int | None = None
     #: Expected points (xPTS) for the current gameweek.
     expected_points: float | None = None
+    #: Which chain level produced the xPTS (``model-backtest``, ``baseline-model``,
+    #: ``pre-season-proxy-v2``). ``None`` when the player is absent from the chain.
+    prediction_source: str | None = None
+    #: Evidence tier behind the number (``historical-backtest``,
+    #: ``ingested-gameweek-history``, ``heuristic-proxy-enriched``).
+    data_quality: str | None = None
+    #: Estimated minutes for the gameweek (chain's per-player estimate).
+    minutes_estimate: float | None = None
+    #: Probability the player starts the match.
+    start_prob: float | None = None
+    #: Last-season xG/90 from Understat — ``None`` for non-Understat-matched players.
+    xg: float | None = None
+    #: Last-season xA/90 from Understat — ``None`` for non-Understat-matched players.
+    xa: float | None = None
 
 
 class DecisionReport(BaseModel):

@@ -155,5999 +155,6009 @@
   ],
   "meta": {
     "fetched_from": "https://fantasy.premierleague.com/api/bootstrap-static/",
-    "generated_at": "2026-08-21T12:17:51.536741+00:00",
+    "generated_at": "2026-08-21T23:44:47.144017+00:00",
     "season_code": "2026-27"
   },
   "players": [
     {
+      "code": 154561,
       "first_name": "David",
       "id": 1,
       "now_cost": 60,
       "position": 1,
-      "second_name": "Raya Martín",
+      "second_name": "Raya Mart\u00edn",
       "team": 1,
-      "web_name": "Raya",
-      "code": 154561
+      "web_name": "Raya"
     },
     {
+      "code": 109745,
       "first_name": "Kepa",
       "id": 2,
       "now_cost": 50,
       "position": 1,
       "second_name": "Arrizabalaga Revuelta",
       "team": 1,
-      "web_name": "Arrizabalaga",
-      "code": 109745
+      "web_name": "Arrizabalaga"
     },
     {
+      "code": 437495,
       "first_name": "Illan",
       "id": 3,
       "now_cost": 50,
       "position": 1,
       "second_name": "Meslier",
       "team": 1,
-      "web_name": "Meslier",
-      "code": 437495
+      "web_name": "Meslier"
     },
     {
+      "code": 226597,
       "first_name": "Gabriel",
       "id": 4,
       "now_cost": 80,
       "position": 2,
-      "second_name": "dos Santos Magalhães",
+      "second_name": "dos Santos Magalh\u00e3es",
       "team": 1,
-      "web_name": "Gabriel",
-      "code": 226597
+      "web_name": "Gabriel"
     },
     {
-      "first_name": "Jurriën",
+      "code": 445122,
+      "first_name": "Jurri\u00ebn",
       "id": 5,
       "now_cost": 65,
       "position": 2,
       "second_name": "Timber",
       "team": 1,
-      "web_name": "J.Timber",
-      "code": 445122
+      "web_name": "J.Timber"
     },
     {
+      "code": 462424,
       "first_name": "William",
       "id": 6,
       "now_cost": 60,
       "position": 2,
       "second_name": "Saliba",
       "team": 1,
-      "web_name": "Saliba",
-      "code": 462424
+      "web_name": "Saliba"
     },
     {
+      "code": 499169,
       "first_name": "Myles",
       "id": 7,
       "now_cost": 55,
       "position": 3,
       "second_name": "Lewis-Skelly",
       "team": 1,
-      "web_name": "Lewis-Skelly",
-      "code": 499169
+      "web_name": "Lewis-Skelly"
     },
     {
+      "code": 466075,
       "first_name": "Riccardo",
       "id": 8,
       "now_cost": 55,
       "position": 2,
       "second_name": "Calafiori",
       "team": 1,
-      "web_name": "Calafiori",
-      "code": 466075
+      "web_name": "Calafiori"
     },
     {
+      "code": 448104,
       "first_name": "Piero",
       "id": 9,
       "now_cost": 55,
       "position": 2,
-      "second_name": "Hincapié",
+      "second_name": "Hincapi\u00e9",
       "team": 1,
-      "web_name": "Hincapie",
-      "code": 448104
+      "web_name": "Hincapie"
     },
     {
+      "code": 198869,
       "first_name": "Benjamin",
       "id": 10,
       "now_cost": 55,
       "position": 2,
       "second_name": "White",
       "team": 1,
-      "web_name": "White",
-      "code": 198869
+      "web_name": "White"
     },
     {
+      "code": 500040,
       "first_name": "Cristhian",
       "id": 11,
       "now_cost": 55,
       "position": 2,
       "second_name": "Mosquera",
       "team": 1,
-      "web_name": "Mosquera",
-      "code": 500040
+      "web_name": "Mosquera"
     },
     {
+      "code": 223340,
       "first_name": "Bukayo",
       "id": 12,
       "now_cost": 95,
       "position": 3,
       "second_name": "Saka",
       "team": 1,
-      "web_name": "Saka",
-      "code": 223340
+      "web_name": "Saka"
     },
     {
+      "code": 204480,
       "first_name": "Declan",
       "id": 13,
       "now_cost": 75,
       "position": 3,
       "second_name": "Rice",
       "team": 1,
-      "web_name": "Rice",
-      "code": 204480
+      "web_name": "Rice"
     },
     {
+      "code": 232413,
       "first_name": "Eberechi",
       "id": 14,
       "now_cost": 65,
       "position": 3,
       "second_name": "Eze",
       "team": 1,
-      "web_name": "Eze",
-      "code": 232413
+      "web_name": "Eze"
     },
     {
+      "code": 184029,
       "first_name": "Martin",
       "id": 15,
       "now_cost": 65,
       "position": 3,
-      "second_name": "Ødegaard",
+      "second_name": "\u00d8degaard",
       "team": 1,
-      "web_name": "Ødegaard",
-      "code": 184029
+      "web_name": "\u00d8degaard"
     },
     {
+      "code": 248857,
       "first_name": "Noni",
       "id": 16,
       "now_cost": 65,
       "position": 3,
       "second_name": "Madueke",
       "team": 1,
-      "web_name": "Madueke",
-      "code": 248857
+      "web_name": "Madueke"
     },
     {
+      "code": 195384,
       "first_name": "Mikel",
       "id": 17,
       "now_cost": 60,
       "position": 3,
-      "second_name": "Merino Zazón",
+      "second_name": "Merino Zaz\u00f3n",
       "team": 1,
-      "web_name": "Merino",
-      "code": 195384
+      "web_name": "Merino"
     },
     {
+      "code": 444145,
       "first_name": "Gabriel",
       "id": 18,
       "now_cost": 65,
       "position": 3,
       "second_name": "Martinelli Silva",
       "team": 1,
-      "web_name": "Martinelli",
-      "code": 444145
+      "web_name": "Martinelli"
     },
     {
-      "first_name": "Martín",
+      "code": 481655,
+      "first_name": "Mart\u00edn",
       "id": 19,
       "now_cost": 55,
       "position": 3,
-      "second_name": "Zubimendi Ibáñez",
+      "second_name": "Zubimendi Ib\u00e1\u00f1ez",
       "team": 1,
-      "web_name": "Zubimendi",
-      "code": 481655
+      "web_name": "Zubimendi"
     },
     {
+      "code": 616077,
       "first_name": "Max",
       "id": 20,
       "now_cost": 55,
       "position": 3,
       "second_name": "Dowman",
       "team": 1,
-      "web_name": "Dowman",
-      "code": 616077
+      "web_name": "Dowman"
     },
     {
+      "code": 128295,
       "first_name": "Christian",
       "id": 21,
       "now_cost": 50,
       "position": 3,
-      "second_name": "Nørgaard",
+      "second_name": "N\u00f8rgaard",
       "team": 9,
-      "web_name": "Nørgaard",
-      "code": 128295
+      "web_name": "N\u00f8rgaard"
     },
     {
+      "code": 499175,
       "first_name": "Ethan",
       "id": 22,
       "now_cost": 55,
       "position": 3,
       "second_name": "Nwaneri",
       "team": 1,
-      "web_name": "Nwaneri",
-      "code": 499175
+      "web_name": "Nwaneri"
     },
     {
-      "first_name": "Fábio",
+      "code": 438098,
+      "first_name": "F\u00e1bio",
       "id": 23,
       "now_cost": 55,
       "position": 3,
       "second_name": "Ferreira Vieira",
       "team": 1,
-      "web_name": "Fábio Vieira",
-      "code": 438098
+      "web_name": "F\u00e1bio Vieira"
     },
     {
+      "code": 200641,
       "first_name": "Reiss",
       "id": 24,
       "now_cost": 55,
       "position": 3,
       "second_name": "Nelson",
       "team": 1,
-      "web_name": "Nelson",
-      "code": 200641
+      "web_name": "Nelson"
     },
     {
+      "code": 224117,
       "first_name": "Viktor",
       "id": 25,
       "now_cost": 75,
       "position": 4,
-      "second_name": "Gyökeres",
+      "second_name": "Gy\u00f6keres",
       "team": 1,
-      "web_name": "Gyökeres",
-      "code": 224117
+      "web_name": "Gy\u00f6keres"
     },
     {
+      "code": 219847,
       "first_name": "Kai",
       "id": 26,
       "now_cost": 75,
       "position": 4,
       "second_name": "Havertz",
       "team": 1,
-      "web_name": "Havertz",
-      "code": 219847
+      "web_name": "Havertz"
     },
     {
+      "code": 205651,
       "first_name": "Gabriel",
       "id": 27,
       "now_cost": 60,
       "position": 4,
       "second_name": "Fernando de Jesus",
       "team": 1,
-      "web_name": "G.Jesus",
-      "code": 205651
+      "web_name": "G.Jesus"
     },
     {
+      "code": 98980,
       "first_name": "Emiliano",
       "id": 28,
       "now_cost": 50,
       "position": 1,
-      "second_name": "Martínez Romero",
+      "second_name": "Mart\u00ednez Romero",
       "team": 2,
-      "web_name": "Martinez",
-      "code": 98980
+      "web_name": "Martinez"
     },
     {
+      "code": 72147,
       "first_name": "Marco",
       "id": 29,
       "now_cost": 45,
       "position": 1,
       "second_name": "Bizot",
       "team": 2,
-      "web_name": "M.Bizot",
-      "code": 72147
+      "web_name": "M.Bizot"
     },
     {
+      "code": 101188,
       "first_name": "Lucas",
       "id": 30,
       "now_cost": 45,
       "position": 2,
       "second_name": "Digne",
       "team": 2,
-      "web_name": "Digne",
-      "code": 101188
+      "web_name": "Digne"
     },
     {
+      "code": 199798,
       "first_name": "Ezri",
       "id": 31,
       "now_cost": 45,
       "position": 2,
       "second_name": "Konsa Ngoyo",
-      "team": 2,
-      "web_name": "Konsa",
-      "code": 199798
+      "team": 1,
+      "web_name": "Konsa"
     },
     {
+      "code": 199796,
       "first_name": "Matty",
       "id": 32,
       "now_cost": 45,
       "position": 2,
       "second_name": "Cash",
       "team": 2,
-      "web_name": "Cash",
-      "code": 199796
+      "web_name": "Cash"
     },
     {
+      "code": 149484,
       "first_name": "Tyrone",
       "id": 33,
       "now_cost": 45,
       "position": 2,
       "second_name": "Mings",
       "team": 2,
-      "web_name": "Mings",
-      "code": 149484
+      "web_name": "Mings"
     },
     {
+      "code": 244954,
       "first_name": "Pau",
       "id": 34,
       "now_cost": 45,
       "position": 2,
       "second_name": "Torres",
       "team": 2,
-      "web_name": "Pau",
-      "code": 244954
+      "web_name": "Pau"
     },
     {
+      "code": 515597,
       "first_name": "Lamare",
       "id": 35,
       "now_cost": 50,
       "position": 3,
       "second_name": "Bogarde",
       "team": 2,
-      "web_name": "Bogarde",
-      "code": 515597
+      "web_name": "Bogarde"
     },
     {
+      "code": 441302,
       "first_name": "Ian",
       "id": 36,
       "now_cost": 45,
       "position": 2,
       "second_name": "Maatsen",
       "team": 2,
-      "web_name": "Maatsen",
-      "code": 441302
+      "web_name": "Maatsen"
     },
     {
+      "code": 184667,
       "first_name": "Victor",
       "id": 37,
       "now_cost": 45,
       "position": 2,
-      "second_name": "Lindelöf",
+      "second_name": "Lindel\u00f6f",
       "team": 2,
-      "web_name": "Lindelöf",
-      "code": 184667
+      "web_name": "Lindel\u00f6f"
     },
     {
-      "first_name": "Andrés",
+      "code": 606798,
+      "first_name": "Andr\u00e9s",
       "id": 38,
       "now_cost": 40,
       "position": 2,
-      "second_name": "García",
+      "second_name": "Garc\u00eda",
       "team": 2,
-      "web_name": "A.García",
-      "code": 606798
+      "web_name": "A.Garc\u00eda"
     },
     {
+      "code": 578545,
       "first_name": "Kosta",
       "id": 39,
       "now_cost": 40,
       "position": 2,
       "second_name": "Nedeljkovic",
       "team": 2,
-      "web_name": "Nedeljkovic",
-      "code": 578545
+      "web_name": "Nedeljkovic"
     },
     {
+      "code": 244850,
       "first_name": "Morgan",
       "id": 40,
       "now_cost": 75,
       "position": 3,
       "second_name": "Rogers",
       "team": 6,
-      "web_name": "Rogers",
-      "code": 244850
+      "web_name": "Rogers"
     },
     {
+      "code": 195546,
       "first_name": "Emiliano",
       "id": 41,
       "now_cost": 60,
       "position": 3,
-      "second_name": "Buendía Stati",
+      "second_name": "Buend\u00eda Stati",
       "team": 2,
-      "web_name": "Buendía",
-      "code": 195546
+      "web_name": "Buend\u00eda"
     },
     {
+      "code": 485337,
       "first_name": "Evann",
       "id": 42,
       "now_cost": 55,
       "position": 3,
       "second_name": "Guessand",
       "team": 8,
-      "web_name": "Guessand",
-      "code": 485337
+      "web_name": "Guessand"
     },
     {
+      "code": 166989,
       "first_name": "Youri",
       "id": 43,
       "now_cost": 60,
       "position": 3,
       "second_name": "Tielemans",
       "team": 16,
-      "web_name": "Tielemans",
-      "code": 166989
+      "web_name": "Tielemans"
     },
     {
+      "code": 215711,
       "first_name": "Leon",
       "id": 44,
       "now_cost": 55,
       "position": 3,
       "second_name": "Bailey",
       "team": 2,
-      "web_name": "Bailey",
-      "code": 215711
+      "web_name": "Bailey"
     },
     {
+      "code": 122806,
       "first_name": "John",
       "id": 45,
       "now_cost": 55,
       "position": 3,
       "second_name": "McGinn",
       "team": 2,
-      "web_name": "McGinn",
-      "code": 122806
+      "web_name": "McGinn"
     },
     {
+      "code": 88894,
       "first_name": "Ross",
       "id": 46,
       "now_cost": 50,
       "position": 3,
       "second_name": "Barkley",
       "team": 2,
-      "web_name": "Barkley",
-      "code": 88894
+      "web_name": "Barkley"
     },
     {
+      "code": 226944,
       "first_name": "Boubacar",
       "id": 47,
       "now_cost": 50,
       "position": 3,
       "second_name": "Kamara",
       "team": 2,
-      "web_name": "Kamara",
-      "code": 226944
+      "web_name": "Kamara"
     },
     {
+      "code": 449871,
       "first_name": "Amadou",
       "id": 48,
       "now_cost": 50,
       "position": 3,
       "second_name": "Onana",
       "team": 2,
-      "web_name": "Onana",
-      "code": 449871
+      "web_name": "Onana"
     },
     {
+      "code": 469247,
       "first_name": "Samuel",
       "id": 49,
       "now_cost": 50,
       "position": 3,
       "second_name": "Iling-Junior",
       "team": 2,
-      "web_name": "Iling Jr",
-      "code": 469247
+      "web_name": "Iling Jr"
     },
     {
+      "code": 645618,
       "first_name": "Bradley",
       "id": 50,
       "now_cost": 45,
       "position": 3,
       "second_name": "Burrowes",
       "team": 2,
-      "web_name": "Burrowes",
-      "code": 645618
+      "web_name": "Burrowes"
     },
     {
+      "code": 577285,
       "first_name": "George",
       "id": 51,
       "now_cost": 45,
       "position": 3,
       "second_name": "Hemmings",
       "team": 2,
-      "web_name": "George Hemmings",
-      "code": 577285
+      "web_name": "George Hemmings"
     },
     {
+      "code": 653481,
       "first_name": "Alysson Edward Franco",
       "id": 52,
       "now_cost": 50,
       "position": 3,
       "second_name": "da Rocha dos Santos",
       "team": 2,
-      "web_name": "Alysson",
-      "code": 653481
+      "web_name": "Alysson"
     },
     {
+      "code": 614071,
       "first_name": "Johan",
       "id": 53,
       "now_cost": 60,
       "position": 3,
       "second_name": "Manzambi",
       "team": 2,
-      "web_name": "Manzambi",
-      "code": 614071
+      "web_name": "Manzambi"
     },
     {
+      "code": 448089,
       "first_name": "Joao",
       "id": 54,
       "now_cost": 55,
       "position": 3,
       "second_name": "Gomes",
       "team": 2,
-      "web_name": "Gomes",
-      "code": 448089
+      "web_name": "Gomes"
     },
     {
+      "code": 178301,
       "first_name": "Ollie",
       "id": 55,
       "now_cost": 80,
       "position": 4,
       "second_name": "Watkins",
       "team": 2,
-      "web_name": "Watkins",
-      "code": 178301
+      "web_name": "Watkins"
     },
     {
+      "code": 173879,
       "first_name": "Tammy",
       "id": 56,
       "now_cost": 55,
       "position": 4,
       "second_name": "Abraham",
       "team": 2,
-      "web_name": "Abraham",
-      "code": 173879
+      "web_name": "Abraham"
     },
     {
-      "first_name": "Đorđe",
+      "code": 457569,
+      "first_name": "\u0110or\u0111e",
       "id": 57,
       "now_cost": 45,
       "position": 1,
-      "second_name": "Petrović",
+      "second_name": "Petrovi\u0107",
       "team": 3,
-      "web_name": "Petrović",
-      "code": 457569
+      "web_name": "Petrovi\u0107"
     },
     {
+      "code": 40383,
       "first_name": "Fraser",
       "id": 58,
       "now_cost": 40,
       "position": 1,
       "second_name": "Forster",
       "team": 3,
-      "web_name": "Forster",
-      "code": 40383
+      "web_name": "Forster"
     },
     {
+      "code": 444172,
       "first_name": "Will",
       "id": 59,
       "now_cost": 40,
       "position": 1,
       "second_name": "Dennis",
       "team": 3,
-      "web_name": "Dennis",
-      "code": 444172
+      "web_name": "Dennis"
     },
     {
+      "code": 463981,
       "first_name": "James",
       "id": 60,
       "now_cost": 55,
       "position": 2,
       "second_name": "Hill",
       "team": 3,
-      "web_name": "Hill",
-      "code": 463981
+      "web_name": "Hill"
     },
     {
+      "code": 494521,
       "first_name": "Adrien",
       "id": 61,
       "now_cost": 55,
       "position": 2,
       "second_name": "Truffert",
       "team": 3,
-      "web_name": "Truffert",
-      "code": 494521
+      "web_name": "Truffert"
     },
     {
-      "first_name": "Bafodé",
+      "code": 242882,
+      "first_name": "Bafod\u00e9",
       "id": 62,
       "now_cost": 50,
       "position": 2,
-      "second_name": "Diakité",
+      "second_name": "Diakit\u00e9",
       "team": 3,
-      "web_name": "Diakité",
-      "code": 242882
+      "web_name": "Diakit\u00e9"
     },
     {
+      "code": 620487,
       "first_name": "Veljko",
       "id": 63,
       "now_cost": 50,
       "position": 2,
       "second_name": "Milosavljevic",
       "team": 3,
-      "web_name": "Milosavljević",
-      "code": 620487
+      "web_name": "Milosavljevi\u0107"
     },
     {
+      "code": 54469,
       "first_name": "Adam",
       "id": 64,
       "now_cost": 45,
       "position": 2,
       "second_name": "Smith",
       "team": 3,
-      "web_name": "Smith",
-      "code": 54469
+      "web_name": "Smith"
     },
     {
-      "first_name": "Julián",
+      "code": 436893,
+      "first_name": "Juli\u00e1n",
       "id": 65,
       "now_cost": 45,
       "position": 2,
-      "second_name": "Araujo Zúñiga",
+      "second_name": "Araujo Z\u00fa\u00f1iga",
       "team": 3,
-      "web_name": "J.Araujo",
-      "code": 436893
+      "web_name": "J.Araujo"
     },
     {
+      "code": 575901,
       "first_name": "Julio",
       "id": 66,
       "now_cost": 40,
       "position": 2,
       "second_name": "Soler Barreto",
       "team": 3,
-      "web_name": "Soler",
-      "code": 575901
+      "web_name": "Soler"
     },
     {
+      "code": 499604,
       "first_name": "Rayan Vitor",
       "id": 67,
       "now_cost": 65,
       "position": 3,
-      "second_name": "Simplício Rocha",
+      "second_name": "Simpl\u00edcio Rocha",
       "team": 3,
-      "web_name": "Rayan",
-      "code": 499604
+      "web_name": "Rayan"
     },
     {
+      "code": 201658,
       "first_name": "Marcus",
       "id": 68,
       "now_cost": 60,
       "position": 3,
       "second_name": "Tavernier",
       "team": 3,
-      "web_name": "Tavernier",
-      "code": 201658
+      "web_name": "Tavernier"
     },
     {
+      "code": 503139,
       "first_name": "Alex",
       "id": 69,
       "now_cost": 60,
       "position": 3,
       "second_name": "Scott",
       "team": 3,
-      "web_name": "Scott",
-      "code": 503139
+      "web_name": "Scott"
     },
     {
+      "code": 222683,
       "first_name": "Justin",
       "id": 70,
       "now_cost": 60,
       "position": 3,
       "second_name": "Kluivert",
       "team": 3,
-      "web_name": "Kluivert",
-      "code": 222683
+      "web_name": "Kluivert"
     },
     {
+      "code": 155408,
       "first_name": "Lewis",
       "id": 71,
       "now_cost": 50,
       "position": 3,
       "second_name": "Cook",
       "team": 3,
-      "web_name": "Cook",
-      "code": 155408
+      "web_name": "Cook"
     },
     {
+      "code": 496208,
       "first_name": "Ben",
       "id": 72,
       "now_cost": 50,
       "position": 3,
       "second_name": "Gannon-Doak",
       "team": 3,
-      "web_name": "Gannon-Doak",
-      "code": 496208
+      "web_name": "Gannon-Doak"
     },
     {
+      "code": 200785,
       "first_name": "Tyler",
       "id": 73,
       "now_cost": 50,
       "position": 3,
       "second_name": "Adams",
       "team": 3,
-      "web_name": "Adams",
-      "code": 200785
+      "web_name": "Adams"
     },
     {
+      "code": 111317,
       "first_name": "David",
       "id": 74,
       "now_cost": 50,
       "position": 3,
       "second_name": "Brooks",
       "team": 3,
-      "web_name": "Brooks",
-      "code": 111317
+      "web_name": "Brooks"
     },
     {
+      "code": 158499,
       "first_name": "Ryan",
       "id": 75,
       "now_cost": 50,
       "position": 3,
       "second_name": "Christie",
       "team": 3,
-      "web_name": "Christie",
-      "code": 158499
+      "web_name": "Christie"
     },
     {
+      "code": 614574,
       "first_name": "Alex",
       "id": 76,
       "now_cost": 50,
       "position": 3,
-      "second_name": "Tóth",
+      "second_name": "T\u00f3th",
       "team": 3,
-      "web_name": "Tóth.A",
-      "code": 614574
+      "web_name": "T\u00f3th.A"
     },
     {
+      "code": 489888,
       "first_name": "Amine",
       "id": 77,
       "now_cost": 50,
       "position": 3,
       "second_name": "Adli",
       "team": 3,
-      "web_name": "Adli",
-      "code": 489888
+      "web_name": "Adli"
     },
     {
+      "code": 560262,
       "first_name": "Junior",
       "id": 78,
       "now_cost": 75,
       "position": 3,
       "second_name": "Kroupi",
       "team": 3,
-      "web_name": "Kroupi.Jr",
-      "code": 560262
+      "web_name": "Kroupi.Jr"
     },
     {
+      "code": 444102,
       "first_name": "Francisco Evanilson",
       "id": 79,
       "now_cost": 60,
       "position": 4,
       "second_name": "de Lima Barbosa",
       "team": 3,
-      "web_name": "Evanilson",
-      "code": 444102
+      "web_name": "Evanilson"
     },
     {
+      "code": 168636,
       "first_name": "Enes",
       "id": 80,
       "now_cost": 55,
       "position": 4,
-      "second_name": "Ünal",
+      "second_name": "\u00dcnal",
       "team": 3,
-      "web_name": "Enes Ünal",
-      "code": 168636
+      "web_name": "Enes \u00dcnal"
     },
     {
-      "first_name": "Álvaro",
+      "code": 561245,
+      "first_name": "\u00c1lvaro",
       "id": 81,
       "now_cost": 60,
       "position": 4,
-      "second_name": "Rodríguez",
+      "second_name": "Rodr\u00edguez",
       "team": 3,
-      "web_name": "Rodríguez",
-      "code": 561245
+      "web_name": "Rodr\u00edguez"
     },
     {
-      "first_name": "Caoimhín",
+      "code": 200720,
+      "first_name": "Caoimh\u00edn",
       "id": 82,
       "now_cost": 50,
       "position": 1,
       "second_name": "Kelleher",
       "team": 4,
-      "web_name": "Kelleher",
-      "code": 200720
+      "web_name": "Kelleher"
     },
     {
-      "first_name": "Hákon Rafn",
+      "code": 507433,
+      "first_name": "H\u00e1kon Rafn",
       "id": 83,
       "now_cost": 45,
       "position": 1,
       "second_name": "Valdimarsson",
       "team": 4,
-      "web_name": "Valdimarsson",
-      "code": 507433
+      "web_name": "Valdimarsson"
     },
     {
+      "code": 432830,
       "first_name": "Nathan",
       "id": 84,
       "now_cost": 55,
       "position": 2,
       "second_name": "Collins",
       "team": 4,
-      "web_name": "Collins",
-      "code": 432830
+      "web_name": "Collins"
     },
     {
+      "code": 444765,
       "first_name": "Sepp",
       "id": 85,
       "now_cost": 50,
       "position": 2,
       "second_name": "van den Berg",
       "team": 4,
-      "web_name": "Van den Berg",
-      "code": 444765
+      "web_name": "Van den Berg"
     },
     {
+      "code": 249231,
       "first_name": "Keane",
       "id": 86,
       "now_cost": 55,
       "position": 3,
       "second_name": "Lewis-Potter",
       "team": 4,
-      "web_name": "Lewis-Potter",
-      "code": 249231
+      "web_name": "Lewis-Potter"
     },
     {
+      "code": 191866,
       "first_name": "Kristoffer",
       "id": 87,
       "now_cost": 45,
       "position": 2,
       "second_name": "Ajer",
       "team": 4,
-      "web_name": "Ajer",
-      "code": 191866
+      "web_name": "Ajer"
     },
     {
+      "code": 607464,
       "first_name": "Michael",
       "id": 88,
       "now_cost": 45,
       "position": 2,
       "second_name": "Kayode",
       "team": 4,
-      "web_name": "Kayode",
-      "code": 607464
+      "web_name": "Kayode"
     },
     {
+      "code": 194010,
       "first_name": "Rico",
       "id": 89,
       "now_cost": 45,
       "position": 2,
       "second_name": "Henry",
       "team": 4,
-      "web_name": "Henry",
-      "code": 194010
+      "web_name": "Henry"
     },
     {
+      "code": 472713,
       "first_name": "Aaron",
       "id": 90,
       "now_cost": 45,
       "position": 2,
       "second_name": "Hickey",
       "team": 4,
-      "web_name": "Hickey",
-      "code": 472713
+      "web_name": "Hickey"
     },
     {
+      "code": 231065,
       "first_name": "Ethan",
       "id": 91,
       "now_cost": 45,
       "position": 2,
       "second_name": "Pinnock",
       "team": 4,
-      "web_name": "Pinnock",
-      "code": 231065
+      "web_name": "Pinnock"
     },
     {
+      "code": 570241,
       "first_name": "Kim",
       "id": 92,
       "now_cost": 45,
       "position": 2,
       "second_name": "Ji-soo",
       "team": 4,
-      "web_name": "Ji-soo",
-      "code": 570241
+      "web_name": "Ji-soo"
     },
     {
+      "code": 513086,
       "first_name": "Jannik",
       "id": 93,
       "now_cost": 45,
       "position": 2,
       "second_name": "Schuster",
       "team": 4,
-      "web_name": "Schuster",
-      "code": 513086
+      "web_name": "Schuster"
     },
     {
+      "code": 513418,
       "first_name": "Kevin",
       "id": 94,
       "now_cost": 60,
       "position": 3,
       "second_name": "Schade",
       "team": 4,
-      "web_name": "Schade",
-      "code": 513418
+      "web_name": "Schade"
     },
     {
+      "code": 533463,
       "first_name": "Dango",
       "id": 95,
       "now_cost": 65,
       "position": 3,
       "second_name": "Ouattara",
       "team": 4,
-      "web_name": "O.Dango",
-      "code": 533463
+      "web_name": "O.Dango"
     },
     {
+      "code": 440089,
       "first_name": "Mikkel",
       "id": 96,
       "now_cost": 55,
       "position": 3,
       "second_name": "Damsgaard",
       "team": 4,
-      "web_name": "Damsgaard",
-      "code": 440089
+      "web_name": "Damsgaard"
     },
     {
+      "code": 207283,
       "first_name": "Mathias",
       "id": 97,
       "now_cost": 55,
       "position": 3,
       "second_name": "Jensen",
       "team": 4,
-      "web_name": "Jensen",
-      "code": 207283
+      "web_name": "Jensen"
     },
     {
+      "code": 204580,
       "first_name": "Vitaly",
       "id": 98,
       "now_cost": 50,
       "position": 3,
       "second_name": "Janelt",
       "team": 4,
-      "web_name": "Janelt",
-      "code": 204580
+      "web_name": "Janelt"
     },
     {
+      "code": 543295,
       "first_name": "Antoni",
       "id": 99,
       "now_cost": 50,
       "position": 3,
       "second_name": "Milambo",
       "team": 4,
-      "web_name": "Milambo",
-      "code": 543295
+      "web_name": "Milambo"
     },
     {
-      "first_name": "Fábio",
+      "code": 244858,
+      "first_name": "F\u00e1bio",
       "id": 100,
       "now_cost": 50,
       "position": 3,
       "second_name": "Freitas Gouveia Carvalho",
       "team": 4,
-      "web_name": "Carvalho",
-      "code": 244858
+      "web_name": "Carvalho"
     },
     {
+      "code": 56979,
       "first_name": "Jordan",
       "id": 101,
       "now_cost": 50,
       "position": 3,
       "second_name": "Henderson",
       "team": 6,
-      "web_name": "Henderson",
-      "code": 56979
+      "web_name": "Henderson"
     },
     {
+      "code": 508395,
       "first_name": "Yehor",
       "id": 102,
       "now_cost": 50,
       "position": 3,
       "second_name": "Yarmoliuk",
       "team": 4,
-      "web_name": "Yarmoliuk",
-      "code": 508395
+      "web_name": "Yarmoliuk"
     },
     {
+      "code": 183656,
       "first_name": "Josh",
       "id": 103,
       "now_cost": 50,
       "position": 3,
       "second_name": "Dasilva",
       "team": 4,
-      "web_name": "Dasilva",
-      "code": 183656
+      "web_name": "Dasilva"
     },
     {
+      "code": 428580,
       "first_name": "Frank",
       "id": 104,
       "now_cost": 50,
       "position": 3,
       "second_name": "Onyeka",
       "team": 7,
-      "web_name": "Onyeka",
-      "code": 428580
+      "web_name": "Onyeka"
     },
     {
+      "code": 444180,
       "first_name": "Jaidon",
       "id": 105,
       "now_cost": 60,
       "position": 3,
       "second_name": "Anthony",
       "team": 4,
-      "web_name": "Anthony",
-      "code": 444180
+      "web_name": "Anthony"
     },
     {
+      "code": 502500,
       "first_name": "Igor Thiago",
       "id": 106,
       "now_cost": 80,
       "position": 4,
       "second_name": "Nascimento Rodrigues",
       "team": 4,
-      "web_name": "Thiago",
-      "code": 502500
+      "web_name": "Thiago"
     },
     {
+      "code": 593174,
       "first_name": "Kaye",
       "id": 107,
       "now_cost": 45,
       "position": 4,
       "second_name": "Furo",
       "team": 4,
-      "web_name": "Furo",
-      "code": 593174
+      "web_name": "Furo"
     },
     {
+      "code": 75115,
       "first_name": "Callum",
       "id": 108,
       "now_cost": 55,
       "position": 4,
       "second_name": "Wilson",
       "team": 4,
-      "web_name": "Wilson",
-      "code": 75115
+      "web_name": "Wilson"
     },
     {
+      "code": 489639,
       "first_name": "Bart",
       "id": 109,
       "now_cost": 45,
       "position": 1,
       "second_name": "Verbruggen",
       "team": 5,
-      "web_name": "Verbruggen",
-      "code": 489639
+      "web_name": "Verbruggen"
     },
     {
+      "code": 472739,
       "first_name": "Carl",
       "id": 110,
       "now_cost": 45,
       "position": 1,
       "second_name": "Rushworth",
       "team": 7,
-      "web_name": "Rushworth",
-      "code": 472739
+      "web_name": "Rushworth"
     },
     {
+      "code": 49262,
       "first_name": "Jason",
       "id": 111,
       "now_cost": 40,
       "position": 1,
       "second_name": "Steele",
       "team": 5,
-      "web_name": "Steele",
-      "code": 49262
+      "web_name": "Steele"
     },
     {
+      "code": 469142,
       "first_name": "Jan Paul",
       "id": 112,
       "now_cost": 50,
       "position": 2,
       "second_name": "van Hecke",
       "team": 19,
-      "web_name": "Van Hecke",
-      "code": 469142
+      "web_name": "Van Hecke"
     },
     {
+      "code": 231416,
       "first_name": "Ferdi",
       "id": 113,
       "now_cost": 45,
       "position": 2,
-      "second_name": "Kadıoğlu",
+      "second_name": "Kad\u0131o\u011flu",
       "team": 5,
-      "web_name": "F.Kadıoğlu",
-      "code": 231416
+      "web_name": "F.Kad\u0131o\u011flu"
     },
     {
+      "code": 204120,
       "first_name": "Olivier",
       "id": 114,
       "now_cost": 45,
       "position": 2,
       "second_name": "Boscagli",
       "team": 5,
-      "web_name": "Boscagli",
-      "code": 204120
+      "web_name": "Boscagli"
     },
     {
+      "code": 465730,
       "first_name": "Maxim",
       "id": 115,
       "now_cost": 45,
       "position": 2,
       "second_name": "De Cuyper",
       "team": 5,
-      "web_name": "De Cuyper",
-      "code": 465730
+      "web_name": "De Cuyper"
     },
     {
+      "code": 83299,
       "first_name": "Lewis",
       "id": 116,
       "now_cost": 45,
       "position": 2,
       "second_name": "Dunk",
       "team": 5,
-      "web_name": "Dunk",
-      "code": 83299
+      "web_name": "Dunk"
     },
     {
+      "code": 550090,
       "first_name": "Diego",
       "id": 117,
       "now_cost": 45,
       "position": 2,
       "second_name": "Coppola",
       "team": 5,
-      "web_name": "Coppola",
-      "code": 550090
+      "web_name": "Coppola"
     },
     {
+      "code": 223434,
       "first_name": "Igor Julio",
       "id": 118,
       "now_cost": 45,
       "position": 2,
       "second_name": "dos Santos de Paulo",
       "team": 5,
-      "web_name": "Igor",
-      "code": 223434
+      "web_name": "Igor"
     },
     {
-      "first_name": "João Pedro",
+      "code": 451490,
+      "first_name": "Jo\u00e3o Pedro",
       "id": 119,
       "now_cost": 45,
       "position": 2,
       "second_name": "Loureiro da Costa",
       "team": 5,
-      "web_name": "Costinha",
-      "code": 451490
+      "web_name": "Costinha"
     },
     {
+      "code": 454490,
       "first_name": "Michael",
       "id": 120,
       "now_cost": 50,
       "position": 2,
       "second_name": "Svoboda",
       "team": 5,
-      "web_name": "Svoboda",
-      "code": 454490
+      "web_name": "Svoboda"
     },
     {
+      "code": 451340,
       "first_name": "Mitoma",
       "id": 121,
       "now_cost": 60,
       "position": 3,
       "second_name": "Kaoru",
       "team": 5,
-      "web_name": "Mitoma",
-      "code": 451340
+      "web_name": "Mitoma"
     },
     {
+      "code": 592031,
       "first_name": "Yankuba",
       "id": 122,
       "now_cost": 60,
       "position": 3,
       "second_name": "Minteh",
       "team": 5,
-      "web_name": "Minteh",
-      "code": 592031
+      "web_name": "Minteh"
     },
     {
+      "code": 532529,
       "first_name": "Jack",
       "id": 123,
       "now_cost": 60,
       "position": 3,
       "second_name": "Hinshelwood",
       "team": 5,
-      "web_name": "Hinshelwood",
-      "code": 532529
+      "web_name": "Hinshelwood"
     },
     {
+      "code": 60307,
       "first_name": "Pascal",
       "id": 124,
       "now_cost": 55,
       "position": 3,
-      "second_name": "Groß",
+      "second_name": "Gro\u00df",
       "team": 5,
-      "web_name": "Groß",
-      "code": 60307
+      "web_name": "Gro\u00df"
     },
     {
+      "code": 463067,
       "first_name": "Georginio",
       "id": 125,
       "now_cost": 55,
       "position": 4,
       "second_name": "Rutter",
       "team": 5,
-      "web_name": "Georginio",
-      "code": 463067
+      "web_name": "Georginio"
     },
     {
+      "code": 219249,
       "first_name": "Matt",
       "id": 126,
       "now_cost": 55,
       "position": 3,
       "second_name": "O'Riley",
       "team": 5,
-      "web_name": "O'Riley",
-      "code": 219249
+      "web_name": "O'Riley"
     },
     {
+      "code": 514254,
       "first_name": "Diego",
       "id": 127,
       "now_cost": 50,
       "position": 3,
-      "second_name": "Gómez Amarilla",
+      "second_name": "G\u00f3mez Amarilla",
       "team": 5,
-      "web_name": "Gomez",
-      "code": 514254
+      "web_name": "Gomez"
     },
     {
+      "code": 536916,
       "first_name": "Facundo",
       "id": 128,
       "now_cost": 50,
       "position": 3,
       "second_name": "Buonanotte",
       "team": 5,
-      "web_name": "Buonanotte",
-      "code": 536916
+      "web_name": "Buonanotte"
     },
     {
+      "code": 509416,
       "first_name": "Yasin",
       "id": 129,
       "now_cost": 55,
       "position": 3,
       "second_name": "Ayari",
       "team": 5,
-      "web_name": "Ayari",
-      "code": 509416
+      "web_name": "Ayari"
     },
     {
+      "code": 467779,
       "first_name": "Mats",
       "id": 130,
       "now_cost": 50,
       "position": 2,
       "second_name": "Wieffer",
       "team": 5,
-      "web_name": "Wieffer",
-      "code": 467779
+      "web_name": "Wieffer"
     },
     {
+      "code": 535301,
       "first_name": "Carlos",
       "id": 131,
       "now_cost": 50,
       "position": 3,
       "second_name": "Baleba",
       "team": 5,
-      "web_name": "Baleba",
-      "code": 535301
+      "web_name": "Baleba"
     },
     {
+      "code": 597320,
       "first_name": "Harry",
       "id": 132,
       "now_cost": 45,
       "position": 3,
       "second_name": "Howell",
       "team": 5,
-      "web_name": "Howell",
-      "code": 597320
+      "web_name": "Howell"
     },
     {
+      "code": 549074,
       "first_name": "Tom",
       "id": 133,
       "now_cost": 50,
       "position": 3,
       "second_name": "Watson",
       "team": 5,
-      "web_name": "Watson",
-      "code": 549074
+      "web_name": "Watson"
     },
     {
+      "code": 556637,
       "first_name": "Nehemiah",
       "id": 134,
       "now_cost": 45,
       "position": 3,
       "second_name": "Oriola",
       "team": 5,
-      "web_name": "Oriola",
-      "code": 556637
+      "web_name": "Oriola"
     },
     {
+      "code": 700308,
       "first_name": "Zadok",
       "id": 135,
       "now_cost": 50,
       "position": 3,
       "second_name": "Yohanna",
       "team": 5,
-      "web_name": "Yohanna",
-      "code": 700308
+      "web_name": "Yohanna"
     },
     {
+      "code": 50175,
       "first_name": "Danny",
       "id": 136,
       "now_cost": 60,
       "position": 4,
       "second_name": "Welbeck",
       "team": 6,
-      "web_name": "Welbeck",
-      "code": 50175
+      "web_name": "Welbeck"
     },
     {
+      "code": 608181,
       "first_name": "Stefanos",
       "id": 137,
       "now_cost": 55,
       "position": 4,
       "second_name": "Tzimas",
       "team": 5,
-      "web_name": "Tzimas",
-      "code": 608181
+      "web_name": "Tzimas"
     },
     {
+      "code": 647850,
       "first_name": "Charalampos",
       "id": 138,
       "now_cost": 55,
       "position": 4,
       "second_name": "Kostoulas",
       "team": 5,
-      "web_name": "Kostoulas",
-      "code": 647850
+      "web_name": "Kostoulas"
     },
     {
+      "code": 487117,
       "first_name": "Evan",
       "id": 139,
       "now_cost": 50,
       "position": 4,
       "second_name": "Ferguson",
       "team": 5,
-      "web_name": "Ferguson",
-      "code": 487117
+      "web_name": "Ferguson"
     },
     {
+      "code": 215059,
       "first_name": "Robert",
       "id": 140,
       "now_cost": 50,
       "position": 1,
-      "second_name": "Lynch Sánchez",
+      "second_name": "Lynch S\u00e1nchez",
       "team": 6,
-      "web_name": "Sánchez",
-      "code": 215059
+      "web_name": "S\u00e1nchez"
     },
     {
+      "code": 508479,
       "first_name": "Filip",
       "id": 141,
       "now_cost": 50,
       "position": 1,
-      "second_name": "Jörgensen",
+      "second_name": "J\u00f6rgensen",
       "team": 6,
-      "web_name": "Jörgensen",
-      "code": 508479
+      "web_name": "J\u00f6rgensen"
     },
     {
+      "code": 225796,
       "first_name": "Reece",
       "id": 142,
       "now_cost": 55,
       "position": 2,
       "second_name": "James",
       "team": 6,
-      "web_name": "James",
-      "code": 225796
+      "web_name": "James"
     },
     {
+      "code": 180736,
       "first_name": "Trevoh",
       "id": 143,
       "now_cost": 55,
       "position": 2,
       "second_name": "Chalobah",
       "team": 6,
-      "web_name": "Chalobah",
-      "code": 180736
+      "web_name": "Chalobah"
     },
     {
+      "code": 482609,
       "first_name": "Malo",
       "id": 144,
       "now_cost": 50,
       "position": 2,
       "second_name": "Gusto",
       "team": 6,
-      "web_name": "Gusto",
-      "code": 482609
+      "web_name": "Gusto"
     },
     {
+      "code": 444463,
       "first_name": "Wesley",
       "id": 145,
       "now_cost": 50,
       "position": 2,
       "second_name": "Fofana",
       "team": 6,
-      "web_name": "Fofana",
-      "code": 444463
+      "web_name": "Fofana"
     },
     {
-      "first_name": "Benoît",
+      "code": 242880,
+      "first_name": "Beno\u00eet",
       "id": 146,
       "now_cost": 45,
       "position": 2,
       "second_name": "Badiashile Mukinayi",
       "team": 6,
-      "web_name": "B.Badiashile",
-      "code": 242880
+      "web_name": "B.Badiashile"
     },
     {
+      "code": 109646,
       "first_name": "Tosin",
       "id": 147,
       "now_cost": 45,
       "position": 2,
       "second_name": "Adarabioyo",
       "team": 6,
-      "web_name": "Tosin",
-      "code": 109646
+      "web_name": "Tosin"
     },
     {
+      "code": 551210,
       "first_name": "Jorrel",
       "id": 148,
       "now_cost": 45,
       "position": 2,
       "second_name": "Hato",
       "team": 6,
-      "web_name": "Hato",
-      "code": 551210
+      "web_name": "Hato"
     },
     {
+      "code": 460028,
       "first_name": "Levi",
       "id": 149,
       "now_cost": 50,
       "position": 2,
       "second_name": "Samuels Colwill",
       "team": 6,
-      "web_name": "Colwill",
-      "code": 460028
+      "web_name": "Colwill"
     },
     {
+      "code": 574458,
       "first_name": "Mamadou",
       "id": 150,
       "now_cost": 45,
       "position": 2,
       "second_name": "Sarr",
       "team": 6,
-      "web_name": "M.Sarr",
-      "code": 574458
+      "web_name": "M.Sarr"
     },
     {
+      "code": 577016,
       "first_name": "Josh",
       "id": 151,
       "now_cost": 45,
       "position": 2,
       "second_name": "Acheampong",
       "team": 6,
-      "web_name": "Acheampong",
-      "code": 577016
+      "web_name": "Acheampong"
     },
     {
+      "code": 620109,
       "first_name": "Marco",
       "id": 152,
       "now_cost": 55,
       "position": 2,
       "second_name": "Palestra",
       "team": 6,
-      "web_name": "Palestra",
-      "code": 620109
+      "web_name": "Palestra"
     },
     {
+      "code": 220362,
       "first_name": "Axel",
       "id": 153,
       "now_cost": 45,
       "position": 2,
       "second_name": "Disasi",
       "team": 6,
-      "web_name": "Disasi",
-      "code": 220362
+      "web_name": "Disasi"
     },
     {
+      "code": 244851,
       "first_name": "Cole",
       "id": 154,
       "now_cost": 95,
       "position": 3,
       "second_name": "Palmer",
       "team": 6,
-      "web_name": "Palmer",
-      "code": 244851
+      "web_name": "Palmer"
     },
     {
+      "code": 448047,
       "first_name": "Enzo",
       "id": 155,
       "now_cost": 70,
       "position": 3,
-      "second_name": "Fernández",
+      "second_name": "Fern\u00e1ndez",
       "team": 6,
-      "web_name": "Enzo",
-      "code": 448047
+      "web_name": "Enzo"
     },
     {
+      "code": 247632,
       "first_name": "Pedro",
       "id": 156,
       "now_cost": 65,
       "position": 3,
       "second_name": "Lomba Neto",
       "team": 6,
-      "web_name": "Neto",
-      "code": 247632
+      "web_name": "Neto"
     },
     {
-      "first_name": "Estêvão",
+      "code": 624773,
+      "first_name": "Est\u00eav\u00e3o",
       "id": 157,
       "now_cost": 65,
       "position": 3,
-      "second_name": "Almeida de Oliveira Gonçalves",
+      "second_name": "Almeida de Oliveira Gon\u00e7alves",
       "team": 6,
-      "web_name": "Estêvão",
-      "code": 624773
+      "web_name": "Est\u00eav\u00e3o"
     },
     {
+      "code": 463936,
       "first_name": "Jamie",
       "id": 158,
       "now_cost": 60,
       "position": 3,
       "second_name": "Bynoe-Gittens",
       "team": 6,
-      "web_name": "Gittens",
-      "code": 463936
+      "web_name": "Gittens"
     },
     {
-      "first_name": "Moisés",
+      "code": 486672,
+      "first_name": "Mois\u00e9s",
       "id": 159,
       "now_cost": 55,
       "position": 3,
       "second_name": "Caicedo Corozo",
       "team": 6,
-      "web_name": "Caicedo",
-      "code": 486672
+      "web_name": "Caicedo"
     },
     {
+      "code": 493105,
       "first_name": "Alejandro",
       "id": 160,
       "now_cost": 60,
       "position": 3,
       "second_name": "Garnacho Ferreyra",
       "team": 2,
-      "web_name": "Garnacho",
-      "code": 493105
+      "web_name": "Garnacho"
     },
     {
-      "first_name": "Roméo",
+      "code": 514356,
+      "first_name": "Rom\u00e9o",
       "id": 161,
       "now_cost": 50,
       "position": 3,
       "second_name": "Lavia",
       "team": 6,
-      "web_name": "Lavia",
-      "code": 514356
+      "web_name": "Lavia"
     },
     {
+      "code": 532605,
       "first_name": "Andrey",
       "id": 162,
       "now_cost": 50,
       "position": 3,
       "second_name": "Nascimento dos Santos",
       "team": 16,
-      "web_name": "Andrey Santos",
-      "code": 532605
+      "web_name": "Andrey Santos"
     },
     {
-      "first_name": "Dário",
+      "code": 491007,
+      "first_name": "D\u00e1rio",
       "id": 163,
       "now_cost": 45,
       "position": 3,
-      "second_name": "Luís Essugo",
+      "second_name": "Lu\u00eds Essugo",
       "team": 6,
-      "web_name": "D.Essugo",
-      "code": 491007
+      "web_name": "D.Essugo"
     },
     {
+      "code": 593117,
       "first_name": "Geovany",
       "id": 164,
       "now_cost": 55,
       "position": 3,
       "second_name": "Quenda",
       "team": 6,
-      "web_name": "Quenda",
-      "code": 593117
+      "web_name": "Quenda"
     },
     {
-      "first_name": "João Pedro",
+      "code": 475168,
+      "first_name": "Jo\u00e3o Pedro",
       "id": 165,
       "now_cost": 75,
       "position": 4,
       "second_name": "Junqueira de Jesus",
       "team": 6,
-      "web_name": "João Pedro",
-      "code": 475168
+      "web_name": "Jo\u00e3o Pedro"
     },
     {
+      "code": 517052,
       "first_name": "Nicolas",
       "id": 166,
       "now_cost": 65,
       "position": 4,
       "second_name": "Jackson",
       "team": 6,
-      "web_name": "N.Jackson",
-      "code": 517052
+      "web_name": "N.Jackson"
     },
     {
+      "code": 463034,
       "first_name": "Liam",
       "id": 167,
       "now_cost": 55,
       "position": 4,
       "second_name": "Delap",
       "team": 6,
-      "web_name": "Delap",
-      "code": 463034
+      "web_name": "Delap"
     },
     {
+      "code": 499309,
       "first_name": "Marc",
       "id": 168,
       "now_cost": 50,
       "position": 4,
       "second_name": "Guiu Paz",
       "team": 6,
-      "web_name": "Marc Guiu",
-      "code": 499309
+      "web_name": "Marc Guiu"
     },
     {
+      "code": 567119,
       "first_name": "Shumaira",
       "id": 169,
       "now_cost": 45,
       "position": 4,
       "second_name": "Mheuka",
       "team": 6,
-      "web_name": "Mheuka",
-      "code": 567119
+      "web_name": "Mheuka"
     },
     {
+      "code": 503037,
       "first_name": "Emmanuel",
       "id": 170,
       "now_cost": 50,
       "position": 4,
       "second_name": "Emegha",
       "team": 6,
-      "web_name": "Emegha",
-      "code": 503037
+      "web_name": "Emegha"
     },
     {
+      "code": 484389,
       "first_name": "Oliver",
       "id": 171,
       "now_cost": 40,
       "position": 1,
       "second_name": "Dovin",
       "team": 7,
-      "web_name": "Dovin",
-      "code": 484389
+      "web_name": "Dovin"
     },
     {
+      "code": 110690,
       "first_name": "Ben",
       "id": 172,
       "now_cost": 45,
       "position": 1,
       "second_name": "Wilson",
       "team": 7,
-      "web_name": "Wilson",
-      "code": 110690
+      "web_name": "Wilson"
     },
     {
+      "code": 461102,
       "first_name": "Bobby",
       "id": 173,
       "now_cost": 40,
       "position": 2,
       "second_name": "Thomas",
       "team": 7,
-      "web_name": "Thomas",
-      "code": 461102
+      "web_name": "Thomas"
     },
     {
+      "code": 436761,
       "first_name": "Liam",
       "id": 174,
       "now_cost": 40,
       "position": 2,
       "second_name": "Kitching",
       "team": 7,
-      "web_name": "Kitching",
-      "code": 436761
+      "web_name": "Kitching"
     },
     {
+      "code": 451284,
       "first_name": "Milan",
       "id": 175,
       "now_cost": 40,
       "position": 2,
       "second_name": "van Ewijk",
       "team": 7,
-      "web_name": "van Ewijk",
-      "code": 451284
+      "web_name": "van Ewijk"
     },
     {
+      "code": 173878,
       "first_name": "Jay",
       "id": 176,
       "now_cost": 40,
       "position": 2,
       "second_name": "Dasilva",
       "team": 7,
-      "web_name": "Dasilva",
-      "code": 173878
+      "web_name": "Dasilva"
     },
     {
+      "code": 465390,
       "first_name": "Kaine",
       "id": 177,
       "now_cost": 40,
       "position": 2,
       "second_name": "Kesler-Hayden",
       "team": 7,
-      "web_name": "Kesler-Hayden",
-      "code": 465390
+      "web_name": "Kesler-Hayden"
     },
     {
+      "code": 80178,
       "first_name": "Jake",
       "id": 178,
       "now_cost": 40,
       "position": 2,
       "second_name": "Bidwell",
       "team": 7,
-      "web_name": "Bidwell",
-      "code": 80178
+      "web_name": "Bidwell"
     },
     {
+      "code": 204813,
       "first_name": "Joel",
       "id": 179,
       "now_cost": 40,
       "position": 2,
       "second_name": "Latibeaudiere",
       "team": 7,
-      "web_name": "Latibeaudiere",
-      "code": 204813
+      "web_name": "Latibeaudiere"
     },
     {
+      "code": 220583,
       "first_name": "Luke",
       "id": 180,
       "now_cost": 40,
       "position": 2,
       "second_name": "Woolfenden",
       "team": 7,
-      "web_name": "Woolfenden",
-      "code": 220583
+      "web_name": "Woolfenden"
     },
     {
+      "code": 577411,
       "first_name": "Miguel",
       "id": 181,
       "now_cost": 40,
       "position": 2,
       "second_name": "Brau",
       "team": 7,
-      "web_name": "Brau",
-      "code": 577411
+      "web_name": "Brau"
     },
     {
-      "first_name": "Aurèle",
+      "code": 539142,
+      "first_name": "Aur\u00e8le",
       "id": 182,
       "now_cost": 40,
       "position": 2,
       "second_name": "Amenda",
       "team": 7,
-      "web_name": "Amenda",
-      "code": 539142
+      "web_name": "Amenda"
     },
     {
+      "code": 480457,
       "first_name": "Jack",
       "id": 183,
       "now_cost": 50,
       "position": 3,
       "second_name": "Rudoni",
       "team": 7,
-      "web_name": "Rudoni",
-      "code": 480457
+      "web_name": "Rudoni"
     },
     {
+      "code": 168144,
       "first_name": "Matt",
       "id": 184,
       "now_cost": 50,
       "position": 3,
       "second_name": "Grimes",
       "team": 7,
-      "web_name": "Grimes",
-      "code": 168144
+      "web_name": "Grimes"
     },
     {
+      "code": 501459,
       "first_name": "Tatsuhiro",
       "id": 185,
       "now_cost": 50,
       "position": 3,
       "second_name": "Sakamoto",
       "team": 7,
-      "web_name": "Sakamoto",
-      "code": 501459
+      "web_name": "Sakamoto"
     },
     {
+      "code": 241293,
       "first_name": "Ephron",
       "id": 186,
       "now_cost": 55,
       "position": 3,
       "second_name": "Mason-Clark",
       "team": 7,
-      "web_name": "Mason-Clark",
-      "code": 241293
+      "web_name": "Mason-Clark"
     },
     {
+      "code": 439668,
       "first_name": "Josh",
       "id": 187,
       "now_cost": 50,
       "position": 3,
       "second_name": "Eccles",
       "team": 7,
-      "web_name": "Eccles",
-      "code": 439668
+      "web_name": "Eccles"
     },
     {
+      "code": 226965,
       "first_name": "Victor",
       "id": 188,
       "now_cost": 55,
       "position": 3,
       "second_name": "Torp",
       "team": 7,
-      "web_name": "Torp",
-      "code": 226965
+      "web_name": "Torp"
     },
     {
+      "code": 684268,
       "first_name": "George",
       "id": 189,
       "now_cost": 45,
       "position": 3,
       "second_name": "Shepherd",
       "team": 7,
-      "web_name": "Shepherd",
-      "code": 684268
+      "web_name": "Shepherd"
     },
     {
+      "code": 469272,
       "first_name": "Loum",
       "id": 190,
       "now_cost": 55,
       "position": 3,
       "second_name": "Tchaouna",
       "team": 7,
-      "web_name": "Tchaouna",
-      "code": 469272
+      "web_name": "Tchaouna"
     },
     {
+      "code": 492498,
       "first_name": "Raphael",
       "id": 191,
       "now_cost": 45,
       "position": 3,
       "second_name": "Borges Rodrigues",
       "team": 7,
-      "web_name": "Borges Rodrigues",
-      "code": 492498
+      "web_name": "Borges Rodrigues"
     },
     {
+      "code": 629397,
       "first_name": "Kaine",
       "id": 192,
       "now_cost": 45,
       "position": 3,
       "second_name": "Andrews",
       "team": 7,
-      "web_name": "Andrews",
-      "code": 629397
+      "web_name": "Andrews"
     },
     {
+      "code": 176412,
       "first_name": "Haji",
       "id": 193,
       "now_cost": 55,
       "position": 4,
       "second_name": "Wright",
       "team": 7,
-      "web_name": "Wright",
-      "code": 176412
+      "web_name": "Wright"
     },
     {
+      "code": 230730,
       "first_name": "Brandon",
       "id": 194,
       "now_cost": 50,
       "position": 4,
       "second_name": "Thomas-Asante",
       "team": 7,
-      "web_name": "Thomas-Asante",
-      "code": 230730
+      "web_name": "Thomas-Asante"
     },
     {
+      "code": 218997,
       "first_name": "Ellis",
       "id": 195,
       "now_cost": 50,
       "position": 4,
       "second_name": "Simms",
       "team": 7,
-      "web_name": "Simms",
-      "code": 218997
+      "web_name": "Simms"
     },
     {
+      "code": 551262,
       "first_name": "Jahnoah",
       "id": 196,
       "now_cost": 50,
       "position": 4,
       "second_name": "Markelo",
       "team": 7,
-      "web_name": "Markelo",
-      "code": 551262
+      "web_name": "Markelo"
     },
     {
+      "code": 549653,
       "first_name": "Norman",
       "id": 197,
       "now_cost": 45,
       "position": 4,
       "second_name": "Bassette",
       "team": 7,
-      "web_name": "Bassette",
-      "code": 549653
+      "web_name": "Bassette"
     },
     {
+      "code": 172649,
       "first_name": "Dean",
       "id": 198,
       "now_cost": 50,
       "position": 1,
       "second_name": "Henderson",
       "team": 8,
-      "web_name": "Henderson",
-      "code": 172649
+      "web_name": "Henderson"
     },
     {
+      "code": 121709,
       "first_name": "Walter",
       "id": 199,
       "now_cost": 45,
       "position": 1,
-      "second_name": "Benítez",
+      "second_name": "Ben\u00edtez",
       "team": 8,
-      "web_name": "Benitez",
-      "code": 121709
+      "web_name": "Benitez"
     },
     {
+      "code": 437499,
       "first_name": "Maxence",
       "id": 200,
       "now_cost": 60,
       "position": 2,
       "second_name": "Lacroix",
       "team": 6,
-      "web_name": "Lacroix",
-      "code": 437499
+      "web_name": "Lacroix"
     },
     {
+      "code": 247348,
       "first_name": "Daniel",
       "id": 201,
       "now_cost": 55,
       "position": 2,
-      "second_name": "Muñoz Mejía",
+      "second_name": "Mu\u00f1oz Mej\u00eda",
       "team": 8,
-      "web_name": "Muñoz",
-      "code": 247348
+      "web_name": "Mu\u00f1oz"
     },
     {
+      "code": 427623,
       "first_name": "Chris",
       "id": 202,
       "now_cost": 50,
       "position": 2,
       "second_name": "Richards",
       "team": 8,
-      "web_name": "Richards",
-      "code": 427623
+      "web_name": "Richards"
     },
     {
+      "code": 651426,
       "first_name": "Jaydee",
       "id": 203,
       "now_cost": 50,
       "position": 2,
       "second_name": "Canvot",
       "team": 8,
-      "web_name": "Canvot",
-      "code": 651426
+      "web_name": "Canvot"
     },
     {
+      "code": 244723,
       "first_name": "Tyrick",
       "id": 204,
       "now_cost": 45,
       "position": 2,
       "second_name": "Mitchell",
       "team": 8,
-      "web_name": "Mitchell",
-      "code": 244723
+      "web_name": "Mitchell"
     },
     {
+      "code": 218364,
       "first_name": "Borna",
       "id": 205,
       "now_cost": 45,
       "position": 2,
       "second_name": "Sosa",
       "team": 8,
-      "web_name": "Sosa",
-      "code": 218364
+      "web_name": "Sosa"
     },
     {
+      "code": 515621,
       "first_name": "Chadi",
       "id": 206,
       "now_cost": 45,
       "position": 2,
       "second_name": "Riad Dnanou",
       "team": 8,
-      "web_name": "Chadi Riad",
-      "code": 515621
+      "web_name": "Chadi Riad"
     },
     {
+      "code": 242313,
       "first_name": "Oscar",
       "id": 207,
       "now_cost": 45,
       "position": 2,
       "second_name": "Mingueza",
       "team": 8,
-      "web_name": "Mingueza",
-      "code": 242313
+      "web_name": "Mingueza"
     },
     {
-      "first_name": "Ismaïla",
+      "code": 232185,
+      "first_name": "Isma\u00efla",
       "id": 208,
       "now_cost": 65,
       "position": 3,
       "second_name": "Sarr",
       "team": 8,
-      "web_name": "Sarr",
-      "code": 232185
+      "web_name": "Sarr"
     },
     {
+      "code": 242898,
       "first_name": "Brennan",
       "id": 209,
       "now_cost": 60,
       "position": 3,
       "second_name": "Johnson",
       "team": 9,
-      "web_name": "Johnson",
-      "code": 242898
+      "web_name": "Johnson"
     },
     {
+      "code": 496221,
       "first_name": "Adam",
       "id": 210,
       "now_cost": 55,
       "position": 3,
       "second_name": "Wharton",
       "team": 8,
-      "web_name": "Wharton",
-      "code": 496221
+      "web_name": "Wharton"
     },
     {
-      "first_name": "Yéremy",
+      "code": 488024,
+      "first_name": "Y\u00e9remy",
       "id": 211,
       "now_cost": 55,
       "position": 3,
       "second_name": "Pino Santos",
       "team": 8,
-      "web_name": "Yeremy",
-      "code": 488024
+      "web_name": "Yeremy"
     },
     {
+      "code": 108413,
       "first_name": "Will",
       "id": 212,
       "now_cost": 45,
       "position": 3,
       "second_name": "Hughes",
       "team": 8,
-      "web_name": "Hughes",
-      "code": 108413
+      "web_name": "Hughes"
     },
     {
+      "code": 152551,
       "first_name": "Jefferson",
       "id": 213,
       "now_cost": 50,
       "position": 3,
-      "second_name": "Lerma Solís",
+      "second_name": "Lerma Sol\u00eds",
       "team": 8,
-      "web_name": "Lerma",
-      "code": 152551
+      "web_name": "Lerma"
     },
     {
+      "code": 209400,
       "first_name": "Daichi",
       "id": 214,
       "now_cost": 50,
       "position": 3,
       "second_name": "Kamada",
       "team": 8,
-      "web_name": "Kamada",
-      "code": 209400
+      "web_name": "Kamada"
     },
     {
+      "code": 489706,
       "first_name": "Justin",
       "id": 215,
       "now_cost": 50,
       "position": 3,
       "second_name": "Devenny",
       "team": 8,
-      "web_name": "Devenny",
-      "code": 489706
+      "web_name": "Devenny"
     },
     {
+      "code": 606921,
       "first_name": "Romain",
       "id": 216,
       "now_cost": 50,
       "position": 3,
       "second_name": "Esse",
       "team": 8,
-      "web_name": "Esse",
-      "code": 606921
+      "web_name": "Esse"
     },
     {
+      "code": 536694,
       "first_name": "Matheus",
       "id": 217,
       "now_cost": 50,
       "position": 3,
-      "second_name": "França de Oliveira",
+      "second_name": "Fran\u00e7a de Oliveira",
       "team": 8,
-      "web_name": "M.França",
-      "code": 536694
+      "web_name": "M.Fran\u00e7a"
     },
     {
+      "code": 438464,
       "first_name": "Cheick",
       "id": 218,
       "now_cost": 50,
       "position": 3,
-      "second_name": "Doucouré",
+      "second_name": "Doucour\u00e9",
       "team": 8,
-      "web_name": "Doucouré",
-      "code": 438464
+      "web_name": "Doucour\u00e9"
     },
     {
+      "code": 450542,
       "first_name": "Jesurun",
       "id": 219,
       "now_cost": 50,
       "position": 3,
       "second_name": "Rak-Sakyi",
       "team": 8,
-      "web_name": "J.Rak-Sakyi",
-      "code": 450542
+      "web_name": "J.Rak-Sakyi"
     },
     {
+      "code": 590014,
       "first_name": "Rio",
       "id": 220,
       "now_cost": 45,
       "position": 2,
       "second_name": "Cardines",
       "team": 8,
-      "web_name": "Cardines",
-      "code": 590014
+      "web_name": "Cardines"
     },
     {
-      "first_name": "Joél",
+      "code": 672492,
+      "first_name": "Jo\u00e9l",
       "id": 221,
       "now_cost": 45,
       "position": 3,
       "second_name": "Drakes-Thomas",
       "team": 8,
-      "web_name": "Drakes-Thomas",
-      "code": 672492
+      "web_name": "Drakes-Thomas"
     },
     {
-      "first_name": "Jørgen",
+      "code": 247412,
+      "first_name": "J\u00f8rgen",
       "id": 222,
       "now_cost": 60,
       "position": 4,
       "second_name": "Strand Larsen",
       "team": 8,
-      "web_name": "Strand Larsen",
-      "code": 247412
+      "web_name": "Strand Larsen"
     },
     {
+      "code": 231747,
       "first_name": "Jean-Philippe",
       "id": 223,
       "now_cost": 65,
       "position": 4,
       "second_name": "Mateta",
       "team": 8,
-      "web_name": "Mateta",
-      "code": 231747
+      "web_name": "Mateta"
     },
     {
+      "code": 205533,
       "first_name": "Eddie",
       "id": 224,
       "now_cost": 55,
       "position": 4,
       "second_name": "Nketiah",
       "team": 8,
-      "web_name": "Nketiah",
-      "code": 205533
+      "web_name": "Nketiah"
     },
     {
+      "code": 660392,
       "first_name": "Christantus",
       "id": 225,
       "now_cost": 50,
       "position": 4,
       "second_name": "Uche",
       "team": 8,
-      "web_name": "Uche",
-      "code": 660392
+      "web_name": "Uche"
     },
     {
+      "code": 111234,
       "first_name": "Jordan",
       "id": 226,
       "now_cost": 55,
       "position": 1,
       "second_name": "Pickford",
       "team": 9,
-      "web_name": "Pickford",
-      "code": 111234
+      "web_name": "Pickford"
     },
     {
+      "code": 229600,
       "first_name": "Mark",
       "id": 227,
       "now_cost": 50,
       "position": 1,
       "second_name": "Travers",
       "team": 9,
-      "web_name": "Travers",
-      "code": 229600
+      "web_name": "Travers"
     },
     {
+      "code": 138001,
       "first_name": "Tom",
       "id": 228,
       "now_cost": 45,
       "position": 1,
       "second_name": "King",
       "team": 9,
-      "web_name": "King",
-      "code": 138001
+      "web_name": "King"
     },
     {
+      "code": 17761,
       "first_name": "James",
       "id": 229,
       "now_cost": 60,
       "position": 2,
       "second_name": "Tarkowski",
       "team": 9,
-      "web_name": "Tarkowski",
-      "code": 17761
+      "web_name": "Tarkowski"
     },
     {
+      "code": 480455,
       "first_name": "Jarrad",
       "id": 230,
       "now_cost": 55,
       "position": 2,
       "second_name": "Branthwaite",
       "team": 9,
-      "web_name": "Branthwaite",
-      "code": 480455
+      "web_name": "Branthwaite"
     },
     {
+      "code": 106611,
       "first_name": "Michael",
       "id": 231,
       "now_cost": 50,
       "position": 2,
       "second_name": "Keane",
       "team": 9,
-      "web_name": "Keane",
-      "code": 106611
+      "web_name": "Keane"
     },
     {
+      "code": 512462,
       "first_name": "Jake",
       "id": 232,
       "now_cost": 50,
       "position": 2,
       "second_name": "O'Brien",
       "team": 9,
-      "web_name": "O'Brien",
-      "code": 512462
+      "web_name": "O'Brien"
     },
     {
+      "code": 224967,
       "first_name": "Vitalii",
       "id": 233,
       "now_cost": 45,
       "position": 2,
       "second_name": "Mykolenko",
       "team": 9,
-      "web_name": "Mykolenko",
-      "code": 224967
+      "web_name": "Mykolenko"
     },
     {
+      "code": 243571,
       "first_name": "Nathan",
       "id": 234,
       "now_cost": 45,
       "position": 2,
       "second_name": "Patterson",
       "team": 9,
-      "web_name": "Patterson",
-      "code": 243571
+      "web_name": "Patterson"
     },
     {
+      "code": 499300,
       "first_name": "Adam",
       "id": 235,
       "now_cost": 40,
       "position": 2,
       "second_name": "Aznou",
       "team": 9,
-      "web_name": "Aznou",
-      "code": 499300
+      "web_name": "Aznou"
     },
     {
+      "code": 215413,
       "first_name": "Kiernan",
       "id": 236,
       "now_cost": 65,
       "position": 3,
       "second_name": "Dewsbury-Hall",
       "team": 9,
-      "web_name": "Dewsbury-Hall",
-      "code": 215413
+      "web_name": "Dewsbury-Hall"
     },
     {
+      "code": 440993,
       "first_name": "Iliman",
       "id": 237,
       "now_cost": 60,
       "position": 3,
       "second_name": "Ndiaye",
       "team": 9,
-      "web_name": "Ndiaye",
-      "code": 440993
+      "web_name": "Ndiaye"
     },
     {
+      "code": 114283,
       "first_name": "Jack",
       "id": 238,
       "now_cost": 65,
       "position": 3,
       "second_name": "Grealish",
       "team": 15,
-      "web_name": "Grealish",
-      "code": 114283
+      "web_name": "Grealish"
     },
     {
+      "code": 232928,
       "first_name": "James",
       "id": 239,
       "now_cost": 60,
       "position": 3,
       "second_name": "Garner",
       "team": 9,
-      "web_name": "Garner",
-      "code": 232928
+      "web_name": "Garner"
     },
     {
+      "code": 490094,
       "first_name": "Tim",
       "id": 240,
       "now_cost": 50,
       "position": 3,
       "second_name": "Iroegbunam",
       "team": 9,
-      "web_name": "Iroegbunam",
-      "code": 490094
+      "web_name": "Iroegbunam"
     },
     {
+      "code": 433154,
       "first_name": "Dwight",
       "id": 241,
       "now_cost": 55,
       "position": 3,
       "second_name": "McNeil",
       "team": 8,
-      "web_name": "McNeil",
-      "code": 433154
+      "web_name": "McNeil"
     },
     {
+      "code": 550615,
       "first_name": "Tyrique",
       "id": 242,
       "now_cost": 55,
       "position": 3,
       "second_name": "George",
       "team": 9,
-      "web_name": "George",
-      "code": 550615
+      "web_name": "George"
     },
     {
+      "code": 502697,
       "first_name": "Carlos",
       "id": 243,
       "now_cost": 50,
       "position": 3,
-      "second_name": "Alcaraz Durán",
+      "second_name": "Alcaraz Dur\u00e1n",
       "team": 9,
-      "web_name": "Alcaraz",
-      "code": 502697
+      "web_name": "Alcaraz"
     },
     {
+      "code": 609873,
       "first_name": "Harrison",
       "id": 244,
       "now_cost": 50,
       "position": 3,
       "second_name": "Armstrong",
       "team": 9,
-      "web_name": "Armstrong",
-      "code": 609873
+      "web_name": "Armstrong"
     },
     {
+      "code": 496661,
       "first_name": "Tyler",
       "id": 245,
       "now_cost": 55,
       "position": 3,
       "second_name": "Dibling",
       "team": 9,
-      "web_name": "Dibling",
-      "code": 496661
+      "web_name": "Dibling"
     },
     {
+      "code": 513466,
       "first_name": "Merlin",
       "id": 246,
       "now_cost": 50,
       "position": 3,
-      "second_name": "Röhl",
+      "second_name": "R\u00f6hl",
       "team": 9,
-      "web_name": "Röhl",
-      "code": 513466
+      "web_name": "R\u00f6hl"
     },
     {
+      "code": 244860,
       "first_name": "Hayden",
       "id": 247,
       "now_cost": 55,
       "position": 3,
       "second_name": "Hackney",
       "team": 9,
-      "web_name": "Hackney",
-      "code": 244860
+      "web_name": "Hackney"
     },
     {
+      "code": 486385,
       "first_name": "Norberto Bercique",
       "id": 248,
       "now_cost": 55,
       "position": 4,
       "second_name": "Gomes Betuncal",
       "team": 9,
-      "web_name": "Beto",
-      "code": 486385
+      "web_name": "Beto"
     },
     {
+      "code": 586309,
       "first_name": "Thierno",
       "id": 249,
       "now_cost": 55,
       "position": 4,
       "second_name": "Barry",
       "team": 9,
-      "web_name": "Barry",
-      "code": 586309
+      "web_name": "Barry"
     },
     {
+      "code": 80201,
       "first_name": "Bernd",
       "id": 250,
       "now_cost": 45,
       "position": 1,
       "second_name": "Leno",
       "team": 10,
-      "web_name": "Leno",
-      "code": 80201
+      "web_name": "Leno"
     },
     {
+      "code": 86873,
       "first_name": "Benjamin",
       "id": 251,
       "now_cost": 40,
       "position": 1,
       "second_name": "Lecomte",
       "team": 10,
-      "web_name": "Lecomte",
-      "code": 86873
+      "web_name": "Lecomte"
     },
     {
+      "code": 505079,
       "first_name": "Alfie",
       "id": 252,
       "now_cost": 40,
       "position": 1,
       "second_name": "McNally",
       "team": 10,
-      "web_name": "McNally",
-      "code": 505079
+      "web_name": "McNally"
     },
     {
+      "code": 174874,
       "first_name": "Joachim",
       "id": 253,
       "now_cost": 50,
       "position": 2,
       "second_name": "Andersen",
       "team": 10,
-      "web_name": "Andersen",
-      "code": 174874
+      "web_name": "Andersen"
     },
     {
+      "code": 169528,
       "first_name": "Antonee",
       "id": 254,
       "now_cost": 45,
       "position": 2,
       "second_name": "Robinson",
       "team": 10,
-      "web_name": "Robinson",
-      "code": 169528
+      "web_name": "Robinson"
     },
     {
+      "code": 246301,
       "first_name": "Jorge",
       "id": 255,
       "now_cost": 45,
       "position": 2,
       "second_name": "Cuenca Barreno",
       "team": 10,
-      "web_name": "J.Cuenca",
-      "code": 246301
+      "web_name": "J.Cuenca"
     },
     {
+      "code": 167074,
       "first_name": "Kenny",
       "id": 256,
       "now_cost": 45,
       "position": 2,
       "second_name": "Tete",
       "team": 10,
-      "web_name": "Tete",
-      "code": 167074
+      "web_name": "Tete"
     },
     {
+      "code": 232892,
       "first_name": "Calvin",
       "id": 257,
       "now_cost": 45,
       "position": 2,
       "second_name": "Bassey",
       "team": 10,
-      "web_name": "Bassey",
-      "code": 232892
+      "web_name": "Bassey"
     },
     {
+      "code": 166477,
       "first_name": "Timothy",
       "id": 258,
       "now_cost": 45,
       "position": 2,
       "second_name": "Castagne",
       "team": 10,
-      "web_name": "Castagne",
-      "code": 166477
+      "web_name": "Castagne"
     },
     {
+      "code": 219924,
       "first_name": "Issa",
       "id": 259,
       "now_cost": 40,
       "position": 2,
       "second_name": "Diop",
       "team": 12,
-      "web_name": "Diop",
-      "code": 219924
+      "web_name": "Diop"
     },
     {
+      "code": 153682,
       "first_name": "Harry",
       "id": 260,
       "now_cost": 65,
       "position": 3,
       "second_name": "Wilson",
       "team": 13,
-      "web_name": "Wilson",
-      "code": 153682
+      "web_name": "Wilson"
     },
     {
+      "code": 153133,
       "first_name": "Alex",
       "id": 261,
       "now_cost": 55,
       "position": 3,
       "second_name": "Iwobi",
       "team": 10,
-      "web_name": "Iwobi",
-      "code": 153133
+      "web_name": "Iwobi"
     },
     {
+      "code": 209289,
       "first_name": "Emile",
       "id": 262,
       "now_cost": 55,
       "position": 3,
       "second_name": "Smith Rowe",
       "team": 10,
-      "web_name": "Smith Rowe",
-      "code": 209289
+      "web_name": "Smith Rowe"
     },
     {
+      "code": 560552,
       "first_name": "Kevin",
       "id": 263,
       "now_cost": 55,
       "position": 3,
       "second_name": "Santos Lopes de Macedo",
       "team": 10,
-      "web_name": "Kevin",
-      "code": 560552
+      "web_name": "Kevin"
     },
     {
+      "code": 477555,
       "first_name": "Oscar",
       "id": 264,
       "now_cost": 55,
       "position": 3,
       "second_name": "Bobb",
       "team": 10,
-      "web_name": "Bobb",
-      "code": 477555
+      "web_name": "Bobb"
     },
     {
+      "code": 207189,
       "first_name": "Sander",
       "id": 265,
       "now_cost": 50,
       "position": 3,
       "second_name": "Berge",
       "team": 10,
-      "web_name": "Berge",
-      "code": 207189
+      "web_name": "Berge"
     },
     {
+      "code": 76357,
       "first_name": "Tom",
       "id": 266,
       "now_cost": 50,
       "position": 3,
       "second_name": "Cairney",
       "team": 10,
-      "web_name": "Cairney",
-      "code": 76357
+      "web_name": "Cairney"
     },
     {
-      "first_name": "Saša",
+      "code": 212314,
+      "first_name": "Sa\u0161a",
       "id": 267,
       "now_cost": 50,
       "position": 3,
-      "second_name": "Lukić",
+      "second_name": "Luki\u0107",
       "team": 12,
-      "web_name": "Lukić",
-      "code": 212314
+      "web_name": "Luki\u0107"
     },
     {
+      "code": 577725,
       "first_name": "Josh",
       "id": 268,
       "now_cost": 55,
       "position": 3,
       "second_name": "King",
       "team": 10,
-      "web_name": "King",
-      "code": 577725
+      "web_name": "King"
     },
     {
+      "code": 184349,
       "first_name": "Ryan",
       "id": 269,
       "now_cost": 45,
       "position": 2,
       "second_name": "Sessegnon",
       "team": 10,
-      "web_name": "Sessegnon",
-      "code": 184349
+      "web_name": "Sessegnon"
     },
     {
+      "code": 153366,
       "first_name": "Harrison",
       "id": 270,
       "now_cost": 45,
       "position": 3,
       "second_name": "Reed",
       "team": 10,
-      "web_name": "Reed",
-      "code": 153366
+      "web_name": "Reed"
     },
     {
+      "code": 244042,
       "first_name": "Rodrigo",
       "id": 271,
       "now_cost": 55,
       "position": 4,
       "second_name": "Muniz Carvalho",
       "team": 10,
-      "web_name": "Muniz",
-      "code": 244042
+      "web_name": "Muniz"
     },
     {
+      "code": 631786,
       "first_name": "Jonah",
       "id": 272,
       "now_cost": 45,
       "position": 4,
       "second_name": "Kusi-Asare",
       "team": 10,
-      "web_name": "Kusi-Asare",
-      "code": 631786
+      "web_name": "Kusi-Asare"
     },
     {
+      "code": 167825,
       "first_name": "Dillon",
       "id": 273,
       "now_cost": 40,
       "position": 1,
       "second_name": "Phillips",
       "team": 11,
-      "web_name": "Phillips",
-      "code": 167825
+      "web_name": "Phillips"
     },
     {
+      "code": 105666,
       "first_name": "Jack",
       "id": 274,
       "now_cost": 45,
       "position": 1,
       "second_name": "Butland",
       "team": 11,
-      "web_name": "Butland",
-      "code": 105666
+      "web_name": "Butland"
     },
     {
+      "code": 494950,
       "first_name": "Harvey",
       "id": 275,
       "now_cost": 40,
       "position": 1,
       "second_name": "Cartwright",
       "team": 11,
-      "web_name": "Cartwright",
-      "code": 494950
+      "web_name": "Cartwright"
     },
     {
-      "first_name": "Thimothée",
+      "code": 444307,
+      "first_name": "Thimoth\u00e9e",
       "id": 276,
       "now_cost": 40,
       "position": 1,
       "second_name": "Lo-Tutala",
       "team": 11,
-      "web_name": "Lo-Tutala",
-      "code": 444307
+      "web_name": "Lo-Tutala"
     },
     {
+      "code": 108416,
       "first_name": "John",
       "id": 277,
       "now_cost": 40,
       "position": 2,
       "second_name": "Egan",
       "team": 11,
-      "web_name": "Egan",
-      "code": 108416
+      "web_name": "Egan"
     },
     {
+      "code": 501902,
       "first_name": "Charlie",
       "id": 278,
       "now_cost": 40,
       "position": 2,
       "second_name": "Hughes",
       "team": 11,
-      "web_name": "Hughes",
-      "code": 501902
+      "web_name": "Hughes"
     },
     {
+      "code": 146426,
       "first_name": "Semi",
       "id": 279,
       "now_cost": 40,
       "position": 2,
       "second_name": "Ajayi",
       "team": 11,
-      "web_name": "Ajayi",
-      "code": 146426
+      "web_name": "Ajayi"
     },
     {
+      "code": 193278,
       "first_name": "Lewie",
       "id": 280,
       "now_cost": 40,
       "position": 2,
       "second_name": "Coyle",
       "team": 11,
-      "web_name": "Coyle",
-      "code": 193278
+      "web_name": "Coyle"
     },
     {
+      "code": 433590,
       "first_name": "Cody",
       "id": 281,
       "now_cost": 40,
       "position": 2,
       "second_name": "Drameh",
       "team": 11,
-      "web_name": "Drameh",
-      "code": 433590
+      "web_name": "Drameh"
     },
     {
+      "code": 232351,
       "first_name": "Ryan",
       "id": 282,
       "now_cost": 40,
       "position": 2,
       "second_name": "Giles",
       "team": 11,
-      "web_name": "Giles",
-      "code": 232351
+      "web_name": "Giles"
     },
     {
+      "code": 449428,
       "first_name": "Matty",
       "id": 283,
       "now_cost": 40,
       "position": 2,
       "second_name": "Jacob",
       "team": 11,
-      "web_name": "Jacob",
-      "code": 449428
+      "web_name": "Jacob"
     },
     {
+      "code": 661800,
       "first_name": "Cathal",
       "id": 284,
       "now_cost": 40,
       "position": 2,
       "second_name": "McCarthy",
       "team": 11,
-      "web_name": "McCarthy",
-      "code": 661800
+      "web_name": "McCarthy"
     },
     {
+      "code": 160817,
       "first_name": "Paddy",
       "id": 285,
       "now_cost": 40,
       "position": 2,
       "second_name": "McNair",
       "team": 11,
-      "web_name": "McNair",
-      "code": 160817
+      "web_name": "McNair"
     },
     {
+      "code": 540324,
       "first_name": "Mohamed",
       "id": 286,
       "now_cost": 50,
       "position": 3,
       "second_name": "Belloumi",
       "team": 11,
-      "web_name": "Belloumi",
-      "code": 540324
+      "web_name": "Belloumi"
     },
     {
+      "code": 232905,
       "first_name": "Liam",
       "id": 287,
       "now_cost": 50,
       "position": 3,
       "second_name": "Millar",
       "team": 11,
-      "web_name": "Millar",
-      "code": 232905
+      "web_name": "Millar"
     },
     {
+      "code": 171270,
       "first_name": "Kieran",
       "id": 288,
       "now_cost": 45,
       "position": 3,
       "second_name": "Dowell",
       "team": 11,
-      "web_name": "Dowell",
-      "code": 171270
+      "web_name": "Dowell"
     },
     {
+      "code": 101282,
       "first_name": "Matt",
       "id": 289,
       "now_cost": 45,
       "position": 3,
       "second_name": "Crooks",
       "team": 11,
-      "web_name": "Crooks",
-      "code": 101282
+      "web_name": "Crooks"
     },
     {
+      "code": 243413,
       "first_name": "Regan",
       "id": 290,
       "now_cost": 45,
       "position": 3,
       "second_name": "Slater",
       "team": 11,
-      "web_name": "Slater",
-      "code": 243413
+      "web_name": "Slater"
     },
     {
+      "code": 465525,
       "first_name": "Eliot",
       "id": 291,
       "now_cost": 45,
       "position": 3,
       "second_name": "Matazo",
       "team": 11,
-      "web_name": "Matazo",
-      "code": 465525
+      "web_name": "Matazo"
     },
     {
-      "first_name": "Abdülkadir",
+      "code": 208481,
+      "first_name": "Abd\u00fclkadir",
       "id": 292,
       "now_cost": 50,
       "position": 3,
-      "second_name": "Ömür",
+      "second_name": "\u00d6m\u00fcr",
       "team": 11,
-      "web_name": "Ömür",
-      "code": 208481
+      "web_name": "\u00d6m\u00fcr"
     },
     {
+      "code": 490161,
       "first_name": "Abu",
       "id": 293,
       "now_cost": 50,
       "position": 3,
       "second_name": "Kamara",
       "team": 11,
-      "web_name": "Kamara",
-      "code": 490161
+      "web_name": "Kamara"
     },
     {
-      "first_name": "Óscar",
+      "code": 553783,
+      "first_name": "\u00d3scar",
       "id": 294,
       "now_cost": 45,
       "position": 3,
       "second_name": "Zambrano",
       "team": 11,
-      "web_name": "Zambrano",
-      "code": 553783
+      "web_name": "Zambrano"
     },
     {
+      "code": 169432,
       "first_name": "Oli",
       "id": 295,
       "now_cost": 55,
       "position": 4,
       "second_name": "McBurnie",
       "team": 11,
-      "web_name": "McBurnie",
-      "code": 169432
+      "web_name": "McBurnie"
     },
     {
+      "code": 213292,
       "first_name": "David",
       "id": 296,
       "now_cost": 50,
       "position": 3,
       "second_name": "Akintola",
       "team": 11,
-      "web_name": "Akintola",
-      "code": 213292
+      "web_name": "Akintola"
     },
     {
+      "code": 470294,
       "first_name": "Darko",
       "id": 297,
       "now_cost": 45,
       "position": 3,
       "second_name": "Gyabi",
       "team": 11,
-      "web_name": "Gyabi",
-      "code": 470294
+      "web_name": "Gyabi"
     },
     {
+      "code": 500957,
       "first_name": "Enis",
       "id": 298,
       "now_cost": 45,
       "position": 4,
       "second_name": "Destan",
       "team": 11,
-      "web_name": "Destan",
-      "code": 500957
+      "web_name": "Destan"
     },
     {
+      "code": 534392,
       "first_name": "Mason",
       "id": 299,
       "now_cost": 45,
       "position": 4,
       "second_name": "Burstow",
       "team": 11,
-      "web_name": "Burstow",
-      "code": 534392
+      "web_name": "Burstow"
     },
     {
+      "code": 108813,
       "first_name": "Christian",
       "id": 300,
       "now_cost": 45,
       "position": 1,
       "second_name": "Walton",
       "team": 12,
-      "web_name": "Walton",
-      "code": 108813
+      "web_name": "Walton"
     },
     {
+      "code": 112520,
       "first_name": "Alex",
       "id": 301,
       "now_cost": 40,
       "position": 1,
       "second_name": "Palmer",
       "team": 12,
-      "web_name": "Palmer",
-      "code": 112520
+      "web_name": "Palmer"
     },
     {
+      "code": 50093,
       "first_name": "David",
       "id": 302,
       "now_cost": 40,
       "position": 1,
       "second_name": "Button",
       "team": 12,
-      "web_name": "Button",
-      "code": 50093
+      "web_name": "Button"
     },
     {
-      "first_name": "Cédric",
+      "code": 183015,
+      "first_name": "C\u00e9dric",
       "id": 303,
       "now_cost": 40,
       "position": 2,
-      "second_name": "Kipré",
+      "second_name": "Kipr\u00e9",
       "team": 12,
-      "web_name": "Kipré",
-      "code": 183015
+      "web_name": "Kipr\u00e9"
     },
     {
+      "code": 216616,
       "first_name": "Dara",
       "id": 304,
       "now_cost": 40,
       "position": 2,
       "second_name": "O'Shea",
       "team": 12,
-      "web_name": "O'Shea",
-      "code": 216616
+      "web_name": "O'Shea"
     },
     {
+      "code": 455084,
       "first_name": "Leif",
       "id": 305,
       "now_cost": 40,
       "position": 2,
       "second_name": "Davis",
       "team": 12,
-      "web_name": "Davis",
-      "code": 455084
+      "web_name": "Davis"
     },
     {
+      "code": 449429,
       "first_name": "Jacob",
       "id": 306,
       "now_cost": 40,
       "position": 2,
       "second_name": "Greaves",
       "team": 12,
-      "web_name": "Greaves",
-      "code": 449429
+      "web_name": "Greaves"
     },
     {
+      "code": 222018,
       "first_name": "Ben",
       "id": 307,
       "now_cost": 40,
       "position": 2,
       "second_name": "Johnson",
       "team": 12,
-      "web_name": "Johnson",
-      "code": 222018
+      "web_name": "Johnson"
     },
     {
+      "code": 176420,
       "first_name": "Darnell",
       "id": 308,
       "now_cost": 40,
       "position": 2,
       "second_name": "Furlong",
       "team": 12,
-      "web_name": "Furlong",
-      "code": 176420
+      "web_name": "Furlong"
     },
     {
+      "code": 501390,
       "first_name": "Marcelino",
       "id": 309,
       "now_cost": 50,
       "position": 3,
-      "second_name": "Núñez",
+      "second_name": "N\u00fa\u00f1ez",
       "team": 12,
-      "web_name": "Núñez",
-      "code": 501390
+      "web_name": "N\u00fa\u00f1ez"
     },
     {
+      "code": 241117,
       "first_name": "Azor",
       "id": 310,
       "now_cost": 50,
       "position": 3,
       "second_name": "Matusiwa",
       "team": 12,
-      "web_name": "Matusiwa",
-      "code": 241117
+      "web_name": "Matusiwa"
     },
     {
+      "code": 149929,
       "first_name": "Wes",
       "id": 311,
       "now_cost": 50,
       "position": 3,
       "second_name": "Burns",
       "team": 12,
-      "web_name": "Burns",
-      "code": 149929
+      "web_name": "Burns"
     },
     {
+      "code": 231899,
       "first_name": "Jack",
       "id": 312,
       "now_cost": 45,
       "position": 3,
       "second_name": "Taylor",
       "team": 12,
-      "web_name": "Taylor",
-      "code": 231899
+      "web_name": "Taylor"
     },
     {
+      "code": 443261,
       "first_name": "Jack",
       "id": 313,
       "now_cost": 55,
       "position": 3,
       "second_name": "Clarke",
       "team": 12,
-      "web_name": "Clarke",
-      "code": 443261
+      "web_name": "Clarke"
     },
     {
+      "code": 229164,
       "first_name": "Chiedozie",
       "id": 314,
       "now_cost": 50,
       "position": 3,
       "second_name": "Ogbene",
       "team": 12,
-      "web_name": "Ogbene",
-      "code": 229164
+      "web_name": "Ogbene"
     },
     {
+      "code": 531442,
       "first_name": "Abdul",
       "id": 315,
       "now_cost": 55,
       "position": 3,
       "second_name": "Fatawu",
       "team": 12,
-      "web_name": "Fatawu",
-      "code": 531442
+      "web_name": "Fatawu"
     },
     {
+      "code": 543968,
       "first_name": "Emersonn",
       "id": 316,
       "now_cost": 55,
       "position": 4,
       "second_name": "Correia da Silva",
       "team": 12,
-      "web_name": "Emersonn",
-      "code": 543968
+      "web_name": "Emersonn"
     },
     {
+      "code": 222625,
       "first_name": "George",
       "id": 317,
       "now_cost": 50,
       "position": 4,
       "second_name": "Hirst",
       "team": 12,
-      "web_name": "Hirst",
-      "code": 222625
+      "web_name": "Hirst"
     },
     {
+      "code": 481624,
       "first_name": "Jaden",
       "id": 318,
       "now_cost": 55,
       "position": 3,
       "second_name": "Philogene",
       "team": 12,
-      "web_name": "Philogene",
-      "code": 481624
+      "web_name": "Philogene"
     },
     {
+      "code": 172453,
       "first_name": "Sam",
       "id": 319,
       "now_cost": 50,
       "position": 3,
       "second_name": "Szmodics",
       "team": 12,
-      "web_name": "Szmodics",
-      "code": 172453
+      "web_name": "Szmodics"
     },
     {
+      "code": 147675,
       "first_name": "Chuba",
       "id": 320,
       "now_cost": 50,
       "position": 4,
       "second_name": "Akpom",
       "team": 12,
-      "web_name": "Akpom",
-      "code": 147675
+      "web_name": "Akpom"
     },
     {
+      "code": 557012,
       "first_name": "Sindre",
       "id": 321,
       "now_cost": 45,
       "position": 4,
       "second_name": "Walle Egeli",
       "team": 12,
-      "web_name": "Walle Egeli",
-      "code": 557012
+      "web_name": "Walle Egeli"
     },
     {
+      "code": 462387,
       "first_name": "Ali",
       "id": 322,
       "now_cost": 50,
       "position": 4,
       "second_name": "Al-Hamadi",
       "team": 12,
-      "web_name": "Al-Hamadi",
-      "code": 462387
+      "web_name": "Al-Hamadi"
     },
     {
+      "code": 461587,
       "first_name": "Kasey",
       "id": 323,
       "now_cost": 45,
       "position": 3,
       "second_name": "McAteer",
       "team": 12,
-      "web_name": "McAteer",
-      "code": 461587
+      "web_name": "McAteer"
     },
     {
+      "code": 232457,
       "first_name": "Anis",
       "id": 324,
       "now_cost": 50,
       "position": 3,
       "second_name": "Mehmeti",
       "team": 12,
-      "web_name": "Mehmeti",
-      "code": 232457
+      "web_name": "Mehmeti"
     },
     {
+      "code": 59735,
       "first_name": "Karl",
       "id": 325,
       "now_cost": 45,
       "position": 1,
       "second_name": "Darlow",
       "team": 16,
-      "web_name": "Darlow",
-      "code": 59735
+      "web_name": "Darlow"
     },
     {
+      "code": 201595,
       "first_name": "Lucas Estella",
       "id": 326,
       "now_cost": 45,
       "position": 1,
       "second_name": "Perri",
       "team": 13,
-      "web_name": "Perri",
-      "code": 201595
+      "web_name": "Perri"
     },
     {
+      "code": 434752,
       "first_name": "Jaka",
       "id": 327,
       "now_cost": 50,
       "position": 2,
       "second_name": "Bijol",
       "team": 13,
-      "web_name": "Bijol",
-      "code": 434752
+      "web_name": "Bijol"
     },
     {
+      "code": 222694,
       "first_name": "Pascal",
       "id": 328,
       "now_cost": 50,
       "position": 2,
       "second_name": "Struijk",
       "team": 5,
-      "web_name": "Struijk",
-      "code": 222694
+      "web_name": "Struijk"
     },
     {
+      "code": 214225,
       "first_name": "Joe",
       "id": 329,
       "now_cost": 45,
       "position": 2,
       "second_name": "Rodon",
       "team": 13,
-      "web_name": "Rodon",
-      "code": 214225
+      "web_name": "Rodon"
     },
     {
+      "code": 226182,
       "first_name": "Jayden",
       "id": 330,
       "now_cost": 45,
       "position": 2,
       "second_name": "Bogle",
       "team": 13,
-      "web_name": "Bogle",
-      "code": 226182
+      "web_name": "Bogle"
     },
     {
+      "code": 243526,
       "first_name": "Gabriel",
       "id": 331,
       "now_cost": 45,
       "position": 2,
       "second_name": "Gudmundsson",
       "team": 13,
-      "web_name": "Gudmundsson",
-      "code": 243526
+      "web_name": "Gudmundsson"
     },
     {
+      "code": 220627,
       "first_name": "James",
       "id": 332,
       "now_cost": 45,
       "position": 2,
       "second_name": "Justin",
       "team": 13,
-      "web_name": "Justin",
-      "code": 220627
+      "web_name": "Justin"
     },
     {
+      "code": 437738,
       "first_name": "Sebastiaan",
       "id": 333,
       "now_cost": 45,
       "position": 2,
       "second_name": "Bornauw",
       "team": 13,
-      "web_name": "Bornauw",
-      "code": 437738
+      "web_name": "Bornauw"
     },
     {
+      "code": 522047,
       "first_name": "Tarik",
       "id": 334,
       "now_cost": 50,
       "position": 2,
-      "second_name": "Muharemović",
+      "second_name": "Muharemovi\u0107",
       "team": 13,
-      "web_name": "Muharemović",
-      "code": 522047
+      "web_name": "Muharemovi\u0107"
     },
     {
+      "code": 466525,
       "first_name": "Anton",
       "id": 335,
       "now_cost": 60,
       "position": 3,
       "second_name": "Stach",
       "team": 13,
-      "web_name": "Stach",
-      "code": 466525
+      "web_name": "Stach"
     },
     {
+      "code": 435997,
       "first_name": "Noah",
       "id": 336,
       "now_cost": 60,
       "position": 3,
       "second_name": "Okafor",
       "team": 13,
-      "web_name": "Okafor",
-      "code": 435997
+      "web_name": "Okafor"
     },
     {
+      "code": 427637,
       "first_name": "Brenden",
       "id": 337,
       "now_cost": 55,
       "position": 3,
       "second_name": "Aaronson",
       "team": 13,
-      "web_name": "Aaronson",
-      "code": 427637
+      "web_name": "Aaronson"
     },
     {
+      "code": 199598,
       "first_name": "Ethan",
       "id": 338,
       "now_cost": 55,
       "position": 3,
       "second_name": "Ampadu",
       "team": 13,
-      "web_name": "Ampadu",
-      "code": 199598
+      "web_name": "Ampadu"
     },
     {
+      "code": 180135,
       "first_name": "Sean",
       "id": 339,
       "now_cost": 50,
       "position": 3,
       "second_name": "Longstaff",
       "team": 13,
-      "web_name": "Longstaff",
-      "code": 180135
+      "web_name": "Longstaff"
     },
     {
+      "code": 462635,
       "first_name": "Joe",
       "id": 340,
       "now_cost": 50,
       "position": 3,
       "second_name": "Gelhardt",
       "team": 11,
-      "web_name": "Gelhardt",
-      "code": 462635
+      "web_name": "Gelhardt"
     },
     {
+      "code": 492859,
       "first_name": "Wilfried",
       "id": 341,
       "now_cost": 50,
       "position": 3,
       "second_name": "Gnonto",
       "team": 13,
-      "web_name": "Gnonto",
-      "code": 492859
+      "web_name": "Gnonto"
     },
     {
+      "code": 221399,
       "first_name": "Jack",
       "id": 342,
       "now_cost": 50,
       "position": 3,
       "second_name": "Harrison",
       "team": 13,
-      "web_name": "Harrison",
-      "code": 221399
+      "web_name": "Harrison"
     },
     {
+      "code": 200617,
       "first_name": "Daniel",
       "id": 343,
       "now_cost": 50,
       "position": 3,
       "second_name": "James",
       "team": 13,
-      "web_name": "James",
-      "code": 200617
+      "web_name": "James"
     },
     {
+      "code": 486520,
       "first_name": "Ilia",
       "id": 344,
       "now_cost": 50,
       "position": 3,
       "second_name": "Gruev",
       "team": 13,
-      "web_name": "Gruev",
-      "code": 486520
+      "web_name": "Gruev"
     },
     {
+      "code": 248056,
       "first_name": "Tanaka",
       "id": 345,
       "now_cost": 50,
       "position": 3,
       "second_name": "Ao",
       "team": 13,
-      "web_name": "Tanaka",
-      "code": 248056
+      "web_name": "Tanaka"
     },
     {
+      "code": 177815,
       "first_name": "Dominic",
       "id": 346,
       "now_cost": 60,
       "position": 4,
       "second_name": "Calvert-Lewin",
       "team": 13,
-      "web_name": "Calvert-Lewin",
-      "code": 177815
+      "web_name": "Calvert-Lewin"
     },
     {
+      "code": 174594,
       "first_name": "Lukas",
       "id": 347,
       "now_cost": 55,
       "position": 4,
       "second_name": "Nmecha",
       "team": 13,
-      "web_name": "Nmecha",
-      "code": 174594
+      "web_name": "Nmecha"
     },
     {
-      "first_name": "Joël",
+      "code": 235826,
+      "first_name": "Jo\u00ebl",
       "id": 348,
       "now_cost": 50,
       "position": 4,
       "second_name": "Piroe",
       "team": 13,
-      "web_name": "Piroe",
-      "code": 235826
+      "web_name": "Piroe"
     },
     {
+      "code": 565297,
       "first_name": "Mateo",
       "id": 349,
       "now_cost": 45,
       "position": 4,
-      "second_name": "Joseph Fernández-Regatillo",
+      "second_name": "Joseph Fern\u00e1ndez-Regatillo",
       "team": 13,
-      "web_name": "Mateo Joseph",
-      "code": 565297
+      "web_name": "Mateo Joseph"
     },
     {
+      "code": 116535,
       "first_name": "Alisson",
       "id": 350,
       "now_cost": 55,
       "position": 1,
       "second_name": "Becker",
       "team": 14,
-      "web_name": "A.Becker",
-      "code": 116535
+      "web_name": "A.Becker"
     },
     {
+      "code": 449027,
       "first_name": "Giorgi",
       "id": 351,
       "now_cost": 50,
       "position": 1,
       "second_name": "Mamardashvili",
       "team": 14,
-      "web_name": "Mamardashvili",
-      "code": 449027
+      "web_name": "Mamardashvili"
     },
     {
+      "code": 155503,
       "first_name": "Freddie",
       "id": 352,
       "now_cost": 40,
       "position": 1,
       "second_name": "Woodman",
       "team": 14,
-      "web_name": "Woodman",
-      "code": 155503
+      "web_name": "Woodman"
     },
     {
+      "code": 586268,
       "first_name": "Armin",
       "id": 353,
       "now_cost": 40,
       "position": 1,
       "second_name": "Pecsi",
       "team": 14,
-      "web_name": "Pecsi",
-      "code": 586268
+      "web_name": "Pecsi"
     },
     {
+      "code": 432987,
       "first_name": "Vitezslav",
       "id": 354,
       "now_cost": 40,
       "position": 1,
       "second_name": "Jaros",
       "team": 14,
-      "web_name": "Jaros",
-      "code": 432987
+      "web_name": "Jaros"
     },
     {
+      "code": 464353,
       "first_name": "Harvey",
       "id": 355,
       "now_cost": 40,
       "position": 1,
       "second_name": "Davies",
       "team": 14,
-      "web_name": "Davies",
-      "code": 464353
+      "web_name": "Davies"
     },
     {
+      "code": 97032,
       "first_name": "Virgil",
       "id": 356,
       "now_cost": 65,
       "position": 2,
       "second_name": "van Dijk",
       "team": 14,
-      "web_name": "Virgil",
-      "code": 97032
+      "web_name": "Virgil"
     },
     {
+      "code": 216094,
       "first_name": "Jeremie",
       "id": 357,
       "now_cost": 55,
       "position": 2,
       "second_name": "Frimpong",
       "team": 14,
-      "web_name": "Frimpong",
-      "code": 216094
+      "web_name": "Frimpong"
     },
     {
+      "code": 544877,
       "first_name": "Milos",
       "id": 358,
       "now_cost": 55,
       "position": 2,
       "second_name": "Kerkez",
       "team": 14,
-      "web_name": "Kerkez",
-      "code": 544877
+      "web_name": "Kerkez"
     },
     {
+      "code": 171287,
       "first_name": "Joe",
       "id": 359,
       "now_cost": 50,
       "position": 2,
       "second_name": "Gomez",
       "team": 14,
-      "web_name": "Gomez",
-      "code": 171287
+      "web_name": "Gomez"
     },
     {
+      "code": 492777,
       "first_name": "Conor",
       "id": 360,
       "now_cost": 50,
       "position": 2,
       "second_name": "Bradley",
       "team": 14,
-      "web_name": "Bradley",
-      "code": 492777
+      "web_name": "Bradley"
     },
     {
+      "code": 519440,
       "first_name": "Wellity",
       "id": 361,
       "now_cost": 40,
       "position": 2,
       "second_name": "Lucky",
       "team": 14,
-      "web_name": "Lucky",
-      "code": 519440
+      "web_name": "Lucky"
     },
     {
+      "code": 606702,
       "first_name": "Jeremy",
       "id": 362,
       "now_cost": 50,
       "position": 2,
       "second_name": "Jacquet",
       "team": 14,
-      "web_name": "Jacquet",
-      "code": 606702
+      "web_name": "Jacquet"
     },
     {
+      "code": 647681,
       "first_name": "Giovanni",
       "id": 363,
       "now_cost": 40,
       "position": 2,
       "second_name": "Leoni",
       "team": 14,
-      "web_name": "Leoni",
-      "code": 647681
+      "web_name": "Leoni"
     },
     {
+      "code": 214285,
       "first_name": "Kostas",
       "id": 364,
       "now_cost": 50,
       "position": 2,
       "second_name": "Tsimikas",
       "team": 14,
-      "web_name": "Tsimikas",
-      "code": 214285
+      "web_name": "Tsimikas"
     },
     {
+      "code": 489580,
       "first_name": "Calvin",
       "id": 365,
       "now_cost": 40,
       "position": 2,
       "second_name": "Ramsay",
       "team": 14,
-      "web_name": "Ramsay",
-      "code": 489580
+      "web_name": "Ramsay"
     },
     {
+      "code": 494595,
       "first_name": "Florian",
       "id": 366,
       "now_cost": 75,
       "position": 3,
       "second_name": "Wirtz",
       "team": 14,
-      "web_name": "Wirtz",
-      "code": 494595
+      "web_name": "Wirtz"
     },
     {
+      "code": 243298,
       "first_name": "Cody",
       "id": 367,
       "now_cost": 70,
       "position": 3,
       "second_name": "Gakpo",
       "team": 14,
-      "web_name": "Gakpo",
-      "code": 243298
+      "web_name": "Gakpo"
     },
     {
+      "code": 424876,
       "first_name": "Dominik",
       "id": 368,
       "now_cost": 70,
       "position": 3,
       "second_name": "Szoboszlai",
       "team": 14,
-      "web_name": "Szoboszlai",
-      "code": 424876
+      "web_name": "Szoboszlai"
     },
     {
+      "code": 611922,
       "first_name": "Rio",
       "id": 369,
       "now_cost": 60,
       "position": 3,
       "second_name": "Ngumoha",
       "team": 14,
-      "web_name": "Ngumoha",
-      "code": 611922
+      "web_name": "Ngumoha"
     },
     {
+      "code": 223541,
       "first_name": "Federico",
       "id": 370,
       "now_cost": 55,
       "position": 3,
       "second_name": "Chiesa",
       "team": 14,
-      "web_name": "Chiesa",
-      "code": 223541
+      "web_name": "Chiesa"
     },
     {
+      "code": 441266,
       "first_name": "Ryan",
       "id": 371,
       "now_cost": 60,
       "position": 3,
       "second_name": "Gravenberch",
       "team": 14,
-      "web_name": "Gravenberch",
-      "code": 441266
+      "web_name": "Gravenberch"
     },
     {
+      "code": 243016,
       "first_name": "Alexis",
       "id": 372,
       "now_cost": 55,
       "position": 3,
       "second_name": "Mac Allister",
       "team": 14,
-      "web_name": "Mac Allister",
-      "code": 243016
+      "web_name": "Mac Allister"
     },
     {
+      "code": 206915,
       "first_name": "Curtis",
       "id": 373,
       "now_cost": 55,
       "position": 3,
       "second_name": "Jones",
       "team": 14,
-      "web_name": "C.Jones",
-      "code": 206915
+      "web_name": "C.Jones"
     },
     {
+      "code": 158983,
       "first_name": "Endo",
       "id": 374,
       "now_cost": 50,
       "position": 3,
       "second_name": "Wataru",
       "team": 14,
-      "web_name": "Endo",
-      "code": 158983
+      "web_name": "Endo"
     },
     {
+      "code": 591386,
       "first_name": "Trey",
       "id": 375,
       "now_cost": 50,
       "position": 3,
       "second_name": "Nyoni",
       "team": 14,
-      "web_name": "Nyoni",
-      "code": 591386
+      "web_name": "Nyoni"
     },
     {
+      "code": 535928,
       "first_name": "Stefan",
       "id": 376,
       "now_cost": 50,
       "position": 3,
-      "second_name": "Bajčetić Maquieira",
+      "second_name": "Baj\u010deti\u0107 Maquieira",
       "team": 14,
-      "web_name": "Bajcetic",
-      "code": 535928
+      "web_name": "Bajcetic"
     },
     {
+      "code": 551499,
       "first_name": "Victor",
       "id": 377,
       "now_cost": 65,
       "position": 3,
       "second_name": "Munoz",
       "team": 14,
-      "web_name": "Munoz",
-      "code": 551499
+      "web_name": "Munoz"
     },
     {
+      "code": 491501,
       "first_name": "James",
       "id": 378,
       "now_cost": 45,
       "position": 3,
       "second_name": "McConnell",
       "team": 14,
-      "web_name": "McConnell",
-      "code": 491501
+      "web_name": "McConnell"
     },
     {
+      "code": 219168,
       "first_name": "Alexander",
       "id": 379,
       "now_cost": 90,
       "position": 4,
       "second_name": "Isak",
       "team": 14,
-      "web_name": "Isak",
-      "code": 219168
+      "web_name": "Isak"
     },
     {
+      "code": 510663,
       "first_name": "Hugo",
       "id": 380,
       "now_cost": 75,
       "position": 4,
-      "second_name": "Ekitiké",
+      "second_name": "Ekitik\u00e9",
       "team": 14,
-      "web_name": "Ekitiké",
-      "code": 510663
+      "web_name": "Ekitik\u00e9"
     },
     {
+      "code": 514514,
       "first_name": "Lewis",
       "id": 381,
       "now_cost": 50,
       "position": 3,
       "second_name": "Koumas",
       "team": 14,
-      "web_name": "Koumas",
-      "code": 514514
+      "web_name": "Koumas"
     },
     {
+      "code": 500058,
       "first_name": "Jayden",
       "id": 382,
       "now_cost": 45,
       "position": 4,
       "second_name": "Danns",
       "team": 14,
-      "web_name": "Danns",
-      "code": 500058
+      "web_name": "Danns"
     },
     {
+      "code": 444884,
       "first_name": "Harvey",
       "id": 383,
       "now_cost": 55,
       "position": 3,
       "second_name": "Elliott",
       "team": 14,
-      "web_name": "Elliott",
-      "code": 444884
+      "web_name": "Elliott"
     },
     {
+      "code": 204936,
       "first_name": "Gianluigi",
       "id": 384,
       "now_cost": 55,
       "position": 1,
       "second_name": "Donnarumma",
       "team": 15,
-      "web_name": "Donnarumma",
-      "code": 204936
+      "web_name": "Donnarumma"
     },
     {
+      "code": 432720,
       "first_name": "James",
       "id": 385,
       "now_cost": 50,
       "position": 1,
       "second_name": "Trafford",
       "team": 13,
-      "web_name": "Trafford",
-      "code": 432720
+      "web_name": "Trafford"
     },
     {
+      "code": 122074,
       "first_name": "Marcus",
       "id": 386,
       "now_cost": 45,
       "position": 1,
       "second_name": "Bettinelli",
       "team": 15,
-      "web_name": "Bettinelli",
-      "code": 122074
+      "web_name": "Bettinelli"
     },
     {
+      "code": 472769,
       "first_name": "Nico",
       "id": 387,
       "now_cost": 65,
       "position": 2,
       "second_name": "O'Reilly",
       "team": 15,
-      "web_name": "O'Reilly",
-      "code": 472769
+      "web_name": "O'Reilly"
     },
     {
+      "code": 209036,
       "first_name": "Marc",
       "id": 388,
       "now_cost": 60,
       "position": 2,
-      "second_name": "Guéhi",
+      "second_name": "Gu\u00e9hi",
       "team": 15,
-      "web_name": "Guéhi",
-      "code": 209036
+      "web_name": "Gu\u00e9hi"
     },
     {
+      "code": 465351,
       "first_name": "Matheus",
       "id": 389,
       "now_cost": 60,
       "position": 2,
       "second_name": "Nunes",
       "team": 15,
-      "web_name": "Matheus N.",
-      "code": 465351
+      "web_name": "Matheus N."
     },
     {
-      "first_name": "Rúben",
+      "code": 171314,
+      "first_name": "R\u00faben",
       "id": 390,
       "now_cost": 55,
       "position": 2,
       "second_name": "dos Santos Gato Alves Dias",
       "team": 15,
-      "web_name": "Rúben",
-      "code": 171314
+      "web_name": "R\u00faben"
     },
     {
-      "first_name": "Joško",
+      "code": 477424,
+      "first_name": "Jo\u0161ko",
       "id": 391,
       "now_cost": 55,
       "position": 2,
       "second_name": "Gvardiol",
       "team": 15,
-      "web_name": "Gvardiol",
-      "code": 477424
+      "web_name": "Gvardiol"
     },
     {
+      "code": 448514,
       "first_name": "Rayan",
       "id": 392,
       "now_cost": 55,
       "position": 2,
-      "second_name": "Aït-Nouri",
+      "second_name": "A\u00eft-Nouri",
       "team": 15,
-      "web_name": "Aït-Nouri",
-      "code": 448514
+      "web_name": "A\u00eft-Nouri"
     },
     {
+      "code": 578153,
       "first_name": "Abdukodir",
       "id": 393,
       "now_cost": 55,
       "position": 2,
       "second_name": "Khusanov",
       "team": 15,
-      "web_name": "Khusanov",
-      "code": 578153
+      "web_name": "Khusanov"
     },
     {
+      "code": 494307,
       "first_name": "Max",
       "id": 394,
       "now_cost": 50,
       "position": 2,
       "second_name": "Alleyne",
       "team": 15,
-      "web_name": "Alleyne",
-      "code": 494307
+      "web_name": "Alleyne"
     },
     {
+      "code": 477064,
       "first_name": "Rico",
       "id": 395,
       "now_cost": 45,
       "position": 2,
       "second_name": "Lewis",
       "team": 15,
-      "web_name": "Lewis",
-      "code": 477064
+      "web_name": "Lewis"
     },
     {
+      "code": 616222,
       "first_name": "Vitor",
       "id": 396,
       "now_cost": 45,
       "position": 2,
       "second_name": "de Oliveira Nunes dos Reis",
       "team": 15,
-      "web_name": "Vitor Reis",
-      "code": 616222
+      "web_name": "Vitor Reis"
     },
     {
+      "code": 437730,
       "first_name": "Antoine",
       "id": 397,
       "now_cost": 85,
       "position": 3,
       "second_name": "Semenyo",
       "team": 15,
-      "web_name": "Semenyo",
-      "code": 437730
+      "web_name": "Semenyo"
     },
     {
+      "code": 209244,
       "first_name": "Phil",
       "id": 398,
       "now_cost": 70,
       "position": 3,
       "second_name": "Foden",
       "team": 15,
-      "web_name": "Foden",
-      "code": 209244
+      "web_name": "Foden"
     },
     {
+      "code": 466052,
       "first_name": "Rayan",
       "id": 399,
       "now_cost": 75,
       "position": 3,
       "second_name": "Cherki",
       "team": 15,
-      "web_name": "Cherki",
-      "code": 466052
+      "web_name": "Cherki"
     },
     {
-      "first_name": "Jérémy",
+      "code": 248875,
+      "first_name": "J\u00e9r\u00e9my",
       "id": 400,
       "now_cost": 75,
       "position": 3,
       "second_name": "Doku",
       "team": 15,
-      "web_name": "Doku",
-      "code": 248875
+      "web_name": "Doku"
     },
     {
+      "code": 438234,
       "first_name": "Omar",
       "id": 401,
       "now_cost": 70,
       "position": 4,
       "second_name": "Marmoush",
       "team": 15,
-      "web_name": "Marmoush",
-      "code": 438234
+      "web_name": "Marmoush"
     },
     {
+      "code": 220566,
       "first_name": "Rodrigo 'Rodri'",
       "id": 402,
       "now_cost": 65,
       "position": 3,
       "second_name": "Hernandez Cascante",
       "team": 15,
-      "web_name": "Rodrigo",
-      "code": 220566
+      "web_name": "Rodrigo"
     },
     {
-      "first_name": "Sávio",
+      "code": 510281,
+      "first_name": "S\u00e1vio",
       "id": 403,
       "now_cost": 65,
       "position": 3,
       "second_name": "Moreira de Oliveira",
       "team": 15,
-      "web_name": "Savinho",
-      "code": 510281
+      "web_name": "Savinho"
     },
     {
+      "code": 433036,
       "first_name": "Tijjani",
       "id": 404,
       "now_cost": 60,
       "position": 3,
       "second_name": "Reijnders",
       "team": 15,
-      "web_name": "Reijnders",
-      "code": 433036
+      "web_name": "Reijnders"
     },
     {
+      "code": 465694,
       "first_name": "Nico",
       "id": 405,
       "now_cost": 55,
       "position": 3,
-      "second_name": "González Iglesias",
+      "second_name": "Gonz\u00e1lez Iglesias",
       "team": 15,
-      "web_name": "N.Gonzalez",
-      "code": 465694
+      "web_name": "N.Gonzalez"
     },
     {
+      "code": 91651,
       "first_name": "Mateo",
       "id": 406,
       "now_cost": 55,
       "position": 3,
-      "second_name": "Kovačić",
+      "second_name": "Kova\u010di\u0107",
       "team": 15,
-      "web_name": "Kovačić",
-      "code": 91651
+      "web_name": "Kova\u010di\u0107"
     },
     {
+      "code": 575204,
       "first_name": "Claudio",
       "id": 407,
       "now_cost": 50,
       "position": 3,
       "second_name": "Echeverri",
       "team": 15,
-      "web_name": "Echeverri",
-      "code": 575204
+      "web_name": "Echeverri"
     },
     {
+      "code": 155405,
       "first_name": "Kalvin",
       "id": 408,
       "now_cost": 50,
       "position": 3,
       "second_name": "Phillips",
       "team": 15,
-      "web_name": "Phillips",
-      "code": 155405
+      "web_name": "Phillips"
     },
     {
+      "code": 590039,
       "first_name": "Divine",
       "id": 409,
       "now_cost": 45,
       "position": 3,
       "second_name": "Mukasa",
       "team": 15,
-      "web_name": "Mukasa",
-      "code": 590039
+      "web_name": "Mukasa"
     },
     {
+      "code": 649208,
       "first_name": "Jeremy",
       "id": 410,
       "now_cost": 50,
       "position": 3,
       "second_name": "Monga",
       "team": 15,
-      "web_name": "Monga",
-      "code": 649208
+      "web_name": "Monga"
     },
     {
+      "code": 223094,
       "first_name": "Erling",
       "id": 411,
       "now_cost": 155,
       "position": 4,
       "second_name": "Haaland",
       "team": 15,
-      "web_name": "Haaland",
-      "code": 223094
+      "web_name": "Haaland"
     },
     {
+      "code": 465247,
       "first_name": "Senne",
       "id": 412,
       "now_cost": 50,
       "position": 1,
       "second_name": "Lammens",
       "team": 16,
-      "web_name": "Lammens",
-      "code": 465247
+      "web_name": "Lammens"
     },
     {
+      "code": 451302,
       "first_name": "Altay",
       "id": 413,
       "now_cost": 45,
       "position": 1,
-      "second_name": "Bayındır",
+      "second_name": "Bay\u0131nd\u0131r",
       "team": 16,
-      "web_name": "Bayindir",
-      "code": 451302
+      "web_name": "Bayindir"
     },
     {
+      "code": 21205,
       "first_name": "Tom",
       "id": 414,
       "now_cost": 40,
       "position": 1,
       "second_name": "Heaton",
       "team": 16,
-      "web_name": "Heaton",
-      "code": 21205
+      "web_name": "Heaton"
     },
     {
+      "code": 596777,
       "first_name": "Patrick",
       "id": 415,
       "now_cost": 60,
       "position": 3,
       "second_name": "Dorgu",
       "team": 16,
-      "web_name": "Dorgu",
-      "code": 596777
+      "web_name": "Dorgu"
     },
     {
+      "code": 209365,
       "first_name": "Matthijs",
       "id": 416,
       "now_cost": 50,
       "position": 2,
       "second_name": "de Ligt",
       "team": 16,
-      "web_name": "De Ligt",
-      "code": 209365
+      "web_name": "De Ligt"
     },
     {
+      "code": 216051,
       "first_name": "Diogo",
       "id": 417,
       "now_cost": 50,
       "position": 2,
       "second_name": "Dalot Teixeira",
       "team": 16,
-      "web_name": "Dalot",
-      "code": 216051
+      "web_name": "Dalot"
     },
     {
+      "code": 95658,
       "first_name": "Harry",
       "id": 418,
       "now_cost": 50,
       "position": 2,
       "second_name": "Maguire",
       "team": 16,
-      "web_name": "Maguire",
-      "code": 95658
+      "web_name": "Maguire"
     },
     {
+      "code": 221820,
       "first_name": "Lisandro",
       "id": 419,
       "now_cost": 50,
       "position": 2,
-      "second_name": "Martínez",
+      "second_name": "Mart\u00ednez",
       "team": 16,
-      "web_name": "Martinez",
-      "code": 221820
+      "web_name": "Martinez"
     },
     {
+      "code": 550864,
       "first_name": "Leny",
       "id": 420,
       "now_cost": 50,
       "position": 2,
       "second_name": "Yoro",
       "team": 16,
-      "web_name": "Yoro",
-      "code": 550864
+      "web_name": "Yoro"
     },
     {
+      "code": 606745,
       "first_name": "Ayden",
       "id": 421,
       "now_cost": 45,
       "position": 2,
       "second_name": "Heaven",
       "team": 16,
-      "web_name": "Heaven",
-      "code": 606745
+      "web_name": "Heaven"
     },
     {
+      "code": 230001,
       "first_name": "Noussair",
       "id": 422,
       "now_cost": 45,
       "position": 2,
       "second_name": "Mazraoui",
       "team": 16,
-      "web_name": "Mazraoui",
-      "code": 230001
+      "web_name": "Mazraoui"
     },
     {
+      "code": 106760,
       "first_name": "Luke",
       "id": 423,
       "now_cost": 45,
       "position": 2,
       "second_name": "Shaw",
       "team": 16,
-      "web_name": "Shaw",
-      "code": 106760
+      "web_name": "Shaw"
     },
     {
+      "code": 577974,
       "first_name": "Harry",
       "id": 424,
       "now_cost": 40,
       "position": 2,
       "second_name": "Amass",
       "team": 16,
-      "web_name": "Amass",
-      "code": 577974
+      "web_name": "Amass"
     },
     {
+      "code": 547676,
       "first_name": "Tyler",
       "id": 425,
       "now_cost": 40,
       "position": 2,
       "second_name": "Fredricson",
       "team": 16,
-      "web_name": "Fredricson",
-      "code": 547676
+      "web_name": "Fredricson"
     },
     {
+      "code": 141746,
       "first_name": "Bruno",
       "id": 426,
       "now_cost": 120,
       "position": 3,
       "second_name": "Borges Fernandes",
       "team": 16,
-      "web_name": "B.Fernandes",
-      "code": 141746
+      "web_name": "B.Fernandes"
     },
     {
+      "code": 446008,
       "first_name": "Bryan",
       "id": 427,
       "now_cost": 80,
       "position": 3,
       "second_name": "Mbeumo",
       "team": 16,
-      "web_name": "Mbeumo",
-      "code": 446008
+      "web_name": "Mbeumo"
     },
     {
+      "code": 430871,
       "first_name": "Matheus",
       "id": 428,
       "now_cost": 80,
       "position": 3,
       "second_name": "Santos Carneiro da Cunha",
       "team": 16,
-      "web_name": "Cunha",
-      "code": 430871
+      "web_name": "Cunha"
     },
     {
+      "code": 176297,
       "first_name": "Marcus",
       "id": 429,
       "now_cost": 70,
       "position": 3,
       "second_name": "Rashford",
       "team": 16,
-      "web_name": "Rashford",
-      "code": 176297
+      "web_name": "Rashford"
     },
     {
+      "code": 184341,
       "first_name": "Mason",
       "id": 430,
       "now_cost": 55,
       "position": 3,
       "second_name": "Mount",
       "team": 16,
-      "web_name": "Mount",
-      "code": 184341
+      "web_name": "Mount"
     },
     {
+      "code": 493250,
       "first_name": "Amad",
       "id": 431,
       "now_cost": 60,
       "position": 3,
       "second_name": "Diallo",
       "team": 16,
-      "web_name": "Amad",
-      "code": 493250
+      "web_name": "Amad"
     },
     {
+      "code": 516895,
       "first_name": "Kobbie",
       "id": 432,
       "now_cost": 55,
       "position": 3,
       "second_name": "Mainoo",
       "team": 16,
-      "web_name": "Mainoo",
-      "code": 516895
+      "web_name": "Mainoo"
     },
     {
+      "code": 232112,
       "first_name": "Manuel",
       "id": 433,
       "now_cost": 50,
       "position": 3,
       "second_name": "Ugarte Ribeiro",
       "team": 16,
-      "web_name": "Ugarte",
-      "code": 232112
+      "web_name": "Ugarte"
     },
     {
+      "code": 547037,
       "first_name": "Jack",
       "id": 434,
       "now_cost": 50,
       "position": 3,
       "second_name": "Fletcher",
       "team": 16,
-      "web_name": "J.Fletcher",
-      "code": 547037
+      "web_name": "J.Fletcher"
     },
     {
+      "code": 576628,
       "first_name": "Shea",
       "id": 435,
       "now_cost": 50,
       "position": 3,
       "second_name": "Lacey",
       "team": 16,
-      "web_name": "Lacey",
-      "code": 576628
+      "web_name": "Lacey"
     },
     {
+      "code": 490881,
       "first_name": "Toby",
       "id": 436,
       "now_cost": 50,
       "position": 3,
       "second_name": "Collyer",
       "team": 16,
-      "web_name": "Collyer",
-      "code": 490881
+      "web_name": "Collyer"
     },
     {
+      "code": 576620,
       "first_name": "Bendito",
       "id": 437,
       "now_cost": 45,
       "position": 3,
       "second_name": "Mantato",
       "team": 16,
-      "web_name": "Bendito Mantato",
-      "code": 576620
+      "web_name": "Bendito Mantato"
     },
     {
+      "code": 519913,
       "first_name": "Tyler",
       "id": 438,
       "now_cost": 45,
       "position": 3,
       "second_name": "Fletcher",
       "team": 16,
-      "web_name": "Fletcher",
-      "code": 519913
+      "web_name": "Fletcher"
     },
     {
+      "code": 485711,
       "first_name": "Benjamin",
       "id": 439,
       "now_cost": 70,
       "position": 4,
       "second_name": "Sesko",
       "team": 16,
-      "web_name": "Šeško",
-      "code": 485711
+      "web_name": "\u0160e\u0161ko"
     },
     {
+      "code": 458249,
       "first_name": "Joshua",
       "id": 440,
       "now_cost": 55,
       "position": 4,
       "second_name": "Zirkzee",
       "team": 16,
-      "web_name": "Zirkzee",
-      "code": 458249
+      "web_name": "Zirkzee"
     },
     {
+      "code": 596047,
       "first_name": "Chido",
       "id": 441,
       "now_cost": 45,
       "position": 4,
       "second_name": "Obi",
       "team": 16,
-      "web_name": "Obi",
-      "code": 596047
+      "web_name": "Obi"
     },
     {
+      "code": 98747,
       "first_name": "Nick",
       "id": 442,
       "now_cost": 50,
       "position": 1,
       "second_name": "Pope",
       "team": 17,
-      "web_name": "Pope",
-      "code": 98747
+      "web_name": "Pope"
     },
     {
+      "code": 81441,
       "first_name": "Mark",
       "id": 443,
       "now_cost": 45,
       "position": 1,
       "second_name": "Gillespie",
       "team": 17,
-      "web_name": "Gillespie",
-      "code": 81441
+      "web_name": "Gillespie"
     },
     {
+      "code": 554578,
       "first_name": "Ewen",
       "id": 444,
       "now_cost": 45,
       "position": 1,
       "second_name": "Jaouen",
       "team": 17,
-      "web_name": "Jaouen",
-      "code": 554578
+      "web_name": "Jaouen"
     },
     {
+      "code": 465642,
       "first_name": "Malick",
       "id": 445,
       "now_cost": 50,
       "position": 2,
       "second_name": "Thiaw",
       "team": 17,
-      "web_name": "Thiaw",
-      "code": 465642
+      "web_name": "Thiaw"
     },
     {
+      "code": 119471,
       "first_name": "Fabian",
       "id": 446,
       "now_cost": 50,
       "position": 2,
-      "second_name": "Schär",
+      "second_name": "Sch\u00e4r",
       "team": 17,
-      "web_name": "Schär",
-      "code": 119471
+      "web_name": "Sch\u00e4r"
     },
     {
+      "code": 220237,
       "first_name": "Sven",
       "id": 447,
       "now_cost": 50,
       "position": 2,
       "second_name": "Botman",
       "team": 17,
-      "web_name": "Botman",
-      "code": 220237
+      "web_name": "Botman"
     },
     {
+      "code": 78916,
       "first_name": "Dan",
       "id": 448,
       "now_cost": 50,
       "position": 2,
       "second_name": "Burn",
       "team": 17,
-      "web_name": "Burn",
-      "code": 78916
+      "web_name": "Burn"
     },
     {
+      "code": 487838,
       "first_name": "Lewis",
       "id": 449,
       "now_cost": 50,
       "position": 2,
       "second_name": "Hall",
       "team": 17,
-      "web_name": "Hall",
-      "code": 487838
+      "web_name": "Hall"
     },
     {
+      "code": 441191,
       "first_name": "Tino",
       "id": 450,
       "now_cost": 50,
       "position": 2,
       "second_name": "Livramento",
       "team": 17,
-      "web_name": "Livramento",
-      "code": 441191
+      "web_name": "Livramento"
     },
     {
+      "code": 545477,
       "first_name": "Alex",
       "id": 451,
       "now_cost": 40,
       "position": 2,
       "second_name": "Murphy",
       "team": 17,
-      "web_name": "A.Murphy",
-      "code": 545477
+      "web_name": "A.Murphy"
     },
     {
+      "code": 208706,
       "first_name": "Bruno",
       "id": 452,
       "now_cost": 70,
       "position": 3,
-      "second_name": "Guimarães Rodriguez Moura",
+      "second_name": "Guimar\u00e3es Rodriguez Moura",
       "team": 1,
-      "web_name": "Bruno G.",
-      "code": 208706
+      "web_name": "Bruno G."
     },
     {
+      "code": 201666,
       "first_name": "Harvey",
       "id": 453,
       "now_cost": 60,
       "position": 3,
       "second_name": "Barnes",
       "team": 17,
-      "web_name": "Barnes",
-      "code": 201666
+      "web_name": "Barnes"
     },
     {
+      "code": 449434,
       "first_name": "Anthony",
       "id": 454,
       "now_cost": 60,
       "position": 3,
       "second_name": "Elanga",
       "team": 17,
-      "web_name": "Elanga",
-      "code": 449434
+      "web_name": "Elanga"
     },
     {
+      "code": 432422,
       "first_name": "Sandro",
       "id": 455,
       "now_cost": 55,
       "position": 3,
       "second_name": "Tonali",
       "team": 19,
-      "web_name": "Tonali",
-      "code": 432422
+      "web_name": "Tonali"
     },
     {
+      "code": 232653,
       "first_name": "Jacob",
       "id": 456,
       "now_cost": 50,
       "position": 3,
       "second_name": "Ramsey",
       "team": 17,
-      "web_name": "J.Ramsey",
-      "code": 232653
+      "web_name": "J.Ramsey"
     },
     {
+      "code": 114243,
       "first_name": "Jacob",
       "id": 457,
       "now_cost": 60,
       "position": 3,
       "second_name": "Murphy",
       "team": 17,
-      "web_name": "J.Murphy",
-      "code": 114243
+      "web_name": "J.Murphy"
     },
     {
-      "first_name": "Joelinton Cássio",
+      "code": 180974,
+      "first_name": "Joelinton C\u00e1ssio",
       "id": 458,
       "now_cost": 55,
       "position": 3,
-      "second_name": "Apolinário de Lira",
+      "second_name": "Apolin\u00e1rio de Lira",
       "team": 17,
-      "web_name": "Joelinton",
-      "code": 180974
+      "web_name": "Joelinton"
     },
     {
+      "code": 547719,
       "first_name": "Lewis",
       "id": 459,
       "now_cost": 55,
       "position": 3,
       "second_name": "Miley",
       "team": 17,
-      "web_name": "L.Miley",
-      "code": 547719
+      "web_name": "L.Miley"
     },
     {
+      "code": 200089,
       "first_name": "Joe",
       "id": 460,
       "now_cost": 50,
       "position": 3,
       "second_name": "Willock",
       "team": 17,
-      "web_name": "Willock",
-      "code": 200089
+      "web_name": "Willock"
     },
     {
+      "code": 611665,
       "first_name": "Bazoumana",
       "id": 461,
       "now_cost": 60,
       "position": 3,
-      "second_name": "Touré",
+      "second_name": "Tour\u00e9",
       "team": 17,
-      "web_name": "Touré",
-      "code": 611665
+      "web_name": "Tour\u00e9"
     },
     {
+      "code": 636852,
       "first_name": "Sean",
       "id": 462,
       "now_cost": 50,
       "position": 3,
       "second_name": "Steur",
       "team": 17,
-      "web_name": "Steur",
-      "code": 636852
+      "web_name": "Steur"
     },
     {
+      "code": 470313,
       "first_name": "Nick",
       "id": 463,
       "now_cost": 60,
       "position": 4,
       "second_name": "Woltemade",
       "team": 17,
-      "web_name": "Woltemade",
-      "code": 470313
+      "web_name": "Woltemade"
     },
     {
+      "code": 216646,
       "first_name": "Yoane",
       "id": 464,
       "now_cost": 60,
       "position": 4,
       "second_name": "Wissa",
       "team": 17,
-      "web_name": "Wissa",
-      "code": 216646
+      "web_name": "Wissa"
     },
     {
+      "code": 538207,
       "first_name": "William",
       "id": 465,
       "now_cost": 60,
       "position": 4,
       "second_name": "Osula",
       "team": 17,
-      "web_name": "Osula",
-      "code": 538207
+      "web_name": "Osula"
     },
     {
+      "code": 599303,
       "first_name": "Sean",
       "id": 466,
       "now_cost": 45,
       "position": 4,
       "second_name": "Neave",
       "team": 17,
-      "web_name": "Neave",
-      "code": 599303
+      "web_name": "Neave"
     },
     {
+      "code": 85633,
       "first_name": "Matz",
       "id": 467,
       "now_cost": 50,
       "position": 1,
       "second_name": "Sels",
       "team": 18,
-      "web_name": "Sels",
-      "code": 85633
+      "web_name": "Sels"
     },
     {
+      "code": 221389,
       "first_name": "John Victor",
       "id": 468,
       "now_cost": 45,
       "position": 1,
       "second_name": "Maciel Furtado",
       "team": 18,
-      "web_name": "John",
-      "code": 221389
+      "web_name": "John"
     },
     {
+      "code": 215136,
       "first_name": "Neco",
       "id": 469,
       "now_cost": 50,
       "position": 2,
       "second_name": "Williams",
       "team": 18,
-      "web_name": "N.Williams",
-      "code": 215136
+      "web_name": "N.Williams"
     },
     {
+      "code": 485047,
       "first_name": "Felipe",
       "id": 470,
       "now_cost": 50,
       "position": 2,
       "second_name": "Rodrigues da Silva",
       "team": 18,
-      "web_name": "Morato",
-      "code": 485047
+      "web_name": "Morato"
     },
     {
+      "code": 227444,
       "first_name": "Nikola",
       "id": 471,
       "now_cost": 55,
       "position": 2,
-      "second_name": "Milenković",
+      "second_name": "Milenkovi\u0107",
       "team": 18,
-      "web_name": "Milenković",
-      "code": 227444
+      "web_name": "Milenkovi\u0107"
     },
     {
+      "code": 575476,
       "first_name": "Murillo",
       "id": 472,
       "now_cost": 55,
       "position": 2,
       "second_name": "Costa dos Santos",
       "team": 18,
-      "web_name": "Murillo",
-      "code": 575476
+      "web_name": "Murillo"
     },
     {
+      "code": 159506,
       "first_name": "Ola",
       "id": 473,
       "now_cost": 45,
       "position": 2,
       "second_name": "Aina",
       "team": 18,
-      "web_name": "Aina",
-      "code": 159506
+      "web_name": "Aina"
     },
     {
+      "code": 575458,
       "first_name": "Jair",
       "id": 474,
       "now_cost": 45,
       "position": 2,
       "second_name": "Paula da Cunha Filho",
       "team": 18,
-      "web_name": "Jair Cunha",
-      "code": 575458
+      "web_name": "Jair Cunha"
     },
     {
-      "first_name": "Nicolò",
+      "code": 500151,
+      "first_name": "Nicol\u00f2",
       "id": 475,
       "now_cost": 45,
       "position": 2,
       "second_name": "Savona",
       "team": 18,
-      "web_name": "Savona",
-      "code": 500151
+      "web_name": "Savona"
     },
     {
+      "code": 204822,
       "first_name": "Omar",
       "id": 476,
       "now_cost": 40,
       "position": 2,
       "second_name": "Richards",
       "team": 18,
-      "web_name": "O.Richards",
-      "code": 204822
+      "web_name": "O.Richards"
     },
     {
+      "code": 549067,
       "first_name": "Zach",
       "id": 477,
       "now_cost": 40,
       "position": 2,
       "second_name": "Abbott",
       "team": 18,
-      "web_name": "Abbott",
-      "code": 549067
+      "web_name": "Abbott"
     },
     {
+      "code": 470315,
       "first_name": "Luca",
       "id": 478,
       "now_cost": 45,
       "position": 2,
       "second_name": "Netz",
       "team": 18,
-      "web_name": "Netz",
-      "code": 470315
+      "web_name": "Netz"
     },
     {
+      "code": 538638,
       "first_name": "Tyler",
       "id": 479,
       "now_cost": 40,
       "position": 2,
       "second_name": "Bindon",
       "team": 18,
-      "web_name": "Bindon",
-      "code": 538638
+      "web_name": "Bindon"
     },
     {
+      "code": 222531,
       "first_name": "Morgan",
       "id": 480,
       "now_cost": 80,
       "position": 3,
       "second_name": "Gibbs-White",
       "team": 18,
-      "web_name": "Gibbs-White",
-      "code": 222531
+      "web_name": "Gibbs-White"
     },
     {
+      "code": 215379,
       "first_name": "Elliot",
       "id": 481,
       "now_cost": 65,
       "position": 3,
       "second_name": "Anderson",
       "team": 15,
-      "web_name": "Anderson",
-      "code": 215379
+      "web_name": "Anderson"
     },
     {
+      "code": 209046,
       "first_name": "Callum",
       "id": 482,
       "now_cost": 60,
       "position": 3,
       "second_name": "Hudson-Odoi",
       "team": 18,
-      "web_name": "Hudson-Odoi",
-      "code": 209046
+      "web_name": "Hudson-Odoi"
     },
     {
+      "code": 456512,
       "first_name": "Dan",
       "id": 483,
       "now_cost": 55,
       "position": 3,
       "second_name": "Ndoye",
       "team": 18,
-      "web_name": "Ndoye",
-      "code": 456512
+      "web_name": "Ndoye"
     },
     {
+      "code": 503301,
       "first_name": "Omari",
       "id": 484,
       "now_cost": 55,
       "position": 3,
       "second_name": "Hutchinson",
       "team": 18,
-      "web_name": "Hutchinson",
-      "code": 503301
+      "web_name": "Hutchinson"
     },
     {
+      "code": 476887,
       "first_name": "Dilane",
       "id": 485,
       "now_cost": 55,
       "position": 3,
       "second_name": "Bakwa",
       "team": 18,
-      "web_name": "Bakwa",
-      "code": 476887
+      "web_name": "Bakwa"
     },
     {
+      "code": 432714,
       "first_name": "James",
       "id": 486,
       "now_cost": 55,
       "position": 3,
       "second_name": "McAtee",
       "team": 18,
-      "web_name": "McAtee",
-      "code": 432714
+      "web_name": "McAtee"
     },
     {
-      "first_name": "Nicolás",
+      "code": 250199,
+      "first_name": "Nicol\u00e1s",
       "id": 487,
       "now_cost": 50,
       "position": 3,
-      "second_name": "Domínguez",
+      "second_name": "Dom\u00ednguez",
       "team": 18,
-      "web_name": "Dominguez",
-      "code": 250199
+      "web_name": "Dominguez"
     },
     {
+      "code": 210462,
       "first_name": "Ibrahim",
       "id": 488,
       "now_cost": 50,
       "position": 3,
-      "second_name": "Sangaré",
+      "second_name": "Sangar\u00e9",
       "team": 18,
-      "web_name": "I.Sangaré",
-      "code": 210462
+      "web_name": "I.Sangar\u00e9"
     },
     {
+      "code": 204968,
       "first_name": "Ryan",
       "id": 489,
       "now_cost": 45,
       "position": 3,
       "second_name": "Yates",
       "team": 18,
-      "web_name": "Yates",
-      "code": 204968
+      "web_name": "Yates"
     },
     {
+      "code": 60689,
       "first_name": "Chris",
       "id": 490,
       "now_cost": 60,
       "position": 4,
       "second_name": "Wood",
       "team": 18,
-      "web_name": "Wood",
-      "code": 60689
+      "web_name": "Wood"
     },
     {
+      "code": 482973,
       "first_name": "Igor Jesus",
       "id": 491,
       "now_cost": 60,
       "position": 4,
       "second_name": "Maciel da Cruz",
       "team": 18,
-      "web_name": "Igor Jesus",
-      "code": 482973
+      "web_name": "Igor Jesus"
     },
     {
+      "code": 210156,
       "first_name": "Taiwo",
       "id": 492,
       "now_cost": 55,
       "position": 4,
       "second_name": "Awoniyi",
       "team": 7,
-      "web_name": "Awoniyi",
-      "code": 210156
+      "web_name": "Awoniyi"
     },
     {
+      "code": 465680,
       "first_name": "Arnaud",
       "id": 493,
       "now_cost": 55,
       "position": 4,
       "second_name": "Kalimuendo",
       "team": 18,
-      "web_name": "Kalimuendo",
-      "code": 465680
+      "web_name": "Kalimuendo"
     },
     {
+      "code": 184254,
       "first_name": "Guglielmo",
       "id": 494,
       "now_cost": 45,
       "position": 1,
       "second_name": "Vicario",
       "team": 19,
-      "web_name": "Vicario",
-      "code": 184254
+      "web_name": "Vicario"
     },
     {
+      "code": 214572,
       "first_name": "Brandon",
       "id": 495,
       "now_cost": 40,
       "position": 1,
       "second_name": "Austin",
       "team": 19,
-      "web_name": "Austin",
-      "code": 214572
+      "web_name": "Austin"
     },
     {
-      "first_name": "Antonín",
+      "code": 485055,
+      "first_name": "Anton\u00edn",
       "id": 496,
       "now_cost": 45,
       "position": 1,
-      "second_name": "Kinský",
+      "second_name": "Kinsk\u00fd",
       "team": 19,
-      "web_name": "Kinsky",
-      "code": 485055
+      "web_name": "Kinsky"
     },
     {
+      "code": 67089,
       "first_name": "Martin",
       "id": 497,
       "now_cost": 40,
       "position": 1,
       "second_name": "Dubravka",
       "team": 19,
-      "web_name": "Dubravka",
-      "code": 67089
+      "web_name": "Dubravka"
     },
     {
+      "code": 221466,
       "first_name": "Marcos",
       "id": 498,
       "now_cost": 60,
       "position": 2,
-      "second_name": "Senesi Barón",
+      "second_name": "Senesi Bar\u00f3n",
       "team": 19,
-      "web_name": "Senesi",
-      "code": 221466
+      "web_name": "Senesi"
     },
     {
+      "code": 441164,
       "first_name": "Pedro",
       "id": 499,
       "now_cost": 55,
       "position": 2,
       "second_name": "Porro Sauceda",
       "team": 19,
-      "web_name": "Pedro Porro",
-      "code": 441164
+      "web_name": "Pedro Porro"
     },
     {
+      "code": 221632,
       "first_name": "Cristian",
       "id": 500,
       "now_cost": 50,
       "position": 2,
       "second_name": "Romero",
       "team": 19,
-      "web_name": "Romero",
-      "code": 221632
+      "web_name": "Romero"
     },
     {
+      "code": 135720,
       "first_name": "Kevin",
       "id": 501,
       "now_cost": 50,
       "position": 2,
       "second_name": "Danso",
       "team": 19,
-      "web_name": "Danso",
-      "code": 135720
+      "web_name": "Danso"
     },
     {
+      "code": 122798,
       "first_name": "Andrew",
       "id": 502,
       "now_cost": 45,
       "position": 2,
       "second_name": "Robertson",
       "team": 19,
-      "web_name": "Robertson",
-      "code": 122798
+      "web_name": "Robertson"
     },
     {
+      "code": 491279,
       "first_name": "Micky",
       "id": 503,
       "now_cost": 50,
       "position": 2,
       "second_name": "van de Ven",
       "team": 19,
-      "web_name": "Van de Ven",
-      "code": 491279
+      "web_name": "Van de Ven"
     },
     {
+      "code": 610799,
       "first_name": "Luka",
       "id": 504,
       "now_cost": 50,
       "position": 2,
-      "second_name": "Vušković",
+      "second_name": "Vu\u0161kovi\u0107",
       "team": 5,
-      "web_name": "Vuskovic",
-      "code": 610799
+      "web_name": "Vuskovic"
     },
     {
+      "code": 232859,
       "first_name": "Djed",
       "id": 505,
       "now_cost": 45,
       "position": 2,
       "second_name": "Spence",
       "team": 19,
-      "web_name": "Spence",
-      "code": 232859
+      "web_name": "Spence"
     },
     {
+      "code": 487053,
       "first_name": "Destiny",
       "id": 506,
       "now_cost": 45,
       "position": 2,
       "second_name": "Udogie",
       "team": 19,
-      "web_name": "Udogie",
-      "code": 487053
+      "web_name": "Udogie"
     },
     {
+      "code": 548308,
       "first_name": "Ashley",
       "id": 507,
       "now_cost": 45,
       "position": 2,
       "second_name": "Phillips",
       "team": 19,
-      "web_name": "Phillips",
-      "code": 548308
+      "web_name": "Phillips"
     },
     {
+      "code": 115556,
       "first_name": "Ben",
       "id": 508,
       "now_cost": 40,
       "position": 2,
       "second_name": "Davies",
       "team": 19,
-      "web_name": "Davies",
-      "code": 115556
+      "web_name": "Davies"
     },
     {
+      "code": 640419,
       "first_name": "Jun'ai",
       "id": 509,
       "now_cost": 40,
       "position": 2,
       "second_name": "Byfield",
       "team": 19,
-      "web_name": "Byfield",
-      "code": 640419
+      "web_name": "Byfield"
     },
     {
+      "code": 499716,
       "first_name": "James",
       "id": 510,
       "now_cost": 40,
       "position": 2,
       "second_name": "Rowswell",
       "team": 19,
-      "web_name": "Rowswell",
-      "code": 499716
+      "web_name": "Rowswell"
     },
     {
-      "first_name": "João Victor",
+      "code": 616221,
+      "first_name": "Jo\u00e3o Victor",
       "id": 511,
       "now_cost": 40,
       "position": 2,
       "second_name": "de Souza Menezes",
       "team": 19,
-      "web_name": "Souza",
-      "code": 616221
+      "web_name": "Souza"
     },
     {
+      "code": 460842,
       "first_name": "Mohammed",
       "id": 512,
       "now_cost": 65,
       "position": 3,
       "second_name": "Kudus",
       "team": 19,
-      "web_name": "Kudus",
-      "code": 460842
+      "web_name": "Kudus"
     },
     {
+      "code": 493362,
       "first_name": "Xavi",
       "id": 513,
       "now_cost": 60,
       "position": 3,
       "second_name": "Simons",
       "team": 19,
-      "web_name": "Xavi",
-      "code": 493362
+      "web_name": "Xavi"
     },
     {
+      "code": 511499,
       "first_name": "Mathys",
       "id": 514,
       "now_cost": 60,
       "position": 3,
       "second_name": "Tel",
       "team": 19,
-      "web_name": "Tel",
-      "code": 511499
+      "web_name": "Tel"
     },
     {
+      "code": 172780,
       "first_name": "James",
       "id": 515,
       "now_cost": 65,
       "position": 3,
       "second_name": "Maddison",
       "team": 19,
-      "web_name": "Maddison",
-      "code": 172780
+      "web_name": "Maddison"
     },
     {
+      "code": 202993,
       "first_name": "Rodrigo",
       "id": 516,
       "now_cost": 55,
       "position": 3,
       "second_name": "Bentancur",
       "team": 19,
-      "web_name": "Bentancur",
-      "code": 202993
+      "web_name": "Bentancur"
     },
     {
+      "code": 550839,
       "first_name": "Wilson",
       "id": 517,
       "now_cost": 55,
       "position": 3,
       "second_name": "Odobert",
       "team": 19,
-      "web_name": "Odobert",
-      "code": 550839
+      "web_name": "Odobert"
     },
     {
+      "code": 482442,
       "first_name": "Pape Matar",
       "id": 518,
       "now_cost": 50,
       "position": 3,
       "second_name": "Sarr",
       "team": 19,
-      "web_name": "P.M.Sarr",
-      "code": 482442
+      "web_name": "P.M.Sarr"
     },
     {
+      "code": 232787,
       "first_name": "Conor",
       "id": 519,
       "now_cost": 55,
       "position": 3,
       "second_name": "Gallagher",
       "team": 19,
-      "web_name": "Gallagher",
-      "code": 232787
+      "web_name": "Gallagher"
     },
     {
+      "code": 570526,
       "first_name": "Lucas",
       "id": 520,
       "now_cost": 55,
       "position": 3,
       "second_name": "Bergvall",
       "team": 19,
-      "web_name": "Bergvall",
-      "code": 570526
+      "web_name": "Bergvall"
     },
     {
+      "code": 445044,
       "first_name": "Dejan",
       "id": 521,
       "now_cost": 65,
       "position": 3,
       "second_name": "Kulusevski",
       "team": 19,
-      "web_name": "Kulusevski",
-      "code": 445044
+      "web_name": "Kulusevski"
     },
     {
+      "code": 547701,
       "first_name": "Archie",
       "id": 522,
       "now_cost": 50,
       "position": 3,
       "second_name": "Gray",
       "team": 19,
-      "web_name": "Gray",
-      "code": 547701
+      "web_name": "Gray"
     },
     {
+      "code": 499721,
       "first_name": "Mikey",
       "id": 523,
       "now_cost": 50,
       "position": 3,
       "second_name": "Moore",
       "team": 19,
-      "web_name": "Moore",
-      "code": 499721
+      "web_name": "Moore"
     },
     {
+      "code": 499726,
       "first_name": "Callum",
       "id": 524,
       "now_cost": 45,
       "position": 3,
       "second_name": "Olusesi",
       "team": 19,
-      "web_name": "Olusesi",
-      "code": 499726
+      "web_name": "Olusesi"
     },
     {
+      "code": 551226,
       "first_name": "Mateus",
       "id": 525,
       "now_cost": 60,
       "position": 3,
       "second_name": "Fernandes",
       "team": 19,
-      "web_name": "Fernandes",
-      "code": 551226
+      "web_name": "Fernandes"
     },
     {
+      "code": 154566,
       "first_name": "Dominic",
       "id": 526,
       "now_cost": 60,
       "position": 4,
       "second_name": "Solanke-Mitchell",
       "team": 19,
-      "web_name": "Solanke",
-      "code": 154566
+      "web_name": "Solanke"
     },
     {
+      "code": 212319,
       "first_name": "Richarlison",
       "id": 527,
       "now_cost": 60,
       "position": 4,
       "second_name": "de Andrade",
       "team": 19,
-      "web_name": "Richarlison",
-      "code": 212319
+      "web_name": "Richarlison"
     },
     {
+      "code": 490145,
       "first_name": "Dane",
       "id": 528,
       "now_cost": 45,
       "position": 4,
       "second_name": "Scarlett",
       "team": 19,
-      "web_name": "Scarlett",
-      "code": 490145
+      "web_name": "Scarlett"
     },
     {
+      "code": 498016,
       "first_name": "Robin",
       "id": 529,
       "now_cost": 50,
       "position": 1,
       "second_name": "Roefs",
       "team": 20,
-      "web_name": "Roefs",
-      "code": 498016
+      "web_name": "Roefs"
     },
     {
+      "code": 232571,
       "first_name": "Anthony",
       "id": 530,
       "now_cost": 40,
       "position": 1,
       "second_name": "Patterson",
       "team": 20,
-      "web_name": "Patterson",
-      "code": 232571
+      "web_name": "Patterson"
     },
     {
+      "code": 515046,
       "first_name": "Melker",
       "id": 531,
       "now_cost": 45,
       "position": 1,
       "second_name": "Ellborg",
       "team": 20,
-      "web_name": "Ellborg",
-      "code": 515046
+      "web_name": "Ellborg"
     },
     {
+      "code": 223827,
       "first_name": "Daniel",
       "id": 532,
       "now_cost": 50,
       "position": 2,
       "second_name": "Ballard",
       "team": 20,
-      "web_name": "Ballard",
-      "code": 223827
+      "web_name": "Ballard"
     },
     {
+      "code": 200834,
       "first_name": "Nordi",
       "id": 533,
       "now_cost": 55,
       "position": 2,
       "second_name": "Mukiele",
       "team": 20,
-      "web_name": "Mukiele",
-      "code": 200834
+      "web_name": "Mukiele"
     },
     {
+      "code": 487676,
       "first_name": "Trai",
       "id": 534,
       "now_cost": 45,
       "position": 2,
       "second_name": "Hume",
       "team": 20,
-      "web_name": "Hume",
-      "code": 487676
+      "web_name": "Hume"
     },
     {
+      "code": 201895,
       "first_name": "Omar",
       "id": 535,
       "now_cost": 50,
       "position": 2,
       "second_name": "Alderete",
       "team": 20,
-      "web_name": "Alderete",
-      "code": 201895
+      "web_name": "Alderete"
     },
     {
+      "code": 434399,
       "first_name": "Reinildo",
       "id": 536,
       "now_cost": 45,
       "position": 2,
       "second_name": "Mandava",
       "team": 20,
-      "web_name": "Reinildo",
-      "code": 434399
+      "web_name": "Reinildo"
     },
     {
+      "code": 519634,
       "first_name": "Jenson",
       "id": 537,
       "now_cost": 45,
       "position": 2,
       "second_name": "Seelt",
       "team": 20,
-      "web_name": "Seelt",
-      "code": 519634
+      "web_name": "Seelt"
     },
     {
+      "code": 477547,
       "first_name": "Leo Fuhr",
       "id": 538,
       "now_cost": 40,
       "position": 2,
       "second_name": "Hjelde",
       "team": 20,
-      "web_name": "Hjelde",
-      "code": 477547
+      "web_name": "Hjelde"
     },
     {
+      "code": 167512,
       "first_name": "Luke",
       "id": 539,
       "now_cost": 40,
       "position": 2,
       "second_name": "O'Nien",
       "team": 20,
-      "web_name": "O'Nien",
-      "code": 167512
+      "web_name": "O'Nien"
     },
     {
+      "code": 105717,
       "first_name": "Arthur",
       "id": 540,
       "now_cost": 40,
       "position": 2,
       "second_name": "Masuaku",
       "team": 20,
-      "web_name": "Masuaku",
-      "code": 105717
+      "web_name": "Masuaku"
     },
     {
+      "code": 93605,
       "first_name": "Thomas",
       "id": 541,
       "now_cost": 45,
       "position": 2,
       "second_name": "Meunier",
       "team": 20,
-      "web_name": "Meunier",
-      "code": 93605
+      "web_name": "Meunier"
     },
     {
+      "code": 484420,
       "first_name": "Enzo",
       "id": 542,
       "now_cost": 60,
       "position": 3,
-      "second_name": "Le Fée",
+      "second_name": "Le F\u00e9e",
       "team": 20,
-      "web_name": "E.Le Fée",
-      "code": 484420
+      "web_name": "E.Le F\u00e9e"
     },
     {
+      "code": 547027,
       "first_name": "Habib",
       "id": 543,
       "now_cost": 55,
       "position": 3,
       "second_name": "Diarra",
       "team": 20,
-      "web_name": "Diarra",
-      "code": 547027
+      "web_name": "Diarra"
     },
     {
+      "code": 84450,
       "first_name": "Granit",
       "id": 544,
       "now_cost": 55,
       "position": 3,
       "second_name": "Xhaka",
       "team": 20,
-      "web_name": "Xhaka",
-      "code": 84450
+      "web_name": "Xhaka"
     },
     {
+      "code": 577669,
       "first_name": "Noah",
       "id": 545,
       "now_cost": 50,
       "position": 3,
       "second_name": "Sadiki",
       "team": 20,
-      "web_name": "Sadiki",
-      "code": 577669
+      "web_name": "Sadiki"
     },
     {
+      "code": 535818,
       "first_name": "Simon",
       "id": 546,
       "now_cost": 50,
       "position": 3,
       "second_name": "Adingra",
       "team": 20,
-      "web_name": "Adingra",
-      "code": 535818
+      "web_name": "Adingra"
     },
     {
+      "code": 461199,
       "first_name": "Romaine",
       "id": 547,
       "now_cost": 50,
       "position": 3,
       "second_name": "Mundle",
       "team": 20,
-      "web_name": "Mundle",
-      "code": 461199
+      "web_name": "Mundle"
     },
     {
+      "code": 554197,
       "first_name": "Chris",
       "id": 548,
       "now_cost": 50,
       "position": 3,
       "second_name": "Rigg",
       "team": 20,
-      "web_name": "Rigg",
-      "code": 554197
+      "web_name": "Rigg"
     },
     {
+      "code": 549912,
       "first_name": "Chemsdine",
       "id": 549,
       "now_cost": 55,
       "position": 3,
       "second_name": "Talbi",
       "team": 20,
-      "web_name": "Talbi",
-      "code": 549912
+      "web_name": "Talbi"
     },
     {
+      "code": 699989,
       "first_name": "Djiamgone Jocelin Ta",
       "id": 550,
       "now_cost": 50,
       "position": 3,
       "second_name": "Bi",
       "team": 20,
-      "web_name": "Jocelin.T",
-      "code": 699989
+      "web_name": "Jocelin.T"
     },
     {
+      "code": 536661,
       "first_name": "Nilson",
       "id": 551,
       "now_cost": 50,
       "position": 3,
       "second_name": "Angulo",
       "team": 20,
-      "web_name": "Angulo",
-      "code": 536661
+      "web_name": "Angulo"
     },
     {
+      "code": 441264,
       "first_name": "Brian",
       "id": 552,
       "now_cost": 60,
       "position": 4,
       "second_name": "Brobbey",
       "team": 20,
-      "web_name": "Brobbey",
-      "code": 441264
+      "web_name": "Brobbey"
     },
     {
+      "code": 437505,
       "first_name": "Wilson",
       "id": 553,
       "now_cost": 55,
       "position": 4,
       "second_name": "Isidor",
       "team": 20,
-      "web_name": "Isidor",
-      "code": 437505
+      "web_name": "Isidor"
     },
     {
+      "code": 546600,
       "first_name": "Kayne",
       "id": 554,
       "now_cost": 45,
       "position": 1,
       "second_name": "van Oevelen",
       "team": 12,
-      "web_name": "Van Oevelen",
-      "code": 546600
+      "web_name": "Van Oevelen"
     },
     {
+      "code": 169593,
       "first_name": "Remi",
       "id": 555,
       "now_cost": 40,
       "position": 1,
       "second_name": "Matthews",
       "team": 8,
-      "web_name": "Matthews",
-      "code": 169593
+      "web_name": "Matthews"
     },
     {
+      "code": 169359,
       "first_name": "Matt",
       "id": 556,
       "now_cost": 40,
       "position": 2,
       "second_name": "Targett",
       "team": 11,
-      "web_name": "Targett",
-      "code": 169359
+      "web_name": "Targett"
     },
     {
+      "code": 439509,
       "first_name": "Christos",
       "id": 557,
       "now_cost": 65,
       "position": 3,
       "second_name": "Tzolis",
       "team": 1,
-      "web_name": "Tzolis",
-      "code": 439509
+      "web_name": "Tzolis"
     },
     {
+      "code": 204561,
       "first_name": "Xaver",
       "id": 558,
       "now_cost": 50,
       "position": 3,
       "second_name": "Schlager",
       "team": 18,
-      "web_name": "Schlager",
-      "code": 204561
+      "web_name": "Schlager"
     },
     {
+      "code": 632794,
       "first_name": "Aladji",
       "id": 559,
       "now_cost": 50,
       "position": 3,
       "second_name": "Bamba",
       "team": 17,
-      "web_name": "Bamba",
-      "code": 632794
+      "web_name": "Bamba"
     },
     {
+      "code": 549939,
       "first_name": "Mike",
       "id": 560,
       "now_cost": 45,
       "position": 1,
       "second_name": "Penders",
       "team": 6,
-      "web_name": "Penders",
-      "code": 549939
+      "web_name": "Penders"
     },
     {
+      "code": 622758,
       "first_name": "Aaron",
       "id": 561,
       "now_cost": 45,
       "position": 2,
       "second_name": "Anselmino",
       "team": 6,
-      "web_name": "Anselmino",
-      "code": 622758
+      "web_name": "Anselmino"
     },
     {
+      "code": 442967,
       "first_name": "Daizen",
       "id": 562,
       "now_cost": 55,
       "position": 3,
       "second_name": "Maeda",
       "team": 12,
-      "web_name": "Maeda",
-      "code": 442967
+      "web_name": "Maeda"
     },
     {
+      "code": 445028,
       "first_name": "Hidemasa",
       "id": 563,
       "now_cost": 50,
       "position": 3,
       "second_name": "Morita",
       "team": 11,
-      "web_name": "Morita",
-      "code": 445028
+      "web_name": "Morita"
     },
     {
+      "code": 240514,
       "first_name": "Kjell",
       "id": 564,
       "now_cost": 45,
       "position": 1,
       "second_name": "Scherpen",
       "team": 12,
-      "web_name": "Scherpen",
-      "code": 240514
+      "web_name": "Scherpen"
     },
     {
+      "code": 513545,
       "first_name": "Mamadou",
       "id": 565,
       "now_cost": 55,
       "position": 3,
-      "second_name": "Sangaré",
+      "second_name": "Sangar\u00e9",
       "team": 4,
-      "web_name": "M.Sangaré",
-      "code": 513545
+      "web_name": "M.Sangar\u00e9"
     },
     {
-      "first_name": "António João",
+      "code": 483067,
+      "first_name": "Ant\u00f3nio Jo\u00e3o",
       "id": 566,
       "now_cost": 50,
       "position": 2,
       "second_name": "Pereira de Albuquerque Tavares da Silva",
       "team": 3,
-      "web_name": "Silva",
-      "code": 483067
+      "web_name": "Silva"
     },
     {
-      "first_name": "Lukás",
+      "code": 470551,
+      "first_name": "Luk\u00e1s",
       "id": 567,
       "now_cost": 50,
       "position": 1,
-      "second_name": "Hornícek",
+      "second_name": "Horn\u00edcek",
       "team": 17,
-      "web_name": "Horníček",
-      "code": 470551
+      "web_name": "Horn\u00ed\u010dek"
     },
     {
-      "first_name": "Valentín",
+      "code": 543158,
+      "first_name": "Valent\u00edn",
       "id": 568,
       "now_cost": 55,
       "position": 3,
       "second_name": "Barco",
       "team": 6,
-      "web_name": "Barco",
-      "code": 543158
+      "web_name": "Barco"
     },
     {
+      "code": 551466,
       "first_name": "Gonzalo",
       "id": 569,
       "now_cost": 60,
       "position": 4,
-      "second_name": "García",
+      "second_name": "Garc\u00eda",
       "team": 10,
-      "web_name": "Gonzalo",
-      "code": 551466
+      "web_name": "Gonzalo"
     },
     {
-      "first_name": "César",
+      "code": 571779,
+      "first_name": "C\u00e9sar",
       "id": 570,
       "now_cost": 55,
       "position": 3,
       "second_name": "Palacios",
       "team": 10,
-      "web_name": "Palacios",
-      "code": 571779
+      "web_name": "Palacios"
     },
     {
+      "code": 216055,
       "first_name": "Florentino Ibrain",
       "id": 571,
       "now_cost": 50,
       "position": 3,
-      "second_name": "Morris Luís",
+      "second_name": "Morris Lu\u00eds",
       "team": 12,
-      "web_name": "Florentino",
-      "code": 216055
+      "web_name": "Florentino"
     },
     {
+      "code": 473284,
       "first_name": "Konstantinos",
       "id": 572,
       "now_cost": 45,
       "position": 1,
       "second_name": "Tzolakis",
       "team": 11,
-      "web_name": "Tzolakis",
-      "code": 473284
+      "web_name": "Tzolakis"
     },
     {
+      "code": 494928,
       "first_name": "Juanlu",
       "id": 573,
       "now_cost": 45,
       "position": 2,
-      "second_name": "Sánchez",
+      "second_name": "S\u00e1nchez",
       "team": 3,
-      "web_name": "Sanchez",
-      "code": 494928
+      "web_name": "Sanchez"
     },
     {
+      "code": 552946,
       "first_name": "Jens",
       "id": 574,
       "now_cost": 50,
       "position": 3,
-      "second_name": "Hjertø-Dahl",
+      "second_name": "Hjert\u00f8-Dahl",
       "team": 11,
-      "web_name": "Hjertø-Dahl",
-      "code": 552946
+      "web_name": "Hjert\u00f8-Dahl"
     },
     {
+      "code": 661888,
       "first_name": "Caleb",
       "id": 575,
       "now_cost": 50,
       "position": 3,
       "second_name": "Yirenkyi",
       "team": 7,
-      "web_name": "Yirenkyi",
-      "code": 661888
+      "web_name": "Yirenkyi"
     },
     {
+      "code": 608227,
       "first_name": "Elliot",
       "id": 576,
       "now_cost": 50,
       "position": 3,
       "second_name": "Stroud",
       "team": 11,
-      "web_name": "Stroud",
-      "code": 608227
+      "web_name": "Stroud"
     },
     {
+      "code": 223723,
       "first_name": "Takehiro",
       "id": 577,
       "now_cost": 45,
       "position": 2,
       "second_name": "Tomiyasu",
       "team": 8,
-      "web_name": "Tomiyasu",
-      "code": 223723
+      "web_name": "Tomiyasu"
     },
     {
+      "code": 465920,
       "first_name": "Mykhailo",
       "id": 578,
       "now_cost": 55,
       "position": 3,
       "second_name": "Mudryk",
       "team": 6,
-      "web_name": "Mudryk",
-      "code": 465920
+      "web_name": "Mudryk"
     },
     {
+      "code": 445087,
       "first_name": "Ronald",
       "id": 579,
       "now_cost": 55,
       "position": 2,
       "second_name": "Araujo",
       "team": 14,
-      "web_name": "Araujo",
-      "code": 445087
+      "web_name": "Araujo"
     },
     {
+      "code": 463210,
       "first_name": "Shea",
       "id": 580,
       "now_cost": 50,
       "position": 3,
       "second_name": "Charles",
       "team": 10,
-      "web_name": "Charles",
-      "code": 463210
+      "web_name": "Charles"
     },
     {
+      "code": 568420,
       "first_name": "Ousmane",
       "id": 581,
       "now_cost": 55,
       "position": 2,
       "second_name": "Diomande",
       "team": 18,
-      "web_name": "Diomande",
-      "code": 568420
+      "web_name": "Diomande"
     },
     {
+      "code": 690838,
       "first_name": "Brian",
       "id": 582,
       "now_cost": 55,
       "position": 4,
       "second_name": "Madjo",
       "team": 2,
-      "web_name": "Madjo",
-      "code": 690838
+      "web_name": "Madjo"
     },
     {
+      "code": 498444,
       "first_name": "Pep",
       "id": 583,
       "now_cost": 50,
       "position": 2,
-      "second_name": "Chavarría",
+      "second_name": "Chavarr\u00eda",
       "team": 6,
-      "web_name": "Chavarria",
-      "code": 498444
+      "web_name": "Chavarria"
     },
     {
+      "code": 196100,
       "first_name": "Gustavo",
       "id": 584,
       "now_cost": 55,
       "position": 3,
       "second_name": "Hamer",
       "team": 7,
-      "web_name": "Hamer",
-      "code": 196100
+      "web_name": "Hamer"
     },
     {
+      "code": 597462,
       "first_name": "Lucas",
       "id": 585,
       "now_cost": 40,
       "position": 2,
       "second_name": "Herrington",
       "team": 11,
-      "web_name": "Herrington",
-      "code": 597462
+      "web_name": "Herrington"
     },
     {
+      "code": 606930,
       "first_name": "Nobel",
       "id": 586,
       "now_cost": 40,
       "position": 2,
       "second_name": "Mendy",
       "team": 11,
-      "web_name": "Mendy",
-      "code": 606930
+      "web_name": "Mendy"
     },
     {
-      "first_name": "Gerónimo",
+      "code": 106921,
+      "first_name": "Ger\u00f3nimo",
       "id": 587,
       "now_cost": 50,
       "position": 1,
       "second_name": "Rulli",
       "team": 15,
-      "web_name": "Rulli",
-      "code": 106921
+      "web_name": "Rulli"
     },
     {
+      "code": 570794,
       "first_name": "Anan",
       "id": 588,
       "now_cost": 50,
       "position": 2,
       "second_name": "Khalaili",
       "team": 8,
-      "web_name": "Khalaili",
-      "code": 570794
+      "web_name": "Khalaili"
     },
     {
+      "code": 469266,
       "first_name": "Lucas",
       "id": 589,
       "now_cost": 50,
       "position": 3,
       "second_name": "Gourna-Douath",
       "team": 11,
-      "web_name": "Gourna-Douath",
-      "code": 469266
+      "web_name": "Gourna-Douath"
     },
     {
+      "code": 428971,
       "first_name": "Steven",
       "id": 590,
       "now_cost": 45,
       "position": 1,
       "second_name": "Benda",
       "team": 18,
-      "web_name": "Benda",
-      "code": 428971
+      "web_name": "Benda"
     },
     {
+      "code": 474120,
       "first_name": "Julio",
       "id": 591,
       "now_cost": 55,
       "position": 3,
       "second_name": "Enciso",
       "team": 12,
-      "web_name": "Enciso",
-      "code": 474120
+      "web_name": "Enciso"
     },
     {
+      "code": 572584,
       "first_name": "Abdoul",
       "id": 592,
       "now_cost": 40,
       "position": 2,
       "second_name": "Ouattara",
       "team": 12,
-      "web_name": "Ouattara",
-      "code": 572584
+      "web_name": "Ouattara"
     },
     {
+      "code": 463726,
       "first_name": "Amar",
       "id": 593,
       "now_cost": 45,
       "position": 2,
       "second_name": "Dedic",
       "team": 17,
-      "web_name": "Dedić",
-      "code": 463726
+      "web_name": "Dedi\u0107"
     },
     {
+      "code": 538007,
       "first_name": "Promise",
       "id": 594,
       "now_cost": 60,
       "position": 4,
       "second_name": "David",
       "team": 5,
-      "web_name": "David",
-      "code": 538007
+      "web_name": "David"
     },
     {
+      "code": 559152,
       "first_name": "Zavier",
       "id": 595,
       "now_cost": 50,
       "position": 3,
       "second_name": "Gozo",
       "team": 8,
-      "web_name": "Gozo",
-      "code": 559152
+      "web_name": "Gozo"
     },
     {
+      "code": 487992,
       "first_name": "Matteo",
       "id": 596,
       "now_cost": 45,
       "position": 2,
       "second_name": "Ruggeri",
       "team": 2,
-      "web_name": "Ruggeri",
-      "code": 487992
+      "web_name": "Ruggeri"
     },
     {
+      "code": 433969,
       "first_name": "Zion",
       "id": 597,
       "now_cost": 50,
       "position": 1,
       "second_name": "Suzuki",
       "team": 2,
-      "web_name": "Suzuki",
-      "code": 433969
+      "web_name": "Suzuki"
     },
     {
+      "code": 173774,
       "first_name": "Nico",
       "id": 598,
       "now_cost": 45,
       "position": 2,
       "second_name": "Elvedi",
       "team": 13,
-      "web_name": "Elvedi",
-      "code": 173774
+      "web_name": "Elvedi"
     },
     {
+      "code": 627221,
       "first_name": "Sidiki",
       "id": 599,
       "now_cost": 50,
       "position": 4,
       "second_name": "Cherif",
       "team": 7,
-      "web_name": "Cherif",
-      "code": 627221
+      "web_name": "Cherif"
+    },
+    {
+      "code": 612855,
+      "first_name": "Ibrahim",
+      "id": 600,
+      "now_cost": 50,
+      "position": 3,
+      "second_name": "Osman",
+      "team": 5,
+      "web_name": "Osman"
     }
   ],
   "teams": [
