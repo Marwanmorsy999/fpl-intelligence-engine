@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
 
 DEVELOPMENT_SEASONS = ["2022-23", "2023-24", "2024-25"]
 FINAL_HOLDOUT_SEASONS = ["2025-26"]
@@ -95,7 +94,14 @@ def get_default_split():
     return DEFAULT_SEASON_SPLIT
 
 
-def enforce_holdout(season=None, seasons=None, target_date=None, cutoff_date=None, mode=HoldoutMode.DEVELOPMENT, split=None):
+def enforce_holdout(
+    season=None,
+    seasons=None,
+    target_date=None,
+    cutoff_date=None,
+    mode=HoldoutMode.DEVELOPMENT,
+    split=None,
+):
     if mode not in HoldoutMode.all():
         raise ValueError(f"Invalid mode '{mode}'. Must be one of {HoldoutMode.all()}")
 
@@ -110,23 +116,29 @@ def enforce_holdout(season=None, seasons=None, target_date=None, cutoff_date=Non
         split.allowed_for_training(s, mode=mode)
         if split.is_holdout(s) and target_date is not None:
             holdout_cutoff = HOLDOUT_SEASON_CUTOFF.get(s)
-            if holdout_cutoff and target_date >= holdout_cutoff:
-                if mode != HoldoutMode.FINAL_HOLDOUT_EVALUATION:
-                    raise HoldoutViolationError(
-                        f"Target date {target_date.isoformat()} in season '{s}' "
-                        f"is on or after holdout cutoff. Mode '{mode}' not allowed."
-                    )
+            if (
+                holdout_cutoff
+                and target_date >= holdout_cutoff
+                and mode != HoldoutMode.FINAL_HOLDOUT_EVALUATION
+            ):
+                raise HoldoutViolationError(
+                    f"Target date {target_date.isoformat()} in season '{s}' "
+                    f"is on or after holdout cutoff. Mode '{mode}' not allowed."
+                )
 
     if cutoff_date is not None and target_date is not None:
         for s in all_seasons:
             if split.is_holdout(s):
                 holdout_cutoff = HOLDOUT_SEASON_CUTOFF.get(s)
-                if holdout_cutoff and target_date >= holdout_cutoff:
-                    if mode != HoldoutMode.FINAL_HOLDOUT_EVALUATION:
-                        raise HoldoutViolationError(
-                            f"Target date {target_date.isoformat()} is on or after "
-                            f"holdout cutoff for season '{s}'. Mode '{mode}' not allowed."
-                        )
+                if (
+                    holdout_cutoff
+                    and target_date >= holdout_cutoff
+                    and mode != HoldoutMode.FINAL_HOLDOUT_EVALUATION
+                ):
+                    raise HoldoutViolationError(
+                        f"Target date {target_date.isoformat()} is on or after "
+                        f"holdout cutoff for season '{s}'. Mode '{mode}' not allowed."
+                    )
 
     return {
         "season": season,

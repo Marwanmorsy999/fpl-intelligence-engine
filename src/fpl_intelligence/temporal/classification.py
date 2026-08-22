@@ -49,7 +49,9 @@ class TemporalProfile:
         return [p for p in self.profiles if p.temporal_class == DatasetClass.STRICT_BACKTEST_SAFE]
 
     def outcome_only(self) -> list[DatasetTemporalProfile]:
-        return [p for p in self.profiles if p.temporal_class == DatasetClass.HISTORICAL_OUTCOME_ONLY]
+        return [
+            p for p in self.profiles if p.temporal_class == DatasetClass.HISTORICAL_OUTCOME_ONLY
+        ]
 
     def to_dict(self) -> dict[str, Any]:
         return {

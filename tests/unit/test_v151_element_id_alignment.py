@@ -23,6 +23,7 @@ Fully offline: the official FPL entry/bootstrap APIs are mocked behind an
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Generator
 
 import httpx
 import pytest
@@ -45,8 +46,8 @@ from fpl_intelligence.db.models import (
     TeamExternalId,
 )
 from fpl_intelligence.prediction.live_provider import LivePredictionProvider
-from fpl_intelligence.squad.fpl_import import FplImportResult, FplSquadImporter
 from fpl_intelligence.squad.demo import build_demo_squad
+from fpl_intelligence.squad.fpl_import import FplImportResult, FplSquadImporter
 
 ENTRY_ID = 794561
 HAALAND_ELEMENT = 445
@@ -122,9 +123,21 @@ def _bootstrap_payload() -> dict:
 
 
 _PICK_ORDER = [
-    701, 702, 703, 704, 705, 706, 707,
-    SAKA_ELEMENT, 708, 709, 710, 711,
-    HAALAND_ELEMENT, 712, 713,
+    701,
+    702,
+    703,
+    704,
+    705,
+    706,
+    707,
+    SAKA_ELEMENT,
+    708,
+    709,
+    710,
+    711,
+    HAALAND_ELEMENT,
+    712,
+    713,
 ]
 
 
@@ -164,9 +177,7 @@ def _build_collision_db_into(factory: sessionmaker) -> None:
     """Populate ``factory``'s database with the id-445 collision dataset."""
     db = factory()
     try:
-        season = Season(
-            code="2026-27", display_name="2026/27", competition="Premier League"
-        )
+        season = Season(code="2026-27", display_name="2026/27", competition="Premier League")
         db.add(season)
         db.flush()
         mc = Team(name="Manchester United", short_name="MUN")
@@ -176,9 +187,7 @@ def _build_collision_db_into(factory: sessionmaker) -> None:
         db.flush()
         for team, ext_id in ((mc, "1"), (ci, "15"), (ar, "2")):
             db.add(
-                TeamExternalId(
-                    team_id=team.id, provider="official_fpl", provider_team_id=ext_id
-                )
+                TeamExternalId(team_id=team.id, provider="official_fpl", provider_team_id=ext_id)
             )
         gw = Gameweek(season_id=season.id, provider_event_id=3, name="Gameweek 3")
         db.add(gw)
@@ -226,11 +235,7 @@ def _build_collision_db_into(factory: sessionmaker) -> None:
             (haaland, ci, HAALAND_ELEMENT),
             (saka, ar, SAKA_ELEMENT),
         ):
-            db.add(
-                PlayerTeamMembership(
-                    player_id=player.id, team_id=team.id, season_id=season.id
-                )
-            )
+            db.add(PlayerTeamMembership(player_id=player.id, team_id=team.id, season_id=season.id))
             if el is not None:
                 db.add(
                     PlayerExternalId(
@@ -302,8 +307,8 @@ def alignment_client(collision_db: Session):
 
     app.dependency_overrides[deps._get_db_session] = _override_db
     app.dependency_overrides[deps.get_llm_provider] = lambda: None
-    app.dependency_overrides[deps.get_prediction_provider] = (
-        lambda: LivePredictionProvider(session=collision_db)
+    app.dependency_overrides[deps.get_prediction_provider] = lambda: LivePredictionProvider(
+        session=collision_db
     )
     try:
         with TestClient(app) as client:
@@ -346,9 +351,7 @@ class TestFplElementIdColumn:
         assert again.id == player.id
         assert again.fpl_element_id == 445
 
-    def test_non_numeric_provider_id_leaves_element_null(
-        self, db_session: Session
-    ) -> None:
+    def test_non_numeric_provider_id_leaves_element_null(self, db_session: Session) -> None:
         from fpl_intelligence.ingestion.fpl import _get_or_create_player
 
         player = _get_or_create_player(
@@ -372,7 +375,6 @@ class TestImportResolvesByElementId:
         self, collision_db: Session
     ) -> None:
         """THE regression: element 445 must never surface McConnell."""
-        from fpl_intelligence.squad.fpl_import import FplSquadImporter
 
         async def _run() -> FplImportResult:
             transport = httpx.MockTransport(_fpl_handler)
@@ -392,14 +394,12 @@ class TestImportResolvesByElementId:
         # Prices come from bootstrap metadata keyed by ELEMENT id.
         assert result.squad.player_prices[HAALAND_ELEMENT] == 15.5
 
-    def test_decisions_join_by_fpl_element_id(
-        self, alignment_client, monkeypatch
-    ) -> None:
+    def test_decisions_join_by_fpl_element_id(self, alignment_client, monkeypatch) -> None:
         """End-to-end: import -> decisions shows Haaland, never McConnell."""
         from fpl_intelligence.prediction import live_provider as live_provider_mod
         from fpl_intelligence.squad import fpl_import as fpl_import_mod
 
-        async def fake_get_json(self, client, path: str) -> dict:
+        async def fake_fetch_json(self, path: str, *, validator=None) -> dict:
             if "/picks/" in path:
                 return _picks_payload()
             if path.startswith("/api/entry/"):
@@ -411,9 +411,7 @@ class TestImportResolvesByElementId:
                 }
             return _bootstrap_payload()
 
-        monkeypatch.setattr(
-            fpl_import_mod.FplSquadImporter, "_get_json", fake_get_json
-        )
+        monkeypatch.setattr(fpl_import_mod.FplSquadImporter, "_fetch_json", fake_fetch_json)
         # Deterministic premium-price catalog: Haaland tops the price ladder.
         monkeypatch.setattr(
             live_provider_mod,
@@ -430,7 +428,7 @@ class TestImportResolvesByElementId:
         imported = resp.json()
         assert imported["player_names"][str(HAALAND_ELEMENT)] == "Haaland"
 
-        report = client.get("/api/v1/decisions").json()
+        report = client.get("/api/v1/decisions", params={"session_id": str(ENTRY_ID)}).json()
         players = report["players"]
         haaland = players[str(HAALAND_ELEMENT)]
         assert haaland["web_name"] == "Haaland"
@@ -441,16 +439,10 @@ class TestImportResolvesByElementId:
         assert haaland["price"] is not None and haaland["price"] >= 14.0
         if haaland.get("expected_points") is not None:
             assert haaland["expected_points"] >= 3.0
-            assert (
-                haaland["expected_points"]
-                >= players[str(SAKA_ELEMENT)]["expected_points"]
-            )
+            assert haaland["expected_points"] >= players[str(SAKA_ELEMENT)]["expected_points"]
 
-    def test_legacy_external_id_fallback_when_column_missing(
-        self, collision_db: Session
-    ) -> None:
+    def test_legacy_external_id_fallback_when_column_missing(self, collision_db: Session) -> None:
         """Pre-0016 databases (no fpl_element_id) still resolve via external ids."""
-        from fpl_intelligence.squad.fpl_import import FplSquadImporter
 
         haaland = collision_db.scalar(
             select(Player).where(Player.fpl_element_id == HAALAND_ELEMENT)
@@ -475,9 +467,9 @@ class TestImportResolvesByElementId:
 # ---------------------------------------------------------------------------
 
 
-class TestDemoPathUnchanged:
-    def test_demo_squad_uses_internal_ids(self, db_session: Session) -> None:
-        """Demo squads keep internal DB ids and still render correct names."""
+class TestDemoPathSingleIdSpace:
+    def test_demo_squad_uses_internal_ids_when_no_element_ids(self, db_session: Session) -> None:
+        """Legacy rows (no fpl_element_id): demo falls back to internal ids."""
         # Seed enough players for the demo formation (2 GK, 5 DEF, 5 MID, 3 FWD).
         codes = [1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4]
         for i, code in enumerate(codes, start=1):
@@ -501,6 +493,34 @@ class TestDemoPathUnchanged:
         for pid in squad.player_ids:
             row = db_session.get(Player, pid)
             assert row is not None
+
+    def test_demo_squad_prefers_fpl_element_ids(self, db_session: Session) -> None:
+        """Phase 18.0 R1: demo squads live in the same id space as imports."""
+        codes = [1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4]
+        for i, code in enumerate(codes, start=100):
+            db_session.add(
+                Player(
+                    first_name=f"P{i}",
+                    second_name=f"L{i}",
+                    web_name=f"El{i}",
+                    position_code=code,
+                    fpl_element_id=i,
+                )
+            )
+        db_session.commit()
+
+        squad = build_demo_squad(db_session)
+        assert squad.is_demo is True
+        # Every stored id is an official FPL element id.
+        for pid in squad.player_ids:
+            row = db_session.scalar(select(Player).where(Player.fpl_element_id == pid))
+            assert row is not None, f"{pid} must be an fpl_element_id"
+        # Captain/vice are stored in the same id space.
+        captain = db_session.scalar(select(Player).where(Player.fpl_element_id == squad.captain_id))
+        vice = db_session.scalar(
+            select(Player).where(Player.fpl_element_id == squad.vice_captain_id)
+        )
+        assert captain is not None and vice is not None
 
 
 # ---------------------------------------------------------------------------
@@ -554,16 +574,15 @@ class TestProxyXptsFollowsElementId:
         from fpl_intelligence.prediction import live_provider as live_provider_mod
         from fpl_intelligence.prediction.live_provider import LivePredictionProvider
 
+        _original_loader = live_provider_mod.load_player_catalog
         live_provider_mod.load_player_catalog = (  # type: ignore[assignment]
             lambda path=None: _synthetic_catalog()
         )
         try:
             provider = LivePredictionProvider(session=collision_db)
-            preds = provider.get_squad_predictions(
-                [HAALAND_ELEMENT, SAKA_ELEMENT], [3]
-            )
+            preds = provider.get_squad_predictions([HAALAND_ELEMENT, SAKA_ELEMENT], [3])
         finally:
-            del live_provider_mod.load_player_catalog  # restore real loader
+            live_provider_mod.load_player_catalog = _original_loader
 
         haaland_pred = preds[3].get(HAALAND_ELEMENT)
         saka_pred = preds[3].get(SAKA_ELEMENT)
@@ -592,10 +611,7 @@ class TestSeedElementAlignment:
         from pathlib import Path
 
         seed_path = (
-            Path(__file__).resolve().parents[2]
-            / "data"
-            / "seed"
-            / "fpl_bootstrap_seed.json"
+            Path(__file__).resolve().parents[2] / "data" / "seed" / "fpl_bootstrap_seed.json"
         )
         if not seed_path.exists():
             pytest.skip("seed file not present")

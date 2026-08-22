@@ -22,6 +22,7 @@ Stringent honesty rules:
 - Mock events (provider.environment == 'mock') are persisted but flagged so the
   coverage audit can exclude them from real coverage.
 """
+
 from __future__ import annotations
 
 import logging
@@ -54,7 +55,6 @@ from fpl_intelligence.availability.models import (
     AvailabilityEvent,
     AvailabilityEvidence,
     AvailabilitySource,
-    EvidenceType,
     SourceReliability,
     TemporalClass,
 )
@@ -260,7 +260,6 @@ def import_historical_availability(
     """
     result = HistoricalImportResult(provider=provider.provider_name, seasons=seasons)
     resolver = HistoricalEntityResolver(db, provider.provider_name)
-    is_real = getattr(provider, "environment", "real") != "mock"
 
     for season_code in seasons:
         season = db.scalar(select(Season).where(Season.code == season_code))
@@ -282,7 +281,12 @@ def import_historical_availability(
             except Exception as exc:  # noqa: BLE001
                 result.audit.normalization_failed += 1
                 result.audit.note("normalization_failed", type(exc).__name__)
-                logger.error("normalize failed for %s/%s: %s", provider.provider_name, raw.get("provider_event_id"), exc)
+                logger.error(
+                    "normalize failed for %s/%s: %s",
+                    provider.provider_name,
+                    raw.get("provider_event_id"),
+                    exc,
+                )
                 continue
             result.audit.normalized += 1
             # Reconstruct timestamps from the normalized dict.
@@ -368,7 +372,8 @@ def import_historical_availability(
                         result.audit.skipped_temporal_invalid += 1
                         result.audit.note(
                             "skipped_temporal_invalid",
-                            f"info_time {info_time.isoformat()} outside season window {window[0]}..{window[1]}",
+                            f"info_time {info_time.isoformat()} outside season window "
+                            f"{window[0]}..{window[1]}",
                         )
                         result.events_skipped += 1
                         continue
@@ -381,7 +386,10 @@ def import_historical_availability(
             source = _get_or_create_source(
                 db, norm.get("source_name") or _FPL_SOURCE, norm.get("reliability", "unverified")
             )
-            article_url = norm.get("provider_event_id") or f"{provider.provider_name}:{season_code}:{provider_player_id}"
+            article_url = (
+                norm.get("provider_event_id")
+                or f"{provider.provider_name}:{season_code}:{provider_player_id}"
+            )
             article = db.scalar(
                 select(AvailabilityArticle).where(AvailabilityArticle.url == article_url)
             )
@@ -414,14 +422,14 @@ def import_historical_availability(
 
             # Persist the availability evidence row (Layer B provenance).
             confidence = float(norm.get("confidence", 0.5))
-            evidence_url = f"{article_url}:{evidence_type}"
             evidence = db.scalar(
                 select(AvailabilityEvidence).where(
                     AvailabilityEvidence.article_id == article.id,
                     AvailabilityEvidence.player_id == player_id,
                     AvailabilityEvidence.season_id == sid,
                     AvailabilityEvidence.evidence_type == evidence_type,
-                    AvailabilityEvidence.valid_from == (
+                    AvailabilityEvidence.valid_from
+                    == (
                         timestamps.published_at or timestamps.available_at or timestamps.event_time
                     ),
                 )
@@ -437,7 +445,9 @@ def import_historical_availability(
                     confidence=confidence,
                     description=norm.get("description"),
                     extracted_at=timestamps.ingested_at or datetime.now(UTC),
-                    valid_from=timestamps.published_at or timestamps.available_at or timestamps.event_time,
+                    valid_from=timestamps.published_at
+                    or timestamps.available_at
+                    or timestamps.event_time,
                     is_active=True,
                 )
                 db.add(evidence)
@@ -450,7 +460,10 @@ def import_historical_availability(
                 confidence=confidence,
                 evidence_count=1,
                 primary_source_id=source.id,
-                valid_from=timestamps.published_at or timestamps.available_at or timestamps.event_time or datetime.now(UTC),
+                valid_from=timestamps.published_at
+                or timestamps.available_at
+                or timestamps.event_time
+                or datetime.now(UTC),
                 valid_to=None,
                 is_current=True,
                 temporal_class=temporal_class,
@@ -464,7 +477,12 @@ def import_historical_availability(
                 db.rollback()
                 result.audit.failed_persist += 1
                 result.audit.note("failed_persist", type(exc).__name__)
-                logger.error("persist failed for %s/%s: %s", provider.provider_name, norm.get("provider_event_id"), exc)
+                logger.error(
+                    "persist failed for %s/%s: %s",
+                    provider.provider_name,
+                    norm.get("provider_event_id"),
+                    exc,
+                )
                 continue
             result.audit.persisted += 1
             result.events_imported += 1

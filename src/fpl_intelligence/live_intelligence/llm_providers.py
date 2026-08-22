@@ -28,6 +28,7 @@ with the ones above. The HTTP shapes here are small and stable, and an injected
 :class:`httpx.MockTransport` — which is how these classes are covered without
 a single byte crossing the network in CI.
 """
+
 from __future__ import annotations
 
 import abc
@@ -358,15 +359,11 @@ class RealLLMProvider(LLMProvider, abc.ABC):
         for attempt in range(self._max_retries + 1):
             self._consume_request_slot()
             try:
-                response = self._client.post(
-                    url, headers=headers, json=body, timeout=self._timeout
-                )
+                response = self._client.post(url, headers=headers, json=body, timeout=self._timeout)
             except httpx.HTTPError as exc:
                 last_error = f"transport error: {exc}"
                 if attempt >= self._max_retries:
-                    raise LLMProviderError(
-                        f"{self.provider_name}: {last_error}"
-                    ) from exc
+                    raise LLMProviderError(f"{self.provider_name}: {last_error}") from exc
                 self._backoff(attempt, None)
                 continue
 
@@ -394,8 +391,7 @@ class RealLLMProvider(LLMProvider, abc.ABC):
             if response.status_code >= 400:
                 if response.status_code == 404:
                     raise LLMModelNotAvailableError(
-                        f"{self.provider_name} returned HTTP 404: "
-                        f"{_snippet(response.text)}"
+                        f"{self.provider_name} returned HTTP 404: {_snippet(response.text)}"
                     )
                 raise LLMProviderError(
                     f"{self.provider_name} returned HTTP {response.status_code}: "
@@ -406,8 +402,7 @@ class RealLLMProvider(LLMProvider, abc.ABC):
                 payload = response.json()
             except (json.JSONDecodeError, ValueError) as exc:
                 raise LLMResponseError(
-                    f"{self.provider_name} returned a non-JSON body: "
-                    f"{_snippet(response.text)}"
+                    f"{self.provider_name} returned a non-JSON body: {_snippet(response.text)}"
                 ) from exc
 
             if not isinstance(payload, dict):

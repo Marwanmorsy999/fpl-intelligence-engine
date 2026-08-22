@@ -23,6 +23,7 @@ stack, makes **no** live API calls inside ``pytest`` (all HTTP is mocked with
 ``httpx.MockTransport`` / injected SMTP seams), hardcodes no API keys, and
 performs no aggressive scraping.
 """
+
 from __future__ import annotations
 
 from fpl_intelligence.live_intelligence.scheduling.alerts import (

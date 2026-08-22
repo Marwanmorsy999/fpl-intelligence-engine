@@ -1,4 +1,5 @@
 """Phase 5 complete tests."""
+
 from __future__ import annotations
 
 import os
@@ -1331,12 +1332,18 @@ class TestSimulationReproducibility:
         js1 = JointSimulator(default_simulations=100, default_seed=42)
         js2 = JointSimulator(default_simulations=100, default_seed=42)
         r1 = js1.simulate_joint(
-            1, datetime(2025, 1, 1, tzinfo=UTC),
-            prediction=prediction, simulations=100, seed=42,
+            1,
+            datetime(2025, 1, 1, tzinfo=UTC),
+            prediction=prediction,
+            simulations=100,
+            seed=42,
         )
         r2 = js2.simulate_joint(
-            1, datetime(2025, 1, 1, tzinfo=UTC),
-            prediction=prediction, simulations=100, seed=42,
+            1,
+            datetime(2025, 1, 1, tzinfo=UTC),
+            prediction=prediction,
+            simulations=100,
+            seed=42,
         )
         assert np.array_equal(r1.home_goals, r2.home_goals)
 

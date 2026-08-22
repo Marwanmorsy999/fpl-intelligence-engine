@@ -11,6 +11,7 @@ Covers:
 * duplicate content still skipped
 * raw item persisted even when evidence unresolved
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -102,12 +103,14 @@ def _seed_players(db_session: Session):
     db_session.add_all([salah, saka, smith_a, smith_b])
     db_session.flush()
 
-    db_session.add_all([
-        PlayerTeamMembership(player_id=salah.id, team_id=liverpool.id, season_id=season.id),
-        PlayerTeamMembership(player_id=saka.id, team_id=arsenal.id, season_id=season.id),
-        PlayerTeamMembership(player_id=smith_a.id, team_id=liverpool.id, season_id=season.id),
-        PlayerTeamMembership(player_id=smith_b.id, team_id=arsenal.id, season_id=season.id),
-    ])
+    db_session.add_all(
+        [
+            PlayerTeamMembership(player_id=salah.id, team_id=liverpool.id, season_id=season.id),
+            PlayerTeamMembership(player_id=saka.id, team_id=arsenal.id, season_id=season.id),
+            PlayerTeamMembership(player_id=smith_a.id, team_id=liverpool.id, season_id=season.id),
+            PlayerTeamMembership(player_id=smith_b.id, team_id=arsenal.id, season_id=season.id),
+        ]
+    )
     db_session.flush()
     return {
         "season": season,
@@ -159,11 +162,15 @@ class TestEntityResolver:
     def test_resolve_by_external_id_multiple_namespaces(self, db_session: Session):
         s = _seed_players(db_session)
         seed_fpl_external_id(
-            db_session, provider="real_fpl", provider_player_id="100",
+            db_session,
+            provider="real_fpl",
+            provider_player_id="100",
             canonical_player_id=s["salah"].id,
         )
         seed_fpl_external_id(
-            db_session, provider="real_fpl_bootstrap", provider_player_id="200",
+            db_session,
+            provider="real_fpl_bootstrap",
+            provider_player_id="200",
             canonical_player_id=s["saka"].id,
         )
         db_session.flush()
@@ -181,7 +188,9 @@ class TestEntityResolver:
         """A real_fpl_bootstrap id must resolve even though seeded under real_fpl."""
         s = _seed_players(db_session)
         seed_fpl_external_id(
-            db_session, provider="real_fpl", provider_player_id="555",
+            db_session,
+            provider="real_fpl",
+            provider_player_id="555",
             canonical_player_id=s["salah"].id,
         )
         db_session.flush()
@@ -336,8 +345,11 @@ class TestUnresolvedPersistence:
         resolve = build_entity_resolver(db_session)
         result = _availability_result(raw_item_id, "Nobody", None)
         report = persist_extraction(
-            db_session, result, season_id=s["season"].id,
-            resolve_player=resolve, resolve_team=resolve,
+            db_session,
+            result,
+            season_id=s["season"].id,
+            resolve_player=resolve,
+            resolve_team=resolve,
         )
         db_session.flush()
 
@@ -381,8 +393,11 @@ class TestUnresolvedPersistence:
         resolve = build_entity_resolver(db_session)
         result = _availability_result(raw_item_id, "Smith", None)
         report = persist_extraction(
-            db_session, result, season_id=s["season"].id,
-            resolve_player=resolve, resolve_team=resolve,
+            db_session,
+            result,
+            season_id=s["season"].id,
+            resolve_player=resolve,
+            resolve_team=resolve,
         )
         db_session.flush()
         assert report.ambiguous_count == 1
@@ -398,8 +413,11 @@ class TestUnresolvedPersistence:
         resolve = build_entity_resolver(db_session)
         result = _availability_result(raw_item_id, "Salah", "Liverpool")
         report = persist_extraction(
-            db_session, result, season_id=s["season"].id,
-            resolve_player=resolve, resolve_team=resolve,
+            db_session,
+            result,
+            season_id=s["season"].id,
+            resolve_player=resolve,
+            resolve_team=resolve,
         )
         db_session.flush()
         assert report.availability_persisted == 1

@@ -5,6 +5,7 @@ corroborated :class:`AvailabilityEvent` records. Also implements
 :class:`NewsSource` and :class:`NewsProvider` as DB-stored concrete
 providers so the pipeline can operate on persisted data.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -75,9 +76,7 @@ class DBAvailabilityProvider(AvailabilityProvider):
                 )
         return results
 
-    def is_training_limited(
-        self, player_id: int, cutoff: datetime
-    ) -> tuple[bool, float | None]:
+    def is_training_limited(self, player_id: int, cutoff: datetime) -> tuple[bool, float | None]:
         report = self.db.scalar(
             select(TrainingReport)
             .where(

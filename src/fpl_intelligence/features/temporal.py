@@ -52,6 +52,7 @@ class InformationAccessPolicy(StrEnum):
         policy, ensuring that the backtest only uses information that was
         both publicly available and actually in our system.
     """
+
     PUBLIC_AVAILABILITY = "public_availability"
     SYSTEM_AVAILABILITY = "system_availability"
     STRICT_REPRODUCIBILITY = "strict_reproducibility"
@@ -135,9 +136,7 @@ def apply_policy(
         if hasattr(model, "ingested_at"):
             col = model.ingested_at
             return col <= cutoff_time
-        raise ValueError(
-            f"Model {model.__name__} has no ingested_at column"
-        )
+        raise ValueError(f"Model {model.__name__} has no ingested_at column")
 
     if policy == InformationAccessPolicy.STRICT_REPRODUCIBILITY:
         conditions = []
@@ -155,9 +154,7 @@ def apply_policy(
         if hasattr(model, "ingested_at"):
             conditions.append(model.ingested_at <= cutoff_time)
         else:
-            raise ValueError(
-                f"Model {model.__name__} has no ingested_at column"
-            )
+            raise ValueError(f"Model {model.__name__} has no ingested_at column")
 
         return and_(*conditions)
 

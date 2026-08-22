@@ -9,18 +9,15 @@ fields.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
-from pathlib import Path
 from typing import Any
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from fpl_intelligence.db.models import (
     Fixture,
     FPLSnapshot,
     Gameweek,
-    Player,
     PlayerExternalId,
     PlayerGameweekPerformance,
     PlayerTeamMembership,
@@ -52,6 +49,8 @@ class SeasonDataQuality:
 
     def to_dict(self) -> dict[str, Any]:
         return {**self.__dict__}
+
+
 def audit_season_quality(db: Session, season_code: str) -> SeasonDataQuality:
     """Generate a data-quality report for a single imported real season."""
     season = db.scalar(select(Season).where(Season.code == season_code))
@@ -61,59 +60,109 @@ def audit_season_quality(db: Session, season_code: str) -> SeasonDataQuality:
         return rep
     sid = season.id
 
-    rep.teams = db.scalar(
-        select(func.count())
-        .select_from(Team)
-        .join(Fixture, (Fixture.home_team_id == Team.id) | (Fixture.away_team_id == Team.id))
-        .where(Fixture.season_id == sid)
-    ) or 0
-    # Simpler distinct team count via memberships referencing this season.
-    rep.teams = db.scalar(
-        select(func.count(func.distinct(PlayerTeamMembership.team_id)))
-        .where(PlayerTeamMembership.season_id == sid)
-    ) or 0
-    rep.players = db.scalar(
-        select(func.count(func.distinct(PlayerTeamMembership.player_id)))
-        .where(PlayerTeamMembership.season_id == sid)
-    ) or 0
-    rep.fixtures = db.scalar(select(func.count()).select_from(Fixture).where(Fixture.season_id == sid)) or 0
-    rep.completed_fixtures = db.scalar(
-        select(func.count()).select_from(Fixture).where(
-            Fixture.season_id == sid, Fixture.home_score.is_not(None)
+    rep.teams = (
+        db.scalar(
+            select(func.count())
+            .select_from(Team)
+            .join(Fixture, (Fixture.home_team_id == Team.id) | (Fixture.away_team_id == Team.id))
+            .where(Fixture.season_id == sid)
         )
-    ) or 0
-    rep.gameweeks = db.scalar(select(func.count()).select_from(Gameweek).where(Gameweek.season_id == sid)) or 0
-    rep.player_gw_observations = db.scalar(
-        select(func.count()).select_from(PlayerGameweekPerformance)
-        .where(PlayerGameweekPerformance.season_id == sid)
-    ) or 0
-    rep.team_match_observations = db.scalar(
-        select(func.count()).select_from(TeamMatchPerformance).where(TeamMatchPerformance.season_id == sid)
-    ) or 0
-    rep.fpl_snapshots = db.scalar(
-        select(func.count()).select_from(FPLSnapshot).where(FPLSnapshot.season_id == sid)
-    ) or 0
+        or 0
+    )
+    # Simpler distinct team count via memberships referencing this season.
+    rep.teams = (
+        db.scalar(
+            select(func.count(func.distinct(PlayerTeamMembership.team_id))).where(
+                PlayerTeamMembership.season_id == sid
+            )
+        )
+        or 0
+    )
+    rep.players = (
+        db.scalar(
+            select(func.count(func.distinct(PlayerTeamMembership.player_id))).where(
+                PlayerTeamMembership.season_id == sid
+            )
+        )
+        or 0
+    )
+    rep.fixtures = (
+        db.scalar(select(func.count()).select_from(Fixture).where(Fixture.season_id == sid)) or 0
+    )
+    rep.completed_fixtures = (
+        db.scalar(
+            select(func.count())
+            .select_from(Fixture)
+            .where(Fixture.season_id == sid, Fixture.home_score.is_not(None))
+        )
+        or 0
+    )
+    rep.gameweeks = (
+        db.scalar(select(func.count()).select_from(Gameweek).where(Gameweek.season_id == sid)) or 0
+    )
+    rep.player_gw_observations = (
+        db.scalar(
+            select(func.count())
+            .select_from(PlayerGameweekPerformance)
+            .where(PlayerGameweekPerformance.season_id == sid)
+        )
+        or 0
+    )
+    rep.team_match_observations = (
+        db.scalar(
+            select(func.count())
+            .select_from(TeamMatchPerformance)
+            .where(TeamMatchPerformance.season_id == sid)
+        )
+        or 0
+    )
+    rep.fpl_snapshots = (
+        db.scalar(select(func.count()).select_from(FPLSnapshot).where(FPLSnapshot.season_id == sid))
+        or 0
+    )
 
     # Missingness on real data (honest, never substituted).
-    rep.missing_minutes = db.scalar(
-        select(func.count()).select_from(PlayerGameweekPerformance)
-        .where(PlayerGameweekPerformance.season_id == sid, PlayerGameweekPerformance.minutes.is_(None))
-    ) or 0
-    rep.missing_points = db.scalar(
-        select(func.count()).select_from(PlayerGameweekPerformance)
-        .where(PlayerGameweekPerformance.season_id == sid, PlayerGameweekPerformance.total_points.is_(None))
-    ) or 0
-    rep.missing_price = db.scalar(
-        select(func.count()).select_from(FPLSnapshot)
-        .where(FPLSnapshot.season_id == sid, FPLSnapshot.price.is_(None))
-    ) or 0
-    rep.missing_xg = db.scalar(
-        select(func.count()).select_from(PlayerGameweekPerformance)
-        .where(
-            PlayerGameweekPerformance.season_id == sid,
-            PlayerGameweekPerformance.expected_goals.is_(None),
+    rep.missing_minutes = (
+        db.scalar(
+            select(func.count())
+            .select_from(PlayerGameweekPerformance)
+            .where(
+                PlayerGameweekPerformance.season_id == sid,
+                PlayerGameweekPerformance.minutes.is_(None),
+            )
         )
-    ) or 0
+        or 0
+    )
+    rep.missing_points = (
+        db.scalar(
+            select(func.count())
+            .select_from(PlayerGameweekPerformance)
+            .where(
+                PlayerGameweekPerformance.season_id == sid,
+                PlayerGameweekPerformance.total_points.is_(None),
+            )
+        )
+        or 0
+    )
+    rep.missing_price = (
+        db.scalar(
+            select(func.count())
+            .select_from(FPLSnapshot)
+            .where(FPLSnapshot.season_id == sid, FPLSnapshot.price.is_(None))
+        )
+        or 0
+    )
+    rep.missing_xg = (
+        db.scalar(
+            select(func.count())
+            .select_from(PlayerGameweekPerformance)
+            .where(
+                PlayerGameweekPerformance.season_id == sid,
+                PlayerGameweekPerformance.expected_goals.is_(None),
+            )
+        )
+        or 0
+    )
 
     # Duplicate (player, gameweek) check -- canonical key forbids it; count any
     # collisions at the source level by counting raw rows per key.
@@ -130,6 +179,7 @@ def audit_season_quality(db: Session, season_code: str) -> SeasonDataQuality:
             anomalies.append(f"{len(bad)} fixtures with kickoff before season start")
     rep.date_anomalies = anomalies
     return rep
+
 
 @dataclass
 class CoverageEntry:
@@ -210,13 +260,17 @@ def detect_contamination(
             .where(Season.code.in_(real_seasons))
         ).all()
     )
-    mock_ext_providers = set(
-        db.scalars(
-            select(PlayerExternalId.provider).where(
-                PlayerExternalId.player_id.in_(real_player_ids) if real_player_ids else False
-            )
-        ).all()
-    ) if real_player_ids else set()
+    mock_ext_providers = (
+        set(
+            db.scalars(
+                select(PlayerExternalId.provider).where(
+                    PlayerExternalId.player_id.in_(real_player_ids) if real_player_ids else False
+                )
+            ).all()
+        )
+        if real_player_ids
+        else set()
+    )
     mock_leak = [p for p in mock_ext_providers if "mock" in p]
     checks["synthetic_contamination"] = "FAIL" if mock_leak else "PASS"
     if mock_leak:
@@ -229,16 +283,15 @@ def detect_contamination(
         if season is None:
             continue
         fxs = db.scalars(
-            select(Fixture).where(Fixture.season_id == season.id, Fixture.kickoff_time.is_not(None))
+            select(Fixture)
+            .where(Fixture.season_id == season.id, Fixture.kickoff_time.is_not(None))
             .order_by(Fixture.kickoff_time)
         ).all()
-        gws = sorted(
-            {g.provider_event_id for g in db.scalars(select(Gameweek).where(Gameweek.season_id == season.id)).all()}
-        )
         # not a hard fail; just record
         checks[f"fixture_ordering_{season_code}"] = "ok" if fxs else "empty"
 
     return ContaminationResult(passed=passed, checks=checks)
+
 
 def feature_compatibility(db: Session, seasons: list[str]) -> list[dict[str, Any]]:
     """Section 14: feature coverage / missingness against the Phase 3 feature set.
@@ -252,20 +305,33 @@ def feature_compatibility(db: Session, seasons: list[str]) -> list[dict[str, Any
     rows, _ = prepare_dataset(db, seasons)
     total = len(rows) or 1
     feature_keys = [
-        "points_last_3", "points_last_5", "points_last_10",
-        "minutes_last_3", "minutes_last_5", "minutes_last_10",
-        "starts_last_3", "starts_last_5", "starts_last_10",
-        "points_per_90", "n_season_matches",
-        "attack_strength", "defensive_strength",
-        "opponent_attack_strength", "opponent_defensive_strength",
+        "points_last_3",
+        "points_last_5",
+        "points_last_10",
+        "minutes_last_3",
+        "minutes_last_5",
+        "minutes_last_10",
+        "starts_last_3",
+        "starts_last_5",
+        "starts_last_10",
+        "points_per_90",
+        "n_season_matches",
+        "attack_strength",
+        "defensive_strength",
+        "opponent_attack_strength",
+        "opponent_defensive_strength",
         "expected_minutes",
     ]
     out: list[dict[str, Any]] = []
     for fk in feature_keys:
         missing = sum(
-            1 for r in rows
+            1
+            for r in rows
             if r["features"].get(fk) is None
-            or (isinstance(r["features"].get(fk), float) and r["features"].get(fk) != r["features"].get(fk))
+            or (
+                isinstance(r["features"].get(fk), float)
+                and r["features"].get(fk) != r["features"].get(fk)
+            )
         )
         available = total - missing
         out.append(
@@ -292,4 +358,3 @@ def entity_resolution_report(db: Session, seasons: list[str]) -> dict[str, Any]:
     report.matched_players = db.scalar(select(func.count()).select_from(PlayerExternalId)) or 0
     report.matched_teams = db.scalar(select(func.count()).select_from(TeamExternalId)) or 0
     return report.to_dict()
-

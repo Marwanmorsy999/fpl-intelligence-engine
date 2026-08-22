@@ -5,6 +5,7 @@ The Docker build is fully mocked: tests inject a fake :class:`DockerBuilder`
 Dockerfile parser is exercised against fixture files written to ``tmp_path`` and
 against the repository's own production Dockerfile.
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -99,9 +100,7 @@ def test_build_raises_on_invalid_dockerfile(tmp_path: Path) -> None:
 
 def test_build_skips_validation_when_disabled(tmp_path: Path) -> None:
     config = DockerBuildConfig(image_name="fpl", dockerfile=str(tmp_path / "nope"))
-    result = build_docker_image(
-        config, builder=_FakeBuilder(_ok_result()), validate_first=False
-    )
+    result = build_docker_image(config, builder=_FakeBuilder(_ok_result()), validate_first=False)
     assert result.success
 
 
@@ -110,6 +109,7 @@ def test_validate_dockerfile_missing_file(tmp_path: Path) -> None:
     assert not report.ok
     assert report.checks_run == 0
     assert report.issues[0].code == "UNREADABLE"
+
 
 def test_validate_dockerfile_accepts_valid(tmp_path: Path) -> None:
     report = validate_dockerfile(_write(tmp_path, VALID_DOCKERFILE))
@@ -120,11 +120,11 @@ def test_validate_dockerfile_accepts_valid(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     "snippet,missing_code",
     [
-        ("FROM python:3.12-slim\nEXPOSE 8000\nUSER fpl\nCMD [\"x\"]\n", "MISSING_WORKDIR"),
+        ('FROM python:3.12-slim\nEXPOSE 8000\nUSER fpl\nCMD ["x"]\n', "MISSING_WORKDIR"),
         ("FROM python:3.12-slim\nWORKDIR /app\nEXPOSE 8000\nUSER fpl\n", "MISSING_CMD"),
-        ("WORKDIR /app\nEXPOSE 8000\nUSER fpl\nCMD [\"x\"]\n", "MISSING_FROM"),
-        ("FROM python:3.12-slim\nWORKDIR /app\nUSER fpl\nCMD [\"x\"]\n", "MISSING_EXPOSE"),
-        ("FROM python:3.12-slim\nWORKDIR /app\nEXPOSE 8000\nCMD [\"x\"]\n", "MISSING_USER"),
+        ('WORKDIR /app\nEXPOSE 8000\nUSER fpl\nCMD ["x"]\n', "MISSING_FROM"),
+        ('FROM python:3.12-slim\nWORKDIR /app\nUSER fpl\nCMD ["x"]\n', "MISSING_EXPOSE"),
+        ('FROM python:3.12-slim\nWORKDIR /app\nEXPOSE 8000\nCMD ["x"]\n', "MISSING_USER"),
     ],
 )
 def test_validate_dockerfile_rejects_missing_directives(
@@ -139,7 +139,7 @@ def test_validate_dockerfile_rejects_missing_directives(
 def test_validate_dockerfile_rejects_unpinned_latest(tmp_path: Path) -> None:
     dockerfile = _write(
         tmp_path,
-        "FROM python:latest\nWORKDIR /app\nEXPOSE 8000\nUSER fpl\nCMD [\"x\"]\n",
+        'FROM python:latest\nWORKDIR /app\nEXPOSE 8000\nUSER fpl\nCMD ["x"]\n',
     )
     report = validate_dockerfile(dockerfile)
     assert any(issue.code == "UNPINNED_BASE" for issue in report.issues)
@@ -148,7 +148,7 @@ def test_validate_dockerfile_rejects_unpinned_latest(tmp_path: Path) -> None:
 def test_validate_dockerfile_rejects_no_tag_base(tmp_path: Path) -> None:
     dockerfile = _write(
         tmp_path,
-        "FROM python\nWORKDIR /app\nEXPOSE 8000\nUSER fpl\nCMD [\"x\"]\n",
+        'FROM python\nWORKDIR /app\nEXPOSE 8000\nUSER fpl\nCMD ["x"]\n',
     )
     report = validate_dockerfile(dockerfile)
     assert any(issue.code == "UNPINNED_BASE" for issue in report.issues)
@@ -157,7 +157,7 @@ def test_validate_dockerfile_rejects_no_tag_base(tmp_path: Path) -> None:
 def test_validate_dockerfile_allows_digest_pin(tmp_path: Path) -> None:
     dockerfile = _write(
         tmp_path,
-        "FROM python@sha256:abcdef\nWORKDIR /app\nEXPOSE 8000\nUSER fpl\nCMD [\"x\"]\n",
+        'FROM python@sha256:abcdef\nWORKDIR /app\nEXPOSE 8000\nUSER fpl\nCMD ["x"]\n',
     )
     assert validate_dockerfile(dockerfile).ok
 
@@ -165,7 +165,7 @@ def test_validate_dockerfile_allows_digest_pin(tmp_path: Path) -> None:
 def test_validate_dockerfile_rejects_running_as_root(tmp_path: Path) -> None:
     dockerfile = _write(
         tmp_path,
-        "FROM python:3.12-slim\nWORKDIR /app\nEXPOSE 8000\nUSER root\nCMD [\"x\"]\n",
+        'FROM python:3.12-slim\nWORKDIR /app\nEXPOSE 8000\nUSER root\nCMD ["x"]\n',
     )
     report = validate_dockerfile(dockerfile)
     assert any(issue.code == "RUNNING_AS_ROOT" for issue in report.issues)

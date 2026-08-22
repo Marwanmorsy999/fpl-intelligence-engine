@@ -107,6 +107,7 @@ def _import_seasons(db: Session, provider, seasons: list[str]) -> list[str]:
             print(f"  FAILED to import {season}: {exc}")
     return imported
 
+
 def run_real_gate(seasons: list[str], write_reports: bool = True) -> dict[str, Any]:
     """Import real data, run the exact Phase 4.5 gate, write deliverables."""
     t0 = time.time()
@@ -123,8 +124,10 @@ def run_real_gate(seasons: list[str], write_reports: bool = True) -> dict[str, A
         quality = {s: audit_season_quality(db, s).to_dict() for s in imported}
         coverage = coverage_matrix(db, imported)
         entity = entity_resolution_report(db, imported)
-        temporal = {ds: classify_provider(provider.provider_name, ds).__dict__ for ds in
-                    ["teams", "players", "fixtures", "fpl_history", "fpl_snapshots"]}
+        temporal = {
+            ds: classify_provider(provider.provider_name, ds).__dict__
+            for ds in ["teams", "players", "fixtures", "fpl_history", "fpl_snapshots"]
+        }
         contamination = detect_contamination(db, imported)
         features = feature_compatibility(db, imported)
 
@@ -180,6 +183,7 @@ def run_mock_gate(seasons: list[str]) -> dict[str, Any]:
     db.close()
     return gate
 
+
 def _write_quality_reports(quality: dict[str, dict]) -> None:
     dqdir = DOCS / "data-quality"
     dqdir.mkdir(parents=True, exist_ok=True)
@@ -203,7 +207,16 @@ def _write_coverage_report(coverage: list[dict]) -> None:
     lines = ["# Real Data Coverage Matrix", ""]
     lines.append(f"_Generated {datetime.now(UTC).isoformat()}_")
     lines.append("")
-    cols = ["season", "fpl", "fixtures", "player_stats", "team_stats", "ownership", "xg", "coverage_pct"]
+    cols = [
+        "season",
+        "fpl",
+        "fixtures",
+        "player_stats",
+        "team_stats",
+        "ownership",
+        "xg",
+        "coverage_pct",
+    ]
     lines.append("| " + " | ".join(cols) + " |")
     lines.append("| " + " | ".join(["---"] * len(cols)) + " |")
     for row in coverage:
@@ -246,6 +259,7 @@ def _write_temporal_section(temporal: dict, provider) -> None:
     path.write_text(json.dumps(temporal, indent=2, default=str), encoding="utf-8")
     print(f"  wrote {path}")
 
+
 def _classify_edge(real_gate: dict, real_results: dict) -> str:
     """Classify real predictive edge: A / B / C (Section 19)."""
     imported = real_results.get("imported_seasons", [])
@@ -253,7 +267,10 @@ def _classify_edge(real_gate: dict, real_results: dict) -> str:
     if not imported or not baselines:
         return "A"
     best = max(
-        (baselines.get(m, {}).get("spearman", 0.0) for m in ["baseline_a", "baseline_b", "baseline_c"]),
+        (
+            baselines.get(m, {}).get("spearman", 0.0)
+            for m in ["baseline_a", "baseline_b", "baseline_c"]
+        ),
         default=0.0,
     )
     contaminated = real_results["contamination"].get("passed", False)
@@ -311,6 +328,7 @@ def write_real_vs_mock_report(real: dict, mock: dict) -> None:
     path.write_text("\n".join(lines), encoding="utf-8")
     print(f"  wrote {path}")
 
+
 def write_final_report(real: dict, mock: dict) -> None:
     path = DOCS / "phase475-final-report.md"
     cls = _classify_edge(real["gate"], real)
@@ -323,7 +341,9 @@ def write_final_report(real: dict, mock: dict) -> None:
     lines.append("")
     lines.append(f"- {real['gate']['data_provenance']['source_url']}")
     lines.append("- vaastav/Fantasy-Premier-League public GitHub mirror (teams, fixtures,")
-    lines.append("  players_raw, per-gameweek gw*.csv with xG/xA, price, ownership-count, transfers).")
+    lines.append(
+        "  players_raw, per-gameweek gw*.csv with xG/xA, price, ownership-count, transfers)."
+    )
     lines.append("")
     lines.append("## Seasons imported")
     lines.append("")
@@ -381,10 +401,13 @@ def write_final_report(real: dict, mock: dict) -> None:
     path.write_text("\n".join(lines), encoding="utf-8")
     print(f"  wrote {path}")
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Phase 4.75 real-data revalidation gate.")
     parser.add_argument(
-        "--seasons", nargs="*", default=DEFAULT_SEASONS,
+        "--seasons",
+        nargs="*",
+        default=DEFAULT_SEASONS,
         help="Real seasons to import + evaluate (default: 2022-23..2025-26).",
     )
     parser.add_argument("--no-mock", action="store_true", help="Skip the mock comparison run.")
@@ -418,4 +441,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

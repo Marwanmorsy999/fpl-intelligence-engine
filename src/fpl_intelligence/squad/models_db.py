@@ -22,15 +22,11 @@ class SquadStateDB(Base):
     __tablename__ = "squad_state"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    session_id: Mapped[str] = mapped_column(
-        String(255), nullable=False, unique=True, index=True
-    )
+    session_id: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
     squad_json: Mapped[dict] = mapped_column(JSON, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
-    __table_args__ = (
-        UniqueConstraint("session_id", name="uq_squad_state_session"),
-    )
+    __table_args__ = (UniqueConstraint("session_id", name="uq_squad_state_session"),)
 
 
 class PendingSyncDB(Base):

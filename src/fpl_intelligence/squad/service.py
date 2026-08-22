@@ -96,9 +96,7 @@ class SquadService:
 
     # -- public API ---------------------------------------------------------
 
-    def set_squad(
-        self, payload: SquadStateCreate, session_id: str
-    ) -> SquadStateResponse:
+    def set_squad(self, payload: SquadStateCreate, session_id: str) -> SquadStateResponse:
         """Persist a new squad state and return the stored representation."""
         state = SquadStateResponse(**payload.model_dump(), updated_at=datetime.now(UTC))
         if not self._is_persistent():

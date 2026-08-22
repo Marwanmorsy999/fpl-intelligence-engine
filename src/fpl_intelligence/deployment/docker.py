@@ -18,6 +18,7 @@ it makes **no** live ``docker``/network calls inside ``pytest`` (the runner is
 mocked), and it hardcodes no credentials (build args are always supplied by the
 caller).
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -102,6 +103,7 @@ class DockerfileValidationReport:
             "checks_run": self.checks_run,
             "issues": [issue.to_dict() for issue in self.issues],
         }
+
 
 def _directive(line: str) -> str | None:
     """Return the Dockerfile directive keyword of a line, if any.
@@ -196,9 +198,7 @@ def validate_dockerfile(path: Path | str) -> DockerfileValidationReport:
                 if directives[other]:
                     continue
                 issues.append(
-                    DockerfileIssue(
-                        "MISSING_CMD", "no CMD or ENTRYPOINT instruction found"
-                    )
+                    DockerfileIssue("MISSING_CMD", "no CMD or ENTRYPOINT instruction found")
                 )
             else:
                 issues.append(
@@ -220,6 +220,7 @@ def validate_dockerfile(path: Path | str) -> DockerfileValidationReport:
         issues=issues,
         checks_run=checks_run,
     )
+
 
 #: The injected runner shape: given a command list, return a completed process.
 SubprocessRunner = Callable[[list[str]], subprocess.CompletedProcess[str]]
@@ -298,9 +299,7 @@ def build_docker_image(
         report = validate_dockerfile(config.dockerfile)
         if not report.ok:
             codes = ", ".join(f"{issue.code}" for issue in report.issues)
-            raise DockerError(
-                f"Dockerfile {config.dockerfile!r} is not production-ready: {codes}"
-            )
+            raise DockerError(f"Dockerfile {config.dockerfile!r} is not production-ready: {codes}")
     engine = builder or SubprocessDockerBuilder()
     result = engine.build(config)
     if not result.success:

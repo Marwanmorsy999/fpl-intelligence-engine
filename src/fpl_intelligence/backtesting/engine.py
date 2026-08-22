@@ -31,8 +31,7 @@ class FeatureRegistry(Protocol):
         db_session: Session,
         cutoff: DecisionCutoff,
         player_ids: list[int] | None = None,
-    ) -> dict[int, dict[str, float]]:
-        ...
+    ) -> dict[int, dict[str, float]]: ...
 
 
 class PredictionModel(Protocol):
@@ -51,21 +50,20 @@ class PredictionModel(Protocol):
         features: dict[str, float],
         cutoff: DecisionCutoff,
         context: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        ...
+    ) -> dict[str, Any]: ...
 
     def predict_batch(
         self,
         features_batch: dict[int, dict[str, float]],
         cutoff: DecisionCutoff,
         context: dict[str, Any] | None = None,
-    ) -> dict[int, dict[str, Any]]:
-        ...
+    ) -> dict[int, dict[str, Any]]: ...
 
 
 @dataclass
 class _GameweekContext:
     """Internal context for a single gameweek of the backtest loop."""
+
     cutoff: DecisionCutoff
     available_fixtures: list[Any]
     available_players: list[Any]
@@ -140,16 +138,12 @@ class BacktestEngine:
 
     def get_status(self, run_id: str) -> str:
         """Return the status of a backtest run."""
-        run = self._db.scalar(
-            select(BacktestRun).where(BacktestRun.run_id == run_id)
-        )
+        run = self._db.scalar(select(BacktestRun).where(BacktestRun.run_id == run_id))
         if run is None:
             raise ValueError(f"BacktestRun {run_id!r} not found.")
         return run.status
 
-    def get_results(
-        self, run_id: str
-    ) -> list[BacktestGameweekResult]:
+    def get_results(self, run_id: str) -> list[BacktestGameweekResult]:
         """Return all gameweek results for a backtest run."""
         stmt = (
             select(BacktestGameweekResult)
@@ -181,9 +175,7 @@ class BacktestEngine:
         self._db.flush()
         return run
 
-    def _execute_gameweeks(
-        self, run: BacktestRun, config: BacktestConfig
-    ) -> None:
+    def _execute_gameweeks(self, run: BacktestRun, config: BacktestConfig) -> None:
         """Execute the backtest loop across all configured gameweeks."""
         from fpl_intelligence.backtesting.evaluation import BacktestEvaluator
         from fpl_intelligence.db.models import PlayerGameweekPerformance
@@ -197,19 +189,13 @@ class BacktestEngine:
 
         for gw_num in range(start_gw, end_gw + 1):
             # 1. Determine the decision cutoff for this gameweek.
-            cutoff = get_gameweek_decision_cutoff(
-                self._db, season, gw_num, policy
-            )
+            cutoff = get_gameweek_decision_cutoff(self._db, season, gw_num, policy)
 
             # 2. Compute features using only pre-cutoff data.
-            features = self._features.compute_features(
-                self._db, cutoff
-            )
+            features = self._features.compute_features(self._db, cutoff)
 
             # 3. Generate predictions for all players with features.
-            predictions = self._model.predict_batch(
-                features, cutoff, {"db": self._db}
-            )
+            predictions = self._model.predict_batch(features, cutoff, {"db": self._db})
 
             # 4. Persist individual player predictions.
             for player_id, pred in predictions.items():
@@ -232,9 +218,12 @@ class BacktestEngine:
             actuals: dict[int, dict[str, Any]] = {}
             gw_perfs = list(
                 self._db.execute(
-                    select(PlayerGameweekPerformance)
-                    .where(PlayerGameweekPerformance.gameweek_id == gw_num)
-                ).scalars().all()
+                    select(PlayerGameweekPerformance).where(
+                        PlayerGameweekPerformance.gameweek_id == gw_num
+                    )
+                )
+                .scalars()
+                .all()
             )
             for perf in gw_perfs:
                 actuals[perf.player_id] = {
@@ -251,15 +240,10 @@ class BacktestEngine:
                 season=season,
                 gameweek=gw_num,
                 decision_cutoff=cutoff.cutoff_time,
-                predictions={
-                    str(pid): pred for pid, pred in predictions.items()
-                },
-                actual_outcomes={
-                    str(pid): act for pid, act in actuals.items()
-                },
+                predictions={str(pid): pred for pid, pred in predictions.items()},
+                actual_outcomes={str(pid): act for pid, act in actuals.items()},
                 evaluation_metrics=metrics,
             )
             self._db.add(result)
 
         self._db.flush()
-

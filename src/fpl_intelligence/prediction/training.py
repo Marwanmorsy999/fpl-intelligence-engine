@@ -161,6 +161,7 @@ class TrainingDataBuilder:
 
         # 1.5. Enforce holdout: fail loudly if target gameweek is holdout season.
         from sqlalchemy import select as sa_select
+
         holdout_season_code = self._db.scalar(
             sa_select(Season.code).where(Season.id == target_gw.season_id)
         )
@@ -243,6 +244,7 @@ class TrainingDataBuilder:
 
         # 1.5. Enforce holdout: fail loudly if target gameweek is holdout season.
         from sqlalchemy import select as sa_select
+
         holdout_season_code = self._db.scalar(
             sa_select(Season.code).where(Season.id == target_gw.season_id)
         )
@@ -380,9 +382,7 @@ class TrainingDataBuilder:
         else:
             features["away_avg_goals"] = 0.0
 
-        features["clean_sheet_rate"] = sum(
-            1 for p in perfs if (p.goals_conceded or 0) == 0
-        ) / n
+        features["clean_sheet_rate"] = sum(1 for p in perfs if (p.goals_conceded or 0) == 0) / n
 
         return features
 
@@ -426,4 +426,3 @@ class TrainingDataBuilder:
     def _check_leakage(self, features_time: datetime, target_time: datetime) -> bool:
         """Return True if the feature time is strictly before the target time."""
         return features_time < target_time
-

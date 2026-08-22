@@ -99,9 +99,7 @@ class ModelRegistry:
             )
         )
         if existing is not None:
-            raise ValueError(
-                f"Model {model_name} v{model_version} is already registered."
-            )
+            raise ValueError(f"Model {model_name} v{model_version} is already registered.")
 
         # Persist artifact.
         artifact_location = str(self._artifact_dir / model_name / model_version)
@@ -166,13 +164,10 @@ class ModelRegistry:
         entry = self._db.scalar(stmt)
         if entry is None:
             raise ValueError(
-                f"No registered model '{model_name}' "
-                f"(version={model_version}, status={status})"
+                f"No registered model '{model_name}' (version={model_version}, status={status})"
             )
         if entry.artifact_location is None:
-            raise ValueError(
-                f"Model '{model_name}' v{entry.model_version} has no artifact."
-            )
+            raise ValueError(f"Model '{model_name}' v{entry.model_version} has no artifact.")
         return self._load_artifact(entry.artifact_location)
 
     @staticmethod
@@ -294,8 +289,5 @@ class ModelRegistry:
             )
         )
         if entry is None:
-            raise ValueError(
-                f"Model '{model_name}' v{model_version} not found in registry."
-            )
+            raise ValueError(f"Model '{model_name}' v{model_version} not found in registry.")
         return entry
-

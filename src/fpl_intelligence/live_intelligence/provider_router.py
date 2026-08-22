@@ -22,6 +22,7 @@ Routing metadata (``provider_name``, ``routing_strategy``,
 audit trail records *how* a result was produced, not just *what* it
 contains.
 """
+
 from __future__ import annotations
 
 import itertools
@@ -160,9 +161,7 @@ class ProviderRouter(LLMProvider):
         # that never has to wait). Sharing them is what makes the free-tier
         # guards actually apply across routed, retried and fallback calls.
         settings = factory.settings
-        self._budget = (
-            budget if budget is not None else CallBudget(settings.llm_max_calls_per_run)
-        )
+        self._budget = budget if budget is not None else CallBudget(settings.llm_max_calls_per_run)
         self._rate_limiter = (
             rate_limiter
             if rate_limiter is not None

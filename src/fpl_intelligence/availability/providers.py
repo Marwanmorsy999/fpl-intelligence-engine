@@ -7,6 +7,7 @@ These ABCs decouple data acquisition (news, training reports, press conferences)
 from evidence corroboration and state derivation, maintaining the same
 abstraction discipline as the prediction and optimization layers.
 """
+
 from __future__ import annotations
 
 import abc
@@ -114,7 +115,5 @@ class AvailabilityProvider(abc.ABC):
         """Batch version of get_availability."""
 
     @abc.abstractmethod
-    def is_training_limited(
-        self, player_id: int, cutoff: datetime
-    ) -> tuple[bool, float | None]:
+    def is_training_limited(self, player_id: int, cutoff: datetime) -> tuple[bool, float | None]:
         """Return (is_limited, training_load) based on latest training report."""

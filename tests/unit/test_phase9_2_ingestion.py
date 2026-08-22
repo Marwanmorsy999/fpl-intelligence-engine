@@ -1,4 +1,5 @@
 """Phase 9.2 unit tests — Source Registry, Raw Item Ledger, deduplication, manual ingestion."""
+
 from __future__ import annotations
 
 import pytest
@@ -69,13 +70,16 @@ class TestSourceRegistryTiers:
             assert reg.classify_tier(source_type) is tier
 
     def test_tier_rank_ordering(self):
-        ranks = [t.rank for t in (
-            ReliabilityTier.TIER_0_OFFICIAL_STRUCTURED,
-            ReliabilityTier.TIER_1_OFFICIAL_UNSTRUCTURED,
-            ReliabilityTier.TIER_2_RELIABLE_JOURNALIST,
-            ReliabilityTier.TIER_3_AGGREGATOR,
-            ReliabilityTier.TIER_4_SOCIAL_UNVERIFIED,
-        )]
+        ranks = [
+            t.rank
+            for t in (
+                ReliabilityTier.TIER_0_OFFICIAL_STRUCTURED,
+                ReliabilityTier.TIER_1_OFFICIAL_UNSTRUCTURED,
+                ReliabilityTier.TIER_2_RELIABLE_JOURNALIST,
+                ReliabilityTier.TIER_3_AGGREGATOR,
+                ReliabilityTier.TIER_4_SOCIAL_UNVERIFIED,
+            )
+        ]
         assert ranks == sorted(ranks)
         assert ReliabilityTier.TIER_0_OFFICIAL_STRUCTURED < ReliabilityTier.TIER_4_SOCIAL_UNVERIFIED
 
@@ -96,7 +100,8 @@ class TestSourceRegistryTiers:
     def test_register_overrides_tier(self):
         reg = SourceRegistry()
         reg.register(
-            "custom", SourceType.MANUAL,
+            "custom",
+            SourceType.MANUAL,
             reliability_tier=ReliabilityTier.TIER_2_RELIABLE_JOURNALIST,
         )
         assert reg.tier_for("custom") is ReliabilityTier.TIER_2_RELIABLE_JOURNALIST
@@ -110,22 +115,21 @@ class TestSourceRegistryTiers:
 
     def test_tier_to_reliability_mapping(self):
         assert (
-            map_tier_to_reliability(ReliabilityTier.TIER_0_OFFICIAL_STRUCTURED).value
-            == "official"
+            map_tier_to_reliability(ReliabilityTier.TIER_0_OFFICIAL_STRUCTURED).value == "official"
         )
         assert (
             map_tier_to_reliability(ReliabilityTier.TIER_2_RELIABLE_JOURNALIST).value
             == "verified_journalist"
         )
         assert (
-            map_tier_to_reliability(ReliabilityTier.TIER_4_SOCIAL_UNVERIFIED).value
-            == "unverified"
+            map_tier_to_reliability(ReliabilityTier.TIER_4_SOCIAL_UNVERIFIED).value == "unverified"
         )
 
     def test_ensure_source_persists_tier_to_db(self, db_session: Session):
         reg = SourceRegistry()
         source = reg.ensure_source(
-            db_session, "press_conference_manual",
+            db_session,
+            "press_conference_manual",
             source_type=SourceType.PRESS_CONFERENCE,
         )
         db_session.commit()
@@ -162,15 +166,19 @@ class TestRawItemTemporal:
 
     def test_whitespace_normalization_in_hash(self):
         a = RawItem.create(
-            source_id="s", title="t",
+            source_id="s",
+            title="t",
             content_text="Salah   is   ruled   out.",
-            published_at=_utc(2025, 8, 15), scraped_at=_utc(2025, 8, 15),
+            published_at=_utc(2025, 8, 15),
+            scraped_at=_utc(2025, 8, 15),
             ingested_at=_utc(2025, 8, 15),
         )
         b = RawItem.create(
-            source_id="s", title="t",
+            source_id="s",
+            title="t",
             content_text="Salah is ruled out.",
-            published_at=_utc(2025, 8, 15), scraped_at=_utc(2025, 8, 15),
+            published_at=_utc(2025, 8, 15),
+            scraped_at=_utc(2025, 8, 15),
             ingested_at=_utc(2025, 8, 15),
         )
         assert a.content_hash == b.content_hash
@@ -178,7 +186,9 @@ class TestRawItemTemporal:
     def test_available_at_must_not_precede_published_at(self):
         with pytest.raises(ValidationError):
             RawItem.create(
-                source_id="s", title="t", content_text="x",
+                source_id="s",
+                title="t",
+                content_text="x",
                 published_at=_utc(2025, 8, 15, 14, 10),
                 scraped_at=_utc(2025, 8, 15, 14, 5),
                 ingested_at=_utc(2025, 8, 15, 14, 5),
@@ -188,7 +198,9 @@ class TestRawItemTemporal:
     def test_naive_datetime_rejected(self):
         with pytest.raises(ValidationError):
             RawItem(
-                source_id="s", title="t", content_text="x",
+                source_id="s",
+                title="t",
+                content_text="x",
                 content_hash="0" * 64,
                 published_at=_utc(2025, 8, 15, 14, 10, tzinfo=False),
                 scraped_at=_utc(2025, 8, 15, 14, 10, tzinfo=False),
@@ -259,7 +271,8 @@ class TestDeduplication:
         assert dedup.is_duplicate(source_id, digest) is True
 
     def test_manual_ingest_skips_duplicate(
-        self, db_session: Session,
+        self,
+        db_session: Session,
     ):
         season = Season(code="2025-26", display_name="2025/26")
         db_session.add(season)
@@ -318,7 +331,8 @@ class TestManualIngestion:
         return season, gw
 
     def test_ingest_extracts_and_persists_evidence(
-        self, db_session: Session,
+        self,
+        db_session: Session,
     ):
         season, gw = self._seed(db_session)
         published = _utc(2025, 8, 15, 14, 0)
@@ -384,13 +398,20 @@ class TestManualIngestScript:
         txt.write_text("Haaland is ruled out with a knock.", encoding="utf-8")
         db_path = tmp_path / "ingest.db"
 
-        rc = module.main([
-            "--source-id", "press_conference_manual",
-            "--file", str(txt),
-            "--published-at", "2025-08-15T14:00:00Z",
-            "--provider", "mock",
-            "--db", str(db_path),
-        ])
+        rc = module.main(
+            [
+                "--source-id",
+                "press_conference_manual",
+                "--file",
+                str(txt),
+                "--published-at",
+                "2025-08-15T14:00:00Z",
+                "--provider",
+                "mock",
+                "--db",
+                str(db_path),
+            ]
+        )
         assert rc == 0
         out = capsys.readouterr().out
         assert "MANUAL INGESTION SUMMARY" in out
@@ -412,23 +433,37 @@ class TestManualIngestScript:
         db_path = tmp_path / "ingest.db"
 
         # First run: created.
-        rc1 = module.main([
-            "--source-id", "press_conference_manual",
-            "--file", str(txt),
-            "--published-at", "2025-08-15T14:00:00Z",
-            "--provider", "mock",
-            "--db", str(db_path),
-        ])
+        rc1 = module.main(
+            [
+                "--source-id",
+                "press_conference_manual",
+                "--file",
+                str(txt),
+                "--published-at",
+                "2025-08-15T14:00:00Z",
+                "--provider",
+                "mock",
+                "--db",
+                str(db_path),
+            ]
+        )
         assert rc1 == 0
 
         # Second run on the same db: duplicate, clean exit (0).
-        rc2 = module.main([
-            "--source-id", "press_conference_manual",
-            "--file", str(txt),
-            "--published-at", "2025-08-15T14:00:00Z",
-            "--provider", "mock",
-            "--db", str(db_path),
-        ])
+        rc2 = module.main(
+            [
+                "--source-id",
+                "press_conference_manual",
+                "--file",
+                str(txt),
+                "--published-at",
+                "2025-08-15T14:00:00Z",
+                "--provider",
+                "mock",
+                "--db",
+                str(db_path),
+            ]
+        )
         assert rc2 == 0
         out = capsys.readouterr().out
         assert "Duplicate content detected, skipping extraction" in out

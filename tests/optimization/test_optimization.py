@@ -2,13 +2,11 @@ import numpy as np
 
 from fpl_intelligence.optimization.domain import (
     ActionType,
-    CandidateAction,
-    DecisionObjective,
     SquadState,
 )
 from fpl_intelligence.optimization.provider import DecisionPredictionProvider, PlayerPrediction
 from fpl_intelligence.optimization.rules import FPLRules
-from fpl_intelligence.optimization.squad import CaptainOptimizer, StartingXIOptimizer
+from fpl_intelligence.optimization.squad import CaptainOptimizer
 from fpl_intelligence.optimization.transfers import TransferOptimizer
 
 
@@ -87,7 +85,7 @@ def test_transfer_optimizer():
         rolled_transfers=0,
         transfer_hits=0,
     )
-    
+
     # 6 points out vs 6 points in = 0 EV change, hit cost is 4, net is -4
     eval_res = optimizer.evaluate_transfer(squad, player_out=1, player_in=16, horizon=1)
     assert eval_res.hit_cost == 4

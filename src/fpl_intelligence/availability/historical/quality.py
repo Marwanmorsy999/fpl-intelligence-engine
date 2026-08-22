@@ -15,6 +15,7 @@ Runs validation for the specific issues the task lists:
 Ambiguous data is NEVER silently corrected. It is surfaced as a data-quality
 issue so it can be reviewed.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -25,8 +26,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from fpl_intelligence.availability.historical.providers import HistoricalAvailabilityProvider
-from fpl_intelligence.availability.models import AvailabilityArticle, AvailabilityEvent, TemporalClass
-from fpl_intelligence.db.models import Gameweek, Season
+from fpl_intelligence.availability.models import (
+    AvailabilityArticle,
+    AvailabilityEvent,
+    TemporalClass,
+)
+from fpl_intelligence.db.models import Season
 
 
 @dataclass
@@ -90,7 +95,8 @@ def validate_historical_availability(
             if pid in seen_provider_ids:
                 report.issues.append(
                     DataQualityIssue(
-                        "duplicate_event", "high",
+                        "duplicate_event",
+                        "high",
                         f"provider_event_id {pid} duplicated",
                     )
                 )
@@ -104,7 +110,8 @@ def validate_historical_availability(
         if ev.temporal_class == TemporalClass.UNKNOWN and ev.valid_from is None:
             report.issues.append(
                 DataQualityIssue(
-                    "missing_timestamp", "medium",
+                    "missing_timestamp",
+                    "medium",
                     "UNKNOWN temporal event has no timestamp",
                     pid,
                 )
@@ -115,7 +122,8 @@ def validate_historical_availability(
         if ev.valid_from is not None and ev.valid_from > now:
             report.issues.append(
                 DataQualityIssue(
-                    "future_event", "high",
+                    "future_event",
+                    "high",
                     f"valid_from {ev.valid_from.isoformat()} is in the future",
                     pid,
                 )
@@ -128,7 +136,8 @@ def validate_historical_availability(
             if start is not None and ev.valid_from < start.replace(tzinfo=start.tzinfo):
                 report.issues.append(
                     DataQualityIssue(
-                        "outside_season_bounds", "medium",
+                        "outside_season_bounds",
+                        "medium",
                         f"valid_from {ev.valid_from.isoformat()} before season start",
                         pid,
                     )
@@ -136,7 +145,8 @@ def validate_historical_availability(
             if end is not None and ev.valid_from > end.replace(tzinfo=end.tzinfo):
                 report.issues.append(
                     DataQualityIssue(
-                        "outside_season_bounds", "medium",
+                        "outside_season_bounds",
+                        "medium",
                         f"valid_from {ev.valid_from.isoformat()} after season end",
                         pid,
                     )
@@ -147,7 +157,8 @@ def validate_historical_availability(
         if key in seen_players_status:
             report.issues.append(
                 DataQualityIssue(
-                    "conflicting_event_state", "medium",
+                    "conflicting_event_state",
+                    "medium",
                     f"player {ev.player_id} has duplicate (status,valid_from)",
                     pid,
                 )

@@ -93,9 +93,7 @@ class BacktestEvaluator:
             **top_k_metrics,
         }
 
-    def _spearman_rank(
-        self, pred: np.ndarray, actual: np.ndarray
-    ) -> float:
+    def _spearman_rank(self, pred: np.ndarray, actual: np.ndarray) -> float:
         """Compute Spearman rank correlation coefficient."""
         if len(pred) < 2:
             return 0.0
@@ -106,10 +104,8 @@ class BacktestEvaluator:
 
         # Spearman = 1 - 6*sum(d^2) / (n*(n^2-1))
         n = len(pred)
-        d_squared = sum(
-            (p - a) ** 2 for p, a in zip(pred_ranks, actual_ranks, strict=True)
-        )
-        denominator = n * (n ** 2 - 1)
+        d_squared = sum((p - a) ** 2 for p, a in zip(pred_ranks, actual_ranks, strict=True))
+        denominator = n * (n**2 - 1)
         if denominator == 0:
             return 0.0
         return 1.0 - (6.0 * d_squared / denominator)
@@ -147,12 +143,8 @@ class BacktestEvaluator:
                 continue
 
             # Get top-k indices by prediction and by actual
-            pred_top_k = set(
-                sorted(range(n), key=lambda i: pred_values[i], reverse=True)[:k]
-            )
-            actual_top_k = set(
-                sorted(range(n), key=lambda i: actual_values[i], reverse=True)[:k]
-            )
+            pred_top_k = set(sorted(range(n), key=lambda i: pred_values[i], reverse=True)[:k])
+            actual_top_k = set(sorted(range(n), key=lambda i: actual_values[i], reverse=True)[:k])
 
             hits = len(pred_top_k & actual_top_k)
             results[f"top{k}_hit_rate"] = hits / k
@@ -176,9 +168,7 @@ class BacktestEvaluator:
         results: dict[str, dict[str, float]] = {}
         for season in all_predictions:
             if season in all_actuals:
-                results[season] = self.evaluate(
-                    all_predictions[season], all_actuals[season]
-                )
+                results[season] = self.evaluate(all_predictions[season], all_actuals[season])
         return results
 
     def evaluate_by_gameweek(
@@ -198,9 +188,7 @@ class BacktestEvaluator:
         results: dict[int, dict[str, float]] = {}
         for gw in all_predictions:
             if gw in all_actuals:
-                results[gw] = self.evaluate(
-                    all_predictions[gw], all_actuals[gw]
-                )
+                results[gw] = self.evaluate(all_predictions[gw], all_actuals[gw])
         return results
 
     def evaluate_by_position(
@@ -224,12 +212,12 @@ class BacktestEvaluator:
 
         for pos_code, pos_name in position_names.items():
             pos_predictions = {
-                pid: pred for pid, pred in predictions.items()
+                pid: pred
+                for pid, pred in predictions.items()
                 if player_positions.get(pid) == pos_code
             }
             pos_actuals = {
-                pid: act for pid, act in actuals.items()
-                if player_positions.get(pid) == pos_code
+                pid: act for pid, act in actuals.items() if player_positions.get(pid) == pos_code
             }
             if pos_predictions and pos_actuals:
                 results[pos_name] = self.evaluate(pos_predictions, pos_actuals)
@@ -261,12 +249,12 @@ class BacktestEvaluator:
 
         for range_name, (low, high) in ranges.items():
             range_predictions = {
-                pid: pred for pid, pred in predictions.items()
+                pid: pred
+                for pid, pred in predictions.items()
                 if low <= player_prices.get(pid, 0) < high
             }
             range_actuals = {
-                pid: act for pid, act in actuals.items()
-                if low <= player_prices.get(pid, 0) < high
+                pid: act for pid, act in actuals.items() if low <= player_prices.get(pid, 0) < high
             }
             if range_predictions and range_actuals:
                 results[range_name] = self.evaluate(range_predictions, range_actuals)

@@ -12,17 +12,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 
 
-class DataEnvironment(str, Enum):
+class DataEnvironment(StrEnum):
     """Marker for the origin of a dataset."""
 
     MOCK = "mock"
     REAL = "real"
 
 
-class DatasetClass(str, Enum):
+class DatasetClass(StrEnum):
     """Temporal integrity classification (Section 9/10 of Phase 4.75)."""
 
     #: Availability of every record can be reasonably established and it may be

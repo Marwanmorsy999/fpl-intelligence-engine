@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import itertools
 from dataclasses import dataclass
-from typing import Any
 
 import numpy as np
 
@@ -47,51 +45,54 @@ class TransferOptimizer:
         horizon: int = 4,
     ) -> TransferEvaluation:
         """Evaluate a single 1-to-1 transfer over a planning horizon."""
-        
+
         expected_gain = 0.0
         var_in = 0.0
         var_out = 0.0
-        
+
         # Calculate EV and variance over horizon
         for offset in range(horizon):
             gw = squad.gameweek + offset
             pred_out = self.provider.get_player_prediction(player_out, gw)
             pred_in = self.provider.get_player_prediction(player_in, gw)
-            
+
             # Using actual distributions to get EV and Variance
             if pred_in.distribution is not None and len(pred_in.distribution) > 0:
                 ev_in = float(np.mean(pred_in.distribution))
                 v_in = float(np.var(pred_in.distribution))
             else:
                 ev_in = pred_in.expected_points
-                v_in = ev_in * 1.5 # Heuristic variance
-                
+                v_in = ev_in * 1.5  # Heuristic variance
+
             if pred_out.distribution is not None and len(pred_out.distribution) > 0:
                 ev_out = float(np.mean(pred_out.distribution))
                 v_out = float(np.var(pred_out.distribution))
             else:
                 ev_out = pred_out.expected_points
                 v_out = ev_out * 1.5
-                
-            expected_gain += (ev_in - ev_out)
+
+            expected_gain += ev_in - ev_out
             var_in += v_in
             var_out += v_out
-            
+
         hit_cost = 0
         if squad.free_transfers < 1:
             hit_cost = self.rules.transfer_hit_cost
-            
+
         net_points = expected_gain - hit_cost
-        
+
         total_var = var_in + var_out
         prob_beat = 0.5
         if total_var > 0:
-            import scipy.stats # type: ignore
+            import scipy.stats  # type: ignore
+
             # P(Gain > HitCost)
-            prob_beat = float(scipy.stats.norm.sf(hit_cost, loc=expected_gain, scale=np.sqrt(total_var)))
+            prob_beat = float(
+                scipy.stats.norm.sf(hit_cost, loc=expected_gain, scale=np.sqrt(total_var))
+            )
         else:
             prob_beat = max(0.0, min(1.0, 0.5 + (net_points * 0.05)))
-        
+
         return TransferEvaluation(
             transfers_in=[player_in],
             transfers_out=[player_out],
@@ -106,7 +107,9 @@ class TransferOptimizer:
 class MultiTransferPlanner:
     """Plans multiple transfers using heuristic pruning and beam search."""
 
-    def __init__(self, optimizer: TransferOptimizer, provider: DecisionPredictionProvider, rules: FPLRules) -> None:
+    def __init__(
+        self, optimizer: TransferOptimizer, provider: DecisionPredictionProvider, rules: FPLRules
+    ) -> None:
         self.optimizer = optimizer
         self.provider = provider
         self.rules = rules
@@ -120,60 +123,73 @@ class MultiTransferPlanner:
         horizon: int = 4,
     ) -> Recommendation:
         """Generate the best transfer recommendation for the squad.
-        
+
         Compares:
         - Roll transfer (0 transfers)
         - 1 Free Transfer (if available)
         - Hits (if net EV is positive)
         """
         all_players_pool = list(player_positions.keys())
-        
+
         # 1. Option A: Roll transfer
         roll_action = CandidateAction(action_type=ActionType.ROLL, horizon=horizon)
         best_eval = TransferEvaluation([], [], 0, 0.0, 0.0, 0.5, True, "Roll transfer.")
         best_action = roll_action
-        
+
         squad_evs = {}
         for pid in squad.squad_players:
-            ev = sum(self.provider.get_player_prediction(pid, squad.gameweek + i).expected_points for i in range(horizon))
+            ev = sum(
+                self.provider.get_player_prediction(pid, squad.gameweek + i).expected_points
+                for i in range(horizon)
+            )
             squad_evs[pid] = ev
-            
+
         weakest_links = sorted(squad.squad_players, key=lambda p: squad_evs[p])[:3]
-        
+
         target_evs = {}
         for pid in all_players_pool:
             if pid not in squad.squad_players:
-                ev = sum(self.provider.get_player_prediction(pid, squad.gameweek + i).expected_points for i in range(horizon))
+                ev = sum(
+                    self.provider.get_player_prediction(pid, squad.gameweek + i).expected_points
+                    for i in range(horizon)
+                )
                 target_evs[pid] = ev
-                
+
         top_targets = []
         for pos in [1, 2, 3, 4]:
-            pos_targets = [p for p in target_evs.keys() if player_positions[p] == pos]
+            pos_targets = [p for p in target_evs if player_positions[p] == pos]
             pos_targets = sorted(pos_targets, key=lambda p: target_evs[p], reverse=True)[:10]
             top_targets.extend(pos_targets)
-            
+
         # 3. Evaluate 1-transfer combinations
         for p_out in weakest_links:
             pos_out = player_positions[p_out]
             price_out = player_prices.get(p_out, 0.0)
-            
+
             for p_in in top_targets:
                 if player_positions[p_in] != pos_out:
                     continue  # Must be same position for simple 1-to-1
-                    
+
                 price_in = player_prices.get(p_in, 0.0)
                 if squad.bank + price_out < price_in:
                     continue  # Budget constraint
-                    
+
                 team_in = player_teams.get(p_in)
-                current_from_team = sum(1 for p in squad.squad_players if player_teams.get(p) == team_in)
+                current_from_team = sum(
+                    1 for p in squad.squad_players if player_teams.get(p) == team_in
+                )
                 if current_from_team >= self.rules.max_players_per_club:
                     continue
-                    
+
                 eval_obj = self.optimizer.evaluate_transfer(squad, p_out, p_in, horizon)
-                
-                flexibility_penalty = 0.5 if squad.free_transfers > 0 and squad.rolled_transfers < self.rules.max_rolled_transfers else 0.0
-                
+
+                flexibility_penalty = (
+                    0.5
+                    if squad.free_transfers > 0
+                    and squad.rolled_transfers < self.rules.max_rolled_transfers
+                    else 0.0
+                )
+
                 if eval_obj.net_points - flexibility_penalty > best_eval.net_points:
                     best_eval = eval_obj
                     best_action = CandidateAction(
@@ -183,8 +199,16 @@ class MultiTransferPlanner:
                         hit_cost=eval_obj.hit_cost,
                         horizon=horizon,
                     )
-        
-        action_type_str = "Hit" if best_eval.hit_cost > 0 else ("Free Transfer" if best_action.action_type == ActionType.TRANSFER else "Roll Transfer")
+
+        action_type_str = (
+            "Hit"
+            if best_eval.hit_cost > 0
+            else (
+                "Free Transfer"
+                if best_action.action_type == ActionType.TRANSFER
+                else "Roll Transfer"
+            )
+        )
 
         # Deciding margin: EV gain over the next-best option (roll).
         margin = round(best_eval.net_points, 2)
@@ -199,5 +223,7 @@ class MultiTransferPlanner:
             probability_positive=best_eval.probability_beat_roll,
             confidence=0.7,
             main_reason=reason,
-            main_risk="Opportunity cost of transfer flexibility." if best_action.action_type == ActionType.TRANSFER else "Missed points on bench.",
+            main_risk="Opportunity cost of transfer flexibility."
+            if best_action.action_type == ActionType.TRANSFER
+            else "Missed points on bench.",
         )

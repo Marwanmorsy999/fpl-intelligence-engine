@@ -12,8 +12,8 @@ from typing import Any
 import numpy as np
 
 from fpl_intelligence.prediction.simulation import (
-    GameweekSimulator,
     GameweekSimulationResult,
+    GameweekSimulator,
 )
 
 
@@ -94,7 +94,9 @@ class AdvancedGameweekSimulator(GameweekSimulator):
             )
             autosub_totals.append(sim_total)
 
-        autosub_total = float(np.mean(autosub_totals)) if autosub_totals else base_result.total_points
+        autosub_total = (
+            float(np.mean(autosub_totals)) if autosub_totals else base_result.total_points
+        )
 
         return AdvancedGameweekSimulationResult(
             fixtures_involved=base_result.fixtures_involved,
@@ -172,7 +174,11 @@ class AdvancedGameweekSimulator(GameweekSimulator):
         for player_id in candidates:
             if provider is not None:
                 pred = provider.get_player_prediction(player_id, gameweek)
-                sim_points = pred.distribution if pred.distribution is not None else np.array([pred.expected_points])
+                sim_points = (
+                    pred.distribution
+                    if pred.distribution is not None
+                    else np.array([pred.expected_points])
+                )
             else:
                 sim_points = self._sample_player_points(player_id, rng)
             scores[player_id] = round(float(np.mean(sim_points)), 4)

@@ -11,7 +11,7 @@ from fpl_intelligence.optimization.provider import (
     DecisionPredictionProvider,
     PlayerPrediction,
 )
-from fpl_intelligence.optimization.rules import FPLRules, DEFAULT_FPL_RULES
+from fpl_intelligence.optimization.rules import DEFAULT_FPL_RULES, FPLRules
 
 __all__ = [
     "ActionType",

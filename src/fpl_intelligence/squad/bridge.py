@@ -44,9 +44,7 @@ class DecisionOptimizerBridge:
         self._starting_xi_opt = StartingXIOptimizer(provider, self.rules)
         self._captain_opt = CaptainOptimizer(provider)
         self._transfer_opt = TransferOptimizer(provider, self.rules)
-        self._multi_transfer = MultiTransferPlanner(
-            self._transfer_opt, provider, self.rules
-        )
+        self._multi_transfer = MultiTransferPlanner(self._transfer_opt, provider, self.rules)
         self._chip_sim = ChipSimulator(provider, self.rules)
 
     def generate_decisions(
@@ -94,8 +92,7 @@ class DecisionOptimizerBridge:
         prices = squad.player_prices or {}
         squad_value = sum(prices.get(pid, 8.0) for pid in squad.player_ids)
         remaining_chips = [
-            c for c in squad.chips_available
-            if c in self.rules.rules.get("chips", {})
+            c for c in squad.chips_available if c in self.rules.rules.get("chips", {})
         ]
         if not remaining_chips:
             remaining_chips = list(squad.chips_available)
@@ -200,11 +197,7 @@ class DecisionOptimizerBridge:
         if rec is None:
             return None
 
-        chip_name = (
-            rec.action.chip
-            if rec.action.chip
-            else rec.action.action_type.value
-        )
+        chip_name = rec.action.chip if rec.action.chip else rec.action.action_type.value
         return ChipRecommendation(
             chip_name=chip_name,
             expected_gain=rec.expected_gain,

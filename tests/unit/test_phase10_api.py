@@ -8,6 +8,7 @@ the suite runs fully offline and instantly:
 * ``POST /api/v1/ingest``            -> 200 + ingestion summary + extraction ids
 * ``GET  /api/v1/intelligence/unresolved`` -> 200 + paginated unresolved rows
 """
+
 from __future__ import annotations
 
 import pytest

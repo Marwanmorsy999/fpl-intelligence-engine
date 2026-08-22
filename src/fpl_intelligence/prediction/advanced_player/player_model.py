@@ -105,7 +105,6 @@ class AdvancedPlayerModel:
         self._bonus_model = BonusModel()
         self._defensive_model = DefensiveContributionModel()
 
-
     def _get_minutes_prediction(
         self, features: dict[str, float], context: dict[str, Any]
     ) -> dict[str, float]:
@@ -135,7 +134,8 @@ class AdvancedPlayerModel:
                 max(5.0, components.appearance_minutes * 0.3),
                 size=n,
             ),
-            0, 90,
+            0,
+            90,
         )
         clean_sheet = rng.random(n) < components.expected_clean_sheet
         bonus_prob = min(1.0, components.expected_bonus / 2.0)
@@ -180,18 +180,19 @@ class AdvancedPlayerModel:
         context: dict[str, Any],
     ) -> dict[str, str]:
         """Decompose uncertainty by source."""
-        minutes_unc = (
-            "high" if minutes_ctx.get("probability_starting", 0.5) < 0.7
-            else "low"
-        )
+        minutes_unc = "high" if minutes_ctx.get("probability_starting", 0.5) < 0.7 else "low"
         goal_unc = (
-            "high" if goal_pred.expected_goals < 0.2
-            else "medium" if goal_pred.expected_goals < 0.5
+            "high"
+            if goal_pred.expected_goals < 0.2
+            else "medium"
+            if goal_pred.expected_goals < 0.5
             else "low"
         )
         assist_unc = (
-            "high" if assist_pred.expected_assists < 0.1
-            else "medium" if assist_pred.expected_assists < 0.3
+            "high"
+            if assist_pred.expected_assists < 0.1
+            else "medium"
+            if assist_pred.expected_assists < 0.3
             else "low"
         )
         return {

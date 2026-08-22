@@ -17,6 +17,7 @@ Both take injected ``clock`` and ``sleep`` callables. Tests therefore assert on
 the exact pacing decisions with no wall-clock delay, which is the only way this
 behaviour can be covered at all in a suite that must stay fast and offline.
 """
+
 from __future__ import annotations
 
 import time

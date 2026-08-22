@@ -37,6 +37,18 @@ class Settings(BaseSettings):
     # crash. Free tier: 500 credits/month; the connector caches 12h.
     the_odds_api_key: str = ""
 
+    # --- Phase 18.0 — FPL egress mask chain --------------------------------
+    # When the direct FPL fetch is blocked (403/429/500 on Vercel shared egress),
+    # the importer tries CORS masks in order. The last mask is the user's
+    # Google Apps Script proxy; set its base URL here. The importer appends
+    # ?url=<encoded fpl url> itself, so this is the URL *up to and including*
+    # the query param name, e.g. "https://script.google.com/macros/s/AKfycb…/exec".
+    fpl_proxy_url: str = ""
+    # Per-strategy network timeout for the egress chain (seconds).
+    egress_strategy_timeout: float = 4.0
+    # TTL for cached FPL responses (seconds).
+    egress_cache_ttl: float = 60
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 

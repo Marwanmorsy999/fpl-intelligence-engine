@@ -97,15 +97,17 @@ class AvailabilityPolicy:
         """
         stmt = select(Player)
         if team_id is not None:
-            stmt = stmt.where(Player.id.in_(
-                select(PlayerTeamMembership.player_id)
-                .where(PlayerTeamMembership.team_id == team_id)
-                .where(PlayerTeamMembership.valid_from <= cutoff_time)
-                .where(
-                    (PlayerTeamMembership.valid_to.is_(None))
-                    | (PlayerTeamMembership.valid_to > cutoff_time)
+            stmt = stmt.where(
+                Player.id.in_(
+                    select(PlayerTeamMembership.player_id)
+                    .where(PlayerTeamMembership.team_id == team_id)
+                    .where(PlayerTeamMembership.valid_from <= cutoff_time)
+                    .where(
+                        (PlayerTeamMembership.valid_to.is_(None))
+                        | (PlayerTeamMembership.valid_to > cutoff_time)
+                    )
                 )
-            ))
+            )
 
         players = list(db.execute(stmt).scalars().all())
         return self.filter_available(players, cutoff_time)
@@ -129,9 +131,7 @@ class AvailabilityPolicy:
         Returns:
             List of available Fixture instances.
         """
-        stmt = select(Fixture).where(
-            Fixture.kickoff_time > cutoff_time
-        )
+        stmt = select(Fixture).where(Fixture.kickoff_time > cutoff_time)
         if gameweek_id is not None:
             stmt = stmt.where(Fixture.gameweek_id == gameweek_id)
 
@@ -158,9 +158,7 @@ class AvailabilityPolicy:
             PlayerGameweekPerformance.player_id == player_id,
         )
         try:
-            condition = apply_policy(
-                PlayerGameweekPerformance, self._policy, cutoff_time
-            )
+            condition = apply_policy(PlayerGameweekPerformance, self._policy, cutoff_time)
             stmt = stmt.where(condition)
         except ValueError:
             pass

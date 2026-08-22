@@ -235,4 +235,3 @@ class FPLScoringEngine:
     def _position_name(self, position_code: int) -> str:
         mapping = {1: "GK", 2: "DEF", 3: "MID", 4: "FWD"}
         return mapping.get(position_code, self._rules.get("default_position", "MID"))
-

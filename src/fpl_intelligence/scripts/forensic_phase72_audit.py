@@ -18,6 +18,7 @@ Also verifies PostgreSQL: applies migrations and reports schema presence + the
 9 table row counts (expected all-zero, confirming the live DB carries no
 historical availability data and the validation runner uses SQLite in-memory).
 """
+
 from __future__ import annotations
 
 import json
@@ -75,7 +76,8 @@ def row_counts(db: Session) -> dict[str, int]:
     )
 
     return {
-        "availability_sources": db.scalar(select(AvailabilitySource)).__class__ and db.query(AvailabilitySource).count(),
+        "availability_sources": db.scalar(select(AvailabilitySource)).__class__
+        and db.query(AvailabilitySource).count(),
         "availability_articles": db.query(AvailabilityArticle).count(),
         "availability_evidence": db.query(AvailabilityEvidence).count(),
         "availability_events": db.query(AvailabilityEvent).count(),
@@ -92,11 +94,11 @@ def row_counts(db: Session) -> dict[str, int]:
 # --------------------------------------------------------------------------
 def scenario_a() -> dict:
     db = build_db()()
+    from fpl_intelligence.availability.historical.importer import import_historical_availability
+    from fpl_intelligence.availability.historical.providers import RealFPLAvailabilityProvider
     from fpl_intelligence.ingestion.historical import import_season
     from fpl_intelligence.providers import RealFPLProvider
     from fpl_intelligence.providers.github_fetcher import DiskCachingFetcher
-    from fpl_intelligence.availability.historical.importer import import_historical_availability
-    from fpl_intelligence.availability.historical.providers import RealFPLAvailabilityProvider
 
     fetcher = DiskCachingFetcher(raw_root=ROOT / "data" / "raw", offline=True)
     provider = RealFPLProvider(fetcher=fetcher)
@@ -140,11 +142,13 @@ def scenario_a() -> dict:
 def scenario_b() -> dict:
     db = build_db()()
     # Mirror run_phase72_import._seed_canonical (provider-name registration).
+    import csv
+    import io
+
     from fpl_intelligence.availability.historical.providers import (
         SampleHistoricalAvailabilityProvider,
     )
-    from fpl_intelligence.db.models import Player, PlayerExternalId, Season, Team, TeamExternalId
-    import csv, io
+    from fpl_intelligence.db.models import Player, PlayerExternalId, Season
 
     for code in SEASONS + [HOLDOUT]:
         if db.scalar(select(Season).where(Season.code == code)) is None:
@@ -175,8 +179,12 @@ def scenario_b() -> dict:
         if existing is not None:
             player_id = existing.player_id
         else:
-            player = Player(first_name=f"First{pid}", second_name=f"Last{pid}",
-                            web_name=f"Player {pid}", position_code=1)
+            player = Player(
+                first_name=f"First{pid}",
+                second_name=f"Last{pid}",
+                web_name=f"Player {pid}",
+                position_code=1,
+            )
             db.add(player)
             db.flush()
             player_id = player.id
@@ -231,21 +239,24 @@ def pg_verify() -> dict:
     import sqlalchemy as _sa
 
     try:
-        eng = _sa.create_engine("postgresql+psycopg://fpl:fpl@localhost:5432/fpl",
-                                connect_args={"connect_timeout": 20})
+        eng = _sa.create_engine(
+            "postgresql+psycopg://fpl:fpl@localhost:5432/fpl", connect_args={"connect_timeout": 20}
+        )
         with eng.connect() as conn:
-            tables = [r[0] for r in conn.execute(
-                _sa.text(
-                    "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename"
-                )
-            ).all()]
+            tables = [
+                r[0]
+                for r in conn.execute(
+                    _sa.text(
+                        "SELECT tablename FROM pg_tables "
+                        "WHERE schemaname='public' ORDER BY tablename"
+                    )
+                ).all()
+            ]
             have_availability = any(t in AVAIL_TABLES for t in tables)
             counts: dict[str, int] = {}
             for t in AVAIL_TABLES:
                 if t in tables:
-                    counts[t] = conn.execute(
-                        _sa.text(f'SELECT count(*) FROM "{t}"')
-                    ).scalar()
+                    counts[t] = conn.execute(_sa.text(f'SELECT count(*) FROM "{t}"')).scalar()
                 else:
                     counts[t] = None  # schema absent
             return {
@@ -297,4 +308,4 @@ if __name__ == "__main__":
         raise SystemExit(main())
     except Exception:
         traceback.print_exc()
-        raise SystemExit(1)
+        raise SystemExit(1) from None

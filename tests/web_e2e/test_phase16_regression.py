@@ -58,26 +58,28 @@ def _mock_from_fpl_success(route: Route) -> None:
     route.fulfill(
         status=200,
         content_type="application/json",
-        body=json.dumps({
-            "squad": {
-                "player_ids": [p["id"] for p in TEST_PLAYERS[:15]],
-                "captain_id": 4,
-                "vice_captain_id": 12,
-                "bank": 0.5,
-                "free_transfers": 1,
-                "chips_available": ["wildcard", "free_hit", "bench_boost", "triple_captain"],
+        body=json.dumps(
+            {
+                "squad": {
+                    "player_ids": [p["id"] for p in TEST_PLAYERS[:15]],
+                    "captain_id": 4,
+                    "vice_captain_id": 12,
+                    "bank": 0.5,
+                    "free_transfers": 1,
+                    "chips_available": ["wildcard", "free_hit", "bench_boost", "triple_captain"],
+                    "gameweek": 8,
+                    "player_positions": {p["id"]: p["position"] for p in TEST_PLAYERS[:15]},
+                    "player_prices": {p["id"]: p["price"] for p in TEST_PLAYERS[:15]},
+                    "player_teams": {p["id"]: p["team"] for p in TEST_PLAYERS[:15]},
+                    "is_demo": False,
+                    "updated_at": "2026-08-22T12:00:00Z",
+                },
+                "player_names": {p["id"]: p["web_name"] for p in TEST_PLAYERS[:15]},
+                "entry_name": "Test Manager FC",
                 "gameweek": 8,
-                "player_positions": {p["id"]: p["position"] for p in TEST_PLAYERS[:15]},
-                "player_prices": {p["id"]: p["price"] for p in TEST_PLAYERS[:15]},
-                "player_teams": {p["id"]: p["team"] for p in TEST_PLAYERS[:15]},
                 "is_demo": False,
-                "updated_at": "2026-08-22T12:00:00Z",
-            },
-            "player_names": {p["id"]: p["web_name"] for p in TEST_PLAYERS[:15]},
-            "entry_name": "Test Manager FC",
-            "gameweek": 8,
-            "is_demo": False,
-        }),
+            }
+        ),
     )
 
 
@@ -92,7 +94,9 @@ def _mock_from_fpl_blocked(route: Route) -> None:
 
 def _mock_decisions(route: Route) -> None:
     """Mock GET /api/v1/decisions with a valid report."""
-    session_id = route.request.url.split("session_id=")[-1] if "session_id=" in route.request.url else ""
+    session_id = (
+        route.request.url.split("session_id=")[-1] if "session_id=" in route.request.url else ""
+    )
     if "unknown" in session_id:
         route.fulfill(
             status=404,
@@ -103,45 +107,52 @@ def _mock_decisions(route: Route) -> None:
     route.fulfill(
         status=200,
         content_type="application/json",
-        body=json.dumps({
-            "generated_at": "2026-08-22T12:00:00Z",
-            "gameweek": 8,
-            "starting_xi": [p["id"] for p in TEST_PLAYERS[:11]],
-            "bench_order": [p["id"] for p in TEST_PLAYERS[11:15]],
-            "captain": {
-                "player_id": 4,
-                "expected_points": 8.5,
-                "confidence": 0.85,
-                "main_reason": "Highest xPTS this gameweek",
-                "main_risk": None,
-            },
-            "vice_captain": 12,
-            "transfer_plan": None,
-            "chip_recommendation": None,
-            "players": {
-                str(p["id"]): {
-                    "id": p["id"],
-                    "web_name": p["web_name"],
-                    "team": p["team"],
-                    "position": p["position"],
-                    "price": p["price"],
-                    "code": p["code"],
-                    "expected_points": 5.0 + (p["id"] % 5),
-                    "prediction_source": "model-backtest",
-                    "data_quality": "historical-backtest",
-                }
-                for p in TEST_PLAYERS[:15]
-            },
-            "meta": {
-                "squad_summary": {
-                    "team_value": 100.5,
-                    "bank": 0.5,
-                    "free_transfers": 1,
-                    "chips_available": ["wildcard", "free_hit", "bench_boost", "triple_captain"],
+        body=json.dumps(
+            {
+                "generated_at": "2026-08-22T12:00:00Z",
+                "gameweek": 8,
+                "starting_xi": [p["id"] for p in TEST_PLAYERS[:11]],
+                "bench_order": [p["id"] for p in TEST_PLAYERS[11:15]],
+                "captain": {
+                    "player_id": 4,
+                    "expected_points": 8.5,
+                    "confidence": 0.85,
+                    "main_reason": "Highest xPTS this gameweek",
+                    "main_risk": None,
                 },
-                "player_positions": {p["id"]: p["position"] for p in TEST_PLAYERS[:15]},
-            },
-        }),
+                "vice_captain": 12,
+                "transfer_plan": None,
+                "chip_recommendation": None,
+                "players": {
+                    str(p["id"]): {
+                        "id": p["id"],
+                        "web_name": p["web_name"],
+                        "team": p["team"],
+                        "position": p["position"],
+                        "price": p["price"],
+                        "code": p["code"],
+                        "expected_points": 5.0 + (p["id"] % 5),
+                        "prediction_source": "model-backtest",
+                        "data_quality": "historical-backtest",
+                    }
+                    for p in TEST_PLAYERS[:15]
+                },
+                "meta": {
+                    "squad_summary": {
+                        "team_value": 100.5,
+                        "bank": 0.5,
+                        "free_transfers": 1,
+                        "chips_available": [
+                            "wildcard",
+                            "free_hit",
+                            "bench_boost",
+                            "triple_captain",
+                        ],
+                    },
+                    "player_positions": {p["id"]: p["position"] for p in TEST_PLAYERS[:15]},
+                },
+            }
+        ),
     )
 
 
@@ -150,20 +161,22 @@ def _mock_squad_post(route: Route) -> None:
     route.fulfill(
         status=200,
         content_type="application/json",
-        body=json.dumps({
-            "player_ids": [p["id"] for p in TEST_PLAYERS[:15]],
-            "captain_id": 4,
-            "vice_captain_id": 12,
-            "bank": 0.0,
-            "free_transfers": 1,
-            "chips_available": [],
-            "gameweek": 1,
-            "player_positions": {p["id"]: p["position"] for p in TEST_PLAYERS[:15]},
-            "player_prices": {p["id"]: p["price"] for p in TEST_PLAYERS[:15]},
-            "player_teams": {p["id"]: p["team"] for p in TEST_PLAYERS[:15]},
-            "is_demo": False,
-            "updated_at": "2026-08-22T12:00:00Z",
-        }),
+        body=json.dumps(
+            {
+                "player_ids": [p["id"] for p in TEST_PLAYERS[:15]],
+                "captain_id": 4,
+                "vice_captain_id": 12,
+                "bank": 0.0,
+                "free_transfers": 1,
+                "chips_available": [],
+                "gameweek": 1,
+                "player_positions": {p["id"]: p["position"] for p in TEST_PLAYERS[:15]},
+                "player_prices": {p["id"]: p["price"] for p in TEST_PLAYERS[:15]},
+                "player_teams": {p["id"]: p["team"] for p in TEST_PLAYERS[:15]},
+                "is_demo": False,
+                "updated_at": "2026-08-22T12:00:00Z",
+            }
+        ),
     )
 
 
@@ -172,26 +185,65 @@ def _mock_demo_post(route: Route) -> None:
     route.fulfill(
         status=200,
         content_type="application/json",
-        body=json.dumps({
-            "squad": {
-                "player_ids": [p["id"] for p in TEST_PLAYERS[:15]],
-                "captain_id": 4,
-                "vice_captain_id": 12,
-                "bank": 2.0,
-                "free_transfers": 1,
-                "chips_available": ["wildcard", "free_hit", "bench_boost", "triple_captain"],
+        body=json.dumps(
+            {
+                "squad": {
+                    "player_ids": [p["id"] for p in TEST_PLAYERS[:15]],
+                    "captain_id": 4,
+                    "vice_captain_id": 12,
+                    "bank": 2.0,
+                    "free_transfers": 1,
+                    "chips_available": ["wildcard", "free_hit", "bench_boost", "triple_captain"],
+                    "gameweek": 1,
+                    "player_positions": {p["id"]: p["position"] for p in TEST_PLAYERS[:15]},
+                    "player_prices": {p["id"]: p["price"] for p in TEST_PLAYERS[:15]},
+                    "player_teams": {p["id"]: p["team"] for p in TEST_PLAYERS[:15]},
+                    "is_demo": True,
+                    "updated_at": "2026-08-22T12:00:00Z",
+                },
+                "player_names": {p["id"]: p["web_name"] for p in TEST_PLAYERS[:15]},
+                "entry_name": "Demo Squad",
                 "gameweek": 1,
-                "player_positions": {p["id"]: p["position"] for p in TEST_PLAYERS[:15]},
-                "player_prices": {p["id"]: p["price"] for p in TEST_PLAYERS[:15]},
-                "player_teams": {p["id"]: p["team"] for p in TEST_PLAYERS[:15]},
                 "is_demo": True,
-                "updated_at": "2026-08-22T12:00:00Z",
-            },
-            "player_names": {p["id"]: p["web_name"] for p in TEST_PLAYERS[:15]},
-            "entry_name": "Demo Squad",
-            "gameweek": 1,
-            "is_demo": True,
-        }),
+            }
+        ),
+    )
+
+
+def _mock_analyst(route: Route) -> None:
+    """Mock GET /api/v1/analyst/summary (kept off the real server/DB)."""
+    route.fulfill(
+        status=200,
+        content_type="application/json",
+        body=json.dumps(
+            {
+                "summary": "Haaland is your captain this week.",
+                "model": "template-fallback",
+                "session_id": "x",
+                "gameweek": 8,
+            }
+        ),
+    )
+
+
+def _mock_data_sources(route: Route) -> None:
+    """Mock GET /api/v1/data-sources (kept off the real server/DB)."""
+    route.fulfill(
+        status=200,
+        content_type="application/json",
+        body=json.dumps(
+            {
+                "as_of": "2026-08-22T12:00:00Z",
+                "sources": {
+                    "fpl_import": {"status": "ok", "detail": "reachable"},
+                    "odds_api": {"status": "off", "detail": "not set"},
+                    "understat": {"status": "ok", "detail": "snapshot 1d old"},
+                    "weather": {"status": "live", "detail": "Open-Meteo"},
+                    "pl_photos": {"status": "ok", "detail": "avatars"},
+                    "llm": {"status": "template-fallback", "detail": "mock"},
+                },
+            }
+        ),
     )
 
 
@@ -207,23 +259,39 @@ def _mock_health(route: Route) -> None:
 @pytest.fixture
 def mocked_page(page: Page) -> Page:
     """Set up route mocking for all API endpoints."""
+    # Catch-all FIRST (Playwright matches later registrations first): any
+    # un-mocked /api call must never reach the real server, where an
+    # unreachable database would wedge the request pool.
+    page.route(
+        "**/api/**",
+        lambda r: r.fulfill(
+            status=404,
+            content_type="application/json",
+            body='{"detail":"unmocked endpoint"}',
+        ),
+    )
     # Health check
     page.route("**/health", _mock_health)
     # Players list
     page.route("**/api/v1/players", _mock_players)
     # Decisions
     page.route("**/api/v1/decisions**", _mock_decisions)
-    # Squad POST
-    page.route("**/api/v1/squad", _mock_squad_post)
+    # Squad POST (query string included — the dashboard always appends
+    # ?session_id=..., which a bare "**/api/v1/squad" glob would MISS).
+    page.route("**/api/v1/squad**", _mock_squad_post)
     # Demo squad
     page.route("**/api/v1/squad/demo**", _mock_demo_post)
+    # Analyst + data sources: never let these reach the real server, where an
+    # unreachable database would wedge the request pool (Phase 18.0 lesson).
+    page.route("**/api/v1/analyst/summary*", _mock_analyst)
+    page.route("**/api/v1/data-sources*", _mock_data_sources)
     return page
 
 
 @pytest.fixture
 def dashboard(mocked_page: Page) -> Page:
     """Navigate to the dashboard with mocked API."""
-    mocked_page.goto(BASE_URL + "/dashboard")
+    mocked_page.goto(BASE_URL + "/dashboard", wait_until="domcontentloaded")
     mocked_page.wait_for_load_state("domcontentloaded")
     return mocked_page
 
@@ -245,7 +313,7 @@ class TestScenarioA:
         page = dashboard
         # Clear localStorage to ensure fresh state
         page.evaluate("() => localStorage.clear()")
-        page.reload()
+        page.reload(wait_until="domcontentloaded")
         page.wait_for_load_state("domcontentloaded")
 
         # Set up from-fpl mock for this test
@@ -274,7 +342,7 @@ class TestScenarioA:
         """When FPL blocks, show honest error message, never demo."""
         page = dashboard
         page.evaluate("() => localStorage.clear()")
-        page.reload()
+        page.reload(wait_until="domcontentloaded")
         page.wait_for_load_state("domcontentloaded")
 
         # Set up from-fpl mock to return 503
@@ -303,7 +371,7 @@ class TestScenarioB:
         """Type to search players, fill 15 slots, save, verify decisions."""
         page = dashboard
         page.evaluate("() => localStorage.clear()")
-        page.reload()
+        page.reload(wait_until="domcontentloaded")
         page.wait_for_load_state("domcontentloaded")
 
         # Open manual entry
@@ -318,21 +386,21 @@ class TestScenarioB:
         # GK: Alisson, Areola  DEF: Saliba, Gabriel, Van Dijk, White, Trippier
         # MID: Odegaard, De Bruyne, Saka, Salah, Fodon  FWD: Haaland, Watkins, Isak
         search_terms = [
-            "Al",    # GK1 -> Alisson
-            "Are",   # GK2 -> Areola
-            "Sal",   # DEF1 -> Saliba
-            "Gab",   # DEF2 -> Gabriel
-            "Van",   # DEF3 -> Van Dijk
-            "Whi",   # DEF4 -> White
+            "Al",  # GK1 -> Alisson
+            "Are",  # GK2 -> Areola
+            "Sal",  # DEF1 -> Saliba
+            "Gab",  # DEF2 -> Gabriel
+            "Van",  # DEF3 -> Van Dijk
+            "Whi",  # DEF4 -> White
             "Trip",  # DEF5 -> Trippier
-            "Ode",   # MID1 -> Odegaard
+            "Ode",  # MID1 -> Odegaard
             "De B",  # MID2 -> De Bruyne
-            "Sak",   # MID3 -> Saka
-            "Salah", # MID4 -> Salah
-            "Fod",   # MID5 -> Foden
-            "Haa",   # FWD1 -> Haaland
-            "Wat",   # FWD2 -> Watkins
-            "Isa",   # FWD3 -> Isak
+            "Sak",  # MID3 -> Saka
+            "Salah",  # MID4 -> Salah
+            "Fod",  # MID5 -> Foden
+            "Haa",  # FWD1 -> Haaland
+            "Wat",  # FWD2 -> Watkins
+            "Isa",  # FWD3 -> Isak
         ]
         for i in range(15):
             slot = slots.nth(i)
@@ -391,7 +459,7 @@ class TestScenarioC:
         """After saving a manual squad, reloading restores the session."""
         page = dashboard
         page.evaluate("() => localStorage.clear()")
-        page.reload()
+        page.reload(wait_until="domcontentloaded")
         page.wait_for_load_state("domcontentloaded")
 
         # Open manual entry
@@ -401,9 +469,21 @@ class TestScenarioC:
         # Fill 15 slots with position-appropriate names
         slots = page.locator(".manual-slot")
         search_terms = [
-            "Al", "Are", "Sal", "Gab", "Van", "Whi", "Trip",
-            "Ode", "De B", "Sak", "Salah", "Fod",
-            "Haa", "Wat", "Isa"
+            "Al",
+            "Are",
+            "Sal",
+            "Gab",
+            "Van",
+            "Whi",
+            "Trip",
+            "Ode",
+            "De B",
+            "Sak",
+            "Salah",
+            "Fod",
+            "Haa",
+            "Wat",
+            "Isa",
         ]
         for i in range(15):
             slot = slots.nth(i)
@@ -439,7 +519,7 @@ class TestScenarioC:
         expect(page.locator("#results")).to_be_visible(timeout=10000)
 
         # Reload the page
-        page.reload()
+        page.reload(wait_until="domcontentloaded")
         page.wait_for_load_state("domcontentloaded")
         page.wait_for_timeout(1000)
 
@@ -471,7 +551,7 @@ class TestScenarioD:
         """Setting an unknown session in localStorage leads to empty state."""
         page = dashboard
         page.evaluate("() => localStorage.clear()")
-        page.reload()
+        page.reload(wait_until="domcontentloaded")
         page.wait_for_load_state("domcontentloaded")
 
         # Set a fake session ID in localStorage
@@ -480,7 +560,7 @@ class TestScenarioD:
             localStorage.setItem('fpl_session_source', 'fpl_id');
             localStorage.setItem('fpl_session_source_label', 'FPL ID 999');
         }""")
-        page.reload()
+        page.reload(wait_until="domcontentloaded")
         page.wait_for_load_state("domcontentloaded")
         page.wait_for_timeout(2000)
 

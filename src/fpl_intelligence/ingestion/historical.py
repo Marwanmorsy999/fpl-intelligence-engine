@@ -99,7 +99,9 @@ def _save_raw_record(
     db.flush()
 
 
-def _get_or_create_season(db: Session, code: str, start_date: Any = None, end_date: Any = None) -> Season:
+def _get_or_create_season(
+    db: Session, code: str, start_date: Any = None, end_date: Any = None
+) -> Season:
     season = db.scalar(select(Season).where(Season.code == code))
     if season:
         return season
@@ -115,7 +117,9 @@ def _get_or_create_season(db: Session, code: str, start_date: Any = None, end_da
     return season
 
 
-def _get_or_create_team(db: Session, provider_name: str, provider_team_id: str, name: str, short_name: str | None) -> Team:
+def _get_or_create_team(
+    db: Session, provider_name: str, provider_team_id: str, name: str, short_name: str | None
+) -> Team:
     """Get or create a team by external ID, creating the mapping if needed."""
     ext_id = db.scalar(
         select(TeamExternalId).where(
@@ -300,7 +304,9 @@ def import_season(
             )
         )
         if existing:
-            logger.info("Import already completed for %s/%s (%s)", provider_name, dataset, season_code)
+            logger.info(
+                "Import already completed for %s/%s (%s)", provider_name, dataset, season_code
+            )
             report.records_accepted = existing.records_processed
             return report
 
@@ -336,17 +342,26 @@ def import_season(
 
         if not dry_run:
             _save_raw_record(
-                db, provider_name, provider_name, f"/seasons/{season_code}",
-                dict(season_info), season_code,
+                db,
+                provider_name,
+                provider_name,
+                f"/seasons/{season_code}",
+                dict(season_info),
+                season_code,
             )
 
         # 2. Teams
         teams_data = provider.get_teams(season_code)
-        norm_teams = [normalize_team(t, provider_name, getattr(provider, 'schema_version', 'v1')) for t in teams_data]
+        norm_teams = [
+            normalize_team(t, provider_name, getattr(provider, "schema_version", "v1"))
+            for t in teams_data
+        ]
 
         team_map: dict[str, Team] = {}
         for nt in norm_teams:
-            team = _get_or_create_team(db, provider_name, nt["provider_team_id"], nt["name"], nt["short_name"])
+            team = _get_or_create_team(
+                db, provider_name, nt["provider_team_id"], nt["name"], nt["short_name"]
+            )
             team_map[nt["provider_team_id"]] = team
 
         known_team_ids = set(team_map.keys())
@@ -354,18 +369,26 @@ def import_season(
 
         if not dry_run:
             _save_raw_record(
-                db, provider_name, provider_name, f"/teams/{season_code}",
-                list(teams_data), season_code,
+                db,
+                provider_name,
+                provider_name,
+                f"/teams/{season_code}",
+                list(teams_data),
+                season_code,
             )
 
         # 3. Players
         players_data = provider.get_players(season_code)
-        norm_players = [normalize_player(p, provider_name, getattr(provider, 'schema_version', 'v1')) for p in players_data]
+        norm_players = [
+            normalize_player(p, provider_name, getattr(provider, "schema_version", "v1"))
+            for p in players_data
+        ]
 
         player_map: dict[str, Player] = {}
         for np_data in norm_players:
             player = _get_or_create_player(
-                db, provider_name,
+                db,
+                provider_name,
                 np_data["provider_player_id"],
                 np_data["first_name"],
                 np_data["second_name"],
@@ -399,20 +422,30 @@ def import_season(
 
         if not dry_run:
             _save_raw_record(
-                db, provider_name, provider_name, f"/players/{season_code}",
-                list(players_data), season_code,
+                db,
+                provider_name,
+                provider_name,
+                f"/players/{season_code}",
+                list(players_data),
+                season_code,
             )
 
         # 4. Fixtures
         fixtures_data = provider.get_fixtures(season_code)
-        norm_fixtures = [normalize_fixture(f, provider_name, getattr(provider, 'schema_version', 'v1')) for f in fixtures_data]
+        norm_fixtures = [
+            normalize_fixture(f, provider_name, getattr(provider, "schema_version", "v1"))
+            for f in fixtures_data
+        ]
 
         known_fixture_ids: set[str] = set()
         for nf in norm_fixtures:
             known_fixture_ids.add(nf["provider_fixture_id"])
 
         accepted_fixtures = reconcile_fixtures(
-            norm_fixtures, known_fixture_ids, known_team_ids, report,
+            norm_fixtures,
+            known_fixture_ids,
+            known_team_ids,
+            report,
         )
 
         for af in accepted_fixtures:
@@ -420,13 +453,16 @@ def import_season(
             gw_num = af.get("gameweek")
             if gw_num is not None:
                 gw = _get_or_create_gameweek(
-                    db, season.id, int(gw_num),
+                    db,
+                    season.id,
+                    int(gw_num),
                     f"Gameweek {gw_num}",
                 )
                 gameweek_id = gw.id
 
-            fixture = _get_or_create_fixture(
-                db, season.id,
+            _get_or_create_fixture(
+                db,
+                season.id,
                 af["provider_fixture_id"],
                 team_map[af["home_team_id"]].id,
                 team_map[af["away_team_id"]].id,
@@ -440,8 +476,12 @@ def import_season(
 
         if not dry_run:
             _save_raw_record(
-                db, provider_name, provider_name, f"/fixtures/{season_code}",
-                list(fixtures_data), season_code,
+                db,
+                provider_name,
+                provider_name,
+                f"/fixtures/{season_code}",
+                list(fixtures_data),
+                season_code,
             )
 
         # 5. Player match statistics
@@ -459,19 +499,39 @@ def import_season(
             aggregated: dict[tuple[str, int], dict[str, Any]] = {}
             order: list[tuple[str, int]] = []
             _sum_fields = [
-                "total_points", "minutes", "goals_scored", "assists",
-                "clean_sheets", "goals_conceded", "own_goals",
-                "penalties_saved", "penalties_missed", "yellow_cards",
-                "red_cards", "saves", "bonus", "bps",
+                "total_points",
+                "minutes",
+                "goals_scored",
+                "assists",
+                "clean_sheets",
+                "goals_conceded",
+                "own_goals",
+                "penalties_saved",
+                "penalties_missed",
+                "yellow_cards",
+                "red_cards",
+                "saves",
+                "bonus",
+                "bps",
             ]
             _sum_float = [
-                "influence", "creativity", "threat", "ict_index",
-                "expected_goals", "expected_assists",
-                "expected_goal_involvements", "expected_goals_conceded",
+                "influence",
+                "creativity",
+                "threat",
+                "ict_index",
+                "expected_goals",
+                "expected_assists",
+                "expected_goal_involvements",
+                "expected_goals_conceded",
             ]
             _last_fields = [
-                "value", "selected", "transfers_in", "transfers_out",
-                "price", "form", "points_per_game",
+                "value",
+                "selected",
+                "transfers_in",
+                "transfers_out",
+                "price",
+                "form",
+                "points_per_game",
             ]
             for nh in accepted_history:
                 pid = nh.get("provider_player_id")
@@ -571,8 +631,12 @@ def import_season(
 
             if not dry_run:
                 _save_raw_record(
-                    db, provider_name, provider_name, f"/fpl_history/{season_code}",
-                    list(fpl_history), season_code,
+                    db,
+                    provider_name,
+                    provider_name,
+                    f"/fpl_history/{season_code}",
+                    list(fpl_history),
+                    season_code,
                 )
 
         # 6. Player performance snapshots (price/ownership/transfers)
@@ -590,8 +654,10 @@ def import_season(
                 snap_agg: dict[tuple[str, int, Any], dict[str, Any]] = {}
                 snap_order: list[tuple[str, int, Any]] = []
                 _snap_sum = [
-                    "transfers_in_event", "transfers_out_event",
-                    "transfers_in_season", "transfers_out_season",
+                    "transfers_in_event",
+                    "transfers_out_event",
+                    "transfers_in_season",
+                    "transfers_out_season",
                 ]
                 for ns in norm_snapshots:
                     pid = ns.get("provider_player_id")
@@ -608,9 +674,14 @@ def import_season(
                             if ns.get(f) is not None:
                                 merged[f] = (merged.get(f) or 0) + (ns.get(f) or 0)
                         for f in [
-                            "price", "selected_by_percent", "form",
-                            "points_per_game", "ep_this", "ep_next",
-                            "total_points", "event_time",
+                            "price",
+                            "selected_by_percent",
+                            "form",
+                            "points_per_game",
+                            "ep_this",
+                            "ep_next",
+                            "total_points",
+                            "event_time",
                         ]:
                             if ns.get(f) is not None:
                                 merged[f] = ns.get(f)
@@ -665,8 +736,12 @@ def import_season(
 
                 if not dry_run:
                     _save_raw_record(
-                        db, provider_name, provider_name, f"/fpl_snapshots/{season_code}",
-                        list(snapshots_data), season_code,
+                        db,
+                        provider_name,
+                        provider_name,
+                        f"/fpl_snapshots/{season_code}",
+                        list(snapshots_data),
+                        season_code,
                     )
             except NotImplementedError:
                 logger.info("FPL snapshots not supported by provider %s", provider_name)

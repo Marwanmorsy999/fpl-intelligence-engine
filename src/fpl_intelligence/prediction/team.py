@@ -149,8 +149,7 @@ class TeamStrengthModel:
         goals_scored = [p.goals_scored or 0 for p in perfs]
         goals_conceded = [p.goals_conceded or 0 for p in perfs]
         xg = [
-            p.expected_goals if p.expected_goals is not None else p.goals_scored or 0
-            for p in perfs
+            p.expected_goals if p.expected_goals is not None else p.goals_scored or 0 for p in perfs
         ]
         xga = [
             (
@@ -178,9 +177,7 @@ class TeamStrengthModel:
 
         attack_strength = attack_rate / self._league_avg_goals
         # Defence strength: lower conceded is stronger.
-        defence_strength = (
-            self._league_avg_goals / defence_rate if defence_rate > 0 else 2.0
-        )
+        defence_strength = self._league_avg_goals / defence_rate if defence_rate > 0 else 2.0
         # Cap to a sensible range to preserve interpretability.
         attack_strength = float(min(2.5, max(0.2, attack_strength)))
         defence_strength = float(min(2.5, max(0.2, defence_strength)))
@@ -225,10 +222,7 @@ class TeamStrengthModel:
             Dict mapping team_id -> TeamStrengthEstimate.
         """
         team_ids = self._get_team_ids(db, cutoff_time)
-        return {
-            tid: self.estimate_team(db, tid, cutoff_time, method, window)
-            for tid in team_ids
-        }
+        return {tid: self.estimate_team(db, tid, cutoff_time, method, window) for tid in team_ids}
 
     # ------------------------------------------------------------------
     # Persistence
@@ -285,9 +279,7 @@ class TeamStrengthModel:
             pass
         return list(db.execute(stmt).scalars().all())
 
-    def estimate_from_features(
-        self, features: dict[str, float]
-    ) -> dict[str, float]:
+    def estimate_from_features(self, features: dict[str, float]) -> dict[str, float]:
         """Estimate strength from a pre-computed feature dict (for testing).
 
         This convenience method allows the match model and player pipeline
@@ -300,4 +292,3 @@ class TeamStrengthModel:
             "home_strength": features.get("home_avg_goals", self._league_avg_goals),
             "away_strength": features.get("away_avg_goals", self._league_avg_goals),
         }
-

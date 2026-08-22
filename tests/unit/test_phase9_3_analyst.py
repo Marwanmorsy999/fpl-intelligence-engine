@@ -4,6 +4,7 @@ All tests use MockLLMProvider (no network, no API keys). The mock provider is
 configured with ``scripted`` or allows mock evidence so the analyst can produce
 a valid report without real evidence persistence.
 """
+
 from __future__ import annotations
 
 import json
@@ -416,29 +417,33 @@ class TestAIAnalystGenerateReport:
 
         class BadProvider(MockLLMProvider):
             def _generate_analyst(self, prompt: Any) -> str:
-                return json.dumps({
-                    "schema_version": "phase9.analyst.v1",
-                    "task": "transfer_recommendation",
-                    "headline": "Bad",
-                    "quantitative_baseline": [{
-                        "subject_ref": "player:1",
-                        "expected_points": 99.9,
-                        "start_probability": 0.8,
-                        "floor": 2.0,
-                        "ceiling": 10.0,
-                        "interpretation": "wrong",
-                    }],
-                    "qualitative_adjustment": {
-                        "direction": "neutral",
-                        "magnitude": "none",
-                        "cited_evidence_refs": [],
-                        "rationale": "",
-                    },
-                    "net_assessment": "",
-                    "recommendation": "hold",
-                    "confidence": 0.5,
-                    "caveats": [],
-                })
+                return json.dumps(
+                    {
+                        "schema_version": "phase9.analyst.v1",
+                        "task": "transfer_recommendation",
+                        "headline": "Bad",
+                        "quantitative_baseline": [
+                            {
+                                "subject_ref": "player:1",
+                                "expected_points": 99.9,
+                                "start_probability": 0.8,
+                                "floor": 2.0,
+                                "ceiling": 10.0,
+                                "interpretation": "wrong",
+                            }
+                        ],
+                        "qualitative_adjustment": {
+                            "direction": "neutral",
+                            "magnitude": "none",
+                            "cited_evidence_refs": [],
+                            "rationale": "",
+                        },
+                        "net_assessment": "",
+                        "recommendation": "hold",
+                        "confidence": 0.5,
+                        "caveats": [],
+                    }
+                )
 
         analyst = AIAnalyst(BadProvider(), allow_mock_evidence=False)
         prediction = _make_prediction_context(expected_points=5.5)

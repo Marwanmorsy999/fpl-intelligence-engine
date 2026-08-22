@@ -58,7 +58,7 @@ def build_demo_squad(db: Session) -> SquadStateCreate:
 
     chosen: list[Player] = []
     for code, needed in _DEMO_FORMATION.items():
-        pool = sorted(by_position[code], key=lambda p: p.id)
+        pool = sorted(by_position[code], key=lambda p: p.fpl_element_id or p.id)
         if len(pool) < needed:
             raise DemoSquadError(
                 f"Not enough ingested players for demo squad: need {needed} "
@@ -66,23 +66,32 @@ def build_demo_squad(db: Session) -> SquadStateCreate:
             )
         chosen.extend(pool[:needed])
 
-    player_ids = [p.id for p in chosen]
-    player_positions = {p.id: (p.position_code or 3) for p in chosen}
+    # R1: store the canonical FPL element id when available so the demo squad
+    # lives in the same id space as imported/manual squads. Fall back to the
+    # internal id only for legacy rows that have no element id yet.
+    player_ids = [p.fpl_element_id or p.id for p in chosen]
+    player_positions = {
+        pid: (p.position_code or 3) for p, pid in zip(chosen, player_ids, strict=True)
+    }
     player_prices: dict[int, float] = {}
-    for idx, p in enumerate(chosen):
-        player_prices[p.id] = _price_for_player(db, p, idx)
-    player_teams = {p.id: (p.id % 20) + 1 for p in chosen}
+    for idx, (p, pid) in enumerate(zip(chosen, player_ids, strict=True)):
+        player_prices[pid] = _price_for_player(db, p, idx)
+    player_teams = {pid: (p.id % 20) + 1 for p, pid in zip(chosen, player_ids, strict=True)}
 
     # Captain / vice: highest-priced outfield (MID/FWD) players.
-    outfield = [p for p in chosen if player_positions[p.id] in (3, 4)]
-    outfield.sort(key=lambda p: player_prices[p.id], reverse=True)
+    outfield = [
+        (p, pid)
+        for p, pid in zip(chosen, player_ids, strict=True)
+        if player_positions[pid] in (3, 4)
+    ]
+    outfield.sort(key=lambda x: player_prices[x[1]], reverse=True)
     captain = outfield[0]
-    vice = outfield[1] if len(outfield) > 1 else chosen[0]
+    vice = outfield[1] if len(outfield) > 1 else (chosen[0], player_ids[0])
 
     return SquadStateCreate(
         player_ids=player_ids,
-        captain_id=captain.id,
-        vice_captain_id=vice.id,
+        captain_id=captain[1],
+        vice_captain_id=vice[1],
         bank=2.0,
         free_transfers=1,
         chips_available=list(_DEFAULT_CHIPS),

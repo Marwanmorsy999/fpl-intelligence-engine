@@ -22,6 +22,7 @@ What the pipeline guarantees
   ``NO_DEADLINE_CONTEXT`` and is unusable until a deadline is attached — the
   safe default.
 """
+
 from __future__ import annotations
 
 import json
@@ -361,9 +362,7 @@ class LiveIngestionPipeline:
         deadline_at: datetime | None = None
 
         if submission.season_code:
-            season = self._db.scalar(
-                select(Season).where(Season.code == submission.season_code)
-            )
+            season = self._db.scalar(select(Season).where(Season.code == submission.season_code))
             season_id = season.id if season else None
 
         if season_id is not None and submission.gameweek_number is not None:

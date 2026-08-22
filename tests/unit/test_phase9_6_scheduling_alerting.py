@@ -7,6 +7,7 @@ per-item error isolation), and the :class:`NotificationService` + notifiers
 (Slack HTTP mocked, Email SMTP injected, log / recording sinks). **No live
 network call is ever made inside ``pytest``.**
 """
+
 from __future__ import annotations
 
 import threading
@@ -166,18 +167,14 @@ class _MockConnector(SourceConnector):
         return list(self._items)
 
 
-def _noop_ingest(
-    raw: RawItem, *, connector: SourceConnector, dry_run: bool
-) -> dict[str, Any]:
+def _noop_ingest(raw: RawItem, *, connector: SourceConnector, dry_run: bool) -> dict[str, Any]:
     return {"ok": True, "external_id": raw.external_id}
 
 
 def _ingest(seen: list[tuple[str, str | None, bool]]):
     """Build a recording Phase 9.2 ingestion sink."""
 
-    def ingest(
-        raw: RawItem, *, connector: SourceConnector, dry_run: bool
-    ) -> dict[str, Any]:
+    def ingest(raw: RawItem, *, connector: SourceConnector, dry_run: bool) -> dict[str, Any]:
         seen.append((connector.name, raw.external_id, dry_run))
         return {"ok": True, "external_id": raw.external_id}
 
@@ -271,9 +268,7 @@ class TestScheduler:
             calls.append(dry_run)
             return {"ok": True}
 
-        scheduler = self._scheduler(
-            {"c": _MockConnector([_raw("x", "1")])}, ingest=recorder
-        )
+        scheduler = self._scheduler({"c": _MockConnector([_raw("x", "1")])}, ingest=recorder)
         scheduler.run(dry_run=True)
         assert calls == [True]
 
@@ -284,22 +279,16 @@ class TestScheduler:
             {"c": connector},
             sleep=sleeps.append,
         )
-        reports = scheduler.run_scheduled(
-            interval_seconds=2.0, iterations=3
-        )
+        reports = scheduler.run_scheduled(interval_seconds=2.0, iterations=3)
         assert len(reports) == 3
         assert connector.fetch_calls == 3
         assert sleeps == [2.0, 2.0]
 
     def test_run_scheduled_honours_stop_event(self):
-        scheduler = self._scheduler(
-            {"c": _MockConnector([])}, ingest=_noop_ingest
-        )
+        scheduler = self._scheduler({"c": _MockConnector([])}, ingest=_noop_ingest)
         stop_event = threading.Event()
         stop_event.set()
-        reports = scheduler.run_scheduled(
-            interval_seconds=1.0, iterations=5, stop_event=stop_event
-        )
+        reports = scheduler.run_scheduled(interval_seconds=1.0, iterations=5, stop_event=stop_event)
         assert reports == []
 
     def test_run_paces_passes_with_rate_limiter(self):
@@ -331,8 +320,7 @@ class TestAlertGenerator:
     """AlertGenerator is offline; no HTTP is involved."""
 
     def test_classify_injury(self):
-        item = _raw("Salah injury doubt",
-                 "Salah missed training with a hamstring injury.")
+        item = _raw("Salah injury doubt", "Salah missed training with a hamstring injury.")
         assert classify_alert_type(item) == AlertType.INJURY
 
     def test_classify_availability_risk(self):
@@ -372,9 +360,7 @@ class TestAlertGenerator:
     def test_generate_respects_limit(self):
         generator = AlertGenerator()
         raw = _raw("a", "injury", external_id="1")
-        first = generator.generate(
-            [raw, _raw("b", "injury", external_id="2")], limit=1
-        )
+        first = generator.generate([raw, _raw("b", "injury", external_id="2")], limit=1)
         assert len(first.alerts) == 1
         assert first.processed == 1
 
@@ -541,9 +527,7 @@ class _ExplodingAlertGenerator(AlertGenerator):
         super().__init__()
         self.calls = 0
 
-    def generate(
-        self, items: Any, *, limit: int | None = None
-    ) -> AlertGenerationReport:
+    def generate(self, items: Any, *, limit: int | None = None) -> AlertGenerationReport:
         self.calls += 1
         raise RuntimeError("generator exploded")
 
@@ -693,9 +677,7 @@ class TestNotificationService:
     def test_service_batch_totals_and_to_dict(self):
         recorder = RecordingNotifier()
         service = NotificationService([recorder])
-        report = service.send_alerts(
-            [self._alert("A injury"), self._alert("B injury")]
-        )
+        report = service.send_alerts([self._alert("A injury"), self._alert("B injury")])
         assert report.alerts == 2
         assert report.attempted == 2
         assert report.delivered == 2

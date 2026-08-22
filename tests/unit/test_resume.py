@@ -33,20 +33,28 @@ class TestResumeIngestion:
         provider = MockHistoricalDataProvider(provider_name="resume_test", schema_version="v1")
 
         # First import
-        report1 = import_season(db_session, provider, "2024-25", dataset="teams", force=False, dry_run=False)
+        report1 = import_season(
+            db_session, provider, "2024-25", dataset="teams", force=False, dry_run=False
+        )
         assert report1.records_accepted > 0
 
         # Verify ingestion run was recorded
-        run = db_session.query(IngestionRun).filter(
-            IngestionRun.source == "resume_test",
-            IngestionRun.job_name == "historical_teams",
-            IngestionRun.season_code == "2024-25",
-        ).first()
+        run = (
+            db_session.query(IngestionRun)
+            .filter(
+                IngestionRun.source == "resume_test",
+                IngestionRun.job_name == "historical_teams",
+                IngestionRun.season_code == "2024-25",
+            )
+            .first()
+        )
         assert run is not None
         assert run.status == "SUCCESS"
 
         # Second import
-        report2 = import_season(db_session, provider, "2024-25", dataset="teams", force=False, dry_run=False)
+        report2 = import_season(
+            db_session, provider, "2024-25", dataset="teams", force=False, dry_run=False
+        )
         assert report2.records_accepted == report1.records_accepted
 
     def test_dry_run_does_not_persist(self, db_session: Session) -> None:
@@ -54,7 +62,9 @@ class TestResumeIngestion:
         provider = MockHistoricalDataProvider(provider_name="dry_run_test", schema_version="v1")
 
         # Dry run import
-        report = import_season(db_session, provider, "2024-25", dataset="all", force=False, dry_run=True)
+        import_season(
+            db_session, provider, "2024-25", dataset="all", force=False, dry_run=True
+        )
 
         # No data should be persisted
         teams_count = db_session.query(Team).count()
@@ -63,10 +73,14 @@ class TestResumeIngestion:
         assert players_count == 0
 
         # Verify no successful run was recorded
-        run = db_session.query(IngestionRun).filter(
-            IngestionRun.source == "dry_run_test",
-            IngestionRun.status == "SUCCESS",
-        ).first()
+        run = (
+            db_session.query(IngestionRun)
+            .filter(
+                IngestionRun.source == "dry_run_test",
+                IngestionRun.status == "SUCCESS",
+            )
+            .first()
+        )
         assert run is None
 
     def test_force_reimport(self, db_session: Session) -> None:
@@ -78,7 +92,9 @@ class TestResumeIngestion:
         teams_count_1 = db_session.query(Team).count()
 
         # Force re-import
-        report = import_season(db_session, provider, "2024-25", dataset="teams", force=True, dry_run=False)
+        report = import_season(
+            db_session, provider, "2024-25", dataset="teams", force=True, dry_run=False
+        )
 
         # Teams should still be idempotent (same count)
         teams_count_2 = db_session.query(Team).count()

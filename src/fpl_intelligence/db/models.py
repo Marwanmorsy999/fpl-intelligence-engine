@@ -47,6 +47,7 @@ class TeamExternalId(Base):
 
     Supports multiple providers each having their own identifier for the same team.
     """
+
     __tablename__ = "team_external_ids"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -56,9 +57,7 @@ class TeamExternalId(Base):
 
     team: Mapped["Team"] = relationship(back_populates="external_ids")
 
-    __table_args__ = (
-        UniqueConstraint("provider", "provider_team_id", name="uq_team_external_id"),
-    )
+    __table_args__ = (UniqueConstraint("provider", "provider_team_id", name="uq_team_external_id"),)
 
 
 class Team(Base):
@@ -79,6 +78,7 @@ class PlayerExternalId(Base):
     Supports multiple providers each having their own identifier for the same player.
     Enables cross-provider entity resolution without relying on player names.
     """
+
     __tablename__ = "player_external_ids"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -121,6 +121,7 @@ class PlayerTeamMembership(Base):
 
     Supports player transfers within a season by providing valid_from/valid_to.
     """
+
     __tablename__ = "player_team_memberships"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -136,7 +137,10 @@ class PlayerTeamMembership(Base):
 
     __table_args__ = (
         UniqueConstraint(
-            "player_id", "team_id", "season_id", "valid_from",
+            "player_id",
+            "team_id",
+            "season_id",
+            "valid_from",
             name="uq_player_team_season",
         ),
     )
@@ -190,6 +194,7 @@ class PlayerMatchPerformance(Base):
     Includes temporal fields (ingested_at, available_at) to support
     historical backtesting with strict no-look-ahead enforcement.
     """
+
     __tablename__ = "player_match_performances"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -233,9 +238,7 @@ class PlayerMatchPerformance(Base):
     season: Mapped["Season"] = relationship()
     team: Mapped["Team"] = relationship()
 
-    __table_args__ = (
-        UniqueConstraint("player_id", "fixture_id", name="uq_player_match"),
-    )
+    __table_args__ = (UniqueConstraint("player_id", "fixture_id", name="uq_player_match"),)
 
 
 class PlayerGameweekPerformance(Base):
@@ -247,6 +250,7 @@ class PlayerGameweekPerformance(Base):
     Includes temporal fields (ingested_at, available_at) to support
     historical backtesting with strict no-look-ahead enforcement.
     """
+
     __tablename__ = "player_gameweek_performances"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -313,9 +317,7 @@ class PlayerGameweekPerformance(Base):
     season: Mapped["Season"] = relationship()
     team: Mapped["Team"] = relationship()
 
-    __table_args__ = (
-        UniqueConstraint("player_id", "gameweek_id", name="uq_player_gameweek"),
-    )
+    __table_args__ = (UniqueConstraint("player_id", "gameweek_id", name="uq_player_gameweek"),)
 
 
 class TeamMatchPerformance(Base):
@@ -324,6 +326,7 @@ class TeamMatchPerformance(Base):
     Includes temporal fields (ingested_at, available_at) to support
     historical backtesting with strict no-look-ahead enforcement.
     """
+
     __tablename__ = "team_match_performances"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -353,9 +356,7 @@ class TeamMatchPerformance(Base):
     fixture: Mapped["Fixture"] = relationship()
     season: Mapped["Season"] = relationship()
 
-    __table_args__ = (
-        UniqueConstraint("team_id", "fixture_id", name="uq_team_match"),
-    )
+    __table_args__ = (UniqueConstraint("team_id", "fixture_id", name="uq_team_match"),)
 
 
 class FPLSnapshot(Base):
@@ -374,6 +375,7 @@ class FPLSnapshot(Base):
     - ingested_at: When our pipeline actually collected it
     - source_last_modified_at: When the source last modified the underlying record
     """
+
     __tablename__ = "fpl_snapshots"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -416,7 +418,9 @@ class FPLSnapshot(Base):
 
     __table_args__ = (
         UniqueConstraint(
-            "player_id", "gameweek_id", "event_time",
+            "player_id",
+            "gameweek_id",
+            "event_time",
             name="uq_player_snapshot_time",
         ),
     )

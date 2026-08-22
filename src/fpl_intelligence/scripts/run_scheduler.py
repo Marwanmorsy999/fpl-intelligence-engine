@@ -13,6 +13,7 @@ Design rules:
   test) but every per-item and per-pass failure is isolated so one bad source
   never aborts the loop.
 """
+
 from __future__ import annotations
 
 import logging

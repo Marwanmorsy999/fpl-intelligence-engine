@@ -27,6 +27,7 @@ by construction rather than by convention:
     :func:`quote_is_grounded` is the check; ungrounded items are rejected with
     a reason and counted, never quietly kept.
 """
+
 from __future__ import annotations
 
 from typing import Annotated, Any, Literal

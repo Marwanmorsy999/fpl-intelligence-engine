@@ -28,8 +28,28 @@ DEFAULT_MANUAL_PATH = (
 )
 
 _TITLE_EXCEPTIONS = {
-    "de", "van", "von", "der", "den", "di", "do", "da", "dos", "das",
-    "bin", "el", "al", "ben", "du", "le", "la", "y", "e", "o", "mc", "mac",
+    "de",
+    "van",
+    "von",
+    "der",
+    "den",
+    "di",
+    "do",
+    "da",
+    "dos",
+    "das",
+    "bin",
+    "el",
+    "al",
+    "ben",
+    "du",
+    "le",
+    "la",
+    "y",
+    "e",
+    "o",
+    "mc",
+    "mac",
 }
 
 
@@ -88,6 +108,8 @@ class EntityResolutionReport:
             "unmatched_teams": [i.__dict__ for i in self.unmatched_teams],
             "manual_overrides": [m.__dict__ for m in self.manual_overrides],
         }
+
+
 def load_manual_overrides(path: Path = DEFAULT_MANUAL_PATH) -> list[ManualOverride]:
     """Load manual override mappings from JSON (empty if absent)."""
     if not path.exists():
@@ -139,9 +161,7 @@ def resolve_by_name(
     candidates = by_name.get(norm, [])
     if not candidates:
         report.unmatched_players.append(
-            EntityResolutionIssue(
-                provider, provider_player_id, name, "no normalized-name match"
-            )
+            EntityResolutionIssue(provider, provider_player_id, name, "no normalized-name match")
         )
         return None
     if len(candidates) > 1:
@@ -154,4 +174,3 @@ def resolve_by_name(
     internal = candidates[0][1]
     report.matched_players += 1
     return internal
-

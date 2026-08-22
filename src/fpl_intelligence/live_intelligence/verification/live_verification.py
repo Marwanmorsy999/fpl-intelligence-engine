@@ -40,6 +40,7 @@ Design rules (mirroring the rest of Phase 9):
 unless ``--db`` is given). ``persist=False`` (``--dry-run``) still runs the
 entire pipeline but rolls back, which is the safe live-smoke-test mode.
 """
+
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -123,11 +124,7 @@ class VerificationStep:
     def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
-            "status": (
-                VerificationStatus.PASS.value
-                if self.ok
-                else VerificationStatus.FAIL.value
-            ),
+            "status": (VerificationStatus.PASS.value if self.ok else VerificationStatus.FAIL.value),
             "ok": self.ok,
             "detail": self.detail,
         }
@@ -284,9 +281,7 @@ class FPLAPIVerifier:
         session_factory: Any | None = None,
         llm_provider: LLMProvider | None = None,
     ) -> None:
-        self._connector = connector or FPLAPIConnector(
-            api_url=api_url, http_client=http_client
-        )
+        self._connector = connector or FPLAPIConnector(api_url=api_url, http_client=http_client)
         self._session_factory = session_factory or build_verification_session()
         self._llm_provider = llm_provider or make_mock_provider()
 
@@ -297,9 +292,7 @@ class FPLAPIVerifier:
 
     def verify(self, *, limit: int = 20, persist: bool = True) -> LiveSourceVerification:
         """Run accessibility + parse + ingest verification and return a report."""
-        report = LiveSourceVerification(
-            layer="live_fpl_api", source=self._connector.source_id
-        )
+        report = LiveSourceVerification(layer="live_fpl_api", source=self._connector.source_id)
 
         try:
             items = self._connector.fetch(limit=limit)
@@ -406,9 +399,7 @@ class RSSFeedVerifier:
 
     def verify(self, *, limit: int = 20, persist: bool = True) -> LiveSourceVerification:
         """Run accessibility + parse + ingest verification and return a report."""
-        report = LiveSourceVerification(
-            layer="live_rss_feed", source=self._connector.source_id
-        )
+        report = LiveSourceVerification(layer="live_rss_feed", source=self._connector.source_id)
 
         try:
             items = self._connector.fetch(limit=limit)
@@ -476,6 +467,8 @@ class RSSFeedVerifier:
             + (f", {len(rejected)} rejected" if rejected else ""),
         )
         return report
+
+
 class EndToEndVerifier:
     """Run the full live pipeline and verify every stage.
 
@@ -549,9 +542,7 @@ class EndToEndVerifier:
             if fpl_connector is not None:
                 self._connectors[fpl_connector.name] = fpl_connector
             if not self._connectors:
-                rss = RSSConnector(
-                    feed_url, source_id=rss_source_id, http_client=http_client
-                )
+                rss = RSSConnector(feed_url, source_id=rss_source_id, http_client=http_client)
                 fpl = FPLAPIConnector(api_url=api_url, http_client=http_client)
                 self._connectors = {rss.name: rss, fpl.name: fpl}
 
@@ -593,9 +584,7 @@ class EndToEndVerifier:
                 self._connectors,
                 ingest=sink,
                 alert_generator=AlertGenerator(max_alerts_per_pass=50),
-                notification_service=NotificationService(
-                    [recorder], min_interval_seconds=0.0
-                ),
+                notification_service=NotificationService([recorder], min_interval_seconds=0.0),
                 min_interval_seconds=0.0,
             )
             run = scheduler.run(dry_run=not persist)
@@ -620,9 +609,7 @@ class EndToEndVerifier:
         }
         report.total_ingested = sum(report.connector_ingested.values())
 
-        fetch_errors = [
-            error for stats in connector_report.runs.values() for error in stats.errors
-        ]
+        fetch_errors = [error for stats in connector_report.runs.values() for error in stats.errors]
         rejected = [
             result
             for _name, result in ingest_results
@@ -630,8 +617,7 @@ class EndToEndVerifier:
         ]
         report.errors.extend(fetch_errors)
         report.errors.extend(
-            f"rejected {result.source_id}: {result.error or result.status}"
-            for result in rejected
+            f"rejected {result.source_id}: {result.error or result.status}" for result in rejected
         )
 
         fetched_detail = ", ".join(
@@ -700,9 +686,7 @@ class EndToEndVerifier:
         else:
             self._verify_synthesis(report)
 
-        stage_errors = [
-            error for error in run.errors if "alert" in error or "notif" in error
-        ]
+        stage_errors = [error for error in run.errors if "alert" in error or "notif" in error]
         report.errors.extend(stage_errors)
         report.alerts = len(run.alerts)
         report.notifications_delivered = (
@@ -727,9 +711,7 @@ class EndToEndVerifier:
         synth_db: Session = self._session_factory()
         try:
             player_id = self._player_id or self._discover_subject_player(synth_db) or 1
-            builder = PredictionContextBuilder(
-                prediction_provider=self._prediction_provider
-            )
+            builder = PredictionContextBuilder(prediction_provider=self._prediction_provider)
             evidence_service = EvidenceQueryService(synth_db, allow_mock=True)
             generator = AnalystReportGenerator(
                 builder,
@@ -759,8 +741,7 @@ class EndToEndVerifier:
             report.add_step(
                 "report",
                 "Quantitative Baseline" in markdown,
-                "IntelligenceReport rendered to Markdown with the "
-                "'Quantitative Baseline' section",
+                "IntelligenceReport rendered to Markdown with the 'Quantitative Baseline' section",
             )
         except Exception as exc:  # noqa: BLE001 - a verification failure, not a crash
             report.add_step("synthesize", False, f"{type(exc).__name__}: {exc}")

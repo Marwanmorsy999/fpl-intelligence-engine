@@ -3,8 +3,8 @@
 from .resolver import (
     EntityResolutionReport,
     ManualOverride,
-    normalize_name,
     load_manual_overrides,
+    normalize_name,
     resolve_by_name,
 )
 

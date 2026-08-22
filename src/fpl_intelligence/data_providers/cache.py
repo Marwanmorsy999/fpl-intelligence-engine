@@ -18,6 +18,7 @@ Design rules
   ``fetch_live_facts.py`` CLI so repeated runs reuse results; in-memory is the
   default and is what the test suite uses.
 """
+
 from __future__ import annotations
 
 import json
@@ -86,9 +87,7 @@ class ResponseCache:
         """Stable cache key from ``endpoint`` and normalised ``params``."""
         if not params:
             return endpoint
-        normalised = "&".join(
-            f"{k}={params[k]}" for k in sorted(params, key=lambda s: str(s))
-        )
+        normalised = "&".join(f"{k}={params[k]}" for k in sorted(params, key=lambda s: str(s)))
         return f"{endpoint}?{normalised}"
 
     # -- read / write --------------------------------------------------------
@@ -166,9 +165,7 @@ class ResponseCache:
             key: {"stored_at": sa, "ttl": ttl, "value": value}
             for key, (sa, ttl, value) in self._store.items()
         }
-        self._persist_path().write_text(
-            json.dumps(payload), encoding="utf-8"
-        )
+        self._persist_path().write_text(json.dumps(payload), encoding="utf-8")
 
     def _load_persisted(self) -> None:
         path = self._persist_path()

@@ -1,14 +1,10 @@
-import pytest
-import numpy as np
-
-from fpl_intelligence.optimization.rules import FPLRules, RULES_2026_27
+from fpl_intelligence.optimization.backtesting import simulate_decision
 from fpl_intelligence.optimization.domain import (
     ActionType,
     CandidateAction,
-    DecisionObjective,
     SquadState,
 )
-from fpl_intelligence.optimization.backtesting import simulate_decision
+from fpl_intelligence.optimization.rules import RULES_2026_27, FPLRules
 
 
 def test_2026_27_chip_rules():
@@ -19,14 +15,15 @@ def test_2026_27_chip_rules():
     assert rules.get_half_season(20) == 2
     assert rules.get_half_season(38) == 2
     assert rules.get_chip_count("wildcard") == 2
-    
+
+
 def test_mock_simulate_decision():
     # Basic smoke test for the new numpy-based simulate_decision
     class MockPrediction:
         def __init__(self, ev, dist=None):
             self.expected_points = ev
             self.distribution = dist if dist is not None else []
-            
+
     class MockProvider:
         def get_player_prediction(self, pid, gw):
             return MockPrediction(ev=5.0)
@@ -47,18 +44,13 @@ def test_mock_simulate_decision():
         rolled_transfers=0,
         transfer_hits=0,
     )
-    
+
     action = CandidateAction(action_type=ActionType.ROLL, horizon=1)
-    
+
     outcome = simulate_decision(
-        squad=squad,
-        action=action,
-        horizon=1,
-        simulations=10,
-        seed=42,
-        provider=provider
+        squad=squad, action=action, horizon=1, simulations=10, seed=42, provider=provider
     )
-    
+
     # Expected: 11 players * 5.0 EV + 1 captain bonus * 5.0 EV = 60.0
     assert outcome.expected_score == 60.0
     assert outcome.median == 60.0

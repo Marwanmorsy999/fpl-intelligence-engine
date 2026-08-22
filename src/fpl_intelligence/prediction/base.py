@@ -229,4 +229,3 @@ class PredictionModel(Protocol):
             The loaded model instance.
         """
         ...
-

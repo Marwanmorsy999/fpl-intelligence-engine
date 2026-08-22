@@ -154,9 +154,21 @@ def paired_gameweek_diff(
     if abs(mean_diff) < 1e-12:
         conclusion = "no_difference"
     elif higher_is_better:
-        conclusion = "a_better" if mean_diff > 0 and ci_lower > 0 else "b_better" if mean_diff < 0 and ci_upper < 0 else "inconclusive"
+        conclusion = (
+            "a_better"
+            if mean_diff > 0 and ci_lower > 0
+            else "b_better"
+            if mean_diff < 0 and ci_upper < 0
+            else "inconclusive"
+        )
     else:
-        conclusion = "a_better" if mean_diff < 0 and ci_upper < 0 else "b_better" if mean_diff > 0 and ci_lower > 0 else "inconclusive"
+        conclusion = (
+            "a_better"
+            if mean_diff < 0 and ci_upper < 0
+            else "b_better"
+            if mean_diff > 0 and ci_lower > 0
+            else "inconclusive"
+        )
 
     return {
         "n_gameweeks": n,

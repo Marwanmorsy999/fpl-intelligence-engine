@@ -101,9 +101,7 @@ class RecentFormBaseline:
         """Predict for multiple players."""
         results: dict[int, dict[str, Any]] = {}
         for player_id, features in features_batch.items():
-            results[player_id] = self.predict(
-                player_id, 0, features, cutoff, context
-            )
+            results[player_id] = self.predict(player_id, 0, features, cutoff, context)
         return results
 
 
@@ -195,9 +193,7 @@ class PointsPer90Baseline:
     ) -> dict[int, dict[str, Any]]:
         results: dict[int, dict[str, Any]] = {}
         for player_id, features in features_batch.items():
-            results[player_id] = self.predict(
-                player_id, 0, features, cutoff, context
-            )
+            results[player_id] = self.predict(player_id, 0, features, cutoff, context)
         return results
 
 
@@ -276,9 +272,7 @@ class RollingExpectedPointsBaseline:
     ) -> dict[int, dict[str, Any]]:
         results: dict[int, dict[str, Any]] = {}
         for player_id, features in features_batch.items():
-            results[player_id] = self.predict(
-                player_id, 0, features, cutoff, context
-            )
+            results[player_id] = self.predict(player_id, 0, features, cutoff, context)
         return results
 
 
@@ -365,7 +359,5 @@ class FixtureAdjustedBaseline:
     ) -> dict[int, dict[str, Any]]:
         results: dict[int, dict[str, Any]] = {}
         for player_id, features in features_batch.items():
-            results[player_id] = self.predict(
-                player_id, 0, features, cutoff, context
-            )
+            results[player_id] = self.predict(player_id, 0, features, cutoff, context)
         return results

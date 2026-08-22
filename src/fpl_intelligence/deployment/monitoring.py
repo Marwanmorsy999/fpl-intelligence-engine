@@ -28,6 +28,7 @@ it makes **no** live API calls inside ``pytest`` (webhook HTTP is mocked with
 hardcodes no credentials (the webhook URL always comes from configuration /
 environment).
 """
+
 from __future__ import annotations
 
 import json
@@ -153,6 +154,8 @@ class MetricRegistry:
         return {
             "metrics": [metric.to_dict() for metric in self._metrics.values()],
         }
+
+
 class HealthStatus(StrEnum):
     """Aggregate health of one component or of the whole system."""
 
@@ -225,6 +228,7 @@ class HealthRegistry:
             "summary": self.summary(),
             "checks": [check.to_dict() for check in self._checks.values()],
         }
+
 
 class AlertDeliveryError(RuntimeError):
     """Raised when a sink cannot deliver an alert (caught by the manager)."""
@@ -327,6 +331,8 @@ class WebhookAlertSink:
     def close(self) -> None:
         if self._owns_client:
             self._client.close()
+
+
 class AlertManager:
     """Evaluate threshold rules over a metric registry and fan alerts out to sinks.
 
@@ -429,6 +435,7 @@ class AlertManager:
             "errors": list(self._errors),
         }
 
+
 class ProductionJsonFormatter(logging.Formatter):
     """Render log records as single-line JSON for machine consumption.
 
@@ -487,6 +494,8 @@ class MonitoringConfig:
     alert_sinks: tuple[AlertSink, ...] = ()
     alert_cooldown_seconds: float = 60.0
     health_check_interval_seconds: float = 60.0
+
+
 class MonitoringService:
     """The bundle the deployment runner wires up: metrics + health + alerts.
 

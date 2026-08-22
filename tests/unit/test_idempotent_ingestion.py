@@ -38,7 +38,9 @@ class TestIdempotentIngestion:
         provider = MockHistoricalDataProvider(provider_name="test_provider", schema_version="v1")
 
         # First import
-        report1 = import_season(db_session, provider, "2024-25", dataset="all", force=False, dry_run=False)
+        report1 = import_season(
+            db_session, provider, "2024-25", dataset="all", force=False, dry_run=False
+        )
         assert report1.records_received > 0, "First import should process records"
 
         # Count records after first import
@@ -49,7 +51,9 @@ class TestIdempotentIngestion:
         player_gw_count_1 = db_session.query(PlayerGameweekPerformance).count()
 
         # Second import (same data, not force)
-        report2 = import_season(db_session, provider, "2024-25", dataset="all", force=False, dry_run=False)
+        report2 = import_season(
+            db_session, provider, "2024-25", dataset="all", force=False, dry_run=False
+        )
 
         # Count records after second import
         teams_count_2 = db_session.query(Team).count()
@@ -62,21 +66,31 @@ class TestIdempotentIngestion:
         assert teams_count_2 == teams_count_1, "Teams should not increase on second import"
         assert players_count_2 == players_count_1, "Players should not increase on second import"
         assert fixtures_count_2 == fixtures_count_1, "Fixtures should not increase on second import"
-        assert gameweeks_count_2 == gameweeks_count_1, "Gameweeks should not increase on second import"
-        assert player_gw_count_2 == player_gw_count_1, "Player gameweek performances should not increase on second import"
+        assert gameweeks_count_2 == gameweeks_count_1, (
+            "Gameweeks should not increase on second import"
+        )
+        assert player_gw_count_2 == player_gw_count_1, (
+            "Player gameweek performances should not increase on second import"
+        )
 
         # Second import should report completion without re-processing
         assert report2.records_accepted == report1.records_accepted
 
     def test_force_reimport_allows_duplicates(self, db_session: Session) -> None:
-        provider = MockHistoricalDataProvider(provider_name="test_provider_force", schema_version="v1")
+        provider = MockHistoricalDataProvider(
+            provider_name="test_provider_force", schema_version="v1"
+        )
 
-        report1 = import_season(db_session, provider, "2024-25", dataset="all", force=False, dry_run=False)
+        import_season(
+            db_session, provider, "2024-25", dataset="all", force=False, dry_run=False
+        )
         teams_count_1 = db_session.query(Team).count()
         players_count_1 = db_session.query(Player).count()
 
         # Force re-import should process again
-        report2 = import_season(db_session, provider, "2024-25", dataset="all", force=True, dry_run=False)
+        import_season(
+            db_session, provider, "2024-25", dataset="all", force=True, dry_run=False
+        )
 
         # Teams and players shouldn't duplicate because they're idempotent
         teams_count_2 = db_session.query(Team).count()
@@ -92,4 +106,6 @@ class TestIdempotentIngestion:
     def test_non_existing_season_handled(self, db_session: Session) -> None:
         provider = MockHistoricalDataProvider(provider_name="test_provider_2", schema_version="v1")
         with pytest.raises(ValueError, match="not found in provider data"):
-            import_season(db_session, provider, "2099-00", dataset="all", force=False, dry_run=False)
+            import_season(
+                db_session, provider, "2099-00", dataset="all", force=False, dry_run=False
+            )

@@ -23,6 +23,7 @@ deterministic :class:`MockLLMProvider`; a real provider is only built when the
 caller opts in via the ``FPL_API_USE_LIVE_LLM`` env var or the
 ``X-FPL-LLM-Mode: live`` header. No API keys are hardcoded.
 """
+
 from __future__ import annotations
 
 import os
@@ -104,9 +105,7 @@ class IngestRequest(BaseModel):
 
     source_id: str = Field(..., description="Phase 9.2 source identifier.")
     content_text: str = Field(..., description="Raw unstructured content.")
-    published_at: str = Field(
-        ..., description="ISO-8601 publication time (timezone-aware)."
-    )
+    published_at: str = Field(..., description="ISO-8601 publication time (timezone-aware).")
     url: str | None = Field(None, description="Optional source URL.")
     external_id: str | None = Field(None, description="Optional provider-side id.")
     title: str | None = Field(None, description="Optional display title.")
@@ -255,9 +254,7 @@ async def unresolved(
     offset: int = Query(0, ge=0),
 ) -> dict[str, Any]:
     """Paginated list of :class:`UnresolvedLiveEvidence` for human triage."""
-    total_rows = db.scalar(
-        select(func.count()).select_from(UnresolvedLiveEvidence)
-    ) or 0
+    total_rows = db.scalar(select(func.count()).select_from(UnresolvedLiveEvidence)) or 0
 
     stmt = (
         select(UnresolvedLiveEvidence)

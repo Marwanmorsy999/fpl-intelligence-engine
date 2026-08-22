@@ -21,6 +21,7 @@ an empty in-memory DB as if it represented the real imported dataset.
 Usage:
     python -m fpl_intelligence.scripts.run_phase72_gate [--seasons ...]
 """
+
 from __future__ import annotations
 
 import argparse

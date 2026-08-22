@@ -183,16 +183,12 @@ class WalkForwardTrainer:
                 self._persistence.save_predictions_batch(prediction_records)
 
             # Reveal actuals (for evaluation only).
-            actual_dataset = self._build_outcome_dataset(
-                target, entity_type, cutoff
-            )
+            actual_dataset = self._build_outcome_dataset(target, entity_type, cutoff)
             for eid, val in actual_dataset.targets.items():
                 all_actuals[eid] = {"actual_value": val}
 
             # Evaluate this fold.
-            fold_metrics = self._evaluate_fold(
-                all_predictions, all_actuals, cutoff
-            )
+            fold_metrics = self._evaluate_fold(all_predictions, all_actuals, cutoff)
 
             result = {
                 "fold_index": idx - self._initial_train_gws,
@@ -237,9 +233,7 @@ class WalkForwardTrainer:
     # Internal
     # ------------------------------------------------------------------
 
-    def _get_train_cutoff(
-        self, cutoffs: list[DecisionCutoff], idx: int
-    ) -> datetime:
+    def _get_train_cutoff(self, cutoffs: list[DecisionCutoff], idx: int) -> datetime:
         """Get the cutoff time to use for training data (before the current fold)."""
         train_cutoff = cutoffs[idx - 1]
         return train_cutoff.cutoff_time
@@ -276,9 +270,7 @@ class WalkForwardTrainer:
         cutoff: DecisionCutoff,
     ) -> Any:
         """Build a dataset where targets are the outcomes AFTER the cutoff."""
-        return self._build_dataset(
-            target, entity_type, cutoff.cutoff_time + timedelta(days=7)
-        )
+        return self._build_dataset(target, entity_type, cutoff.cutoff_time + timedelta(days=7))
 
     def _evaluate_fold(
         self,
@@ -302,4 +294,3 @@ class WalkForwardTrainer:
             "rmse": round(rmse, 4),
             "n": len(common),
         }
-

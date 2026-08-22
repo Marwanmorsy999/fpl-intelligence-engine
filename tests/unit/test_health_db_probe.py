@@ -8,6 +8,7 @@ Two layers:
   UP path. Asserts on the explicit ``database`` contract fields directly to avoid
   cross-test contamination of the module-level ``_MONITORING`` singleton.
 """
+
 from __future__ import annotations
 
 from collections.abc import Generator

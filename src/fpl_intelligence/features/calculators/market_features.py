@@ -114,10 +114,7 @@ class MarketFeaturesCalculator(BaseFeatureCalculator):
             if latest.price is not None and prev.price is not None:
                 value["price_movement"] = latest.price - prev.price
 
-            if (
-                latest.selected_by_percent is not None
-                and prev.selected_by_percent is not None
-            ):
+            if latest.selected_by_percent is not None and prev.selected_by_percent is not None:
                 value["ownership_change"] = latest.selected_by_percent - prev.selected_by_percent
 
             if (

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import itertools
 from dataclasses import dataclass
-from typing import Any
 
 import numpy as np
 
@@ -39,12 +38,14 @@ class CaptainOptimizer:
     def __init__(self, provider: DecisionPredictionProvider) -> None:
         self.provider = provider
 
-    def evaluate_candidates(self, candidates: list[int], gameweek: int) -> dict[int, CaptainCandidate]:
+    def evaluate_candidates(
+        self, candidates: list[int], gameweek: int
+    ) -> dict[int, CaptainCandidate]:
         """Evaluate a list of captain candidates."""
         results = {}
         for pid in candidates:
             pred = self.provider.get_player_prediction(pid, gameweek)
-            
+
             if pred.distribution is not None and len(pred.distribution) > 0:
                 dist = pred.distribution
                 median = float(np.median(dist))
@@ -84,10 +85,10 @@ class CaptainOptimizer:
         """Recommend a captain based on the squad and strategic objective."""
         candidates = squad.starting_xi
         evaluated = self.evaluate_candidates(candidates, squad.gameweek)
-        
+
         best_candidate: CaptainCandidate | None = None
         main_reason = ""
-        
+
         if objective == DecisionObjective.PROTECT_RANK:
             if benchmark_captain_id and benchmark_captain_id in evaluated:
                 best_candidate = evaluated[benchmark_captain_id]
@@ -95,22 +96,17 @@ class CaptainOptimizer:
             else:
                 best_candidate = max(evaluated.values(), key=lambda c: (c.p10, c.expected_points))
                 main_reason = "Safe captain with highest floor to minimize downside."
-                
+
         elif objective == DecisionObjective.CHASE_RANK:
             best_candidate = max(evaluated.values(), key=lambda c: (c.prob_15_plus, c.p90))
             main_reason = "Differential captain with highest probability of haul."
-            
+
         else:
             best_candidate = max(evaluated.values(), key=lambda c: c.expected_points)
             main_reason = "Highest expected value captain."
 
         if not best_candidate:
             best_candidate = evaluated[candidates[0]]
-            
-        vice_candidate = max(
-            [c for c in evaluated.values() if c.player_id != best_candidate.player_id],
-            key=lambda c: c.expected_points,
-        )
 
         action = CandidateAction(action_type=ActionType.CAPTAIN)
         return Recommendation(
@@ -122,7 +118,9 @@ class CaptainOptimizer:
             probability_positive=best_candidate.prob_10_plus,
             confidence=0.8,
             main_reason=main_reason,
-            main_risk="Rotation risk or variance" if best_candidate.variance > 10 else "Low ceiling",
+            main_risk="Rotation risk or variance"
+            if best_candidate.variance > 10
+            else "Low ceiling",
         )
 
 
@@ -137,11 +135,11 @@ class StartingXIOptimizer:
         """Check if a list of 11 position codes forms a valid FPL formation."""
         if len(positions) != 11:
             return False
-            
+
         counts = {1: 0, 2: 0, 3: 0, 4: 0}
         for pos in positions:
             counts[pos] += 1
-            
+
         for pos in [1, 2, 3, 4]:
             if counts[pos] < self.rules.min_formation(pos):
                 return False
@@ -157,13 +155,13 @@ class StartingXIOptimizer:
         objective: DecisionObjective = DecisionObjective.MAXIMIZE_GW_POINTS,
     ) -> tuple[list[int], list[int]]:
         """Return the optimal starting XI and bench order.
-        
+
         Args:
             squad_players: List of 15 player IDs.
             gameweek: Current gameweek.
             player_positions: Dict mapping player_id -> position_code (1 to 4).
             objective: Optimization objective.
-            
+
         Returns:
             Tuple of (starting_xi, bench_order).
         """
@@ -180,33 +178,36 @@ class StartingXIOptimizer:
                 ceiling = pred.ceiling
                 floor = pred.floor
             predictions[pid] = {"ev": ev, "ceiling": ceiling, "floor": floor}
-        
-        sort_key = lambda pid: predictions[pid]["ev"]
-        if objective == DecisionObjective.CHASE_RANK:
-            sort_key = lambda pid: predictions[pid]["ceiling"]
-        elif objective == DecisionObjective.PROTECT_RANK:
-            sort_key = lambda pid: predictions[pid]["floor"]
 
-        sorted_players = sorted(squad_players, key=sort_key, reverse=True)
-        
+        if objective == DecisionObjective.CHASE_RANK:
+            sort_field = "ceiling"
+        elif objective == DecisionObjective.PROTECT_RANK:
+            sort_field = "floor"
+        else:
+            sort_field = "ev"
+
+        sorted_players = sorted(
+            squad_players, key=lambda pid: predictions[pid][sort_field], reverse=True
+        )
+
         best_xi: list[int] | None = None
-        
+
         for combo in itertools.combinations(sorted_players, 11):
             positions = [player_positions[pid] for pid in combo]
             if self.is_valid_formation(positions):
                 best_xi = list(combo)
                 break
-                
+
         if not best_xi:
             best_xi = squad_players[:11]
-            
+
         bench = [pid for pid in squad_players if pid not in best_xi]
-        
+
         gk_bench = [pid for pid in bench if player_positions[pid] == 1]
         outfield_bench = [pid for pid in bench if player_positions[pid] != 1]
-        
-        outfield_bench.sort(key=sort_key, reverse=True)
-        
+
+        outfield_bench.sort(key=lambda pid: predictions[pid][sort_field], reverse=True)
+
         bench_order = gk_bench + outfield_bench
-        
+
         return best_xi, bench_order

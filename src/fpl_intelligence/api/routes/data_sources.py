@@ -4,6 +4,7 @@ Surfaces the live status of every external data source the engine depends on:
 FPL import, Odds API, Understat, Weather, PL photos, and the LLM. This is the
 answer to "where is the AI / where is the math / why is X off".
 """
+
 from __future__ import annotations
 
 import logging
@@ -38,26 +39,50 @@ async def data_sources(db: deps.GetDB) -> dict[str, Any]:
     # --- FPL import: test reachability of the entry endpoint -----------------
     fpl_status = "unknown"
     fpl_detail = ""
+    fpl_strategy = ""
     try:
         import httpx  # noqa: PLC0415
 
-        async with httpx.AsyncClient(timeout=8, follow_redirects=True) as client:
-            r = await client.get(
-                f"{settings.fpl_base_url.rstrip('/')}/api/entry/1/",
-                headers={"User-Agent": "FPL-Intelligence-Engine/1.0", "Accept": "application/json"},
-            )
-            if r.status_code == 200:
-                fpl_status = "ok"
-                fpl_detail = "reachable"
-            elif r.status_code == 403:
-                fpl_status = "blocked"
-                fpl_detail = "rate-limited by FPL"
-            else:
-                fpl_status = "degraded"
-                fpl_detail = f"HTTP {r.status_code}"
-    except Exception as exc:  # noqa: BLE001
-        fpl_status = "blocked"
-        fpl_detail = f"unreachable ({type(exc).__name__})"
+        # Use the egress chain so the status reflects the path the importer
+        # actually uses — including which mask won (Phase 18.0).
+        from fpl_intelligence.data_providers.fpl_egress import (  # noqa: PLC0415
+            FplEgressChain,
+            validate_entry_payload,
+        )
+
+        egress = FplEgressChain(
+            settings.fpl_base_url,
+            timeout=min(8.0, settings.egress_strategy_timeout),
+            cache_ttl=0,  # never cache a health probe
+        )
+        await egress.fetch("/api/entry/1/", validator=validate_entry_payload)
+        fpl_status = "ok"
+        fpl_detail = "reachable"
+        fpl_strategy = egress.winning_strategy or "direct"
+    except Exception:  # noqa: BLE001
+        # Fall back to a plain direct probe if the chain probe fails.
+        try:
+            async with httpx.AsyncClient(timeout=8, follow_redirects=True) as client:
+                r = await client.get(
+                    f"{settings.fpl_base_url.rstrip('/')}/api/entry/1/",
+                    headers={
+                        "User-Agent": "FPL-Intelligence-Engine/1.0",
+                        "Accept": "application/json",
+                    },
+                )
+                if r.status_code == 200:
+                    fpl_status = "ok"
+                    fpl_detail = "reachable"
+                    fpl_strategy = "direct"
+                elif r.status_code == 403:
+                    fpl_status = "blocked"
+                    fpl_detail = "rate-limited by FPL"
+                else:
+                    fpl_status = "degraded"
+                    fpl_detail = f"HTTP {r.status_code}"
+        except Exception as inner:  # noqa: BLE001
+            fpl_status = "blocked"
+            fpl_detail = f"unreachable ({type(inner).__name__})"
 
     # --- Odds API: enabled only when key is present ---------------------------
     odds_key_present = bool(os.getenv("THE_ODDS_API_KEY", "").strip())
@@ -122,7 +147,8 @@ async def data_sources(db: deps.GetDB) -> dict[str, Any]:
         "sources": {
             "fpl_import": {
                 "status": fpl_status,
-                "detail": fpl_detail,
+                "detail": fpl_detail + (f" · via {fpl_strategy}" if fpl_strategy else ""),
+                "egress_strategy": fpl_strategy or "unprobed",
                 "retry_schedule": "daily 06:30 UTC",
             },
             "odds_api": {

@@ -16,6 +16,7 @@ the reasoning layer inside its lane:
 3. **Never infer beyond the text.** Absence of a statement is not evidence of
    absence; the model returns an empty result rather than a plausible guess.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -252,8 +253,7 @@ COMBINED_EXTRACTION = PromptTemplate(
         "style, matchup context.\n\n"
         "A single sentence may yield both kinds; emit each separately with its "
         "own quote. You are a reasoning and normalisation layer, NOT a "
-        "predictor.\n\n"
-        + _SHARED_RULES
+        "predictor.\n\n" + _SHARED_RULES
     ),
     user=(
         "SOURCE METADATA (context only — do not copy into your output)\n"
@@ -270,12 +270,29 @@ COMBINED_EXTRACTION = PromptTemplate(
 )
 
 
+#: Phase 18.0 — plain-English analyst summary. Registered so the provider
+#: router can resolve ``template_id`` for the /api/v1/analyst/summary prompt.
+ANALYST_SUMMARY = PromptTemplate(
+    template_id="phase18.analyst.summary",
+    version="1.0.0",
+    system=(
+        "You are an FPL analyst. Summarize the following week-ahead decisions "
+        "in 3-5 plain-English sentences for a fantasy manager. Mention the captain "
+        "logic, transfer stance, and any risk flags. Be specific and do not invent "
+        "numbers."
+    ),
+    user="{raw_text}",
+    schema_version="1.0.0",
+)
+
+
 #: Registry so a persisted ``prompt_template_id`` can be resolved back to the
 #: template that produced it.
 EXTRACTION_TEMPLATES: dict[str, PromptTemplate] = {
     AVAILABILITY_EXTRACTION.template_id: AVAILABILITY_EXTRACTION,
     TACTICAL_EXTRACTION.template_id: TACTICAL_EXTRACTION,
     COMBINED_EXTRACTION.template_id: COMBINED_EXTRACTION,
+    ANALYST_SUMMARY.template_id: ANALYST_SUMMARY,
 }
 
 

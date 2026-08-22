@@ -37,24 +37,36 @@ class TestTeamResolution:
         db_session.flush()
 
         # Add external IDs from two providers
-        db_session.add(TeamExternalId(team_id=team.id, provider="provider_a", provider_team_id="A_1"))
-        db_session.add(TeamExternalId(team_id=team.id, provider="provider_b", provider_team_id="B_100"))
+        db_session.add(
+            TeamExternalId(team_id=team.id, provider="provider_a", provider_team_id="A_1")
+        )
+        db_session.add(
+            TeamExternalId(team_id=team.id, provider="provider_b", provider_team_id="B_100")
+        )
         db_session.commit()
 
         # Resolve from provider A
-        ext_a = db_session.query(TeamExternalId).filter(
-            TeamExternalId.provider == "provider_a",
-            TeamExternalId.provider_team_id == "A_1",
-        ).first()
+        ext_a = (
+            db_session.query(TeamExternalId)
+            .filter(
+                TeamExternalId.provider == "provider_a",
+                TeamExternalId.provider_team_id == "A_1",
+            )
+            .first()
+        )
         assert ext_a is not None
         assert ext_a.team_id == team.id
         assert ext_a.team.name == "Arsenal"
 
         # Resolve from provider B
-        ext_b = db_session.query(TeamExternalId).filter(
-            TeamExternalId.provider == "provider_b",
-            TeamExternalId.provider_team_id == "B_100",
-        ).first()
+        ext_b = (
+            db_session.query(TeamExternalId)
+            .filter(
+                TeamExternalId.provider == "provider_b",
+                TeamExternalId.provider_team_id == "B_100",
+            )
+            .first()
+        )
         assert ext_b is not None
         assert ext_b.team_id == team.id
         assert ext_b.team.name == "Arsenal"
@@ -67,7 +79,7 @@ class TestPlayerResolution:
     """Test that the same player from different providers resolves to one canonical entity."""
 
     def test_same_player_two_providers(self, db_session: Session) -> None:
-        """Two providers with different IDs for the same player should map to one canonical player."""
+        """Two providers with different IDs for the same player resolve to one entity."""
         player = Player(
             first_name="Mohamed",
             second_name="Salah",
@@ -77,22 +89,34 @@ class TestPlayerResolution:
         db_session.add(player)
         db_session.flush()
 
-        db_session.add(PlayerExternalId(player_id=player.id, provider="provider_a", provider_player_id="P_10"))
-        db_session.add(PlayerExternalId(player_id=player.id, provider="provider_b", provider_player_id="B_50"))
+        db_session.add(
+            PlayerExternalId(player_id=player.id, provider="provider_a", provider_player_id="P_10")
+        )
+        db_session.add(
+            PlayerExternalId(player_id=player.id, provider="provider_b", provider_player_id="B_50")
+        )
         db_session.commit()
 
-        ext_a = db_session.query(PlayerExternalId).filter(
-            PlayerExternalId.provider == "provider_a",
-            PlayerExternalId.provider_player_id == "P_10",
-        ).first()
+        ext_a = (
+            db_session.query(PlayerExternalId)
+            .filter(
+                PlayerExternalId.provider == "provider_a",
+                PlayerExternalId.provider_player_id == "P_10",
+            )
+            .first()
+        )
         assert ext_a is not None
         assert ext_a.player_id == player.id
         assert ext_a.player.web_name == "M. Salah"
 
-        ext_b = db_session.query(PlayerExternalId).filter(
-            PlayerExternalId.provider == "provider_b",
-            PlayerExternalId.provider_player_id == "B_50",
-        ).first()
+        ext_b = (
+            db_session.query(PlayerExternalId)
+            .filter(
+                PlayerExternalId.provider == "provider_b",
+                PlayerExternalId.provider_player_id == "B_50",
+            )
+            .first()
+        )
         assert ext_b is not None
         assert ext_b.player_id == player.id
 
@@ -118,20 +142,32 @@ class TestPlayerResolution:
         db_session.add(player2)
         db_session.flush()
 
-        db_session.add(PlayerExternalId(player_id=player1.id, provider="fpl", provider_player_id="100"))
-        db_session.add(PlayerExternalId(player_id=player2.id, provider="fpl", provider_player_id="200"))
+        db_session.add(
+            PlayerExternalId(player_id=player1.id, provider="fpl", provider_player_id="100")
+        )
+        db_session.add(
+            PlayerExternalId(player_id=player2.id, provider="fpl", provider_player_id="200")
+        )
         db_session.commit()
 
         # Both players exist with different canonical IDs
         assert player1.id != player2.id
 
         # Each should resolve via its own external ID
-        ext1 = db_session.query(PlayerExternalId).filter(
-            PlayerExternalId.provider_player_id == "100",
-        ).first()
-        ext2 = db_session.query(PlayerExternalId).filter(
-            PlayerExternalId.provider_player_id == "200",
-        ).first()
+        ext1 = (
+            db_session.query(PlayerExternalId)
+            .filter(
+                PlayerExternalId.provider_player_id == "100",
+            )
+            .first()
+        )
+        ext2 = (
+            db_session.query(PlayerExternalId)
+            .filter(
+                PlayerExternalId.provider_player_id == "200",
+            )
+            .first()
+        )
         assert ext1 is not None
         assert ext2 is not None
         assert ext1.player_id != ext2.player_id
@@ -156,26 +192,34 @@ class TestPlayerResolution:
         db_session.flush()
 
         # Player at team A (first half of season)
-        db_session.add(PlayerTeamMembership(
-            player_id=player.id,
-            team_id=team_a.id,
-            season_id=season.id,
-            valid_from=datetime(2024, 8, 1, tzinfo=UTC),
-            valid_to=datetime(2025, 1, 1, tzinfo=UTC),
-        ))
+        db_session.add(
+            PlayerTeamMembership(
+                player_id=player.id,
+                team_id=team_a.id,
+                season_id=season.id,
+                valid_from=datetime(2024, 8, 1, tzinfo=UTC),
+                valid_to=datetime(2025, 1, 1, tzinfo=UTC),
+            )
+        )
 
         # Player at team B (second half of season)
-        db_session.add(PlayerTeamMembership(
-            player_id=player.id,
-            team_id=team_b.id,
-            season_id=season.id,
-            valid_from=datetime(2025, 1, 1, tzinfo=UTC),
-        ))
+        db_session.add(
+            PlayerTeamMembership(
+                player_id=player.id,
+                team_id=team_b.id,
+                season_id=season.id,
+                valid_from=datetime(2025, 1, 1, tzinfo=UTC),
+            )
+        )
         db_session.commit()
 
-        memberships = db_session.query(PlayerTeamMembership).filter(
-            PlayerTeamMembership.player_id == player.id,
-        ).all()
+        memberships = (
+            db_session.query(PlayerTeamMembership)
+            .filter(
+                PlayerTeamMembership.player_id == player.id,
+            )
+            .all()
+        )
         assert len(memberships) == 2
         assert memberships[0].team_id == team_a.id
         assert memberships[1].team_id == team_b.id

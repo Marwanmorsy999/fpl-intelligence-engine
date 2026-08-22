@@ -151,9 +151,7 @@ class GoalModel:
             xg_used=xg_used,
         )
 
-    def _poisson_with_overdispersion(
-        self, lam: float, max_k: int
-    ) -> dict[int, float]:
+    def _poisson_with_overdispersion(self, lam: float, max_k: int) -> dict[int, float]:
         """Compute a Poisson-like distribution."""
         probs: dict[int, float] = {}
         for k in range(max_k + 1):

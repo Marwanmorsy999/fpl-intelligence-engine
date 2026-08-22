@@ -13,6 +13,7 @@ from typing import Any
 @dataclass
 class ReconciliationIssue:
     """A single issue found during reconciliation."""
+
     severity: str  # "critical", "warning", "info"
     category: str  # e.g. "missing_player", "duplicate_fixture", "invalid_minutes"
     message: str
@@ -22,6 +23,7 @@ class ReconciliationIssue:
 @dataclass
 class ReconciliationReport:
     """Report of reconciliation results for a data import."""
+
     season: str
     provider: str
     dataset: str
@@ -42,14 +44,22 @@ class ReconciliationReport:
     def has_critical_errors(self) -> bool:
         return len(self.critical_errors) > 0
 
-    def add_critical(self, category: str, message: str, details: dict[str, Any] | None = None) -> None:
+    def add_critical(
+        self, category: str, message: str, details: dict[str, Any] | None = None
+    ) -> None:
         self.critical_errors.append(
-            ReconciliationIssue(severity="critical", category=category, message=message, details=details)
+            ReconciliationIssue(
+                severity="critical", category=category, message=message, details=details
+            )
         )
 
-    def add_warning(self, category: str, message: str, details: dict[str, Any] | None = None) -> None:
+    def add_warning(
+        self, category: str, message: str, details: dict[str, Any] | None = None
+    ) -> None:
         self.warnings.append(
-            ReconciliationIssue(severity="warning", category=category, message=message, details=details)
+            ReconciliationIssue(
+                severity="warning", category=category, message=message, details=details
+            )
         )
 
     def summary(self) -> str:
@@ -99,7 +109,10 @@ def reconcile_teams(
             report.records_accepted += 1
         else:
             report.unmatched_teams.append(provider_id)
-            report.add_warning("unmatched_team", f"Team {provider_id} ({team.get('name')}) not found in known teams")
+            report.add_warning(
+                "unmatched_team",
+                f"Team {provider_id} ({team.get('name')}) not found in known teams",
+            )
             report.records_rejected += 1
 
     return accepted
@@ -129,7 +142,10 @@ def reconcile_players(
             report.records_accepted += 1
         else:
             report.unmatched_players.append(provider_id)
-            report.add_warning("unmatched_player", f"Player {provider_id} ({player.get('web_name')}) not found in known players")
+            report.add_warning(
+                "unmatched_player",
+                f"Player {provider_id} ({player.get('web_name')}) not found in known players",
+            )
             report.records_rejected += 1
 
     return accepted
@@ -152,7 +168,9 @@ def reconcile_fixtures(
     for fixture in provider_fixtures:
         provider_id = fixture.get("provider_fixture_id", "")
         if not provider_id:
-            report.add_critical("missing_fixture_id", f"Fixture missing provider_fixture_id: {fixture}")
+            report.add_critical(
+                "missing_fixture_id", f"Fixture missing provider_fixture_id: {fixture}"
+            )
             report.records_rejected += 1
             continue
 
@@ -168,20 +186,32 @@ def reconcile_fixtures(
         home_team = fixture.get("home_team_id", "")
         away_team = fixture.get("away_team_id", "")
         if home_team not in known_team_ids:
-            report.add_critical("invalid_home_team", f"Fixture {provider_id} references unknown home team: {home_team}")
+            report.add_critical(
+                "invalid_home_team",
+                f"Fixture {provider_id} references unknown home team: {home_team}",
+            )
             report.records_rejected += 1
             continue
         if away_team not in known_team_ids:
-            report.add_critical("invalid_away_team", f"Fixture {provider_id} references unknown away team: {away_team}")
+            report.add_critical(
+                "invalid_away_team",
+                f"Fixture {provider_id} references unknown away team: {away_team}",
+            )
             report.records_rejected += 1
             continue
 
         # Check for inconsistent scores
         home_score = fixture.get("home_score")
         away_score = fixture.get("away_score")
-        if home_score is not None and away_score is not None:
-            if home_score < 0 or away_score < 0:
-                report.add_warning("negative_score", f"Fixture {provider_id} has negative score: {home_score}-{away_score}")
+        if (
+            home_score is not None
+            and away_score is not None
+            and (home_score < 0 or away_score < 0)
+        ):
+            report.add_warning(
+                "negative_score",
+                f"Fixture {provider_id} has negative score: {home_score}-{away_score}",
+            )
 
         accepted.append(fixture)
         report.records_accepted += 1
@@ -212,24 +242,33 @@ def validate_player_match_stats(
             continue
 
         if not fixture_id:
-            report.add_critical("missing_fixture_id", "Player match stat missing provider_fixture_id")
+            report.add_critical(
+                "missing_fixture_id", "Player match stat missing provider_fixture_id"
+            )
             report.records_rejected += 1
             continue
 
         if player_id not in known_player_ids:
-            report.add_warning("unmatched_player", f"Player match stat references unknown player: {player_id}")
+            report.add_warning(
+                "unmatched_player", f"Player match stat references unknown player: {player_id}"
+            )
             report.records_rejected += 1
             continue
 
         if fixture_id not in known_fixture_ids:
-            report.add_warning("unmatched_fixture", f"Player match stat references unknown fixture: {fixture_id}")
+            report.add_warning(
+                "unmatched_fixture", f"Player match stat references unknown fixture: {fixture_id}"
+            )
             report.records_rejected += 1
             continue
 
         # Validate minutes
         minutes = stat.get("minutes")
         if minutes is not None and (minutes < 0 or minutes > 120):
-            report.add_warning("impossible_minutes", f"Player {player_id} fixture {fixture_id}: impossible minutes {minutes}")
+            report.add_warning(
+                "impossible_minutes",
+                f"Player {player_id} fixture {fixture_id}: impossible minutes {minutes}",
+            )
             report.records_rejected += 1
             continue
 
@@ -254,24 +293,34 @@ def validate_fpl_history(
     for record in history:
         player_id = record.get("provider_player_id", "")
         if not player_id:
-            report.add_critical("missing_player_id", "FPL history record missing provider_player_id")
+            report.add_critical(
+                "missing_player_id", "FPL history record missing provider_player_id"
+            )
             report.records_rejected += 1
             continue
 
         if player_id not in known_player_ids:
-            report.add_warning("unmatched_player", f"FPL history references unknown player: {player_id}")
+            report.add_warning(
+                "unmatched_player", f"FPL history references unknown player: {player_id}"
+            )
             report.records_rejected += 1
             continue
 
         # Validate gameweek
         gameweek = record.get("gameweek")
         if gameweek is not None and (gameweek < 1 or gameweek > 38):
-            report.add_warning("invalid_gameweek", f"FPL history for player {player_id}: invalid gameweek {gameweek}")
+            report.add_warning(
+                "invalid_gameweek",
+                f"FPL history for player {player_id}: invalid gameweek {gameweek}",
+            )
 
         # Validate minutes
         minutes = record.get("minutes")
         if minutes is not None and (minutes < 0 or minutes > 120):
-            report.add_warning("impossible_minutes", f"FPL history for player {player_id}: impossible minutes {minutes}")
+            report.add_warning(
+                "impossible_minutes",
+                f"FPL history for player {player_id}: impossible minutes {minutes}",
+            )
 
         accepted.append(record)
         report.records_accepted += 1

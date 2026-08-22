@@ -42,6 +42,7 @@ class BacktestConfig(Base):
         simulation_count: Number of Monte Carlo simulations.
         config_data: Additional configuration as JSON.
     """
+
     __tablename__ = "backtest_configs"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -74,13 +75,12 @@ class BacktestRun(Base):
         model_version: Version of the model used in this run.
         error_summary: Error message if the run failed.
     """
+
     __tablename__ = "backtest_runs"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     run_id: Mapped[str] = mapped_column(String(36), nullable=False, unique=True)
-    config_id: Mapped[int] = mapped_column(
-        ForeignKey("backtest_configs.id"), nullable=False
-    )
+    config_id: Mapped[int] = mapped_column(ForeignKey("backtest_configs.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=datetime.utcnow
     )
@@ -110,12 +110,11 @@ class BacktestGameweekResult(Base):
         actual_outcomes: JSON of actual outcomes (for evaluation only).
         evaluation_metrics: JSON of evaluation metrics.
     """
+
     __tablename__ = "backtest_gameweek_results"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    run_id: Mapped[int] = mapped_column(
-        ForeignKey("backtest_runs.id"), nullable=False
-    )
+    run_id: Mapped[int] = mapped_column(ForeignKey("backtest_runs.id"), nullable=False)
     season: Mapped[str] = mapped_column(String(20), nullable=False)
     gameweek: Mapped[int] = mapped_column(Integer, nullable=False)
     decision_cutoff: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -156,18 +155,13 @@ class PlayerPrediction(Base):
         data_completeness: Completeness of input data (0-1).
         is_frozen: Whether this prediction is frozen (immutable).
     """
+
     __tablename__ = "player_predictions"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    run_id: Mapped[int] = mapped_column(
-        ForeignKey("backtest_runs.id"), nullable=False
-    )
-    player_id: Mapped[int] = mapped_column(
-        ForeignKey("players.id"), nullable=False
-    )
-    fixture_id: Mapped[int | None] = mapped_column(
-        ForeignKey("fixtures.id")
-    )
+    run_id: Mapped[int] = mapped_column(ForeignKey("backtest_runs.id"), nullable=False)
+    player_id: Mapped[int] = mapped_column(ForeignKey("players.id"), nullable=False)
+    fixture_id: Mapped[int | None] = mapped_column(ForeignKey("fixtures.id"))
     cutoff: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     predicted_expected_points: Mapped[float | None] = mapped_column(Float)
     prediction_interval_lower: Mapped[float | None] = mapped_column(Float)
@@ -193,7 +187,10 @@ class PlayerPrediction(Base):
             "player_id",
         ),
         UniqueConstraint(
-            "run_id", "player_id", "fixture_id", "cutoff",
+            "run_id",
+            "player_id",
+            "fixture_id",
+            "cutoff",
             name="uq_prediction_run_player_fixture_cutoff",
         ),
     )

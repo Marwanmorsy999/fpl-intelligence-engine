@@ -11,6 +11,7 @@ Centralises every external seam the intelligence API touches so that:
   ``X-FPL-LLM-Mode: live`` request header — and the construction reads
   credentials from configuration/environment, never from source.
 """
+
 from __future__ import annotations
 
 import os
@@ -115,12 +116,9 @@ def get_prediction_provider(db: GetDB) -> DecisionPredictionProvider:
     return LivePredictionProvider(session=db)
 
 
-
 def get_prediction_builder(
     db: GetDB,
-    prediction_provider: Annotated[
-        DecisionPredictionProvider, Depends(get_prediction_provider)
-    ],
+    prediction_provider: Annotated[DecisionPredictionProvider, Depends(get_prediction_provider)],
 ) -> PredictionContextBuilder:
     """Inject the Phase 9.4 quantitative bridge."""
     _ = db  # session kept for parity with the evidence service; builder is read-only

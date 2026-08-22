@@ -7,6 +7,7 @@ incorporate availability intelligence.
 Pipeline:
     Base Prediction → Availability State → Adjusted Prediction → Distribution → Decision
 """
+
 from __future__ import annotations
 
 from datetime import UTC
@@ -52,17 +53,12 @@ class AvailabilityAwarePredictionProvider(DecisionPredictionProvider):
     def get_squad_predictions(self, squad_players: list[int], gws: list[int]) -> dict:
         result: dict[int, dict[int, PlayerPrediction]] = {}
         for gw in gws:
-            result[gw] = {
-                pid: self.get_player_prediction(pid, gw) for pid in squad_players
-            }
+            result[gw] = {pid: self.get_player_prediction(pid, gw) for pid in squad_players}
         return result
 
     def get_all_predictions(self, gameweek: int) -> dict:
         base_preds = self._base.get_all_predictions(gameweek)
-        return {
-            pid: self.get_player_prediction(pid, gameweek)
-            for pid in base_preds
-        }
+        return {pid: self.get_player_prediction(pid, gameweek) for pid in base_preds}
 
     def get_fixture_count(self, player_id: int, gameweek: int) -> int:
         return self._base.get_fixture_count(player_id, gameweek)
@@ -71,16 +67,12 @@ class AvailabilityAwarePredictionProvider(DecisionPredictionProvider):
     # Internal adjustment logic
     # ------------------------------------------------------------------
 
-    def _adjust(
-        self, base: PlayerPrediction, player_id: int, gameweek: int
-    ) -> dict[str, Any]:
+    def _adjust(self, base: PlayerPrediction, player_id: int, gameweek: int) -> dict[str, Any]:
         """Confidence-weighted blend of base prediction and availability."""
         from datetime import datetime
 
         game_time = datetime.now(UTC)
-        status, confidence, _sources = self._availability.get_availability(
-            player_id, game_time
-        )
+        status, confidence, _sources = self._availability.get_availability(player_id, game_time)
 
         if confidence < 0.01:
             # No evidence — pass through.
@@ -111,9 +103,7 @@ class AvailabilityAwarePredictionProvider(DecisionPredictionProvider):
         # Points scale with start probability (if a player doesn't start,
         # they score ~0 points). This is a proportional adjustment, not a
         # direct overwrite.
-        points_ratio = (
-            adj_start / base_start if base_start > 0 else 0.0 if adj_start == 0 else 1.0
-        )
+        points_ratio = adj_start / base_start if base_start > 0 else 0.0 if adj_start == 0 else 1.0
         adj_points = base_points * (1.0 - c) + (base_points * points_ratio) * c
 
         # Adjust distribution.

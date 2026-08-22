@@ -12,6 +12,7 @@ After import, generate per-season coverage including:
 
 Reports event coverage and strict-safe coverage SEPARATELY.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -26,7 +27,6 @@ from fpl_intelligence.availability.models import (
     AvailabilityEvidence,
     AvailabilitySource,
     PlayerInjury,
-    PlayerMention,
     PlayerSuspension,
     PressConference,
     TemporalClass,
@@ -143,16 +143,17 @@ def audit_historical_coverage(
         if exclude_mock:
             events = [e for e in events if e.provider != "sample"]
 
-        gw_ids = list(
-            db.scalars(select(Gameweek.id).where(Gameweek.season_id == sid)).all()
-        )
+        gw_ids = list(db.scalars(select(Gameweek.id).where(Gameweek.season_id == sid)).all())
         player_gws = 0
         if gw_ids:
-            player_gws = db.scalar(
-                select(func.count()).select_from(PlayerGameweekPerformance).where(
-                    PlayerGameweekPerformance.gameweek_id.in_(gw_ids)
+            player_gws = (
+                db.scalar(
+                    select(func.count())
+                    .select_from(PlayerGameweekPerformance)
+                    .where(PlayerGameweekPerformance.gameweek_id.in_(gw_ids))
                 )
-            ) or 0
+                or 0
+            )
 
         strict_players: set[int] = set()
         missing_ts = 0
@@ -181,38 +182,48 @@ def audit_historical_coverage(
             if m is not None:
                 teams.add(m.team_id)
 
-        injuries = db.scalar(
-            select(func.count()).select_from(PlayerInjury).join(
-                PlayerGameweekPerformance,
-                PlayerGameweekPerformance.player_id == PlayerInjury.player_id,
-            ).where(PlayerGameweekPerformance.season_id == sid)
-        ) or 0
-        suspensions = db.scalar(
-            select(func.count()).select_from(PlayerSuspension).where(
-                PlayerSuspension.season_id == sid
+        injuries = (
+            db.scalar(
+                select(func.count())
+                .select_from(PlayerInjury)
+                .join(
+                    PlayerGameweekPerformance,
+                    PlayerGameweekPerformance.player_id == PlayerInjury.player_id,
+                )
+                .where(PlayerGameweekPerformance.season_id == sid)
             )
-        ) or 0
-        training = db.scalar(
-            select(func.count()).select_from(TrainingReport).join(
-                PlayerGameweekPerformance,
-                PlayerGameweekPerformance.player_id == TrainingReport.player_id,
-            ).where(PlayerGameweekPerformance.season_id == sid)
-        ) or 0
-        press_conf = db.scalar(
-            select(func.count()).select_from(PressConference).where(
-                PressConference.season_id == sid
+            or 0
+        )
+        suspensions = (
+            db.scalar(
+                select(func.count())
+                .select_from(PlayerSuspension)
+                .where(PlayerSuspension.season_id == sid)
             )
-        ) or 0
-        mentions = db.scalar(
-            select(func.count()).select_from(PlayerMention).join(
-                PressConference,
-                PressConference.id == PlayerMention.press_conference_id,
-            ).where(PressConference.season_id == sid)
-        ) or 0
+            or 0
+        )
+        training = (
+            db.scalar(
+                select(func.count())
+                .select_from(TrainingReport)
+                .join(
+                    PlayerGameweekPerformance,
+                    PlayerGameweekPerformance.player_id == TrainingReport.player_id,
+                )
+                .where(PlayerGameweekPerformance.season_id == sid)
+            )
+            or 0
+        )
+        press_conf = (
+            db.scalar(
+                select(func.count())
+                .select_from(PressConference)
+                .where(PressConference.season_id == sid)
+            )
+            or 0
+        )
         articles = db.scalar(select(func.count()).select_from(AvailabilityArticle)) or 0
-        evidence_count = db.scalar(
-            select(func.count()).select_from(AvailabilityEvidence)
-        ) or 0
+        evidence_count = db.scalar(select(func.count()).select_from(AvailabilityEvidence)) or 0
 
         cov = SeasonCoverage(
             season=code,

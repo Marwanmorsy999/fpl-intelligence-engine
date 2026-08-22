@@ -11,6 +11,7 @@ Design principle (Part 15 — Model Integration):
   are derived from historical FPL data (correlation between announced
   availability and actual minutes), not hand-tuned constants.
 """
+
 from __future__ import annotations
 
 from datetime import UTC
@@ -77,9 +78,7 @@ class AvailabilityAwareMinutesModel:
 
             game_time = datetime.now(UTC)
 
-        status, confidence, _sources = self._availability.get_availability(
-            player_id, game_time
-        )
+        status, confidence, _sources = self._availability.get_availability(player_id, game_time)
         adjustment = state_to_adjustment(status, confidence)
 
         adjusted: list[dict[str, Any]] = []

@@ -1,4 +1,5 @@
 """Phase 9 unit tests — live intelligence temporal ledger, ingestion, extraction, analyst."""
+
 from __future__ import annotations
 
 import json
@@ -271,7 +272,9 @@ class TestTemporalLedger:
 
 class TestTemporalLedgerService:
     def test_find_by_hash_returns_existing(
-        self, db_session: Session, source: LiveIntelligenceSource,
+        self,
+        db_session: Session,
+        source: LiveIntelligenceSource,
     ):
         ledger = TemporalLedger(db_session)
         raw = LiveIntelligenceRawItem(
@@ -307,13 +310,17 @@ class TestTemporalLedgerService:
         assert view.temporal_class == LedgerTemporalClass.PRE_DEADLINE
 
     def test_items_available_before_filters_by_policy(
-        self, db_session: Session, source: LiveIntelligenceSource,
+        self,
+        db_session: Session,
+        source: LiveIntelligenceSource,
     ):
         cutoff = _utc(datetime(2025, 8, 16, 12, 0, 0))
-        for i, (avail, ing) in enumerate([
-            (_utc(datetime(2025, 8, 15, 10, 0, 0)), _utc(datetime(2025, 8, 15, 10, 5, 0))),
-            (_utc(datetime(2025, 8, 16, 10, 0, 0)), _utc(datetime(2025, 8, 16, 11, 0, 0))),
-        ]):
+        for i, (avail, ing) in enumerate(
+            [
+                (_utc(datetime(2025, 8, 15, 10, 0, 0)), _utc(datetime(2025, 8, 15, 10, 5, 0))),
+                (_utc(datetime(2025, 8, 16, 10, 0, 0)), _utc(datetime(2025, 8, 16, 11, 0, 0))),
+            ]
+        ):
             raw = LiveIntelligenceRawItem(
                 source_id=source.id,
                 content_hash=content_hash(f"text {i}"),
@@ -329,7 +336,9 @@ class TestTemporalLedgerService:
         assert len(items) == 2
 
     def test_attach_deadline_classifies_no_deadline_row(
-        self, db_session: Session, source: LiveIntelligenceSource,
+        self,
+        db_session: Session,
+        source: LiveIntelligenceSource,
     ):
         deadline = _utc(datetime(2025, 8, 17, 18, 30, 0))
         raw = LiveIntelligenceRawItem(
@@ -350,7 +359,9 @@ class TestTemporalLedgerService:
         assert raw.temporal_class == LedgerTemporalClass.PRE_DEADLINE
 
     def test_attach_deadline_rejects_already_classified(
-        self, db_session: Session, source: LiveIntelligenceSource,
+        self,
+        db_session: Session,
+        source: LiveIntelligenceSource,
     ):
         deadline = _utc(datetime(2025, 8, 17, 18, 30, 0))
         raw = LiveIntelligenceRawItem(
@@ -426,19 +437,25 @@ class TestLiveIngestionPipeline:
     def test_ingest_rejects_empty_text(self, db_session: Session):
         pipeline = LiveIngestionPipeline(db_session)
         pipeline.register_source("src")
-        outcome = pipeline.ingest(RawTextSubmission(
-            source_name="src", raw_text="   ", scraped_at=_utc(datetime(2025, 8, 15, 10, 0, 0)),
-        ))
+        outcome = pipeline.ingest(
+            RawTextSubmission(
+                source_name="src",
+                raw_text="   ",
+                scraped_at=_utc(datetime(2025, 8, 15, 10, 0, 0)),
+            )
+        )
         assert outcome.status is IngestionStatus.REJECTED
         assert "empty" in outcome.reason
 
     def test_ingest_rejects_unknown_source(self, db_session: Session):
         pipeline = LiveIngestionPipeline(db_session)
-        outcome = pipeline.ingest(RawTextSubmission(
-            source_name="no_such_source",
-            raw_text="Hello",
-            scraped_at=_utc(datetime(2025, 8, 15, 10, 0, 0)),
-        ))
+        outcome = pipeline.ingest(
+            RawTextSubmission(
+                source_name="no_such_source",
+                raw_text="Hello",
+                scraped_at=_utc(datetime(2025, 8, 15, 10, 0, 0)),
+            )
+        )
         assert outcome.status is IngestionStatus.REJECTED
         assert "unknown source" in outcome.reason
 
@@ -568,23 +585,34 @@ class TestLLMExtractionMock:
         assert result.availability[0].temporal_class == LedgerTemporalClass.PRE_DEADLINE
 
     def test_extractor_rejects_ungrounded_quote(
-        self, db_session: Session, source: LiveIntelligenceSource,
+        self,
+        db_session: Session,
+        source: LiveIntelligenceSource,
     ):
-        provider = make_mock_provider(player_names=["Salah"], scripted={"*": json.dumps({
-            "schema_version": EXTRACTION_SCHEMA_VERSION,
-            "availability_evidence": [{
-                "player_name": "Salah",
-                "team_name": "LIV",
-                "evidence_type": "injury",
-                "status_mentioned": "out",
-                "confidence": 0.9,
-                "source_quote": "This quote does not appear in the text.",
-                "reasoning": "test",
-            }],
-            "tactical_evidence": [],
-            "no_evidence_found": False,
-            "extraction_notes": "",
-        })})
+        provider = make_mock_provider(
+            player_names=["Salah"],
+            scripted={
+                "*": json.dumps(
+                    {
+                        "schema_version": EXTRACTION_SCHEMA_VERSION,
+                        "availability_evidence": [
+                            {
+                                "player_name": "Salah",
+                                "team_name": "LIV",
+                                "evidence_type": "injury",
+                                "status_mentioned": "out",
+                                "confidence": 0.9,
+                                "source_quote": "This quote does not appear in the text.",
+                                "reasoning": "test",
+                            }
+                        ],
+                        "tactical_evidence": [],
+                        "no_evidence_found": False,
+                        "extraction_notes": "",
+                    }
+                )
+            },
+        )
         extractor = PromptedLLMExtractor(provider)
         raw = LiveIntelligenceRawItem(
             source_id=source.id,
@@ -603,7 +631,9 @@ class TestLLMExtractionMock:
         assert len(result.rejected) == 1
 
     def test_extractor_handles_malformed_json(
-        self, db_session: Session, source: LiveIntelligenceSource,
+        self,
+        db_session: Session,
+        source: LiveIntelligenceSource,
     ):
         provider = make_mock_provider(player_names=["Salah"], scripted={"*": "NOT JSON"})
         extractor = PromptedLLMExtractor(provider)
@@ -623,16 +653,25 @@ class TestLLMExtractionMock:
         assert result.status == ExtractionStatus.PARSE_FAILED
 
     def test_extractor_rejects_extra_keys(
-        self, db_session: Session, source: LiveIntelligenceSource,
+        self,
+        db_session: Session,
+        source: LiveIntelligenceSource,
     ):
-        provider = make_mock_provider(player_names=["Salah"], scripted={"*": json.dumps({
-            "schema_version": EXTRACTION_SCHEMA_VERSION,
-            "availability_evidence": [],
-            "tactical_evidence": [],
-            "no_evidence_found": True,
-            "extraction_notes": "",
-            "invented_field": "bad",
-        })})
+        provider = make_mock_provider(
+            player_names=["Salah"],
+            scripted={
+                "*": json.dumps(
+                    {
+                        "schema_version": EXTRACTION_SCHEMA_VERSION,
+                        "availability_evidence": [],
+                        "tactical_evidence": [],
+                        "no_evidence_found": True,
+                        "extraction_notes": "",
+                        "invented_field": "bad",
+                    }
+                )
+            },
+        )
         extractor = PromptedLLMExtractor(provider)
         raw = LiveIntelligenceRawItem(
             source_id=source.id,
@@ -650,24 +689,35 @@ class TestLLMExtractionMock:
         assert result.status == ExtractionStatus.SCHEMA_REJECTED
 
     def test_extractor_accepts_available_status(
-        self, db_session: Session, source: LiveIntelligenceSource,
+        self,
+        db_session: Session,
+        source: LiveIntelligenceSource,
     ):
         """Phase 9.1.1 — 'available' is now a canonical status and must pass."""
-        provider = make_mock_provider(player_names=["Salah"], scripted={"*": json.dumps({
-            "schema_version": EXTRACTION_SCHEMA_VERSION,
-            "availability_evidence": [{
-                "player_name": "Salah",
-                "team_name": "LIV",
-                "evidence_type": "fitness",
-                "status_mentioned": "available",
-                "confidence": 0.7,
-                "source_quote": "Salah trained fully and is available.",
-                "reasoning": "trained fully but not confirmed to start",
-            }],
-            "tactical_evidence": [],
-            "no_evidence_found": False,
-            "extraction_notes": "",
-        })})
+        provider = make_mock_provider(
+            player_names=["Salah"],
+            scripted={
+                "*": json.dumps(
+                    {
+                        "schema_version": EXTRACTION_SCHEMA_VERSION,
+                        "availability_evidence": [
+                            {
+                                "player_name": "Salah",
+                                "team_name": "LIV",
+                                "evidence_type": "fitness",
+                                "status_mentioned": "available",
+                                "confidence": 0.7,
+                                "source_quote": "Salah trained fully and is available.",
+                                "reasoning": "trained fully but not confirmed to start",
+                            }
+                        ],
+                        "tactical_evidence": [],
+                        "no_evidence_found": False,
+                        "extraction_notes": "",
+                    }
+                )
+            },
+        )
         extractor = PromptedLLMExtractor(provider)
         raw = LiveIntelligenceRawItem(
             source_id=source.id,
@@ -687,24 +737,35 @@ class TestLLMExtractionMock:
         assert result.availability[0].status_mentioned == "available"
 
     def test_extractor_rejects_invalid_status(
-        self, db_session: Session, source: LiveIntelligenceSource,
+        self,
+        db_session: Session,
+        source: LiveIntelligenceSource,
     ):
         """Phase 9.1.1 — a non-canonical status like 'flying' must be rejected."""
-        provider = make_mock_provider(player_names=["Salah"], scripted={"*": json.dumps({
-            "schema_version": EXTRACTION_SCHEMA_VERSION,
-            "availability_evidence": [{
-                "player_name": "Salah",
-                "team_name": "LIV",
-                "evidence_type": "fitness",
-                "status_mentioned": "flying",
-                "confidence": 0.7,
-                "source_quote": "Salah is flying.",
-                "reasoning": "made up",
-            }],
-            "tactical_evidence": [],
-            "no_evidence_found": False,
-            "extraction_notes": "",
-        })})
+        provider = make_mock_provider(
+            player_names=["Salah"],
+            scripted={
+                "*": json.dumps(
+                    {
+                        "schema_version": EXTRACTION_SCHEMA_VERSION,
+                        "availability_evidence": [
+                            {
+                                "player_name": "Salah",
+                                "team_name": "LIV",
+                                "evidence_type": "fitness",
+                                "status_mentioned": "flying",
+                                "confidence": 0.7,
+                                "source_quote": "Salah is flying.",
+                                "reasoning": "made up",
+                            }
+                        ],
+                        "tactical_evidence": [],
+                        "no_evidence_found": False,
+                        "extraction_notes": "",
+                    }
+                )
+            },
+        )
         extractor = PromptedLLMExtractor(provider)
         raw = LiveIntelligenceRawItem(
             source_id=source.id,
@@ -723,7 +784,9 @@ class TestLLMExtractionMock:
         assert result.availability == []
 
     def test_usable_drafts_filters_pre_deadline_only(
-        self, db_session: Session, source: LiveIntelligenceSource,
+        self,
+        db_session: Session,
+        source: LiveIntelligenceSource,
     ):
         provider = make_mock_provider(player_names=["Salah"])
         extractor = PromptedLLMExtractor(provider)
@@ -765,7 +828,9 @@ class TestLLMExtractionMock:
 
 class TestPersistExtraction:
     def test_persist_creates_run_and_evidence(
-        self, db_session: Session, source: LiveIntelligenceSource,
+        self,
+        db_session: Session,
+        source: LiveIntelligenceSource,
     ):
         provider = make_mock_provider(player_names=["Salah"])
         extractor = PromptedLLMExtractor(provider)
@@ -799,7 +864,10 @@ class TestPersistExtraction:
             return None
 
         report: PersistenceReport = persist_extraction(
-            db_session, result, season_id=season.id, resolve_player=resolve_player,
+            db_session,
+            result,
+            season_id=season.id,
+            resolve_player=resolve_player,
         )
         assert report.availability_persisted == 1
         assert report.extraction_run_id is not None
@@ -808,23 +876,29 @@ class TestPersistExtraction:
         assert run.availability_evidence_count == 1
 
     def test_persist_records_unresolved_player(
-        self, db_session: Session, source: LiveIntelligenceSource,
+        self,
+        db_session: Session,
+        source: LiveIntelligenceSource,
     ):
-        scripted = json.dumps({
-            "schema_version": EXTRACTION_SCHEMA_VERSION,
-            "availability_evidence": [{
-                "player_name": "Unknown Player",
-                "team_name": None,
-                "evidence_type": "injury",
-                "status_mentioned": "out",
-                "confidence": 0.9,
-                "source_quote": "Unknown Player is injured.",
-                "reasoning": "test",
-            }],
-            "tactical_evidence": [],
-            "no_evidence_found": False,
-            "extraction_notes": "",
-        })
+        scripted = json.dumps(
+            {
+                "schema_version": EXTRACTION_SCHEMA_VERSION,
+                "availability_evidence": [
+                    {
+                        "player_name": "Unknown Player",
+                        "team_name": None,
+                        "evidence_type": "injury",
+                        "status_mentioned": "out",
+                        "confidence": 0.9,
+                        "source_quote": "Unknown Player is injured.",
+                        "reasoning": "test",
+                    }
+                ],
+                "tactical_evidence": [],
+                "no_evidence_found": False,
+                "extraction_notes": "",
+            }
+        )
         provider = make_mock_provider(player_names=[], scripted={"*": scripted})
         extractor = PromptedLLMExtractor(provider)
         raw = LiveIntelligenceRawItem(
@@ -846,7 +920,9 @@ class TestPersistExtraction:
         view = TemporalLedger(db_session).to_view(raw)
         result = extractor.extract(view)
         report: PersistenceReport = persist_extraction(
-            db_session, result, season_id=season.id,
+            db_session,
+            result,
+            season_id=season.id,
         )
         assert report.availability_persisted == 0
         assert len(report.unresolved) == 1
@@ -866,7 +942,9 @@ class MockPredictionProvider(DecisionPredictionProvider):
         return self._predictions[(player_id, gameweek)]
 
     def get_squad_predictions(
-        self, squad_players: list[int], gameweeks: list[int],
+        self,
+        squad_players: list[int],
+        gameweeks: list[int],
     ) -> dict[int, dict[int, PlayerPrediction]]:
         return {}
 
@@ -962,29 +1040,33 @@ class TestAIAnalyst:
     def test_guardrail_rejects_unaltered_baseline(self):
         class BadProvider(MockLLMProvider):
             def _generate_analyst(self, prompt):
-                return json.dumps({
-                    "schema_version": ANALYST_SCHEMA_VERSION,
-                    "task": "transfer_recommendation",
-                    "headline": "Bad",
-                    "quantitative_baseline": [{
-                        "subject_ref": "player:1",
-                        "expected_points": 99.9,
-                        "start_probability": 0.8,
-                        "floor": 2.0,
-                        "ceiling": 10.0,
-                        "interpretation": "wrong",
-                    }],
-                    "qualitative_adjustment": {
-                        "direction": "neutral",
-                        "magnitude": "none",
-                        "cited_evidence_refs": [],
-                        "rationale": "",
-                    },
-                    "net_assessment": "",
-                    "recommendation": "hold",
-                    "confidence": 0.5,
-                    "caveats": [],
-                })
+                return json.dumps(
+                    {
+                        "schema_version": ANALYST_SCHEMA_VERSION,
+                        "task": "transfer_recommendation",
+                        "headline": "Bad",
+                        "quantitative_baseline": [
+                            {
+                                "subject_ref": "player:1",
+                                "expected_points": 99.9,
+                                "start_probability": 0.8,
+                                "floor": 2.0,
+                                "ceiling": 10.0,
+                                "interpretation": "wrong",
+                            }
+                        ],
+                        "qualitative_adjustment": {
+                            "direction": "neutral",
+                            "magnitude": "none",
+                            "cited_evidence_refs": [],
+                            "rationale": "",
+                        },
+                        "net_assessment": "",
+                        "recommendation": "hold",
+                        "confidence": 0.5,
+                        "caveats": [],
+                    }
+                )
 
         analyst = AIAnalyst(BadProvider())
         baseline = QuantitativeBaseline(
@@ -1010,29 +1092,33 @@ class TestAIAnalyst:
     def test_guardrail_rejects_missing_citation(self):
         class BadProvider(MockLLMProvider):
             def _generate_analyst(self, prompt):
-                return json.dumps({
-                    "schema_version": ANALYST_SCHEMA_VERSION,
-                    "task": "transfer_recommendation",
-                    "headline": "Bad",
-                    "quantitative_baseline": [{
-                        "subject_ref": "player:1",
-                        "expected_points": 5.5,
-                        "start_probability": 0.8,
-                        "floor": 2.0,
-                        "ceiling": 10.0,
-                        "interpretation": "",
-                    }],
-                    "qualitative_adjustment": {
-                        "direction": "down",
-                        "magnitude": "moderate",
-                        "cited_evidence_refs": ["ev_nonexistent"],
-                        "rationale": "bad",
-                    },
-                    "net_assessment": "",
-                    "recommendation": "avoid",
-                    "confidence": 0.5,
-                    "caveats": [],
-                })
+                return json.dumps(
+                    {
+                        "schema_version": ANALYST_SCHEMA_VERSION,
+                        "task": "transfer_recommendation",
+                        "headline": "Bad",
+                        "quantitative_baseline": [
+                            {
+                                "subject_ref": "player:1",
+                                "expected_points": 5.5,
+                                "start_probability": 0.8,
+                                "floor": 2.0,
+                                "ceiling": 10.0,
+                                "interpretation": "",
+                            }
+                        ],
+                        "qualitative_adjustment": {
+                            "direction": "down",
+                            "magnitude": "moderate",
+                            "cited_evidence_refs": ["ev_nonexistent"],
+                            "rationale": "bad",
+                        },
+                        "net_assessment": "",
+                        "recommendation": "avoid",
+                        "confidence": 0.5,
+                        "caveats": [],
+                    }
+                )
 
         analyst = AIAnalyst(BadProvider())
         baseline = QuantitativeBaseline(
@@ -1106,8 +1192,7 @@ class TestAIAnalyst:
         assert report.output.qualitative_adjustment.direction == "neutral"
         assert report.output.qualitative_adjustment.magnitude == "none"
         assert any(
-            e["reason"].startswith("was produced by a mock")
-            for e in report.excluded_evidence
+            e["reason"].startswith("was produced by a mock") for e in report.excluded_evidence
         )
 
     def test_post_deadline_evidence_raises_in_strict_mode(self):
@@ -1182,8 +1267,11 @@ class TestPromptTemplates:
 
     def test_template_hash_changes_with_content(self):
         dummy = {
-            "raw_text": "test", "source_name": "s", "source_type": "t",
-            "source_reliability": "u", "team_hint": "th",
+            "raw_text": "test",
+            "source_name": "s",
+            "source_type": "t",
+            "source_reliability": "u",
+            "team_hint": "th",
         }
         t1 = get_template("phase9.extract.availability").render(**dummy)
         t2 = get_template("phase9.extract.tactical").render(**dummy)
@@ -1195,6 +1283,7 @@ class TestPromptTemplates:
             DIFFERENTIAL_RISK,
             TRANSFER_RECOMMENDATION,
         )
+
         assert TRANSFER_RECOMMENDATION.template_id == "phase9.analyst.transfer"
         assert CAPTAINCY_DEBATE.template_id == "phase9.analyst.captaincy"
         assert DIFFERENTIAL_RISK.template_id == "phase9.analyst.differential"

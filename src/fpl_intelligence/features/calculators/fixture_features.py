@@ -125,8 +125,9 @@ class FixtureFeaturesCalculator(BaseFeatureCalculator):
                 opponent_id, cutoff_time, db, policy
             )
             value["fixture_difficulty_model"] = self._calculate_model_difficulty(
-                value.get("is_home"), value["opponent_attack_strength"],
-                value["opponent_defensive_strength"]
+                value.get("is_home"),
+                value["opponent_attack_strength"],
+                value["opponent_defensive_strength"],
             )
 
         # Days of rest (time since last fixture for this team)
@@ -258,15 +259,12 @@ class FixtureFeaturesCalculator(BaseFeatureCalculator):
         # Get fixture kickoff times
         fixture_ids = [p.fixture_id for p in perfs]
         fixtures = list(
-            db.execute(
-                select(Fixture).where(Fixture.id.in_(fixture_ids))
-            ).scalars().all()
+            db.execute(select(Fixture).where(Fixture.id.in_(fixture_ids))).scalars().all()
         )
 
         # Find the most recent fixture before this one
         prev_kickoffs = [
-            f.kickoff_time for f in fixtures
-            if f.kickoff_time and f.kickoff_time < kickoff_time
+            f.kickoff_time for f in fixtures if f.kickoff_time and f.kickoff_time < kickoff_time
         ]
         if not prev_kickoffs:
             return None
@@ -292,9 +290,8 @@ class FixtureFeaturesCalculator(BaseFeatureCalculator):
         )
         # Filter for fixtures involving this team
         from sqlalchemy import or_
-        stmt = stmt.where(
-            or_(Fixture.home_team_id == team_id, Fixture.away_team_id == team_id)
-        )
+
+        stmt = stmt.where(or_(Fixture.home_team_id == team_id, Fixture.away_team_id == team_id))
 
         fixtures = list(db.execute(stmt).scalars().all())
         return len(fixtures)
@@ -314,9 +311,7 @@ class FixtureFeaturesCalculator(BaseFeatureCalculator):
             Fixture.kickoff_time.isnot(None),
             Fixture.kickoff_time > base_time,
         )
-        stmt = stmt.where(
-            or_(Fixture.home_team_id == team_id, Fixture.away_team_id == team_id)
-        )
+        stmt = stmt.where(or_(Fixture.home_team_id == team_id, Fixture.away_team_id == team_id))
         stmt = stmt.order_by(Fixture.kickoff_time).limit(3)
 
         fixtures = list(db.execute(stmt).scalars().all())

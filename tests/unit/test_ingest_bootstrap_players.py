@@ -11,6 +11,7 @@ This test proves the fix: after ``ingest_bootstrap`` with a mocked provider,
 ``/api/v1/players`` returns the linked team id and the ``now_cost``-derived
 price (FPL ``now_cost`` is in tenths of £m, so 65 -> 6.5).
 """
+
 from __future__ import annotations
 
 from fastapi.testclient import TestClient

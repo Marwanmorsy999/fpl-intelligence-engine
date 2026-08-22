@@ -13,12 +13,11 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from fpl_intelligence.features.calculators.base import BaseFeatureCalculator
 from fpl_intelligence.features.cache import FeatureCache
+from fpl_intelligence.features.calculators.base import BaseFeatureCalculator
 from fpl_intelligence.features.models import FeatureDefinition, FeatureSnapshot
 from fpl_intelligence.features.temporal import (
     DEFAULT_POLICY,
-    InformationAccessPolicy,
 )
 
 logger = logging.getLogger(__name__)
@@ -176,9 +175,7 @@ class FeatureRegistry:
         """
         results: dict[str, dict[str, Any]] = {}
         for name in self._calculators:
-            results[name] = self.compute(
-                name, entity_id, cutoff_time, context, use_cache
-            )
+            results[name] = self.compute(name, entity_id, cutoff_time, context, use_cache)
         return results
 
     def compute_batch(

@@ -32,6 +32,7 @@ All enrichment connectors degrade gracefully: any failure simply removes that
 signal and is recorded in :meth:`chain_meta` — a decisions request never fails
 because of an upstream enrichment problem.
 """
+
 from __future__ import annotations
 
 import json
@@ -309,17 +310,22 @@ def _backtest_points_for_gameweek(db: Session, gameweek: int) -> dict[int, float
     # Fallback: raw player_predictions rows of the run (latest cutoff per player).
     from fpl_intelligence.backtesting.models import PlayerPrediction as BacktestPlayerPrediction
 
-    rows = db.execute(
-        select(BacktestPlayerPrediction)
-        .where(BacktestPlayerPrediction.run_id == run_id)
-        .order_by(BacktestPlayerPrediction.cutoff.desc())
-    ).scalars().all()
+    rows = (
+        db.execute(
+            select(BacktestPlayerPrediction)
+            .where(BacktestPlayerPrediction.run_id == run_id)
+            .order_by(BacktestPlayerPrediction.cutoff.desc())
+        )
+        .scalars()
+        .all()
+    )
     by_player: dict[int, float] = {}
     for r in rows:
         if r.predicted_expected_points is None:
             continue
         by_player.setdefault(int(r.player_id), float(r.predicted_expected_points))
     return by_player or None
+
 
 # ---------------------------------------------------------------------------
 # Level 2 — baseline-model: Phase 5 recent-form baselines on ingested history
@@ -463,9 +469,7 @@ def _fixtures_for_gameweek(db: Session, gameweek: int) -> list[dict[str, int]]:
         .join(Gameweek, Fixture.gameweek_id == Gameweek.id)
         .where(Gameweek.provider_event_id == gameweek)
     ).all()
-    return [
-        {"home_team_id": int(home), "away_team_id": int(away)} for home, away in rows
-    ]
+    return [{"home_team_id": int(home), "away_team_id": int(away)} for home, away in rows]
 
 
 def _team_names(db: Session) -> dict[int, str]:
@@ -548,9 +552,7 @@ def _weather_adjustments_for_fixtures(
         return home_id, weather.fetch_matchday_outlook(home_id)
 
     with ThreadPoolExecutor(max_workers=min(len(home_id_to_fixture), 5)) as executor:
-        futures = {
-            executor.submit(_fetch, hid): hid for hid in home_id_to_fixture
-        }
+        futures = {executor.submit(_fetch, hid): hid for hid in home_id_to_fixture}
         for future in as_completed(futures):
             home_id, outlook = future.result()
             if outlook is None or outlook.severity != "severe":
@@ -593,8 +595,7 @@ def _proxy_points_for_gameweek(
 
     notes: dict[str, Any] = {
         "formula": (
-            "base(price_pct^e) + understat_x90*share "
-            "+ market_bump(favourite) + weather_adj(severe)"
+            "base(price_pct^e) + understat_x90*share + market_bump(favourite) + weather_adj(severe)"
         ),
         "catalog_players": len(catalog),
         "understat_snapshot_players": len(understat_index),
@@ -642,9 +643,7 @@ def _proxy_points_for_gameweek(
         try:
             snapshot = odds.fetch_epl_odds()
             if snapshot is not None:
-                probs, detail = _market_probs_for_fixtures(
-                    fixtures, team_names, snapshot.matches
-                )
+                probs, detail = _market_probs_for_fixtures(fixtures, team_names, snapshot.matches)
                 return probs, detail
         except Exception:  # noqa: BLE001 - graceful degradation contract
             pass
@@ -730,7 +729,7 @@ def _score_proxy_universe(
             continue
 
         pct = pcts.get(pid, 0.0)
-        base = PROXY_PRICE_BASE + PROXY_PRICE_SCALE * (pct ** PROXY_PRICE_EXPONENT)
+        base = PROXY_PRICE_BASE + PROXY_PRICE_SCALE * (pct**PROXY_PRICE_EXPONENT)
 
         und = understat_by_name.get(str(row.get("web_name", "")))
         x90 = float(und["x90"]) if und else 0.0
@@ -748,9 +747,7 @@ def _score_proxy_universe(
             else _clamp(0.35 + 0.45 * pct, 0.25, 0.90)
         )
         confidence = 0.30 + (0.15 if und else 0.0) + (0.10 if bump > 0 else 0.0)
-        completeness = 0.45 + (0.15 if und else 0.0) + (
-            0.10 if market_probs else 0.05
-        )
+        completeness = 0.45 + (0.15 if und else 0.0) + (0.10 if market_probs else 0.05)
 
         points[pid] = round(_clamp(pts, PROXY_XPTS_MIN, PROXY_XPTS_MAX), 3)
         per_player[pid] = {
@@ -812,9 +809,7 @@ class PredictionChainResult:
         """Serialisable provenance payload for the API/dashboard."""
         return {
             "source": self.resolved.source,
-            "source_label": SOURCE_LABELS.get(
-                self.resolved.source, self.resolved.source
-            ),
+            "source_label": SOURCE_LABELS.get(self.resolved.source, self.resolved.source),
             "data_quality": self.resolved.data_quality,
             "covered_players": self.resolved.covered,
             "levels_considered": len(self.levels),
@@ -900,9 +895,7 @@ class LivePredictionProvider:
         if self._understat_index is None:
             try:
                 snapshot = UnderstatConnector.load_snapshot(self._understat_path)
-                self._understat_index = UnderstatConnector.snapshot_player_index(
-                    snapshot
-                )
+                self._understat_index = UnderstatConnector.snapshot_player_index(snapshot)
             except Exception as exc:  # noqa: BLE001 - xG is enrichment only
                 logger.warning("Understat index unavailable: %s", exc)
                 self._understat_index = {}
@@ -947,11 +940,15 @@ class LivePredictionProvider:
 
         _t_start = time.perf_counter()
         catalog = self.player_catalog()
-        logger.info("resolve_chain gw=%d: player_catalog %.3fs", gameweek, time.perf_counter() - _t_start)
+        logger.info(
+            "resolve_chain gw=%d: player_catalog %.3fs", gameweek, time.perf_counter() - _t_start
+        )
 
         _t0 = time.perf_counter()
         understat_index = self.understat_index()
-        logger.info("resolve_chain gw=%d: understat_index %.3fs", gameweek, time.perf_counter() - _t0)
+        logger.info(
+            "resolve_chain gw=%d: understat_index %.3fs", gameweek, time.perf_counter() - _t0
+        )
 
         levels: list[ChainLevel] = []
 
@@ -1006,11 +1003,14 @@ class LivePredictionProvider:
                 "threshold, and an empty proxy universe (missing seeds?)."
             )
 
-        result = PredictionChainResult(
-            gameweek=gameweek, levels=levels, resolved=levels[0]
-        )
+        result = PredictionChainResult(gameweek=gameweek, levels=levels, resolved=levels[0])
         self.last_result = result
-        logger.info("resolve_chain gw=%d: total %.3fs (source=%s)", gameweek, time.perf_counter() - _t_start, result.source)
+        logger.info(
+            "resolve_chain gw=%d: total %.3fs (source=%s)",
+            gameweek,
+            time.perf_counter() - _t_start,
+            result.source,
+        )
         self._chain_cache[gameweek] = result
         return result
 
@@ -1025,9 +1025,7 @@ class LivePredictionProvider:
             resolved.source,
             {"minutes": 55.0, "start": 0.70, "conf": 0.50, "compl": 0.60},
         )
-        better_levels = [
-            lvl for lvl in result.levels if lvl is not resolved
-        ]
+        better_levels = [lvl for lvl in result.levels if lvl is not resolved]
 
         predictions: dict[int, PlayerPrediction] = {}
         for pid in player_ids:
@@ -1062,9 +1060,7 @@ class LivePredictionProvider:
 
     # -- DecisionPredictionProvider protocol -------------------------------------
 
-    def get_player_prediction(
-        self, player_id: int, gameweek: int
-    ) -> PlayerPrediction:
+    def get_player_prediction(self, player_id: int, gameweek: int) -> PlayerPrediction:
         """Serve one player/gameweek pair through the chain."""
         preds = self.get_squad_predictions([player_id], [gameweek])
         prediction = preds.get(int(gameweek), {}).get(int(player_id))
@@ -1164,10 +1160,7 @@ class LivePredictionProvider:
 
     def chain_meta(self, gameweek: int) -> dict[str, Any]:
         """Provenance payload for a gameweek (reuses the last resolution)."""
-        if (
-            self.last_result is None
-            or self.last_result.gameweek != int(gameweek)
-        ):
+        if self.last_result is None or self.last_result.gameweek != int(gameweek):
             self.resolve_chain(gameweek)
         assert self.last_result is not None  # narrow for type-checkers
         meta = self.last_result.meta()
@@ -1181,13 +1174,21 @@ class LivePredictionProvider:
             )
             if proxy_level is not None:
                 matched = proxy_level.notes.get("market_fixtures_matched")
-                meta["market_check"] = {
-                    "enabled": True,
-                    "fixtures_matched": matched if matched is not None else 0,
-                }
+                if matched:
+                    meta["market_check"] = {
+                        "enabled": True,
+                        "fixtures_matched": matched,
+                    }
+                else:
+                    # Proxy ran but matched zero fixtures — report honestly
+                    # instead of "agrees (0 fixtures)" (E4).
+                    meta["market_check"] = {
+                        "enabled": False,
+                        "reason": "no fixtures matched yet",
+                    }
             else:
-                meta["market_check"] = {"enabled": True, "fixtures_matched": 0}
+                meta["market_check"] = {
+                    "enabled": False,
+                    "reason": "no fixtures matched yet",
+                }
         return meta
-
-
-

@@ -14,6 +14,7 @@ Usage:
     python -m fpl_intelligence.scripts.run_phase72_import [--provider sample|real_fpl_bootstrap]
     [--seasons 2022-23 2023-24 2024-25] [--strict]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -111,8 +112,10 @@ def _seed_canonical(db: Session) -> None:
             player_id = existing.player_id
         else:
             player = Player(
-                first_name=f"First{pid}", second_name=f"Last{pid}",
-                web_name=f"Player {pid}", position_code=1,
+                first_name=f"First{pid}",
+                second_name=f"Last{pid}",
+                web_name=f"Player {pid}",
+                position_code=1,
             )
             db.add(player)
             db.flush()
@@ -128,7 +131,12 @@ def _seed_canonical(db: Session) -> None:
     for season in DEFAULT_SEASONS + [HOLDOUT]:
         raw_path = (
             Path(__file__).resolve().parents[3]
-            / "data" / "raw" / "real_fpl" / season / "players" / "players_raw.csv"
+            / "data"
+            / "raw"
+            / "real_fpl"
+            / season
+            / "players"
+            / "players_raw.csv"
         )
         if raw_path.exists():
             with raw_path.open(encoding="utf-8") as fh:
@@ -160,7 +168,12 @@ def _seed_canonical(db: Session) -> None:
     for season in DEFAULT_SEASONS + [HOLDOUT]:
         teams_path = (
             Path(__file__).resolve().parents[3]
-            / "data" / "raw" / "real_fpl" / season / "teams" / "teams.csv"
+            / "data"
+            / "raw"
+            / "real_fpl"
+            / season
+            / "teams"
+            / "teams.csv"
         )
         if not teams_path.exists():
             continue
@@ -183,9 +196,7 @@ def _seed_canonical(db: Session) -> None:
                 )
                 if ext is not None:
                     continue
-                team = db.scalar(
-                    select(Team).where(Team.short_name == r.get("short_name", ""))
-                )
+                team = db.scalar(select(Team).where(Team.short_name == r.get("short_name", "")))
                 if team is None:
                     team = Team(
                         name=r.get("name", f"Team {tid}"),
@@ -207,17 +218,28 @@ def _seed_canonical(db: Session) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Phase 7.2 historical availability import.")
     parser.add_argument(
-        "--provider", choices=["sample", "real_fpl_bootstrap"], default="sample",
+        "--provider",
+        choices=["sample", "real_fpl_bootstrap"],
+        default="sample",
         help="Provider to import (default: sample, MOCK / ENGINEERING VERIFICATION ONLY).",
     )
-    parser.add_argument("--seasons", nargs="*", default=DEFAULT_SEASONS,
-                        help="Development seasons to import.")
-    parser.add_argument("--include-holdout", action="store_true",
-                        help="Also import the locked 2025-26 holdout (isolated).")
-    parser.add_argument("--strict", action="store_true", default=True,
-                        help="Strict backtest-safe temporal mode (default on).")
-    parser.add_argument("--no-strict", action="store_true",
-                        help="Disable strict mode (no event is marked strict).")
+    parser.add_argument(
+        "--seasons", nargs="*", default=DEFAULT_SEASONS, help="Development seasons to import."
+    )
+    parser.add_argument(
+        "--include-holdout",
+        action="store_true",
+        help="Also import the locked 2025-26 holdout (isolated).",
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        default=True,
+        help="Strict backtest-safe temporal mode (default on).",
+    )
+    parser.add_argument(
+        "--no-strict", action="store_true", help="Disable strict mode (no event is marked strict)."
+    )
     args = parser.parse_args()
 
     t0 = time.time()
@@ -225,13 +247,13 @@ def main() -> int:
     _seed_canonical(db)
     db.commit()
 
+    from fpl_intelligence.availability.historical.coverage import audit_historical_coverage
     from fpl_intelligence.availability.historical.importer import import_historical_availability
     from fpl_intelligence.availability.historical.providers import (
         RealFPLAvailabilityProvider,
         SampleHistoricalAvailabilityProvider,
     )
     from fpl_intelligence.availability.historical.quality import validate_historical_availability
-    from fpl_intelligence.availability.historical.coverage import audit_historical_coverage
 
     seasons = list(args.seasons) + ([HOLDOUT] if args.include_holdout else [])
     strict = not args.no_strict
@@ -245,7 +267,10 @@ def main() -> int:
         print("[import] SAMPLE provider (MOCK / ENGINEERING VERIFICATION ONLY)")
 
     result = import_historical_availability(
-        db, provider, seasons, strict_backtest_safe=strict,
+        db,
+        provider,
+        seasons,
+        strict_backtest_safe=strict,
     )
     db.commit()
 
@@ -272,7 +297,8 @@ def main() -> int:
                 "coverage": coverage.to_dict(),
                 "elapsed_s": round(time.time() - t0, 1),
             },
-            indent=2, default=str,
+            indent=2,
+            default=str,
         ),
         encoding="utf-8",
     )

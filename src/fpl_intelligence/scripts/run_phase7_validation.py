@@ -11,6 +11,7 @@ experiment.
 Usage:
     python -m fpl_intelligence.scripts.run_phase7_validation [--seasons ...] [--offline]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -59,14 +60,21 @@ def _has_availability_data(db: Session) -> bool:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Phase 7 empirical validation runner.")
-    parser.add_argument("--seasons", nargs="*", default=DEFAULT_SEASONS,
-                        help="Development seasons to import (default: 2022-23..2024-25).")
-    parser.add_argument("--include-holdout", action="store_true",
-                        help="Also import the locked 2025-26 holdout.")
-    parser.add_argument("--offline", action="store_true",
-                        help="Replay from cached raw files only.")
-    parser.add_argument("--skip-import", action="store_true",
-                        help="Skip import; audit whatever is already in the DB.")
+    parser.add_argument(
+        "--seasons",
+        nargs="*",
+        default=DEFAULT_SEASONS,
+        help="Development seasons to import (default: 2022-23..2024-25).",
+    )
+    parser.add_argument(
+        "--include-holdout", action="store_true", help="Also import the locked 2025-26 holdout."
+    )
+    parser.add_argument("--offline", action="store_true", help="Replay from cached raw files only.")
+    parser.add_argument(
+        "--skip-import",
+        action="store_true",
+        help="Skip import; audit whatever is already in the DB.",
+    )
     args = parser.parse_args()
 
     t0 = time.time()

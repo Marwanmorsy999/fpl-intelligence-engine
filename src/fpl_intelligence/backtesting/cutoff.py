@@ -90,15 +90,11 @@ def get_gameweek_decision_cutoff(
     )
     gw = db.scalar(stmt)
     if gw is None:
-        raise ValueError(
-            f"Gameweek {gameweek} for season {season!r} not found."
-        )
+        raise ValueError(f"Gameweek {gameweek} for season {season!r} not found.")
 
     deadline = gw.deadline_time
     if deadline is None:
-        raise ValueError(
-            f"Gameweek {gameweek} for season {season!r} has no deadline_time."
-        )
+        raise ValueError(f"Gameweek {gameweek} for season {season!r} has no deadline_time.")
 
     if offset is None:
         offset = timedelta(hours=1)  # Default: decide 1 hour before deadline

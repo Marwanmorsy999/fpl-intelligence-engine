@@ -13,6 +13,7 @@ A reconciliation report is generated (matched / unmatched / ambiguous /
 manually mapped). Unresolved entities are never silently dropped; they are
 recorded and surfaced in the coverage audit.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -25,12 +26,10 @@ from fpl_intelligence.db.models import (
     Player,
     PlayerExternalId,
     Season,
-    Team,
     TeamExternalId,
 )
 from fpl_intelligence.entity_resolution.resolver import (
     EntityResolutionIssue,
-    EntityResolutionReport,
     normalize_name,
 )
 
@@ -114,12 +113,16 @@ class HistoricalEntityResolver:
         if team_id is not None and season_id is not None:
             from fpl_intelligence.db.models import PlayerTeamMembership
 
-            memberships = self.db.execute(
-                select(PlayerTeamMembership).where(
-                    PlayerTeamMembership.team_id == team_id,
-                    PlayerTeamMembership.season_id == season_id,
+            memberships = (
+                self.db.execute(
+                    select(PlayerTeamMembership).where(
+                        PlayerTeamMembership.team_id == team_id,
+                        PlayerTeamMembership.season_id == season_id,
+                    )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
             for m in memberships:
                 name = normalize_name(
                     self.db.get(Player, m.player_id).web_name
@@ -137,7 +140,9 @@ class HistoricalEntityResolver:
                 return candidates[0][1]
             report.ambiguous_players.append(
                 EntityResolutionIssue(
-                    self.provider_name, provider_player_id or "?", player_name or "?",
+                    self.provider_name,
+                    provider_player_id or "?",
+                    player_name or "?",
                     f"{len(candidates)} contextual candidates",
                 )
             )
@@ -145,8 +150,10 @@ class HistoricalEntityResolver:
 
         report.unmatched_players.append(
             EntityResolutionIssue(
-                self.provider_name, provider_player_id or "?",
-                player_name or "?", "no provider-id and no unique contextual match",
+                self.provider_name,
+                provider_player_id or "?",
+                player_name or "?",
+                "no provider-id and no unique contextual match",
             )
         )
         return None

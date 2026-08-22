@@ -14,6 +14,7 @@ successful import can only come from the ``sys.path`` bootstrap in
 and with the socket layer disabled, which proves the import needs neither
 secrets nor network access.
 """
+
 from __future__ import annotations
 
 import json
@@ -71,7 +72,7 @@ REQUIRED_ROUTES = (
 # --------------------------------------------------------------------------- #
 # Probe script executed inside the simulated runtime
 # --------------------------------------------------------------------------- #
-_PROBE = r'''
+_PROBE = r"""
 import json
 import socket
 import sys
@@ -124,9 +125,9 @@ print(
         }
     )
 )
-'''
+"""
 
-_NAIVE_PROBE = r'''
+_NAIVE_PROBE = r"""
 import json
 import sys
 
@@ -138,7 +139,7 @@ else:
     payload = {"imported": True, "package_file": fpl_intelligence.__file__}
 
 print("RESULT_JSON:" + json.dumps(payload))
-'''
+"""
 
 
 # --------------------------------------------------------------------------- #
@@ -182,9 +183,7 @@ def _run_probe(script: str, *args: str, cwd: Path) -> dict:
         f"probe failed (exit {proc.returncode})\n"
         f"--- stdout ---\n{proc.stdout}\n--- stderr ---\n{proc.stderr}"
     )
-    line = next(
-        (ln for ln in proc.stdout.splitlines() if ln.startswith("RESULT_JSON:")), None
-    )
+    line = next((ln for ln in proc.stdout.splitlines() if ln.startswith("RESULT_JSON:")), None)
     assert line is not None, f"probe produced no RESULT_JSON\nstdout:\n{proc.stdout}"
     return json.loads(line[len("RESULT_JSON:") :])
 
@@ -241,9 +240,7 @@ def test_import_from_task_root_like_vercel(bundle: Path) -> None:
 
 def test_import_from_api_directory(bundle: Path) -> None:
     """Executed from inside ``api/``: the parent directory must still resolve."""
-    result = _run_probe(
-        _PROBE, "file", str(bundle / "api" / "index.py"), cwd=bundle / "api"
-    )
+    result = _run_probe(_PROBE, "file", str(bundle / "api" / "index.py"), cwd=bundle / "api")
     _assert_healthy_app(result, bundle)
 
 
@@ -251,9 +248,7 @@ def test_import_with_unrelated_working_directory(bundle: Path, tmp_path: Path) -
     """Neither cwd nor sys.path[0] point at the bundle; probing must recover."""
     elsewhere = tmp_path / "elsewhere"
     elsewhere.mkdir()
-    result = _run_probe(
-        _PROBE, "file", str(bundle / "api" / "index.py"), cwd=elsewhere
-    )
+    result = _run_probe(_PROBE, "file", str(bundle / "api" / "index.py"), cwd=elsewhere)
     _assert_healthy_app(result, bundle)
     assert Path(result["cwd"]).resolve() == elsewhere.resolve()
 

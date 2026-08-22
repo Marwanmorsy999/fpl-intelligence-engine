@@ -31,6 +31,7 @@ above zero a model may legitimately return something different, so the
 temperature is part of the key and a non-zero setting is recorded on the entry
 rather than hidden. The engine's default is ``0.0``.
 """
+
 from __future__ import annotations
 
 import abc

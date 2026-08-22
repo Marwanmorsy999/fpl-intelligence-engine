@@ -6,6 +6,7 @@ endpoint. We validate a shared secret, build the :class:`TelegramBot` once per
 cold container, and forward the update through its existing command handlers —
 no handler logic is duplicated.
 """
+
 from __future__ import annotations
 
 import logging

@@ -16,6 +16,7 @@ Timestamps preserved per event:
 - available_at: earliest time we can legitimately claim access.
 - ingested_at: when our pipeline actually collected it.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

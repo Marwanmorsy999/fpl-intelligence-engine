@@ -27,7 +27,6 @@ from sqlalchemy.orm import Session, sessionmaker
 from fpl_intelligence.backtesting.models import BacktestConfig
 from fpl_intelligence.db.base import Base
 from fpl_intelligence.db.models import (
-    Fixture,
     FPLSnapshot,
     Gameweek,
     Player,
@@ -43,10 +42,8 @@ from fpl_intelligence.features.calculators.player_form import PlayerFormCalculat
 from fpl_intelligence.features.models import FeatureDefinition, FeatureSnapshot
 from fpl_intelligence.features.registry import FeatureRegistry
 from fpl_intelligence.features.temporal import (
-    DEFAULT_POLICY,
     InformationAccessPolicy,
     TemporalQueryBuilder,
-    apply_policy,
     is_record_available,
 )
 
@@ -238,11 +235,24 @@ def pg_populated_db(pg_session: Session) -> Session:
 
     players = []
     for i, name in enumerate(["Alisson", "Saliba", "Odegaard", "Haaland"]):
-        player = Player(first_name=name, second_name="Test", web_name=name.lower(), position_code=i + 1)
+        player = Player(
+            first_name=name, second_name="Test", web_name=name.lower(), position_code=i + 1
+        )
         db.add(player)
         db.flush()
-        db.add(PlayerExternalId(player_id=player.id, provider="mock", provider_player_id=f"mock_player_{i}"))
-        db.add(PlayerTeamMembership(player_id=player.id, team_id=teams[i % 4].id, season_id=season.id, valid_from=season.start_date))
+        db.add(
+            PlayerExternalId(
+                player_id=player.id, provider="mock", provider_player_id=f"mock_player_{i}"
+            )
+        )
+        db.add(
+            PlayerTeamMembership(
+                player_id=player.id,
+                team_id=teams[i % 4].id,
+                season_id=season.id,
+                valid_from=season.start_date,
+            )
+        )
         players.append(player)
     db.flush()
 
@@ -260,47 +270,47 @@ def pg_populated_db(pg_session: Session) -> Session:
     db.flush()
 
     for gw_num in range(1, 3):
-        gw = db.scalar(
-            select(Gameweek).where(Gameweek.provider_event_id == gw_num)
-        )
+        gw = db.scalar(select(Gameweek).where(Gameweek.provider_event_id == gw_num))
         gw_time = datetime(2025, 8, 1, tzinfo=UTC) + timedelta(days=(gw_num - 1) * 7)
         for player_idx, player in enumerate(players):
-            db.add(PlayerGameweekPerformance(
-                player_id=player.id,
-                gameweek_id=gw.id,
-                season_id=season.id,
-                team_id=teams[player_idx % 4].id,
-                total_points=10 + player_idx * 2,
-                minutes=90,
-                goals_scored=1 if player_idx == 3 else 0,
-                assists=1 if player_idx == 2 else 0,
-                ingested_at=gw_time + timedelta(hours=2),
-                available_at=gw_time + timedelta(hours=2),
-            ))
+            db.add(
+                PlayerGameweekPerformance(
+                    player_id=player.id,
+                    gameweek_id=gw.id,
+                    season_id=season.id,
+                    team_id=teams[player_idx % 4].id,
+                    total_points=10 + player_idx * 2,
+                    minutes=90,
+                    goals_scored=1 if player_idx == 3 else 0,
+                    assists=1 if player_idx == 2 else 0,
+                    ingested_at=gw_time + timedelta(hours=2),
+                    available_at=gw_time + timedelta(hours=2),
+                )
+            )
     db.flush()
 
     for gw_num in range(1, 3):
-        gw = db.scalar(
-            select(Gameweek).where(Gameweek.provider_event_id == gw_num)
-        )
+        gw = db.scalar(select(Gameweek).where(Gameweek.provider_event_id == gw_num))
         snap_time = datetime(2025, 8, 1, tzinfo=UTC) + timedelta(days=(gw_num - 1) * 7, hours=-1)
         for player_idx, player in enumerate(players):
-            db.add(FPLSnapshot(
-                player_id=player.id,
-                season_id=season.id,
-                gameweek_id=gw.id,
-                event_time=snap_time,
-                published_at=snap_time,
-                available_at=snap_time,
-                ingested_at=snap_time + timedelta(minutes=5),
-                source_last_modified_at=snap_time,
-                price=8.0 - player_idx * 0.5,
-                selected_by_percent=20.0 - player_idx * 3,
-                total_points=10 + player_idx * 2,
-                form=3.5 + player_idx * 0.5,
-                ep_this=3.0,
-                ep_next=3.5,
-            ))
+            db.add(
+                FPLSnapshot(
+                    player_id=player.id,
+                    season_id=season.id,
+                    gameweek_id=gw.id,
+                    event_time=snap_time,
+                    published_at=snap_time,
+                    available_at=snap_time,
+                    ingested_at=snap_time + timedelta(minutes=5),
+                    source_last_modified_at=snap_time,
+                    price=8.0 - player_idx * 0.5,
+                    selected_by_percent=20.0 - player_idx * 3,
+                    total_points=10 + player_idx * 2,
+                    form=3.5 + player_idx * 0.5,
+                    ep_this=3.0,
+                    ep_next=3.5,
+                )
+            )
     db.commit()
     return db
 
@@ -347,9 +357,7 @@ class TestPostgreSQLTemporalQueries:
         pg_session.add(snapshot)
         pg_session.commit()
 
-        assert is_record_available(
-            snapshot, cutoff, InformationAccessPolicy.PUBLIC_AVAILABILITY
-        )
+        assert is_record_available(snapshot, cutoff, InformationAccessPolicy.PUBLIC_AVAILABILITY)
         assert not is_record_available(
             snapshot, cutoff, InformationAccessPolicy.STRICT_REPRODUCIBILITY
         )
@@ -372,6 +380,7 @@ class TestPostgreSQLFeatureStore:
         pg_session.commit()
 
         from sqlalchemy import select
+
         result = pg_session.scalar(
             select(FeatureDefinition).where(FeatureDefinition.feature_name == "test_pg_feature")
         )
@@ -395,6 +404,7 @@ class TestPostgreSQLFeatureStore:
         pg_session.commit()
 
         from sqlalchemy import select
+
         result = pg_session.scalar(
             select(FeatureSnapshot).where(
                 FeatureSnapshot.entity_id == 1,
@@ -417,6 +427,7 @@ class TestPostgreSQLFeatureStore:
 
         # Verify snapshot was persisted
         from sqlalchemy import select
+
         snapshots = pg_session.scalars(
             select(FeatureSnapshot).where(
                 FeatureSnapshot.entity_id == 1,
@@ -441,9 +452,8 @@ class TestPostgreSQLBacktestModels:
         pg_session.commit()
 
         from sqlalchemy import select
-        result = pg_session.scalar(
-            select(BacktestConfig).where(BacktestConfig.season == "2025-26")
-        )
+
+        result = pg_session.scalar(select(BacktestConfig).where(BacktestConfig.season == "2025-26"))
         assert result is not None
         assert result.start_gameweek == 1
         assert result.end_gameweek == 3

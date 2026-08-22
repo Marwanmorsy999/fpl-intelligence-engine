@@ -5,6 +5,7 @@ Preserves full provenance and temporal fidelity:
 - Historical records are never overwritten; new evidence creates new rows.
 - Availability states are computed at query time from accumulated evidence.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -45,6 +46,7 @@ def _enum_values(enum_cls: type[Enum]) -> list[str]:
 
 class SourceReliability(StrEnum):
     """Reliability tiers for news/availability sources."""
+
     OFFICIAL = "official"
     VERIFIED_JOURNALIST = "verified_journalist"
     RELIABLE_JOURNALIST = "reliable_journalist"
@@ -53,6 +55,7 @@ class SourceReliability(StrEnum):
 
 class AvailabilityStatus(StrEnum):
     """Canonical availability states for a player-gameweek."""
+
     START = "start"
     BENCH = "bench"
     #: Player is reported fit/available/in contention, but not explicitly
@@ -71,6 +74,7 @@ class AvailabilityStatus(StrEnum):
 
 class EvidenceType(StrEnum):
     """Types of availability evidence extracted from sources."""
+
     INJURY = "injury"
     SUSPENSION = "suspension"
     FITNESS = "fitness"
@@ -88,6 +92,7 @@ class EvidenceType(StrEnum):
 
 class AvailabilitySource(Base):
     """A source of availability information (news outlet, official site, etc.)."""
+
     __tablename__ = "availability_sources"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -107,6 +112,7 @@ class AvailabilitySource(Base):
 
 class AvailabilityArticle(Base):
     """A news article or statement that may contain availability evidence."""
+
     __tablename__ = "availability_articles"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -115,9 +121,7 @@ class AvailabilityArticle(Base):
     )
     url: Mapped[str] = mapped_column(String(500), nullable=False, unique=True)
     headline: Mapped[str | None] = mapped_column(Text)
-    published_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), index=True
-    )
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     scraped_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
@@ -129,9 +133,7 @@ class AvailabilityArticle(Base):
         back_populates="article", cascade="all, delete-orphan"
     )
 
-    __table_args__ = (
-        Index("ix_articles_published_source", "published_at", "source_id"),
-    )
+    __table_args__ = (Index("ix_articles_published_source", "published_at", "source_id"),)
 
 
 # ---------------------------------------------------------------------------
@@ -145,21 +147,16 @@ class AvailabilityEvidence(Base):
     Extracted from an article or structured API. Evidence is never
     overwritten; new evidence creates new rows.
     """
+
     __tablename__ = "availability_evidence"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     article_id: Mapped[int | None] = mapped_column(
         ForeignKey("availability_articles.id"), index=True
     )
-    player_id: Mapped[int] = mapped_column(
-        ForeignKey("players.id"), nullable=False, index=True
-    )
-    season_id: Mapped[int] = mapped_column(
-        ForeignKey("seasons.id"), nullable=False, index=True
-    )
-    gameweek_id: Mapped[int | None] = mapped_column(
-        ForeignKey("gameweeks.id"), index=True
-    )
+    player_id: Mapped[int] = mapped_column(ForeignKey("players.id"), nullable=False, index=True)
+    season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id"), nullable=False, index=True)
+    gameweek_id: Mapped[int | None] = mapped_column(ForeignKey("gameweeks.id"), index=True)
     evidence_type: Mapped[str] = mapped_column(
         SAEnum(EvidenceType, values_callable=_enum_values), nullable=False
     )
@@ -171,21 +168,18 @@ class AvailabilityEvidence(Base):
     extracted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), index=True
     )
-    valid_from: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), index=True
-    )
-    valid_to: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), index=True
-    )
+    valid_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    valid_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     is_active: Mapped[bool] = mapped_column(default=True, index=True)
 
-    article: Mapped[AvailabilityArticle | None] = relationship(
-        back_populates="evidence"
-    )
+    article: Mapped[AvailabilityArticle | None] = relationship(back_populates="evidence")
 
     __table_args__ = (
         UniqueConstraint(
-            "player_id", "gameweek_id", "evidence_type", "valid_from",
+            "player_id",
+            "gameweek_id",
+            "evidence_type",
+            "valid_from",
             name="uq_evidence_player_gw_type_time",
         ),
     )
@@ -200,6 +194,7 @@ class TemporalClass(StrEnum):
     NOT available before the deadline must NOT be used as strict pre-deadline
     intelligence.
     """
+
     STRICT_BACKTEST_SAFE = "STRICT_BACKTEST_SAFE"
     HISTORICAL_EVENT_ONLY = "HISTORICAL_EVENT_ONLY"
     OUTCOME_ONLY = "OUTCOME_ONLY"
@@ -221,32 +216,21 @@ class AvailabilityEvent(Base):
       event and the provider's own identifier (for idempotent re-import and entity
       resolution).
     """
+
     __tablename__ = "availability_events"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    player_id: Mapped[int] = mapped_column(
-        ForeignKey("players.id"), nullable=False, index=True
-    )
-    season_id: Mapped[int] = mapped_column(
-        ForeignKey("seasons.id"), nullable=False, index=True
-    )
-    gameweek_id: Mapped[int | None] = mapped_column(
-        ForeignKey("gameweeks.id"), index=True
-    )
+    player_id: Mapped[int] = mapped_column(ForeignKey("players.id"), nullable=False, index=True)
+    season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id"), nullable=False, index=True)
+    gameweek_id: Mapped[int | None] = mapped_column(ForeignKey("gameweeks.id"), index=True)
     status: Mapped[str] = mapped_column(
         SAEnum(AvailabilityStatus, values_callable=_enum_values), nullable=False
     )
     confidence: Mapped[float] = mapped_column(Float, nullable=False)
     evidence_count: Mapped[int] = mapped_column(Integer, default=1)
-    primary_source_id: Mapped[int | None] = mapped_column(
-        ForeignKey("availability_sources.id")
-    )
-    valid_from: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), index=True
-    )
-    valid_to: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), index=True
-    )
+    primary_source_id: Mapped[int | None] = mapped_column(ForeignKey("availability_sources.id"))
+    valid_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    valid_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
@@ -262,7 +246,9 @@ class AvailabilityEvent(Base):
     __table_args__ = (
         Index(
             "ix_events_player_season_current",
-            "player_id", "season_id", "is_current",
+            "player_id",
+            "season_id",
+            "is_current",
         ),
         Index("ix_events_status_validfrom", "valid_from", "valid_to"),
         Index("ix_events_temporal_provider", "temporal_class", "provider"),
@@ -276,75 +262,52 @@ class AvailabilityEvent(Base):
 
 class PlayerInjury(Base):
     """Structured injury record for a player."""
+
     __tablename__ = "player_injuries"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    player_id: Mapped[int] = mapped_column(
-        ForeignKey("players.id"), nullable=False, index=True
-    )
+    player_id: Mapped[int] = mapped_column(ForeignKey("players.id"), nullable=False, index=True)
     injury_type: Mapped[str] = mapped_column(String(100), nullable=False)
     body_part: Mapped[str | None] = mapped_column(String(100))
     severity: Mapped[str | None] = mapped_column(String(50))
-    started_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), index=True
-    )
-    expected_return_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), index=True
-    )
-    actual_return_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True)
-    )
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    expected_return_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    actual_return_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     is_active: Mapped[bool] = mapped_column(default=True, index=True)
-    evidence_id: Mapped[int | None] = mapped_column(
-        ForeignKey("availability_evidence.id")
-    )
+    evidence_id: Mapped[int | None] = mapped_column(ForeignKey("availability_evidence.id"))
 
 
 class PlayerSuspension(Base):
     """Suspension record with gameweek count and known return date."""
+
     __tablename__ = "player_suspensions"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    player_id: Mapped[int] = mapped_column(
-        ForeignKey("players.id"), nullable=False, index=True
-    )
-    season_id: Mapped[int] = mapped_column(
-        ForeignKey("seasons.id"), nullable=False
-    )
+    player_id: Mapped[int] = mapped_column(ForeignKey("players.id"), nullable=False, index=True)
+    season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id"), nullable=False)
     reason: Mapped[str] = mapped_column(String(100))
     gameweek_count: Mapped[int] = mapped_column(Integer, nullable=False)
-    started_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), index=True
-    )
-    returns_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), index=True
-    )
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    returns_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     is_active: Mapped[bool] = mapped_column(default=True, index=True)
-    evidence_id: Mapped[int | None] = mapped_column(
-        ForeignKey("availability_evidence.id")
-    )
+    evidence_id: Mapped[int | None] = mapped_column(ForeignKey("availability_evidence.id"))
 
 
 class TrainingReport(Base):
     """Training session participation status."""
+
     __tablename__ = "training_reports"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    player_id: Mapped[int] = mapped_column(
-        ForeignKey("players.id"), nullable=False, index=True
-    )
-    session_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), index=True
-    )
+    player_id: Mapped[int] = mapped_column(ForeignKey("players.id"), nullable=False, index=True)
+    session_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     participated: Mapped[bool] = mapped_column(nullable=False)
     training_load: Mapped[float | None] = mapped_column(Float)
     limited: Mapped[bool] = mapped_column(default=False)
     reported_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
-    evidence_id: Mapped[int | None] = mapped_column(
-        ForeignKey("availability_evidence.id")
-    )
+    evidence_id: Mapped[int | None] = mapped_column(ForeignKey("availability_evidence.id"))
 
     __table_args__ = (
         UniqueConstraint("player_id", "session_at", name="uq_training_player_session"),
@@ -353,21 +316,14 @@ class TrainingReport(Base):
 
 class PressConference(Base):
     """Structured press conference transcript with manager quotes."""
+
     __tablename__ = "press_conferences"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    team_id: Mapped[int] = mapped_column(
-        ForeignKey("teams.id"), nullable=False, index=True
-    )
-    season_id: Mapped[int] = mapped_column(
-        ForeignKey("seasons.id"), nullable=False
-    )
-    gameweek_id: Mapped[int | None] = mapped_column(
-        ForeignKey("gameweeks.id"), index=True
-    )
-    held_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), index=True
-    )
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), nullable=False, index=True)
+    season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id"), nullable=False)
+    gameweek_id: Mapped[int | None] = mapped_column(ForeignKey("gameweeks.id"), index=True)
+    held_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     transcript: Mapped[str | None] = mapped_column(Text)
     recorded_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
@@ -376,15 +332,14 @@ class PressConference(Base):
 
 class PlayerMention(Base):
     """A player mention in a press conference transcript."""
+
     __tablename__ = "player_mentions"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     press_conference_id: Mapped[int] = mapped_column(
         ForeignKey("press_conferences.id"), nullable=False, index=True
     )
-    player_id: Mapped[int] = mapped_column(
-        ForeignKey("players.id"), nullable=False, index=True
-    )
+    player_id: Mapped[int] = mapped_column(ForeignKey("players.id"), nullable=False, index=True)
     quote: Mapped[str] = mapped_column(Text, nullable=False)
     sentiment: Mapped[str | None] = mapped_column(String(50))
     extracted_status: Mapped[str | None] = mapped_column(
@@ -392,8 +347,4 @@ class PlayerMention(Base):
     )
     confidence: Mapped[float] = mapped_column(Float, default=0.5)
 
-    __table_args__ = (
-        UniqueConstraint(
-            "press_conference_id", "player_id", name="uq_press_player"
-        ),
-    )
+    __table_args__ = (UniqueConstraint("press_conference_id", "player_id", name="uq_press_player"),)

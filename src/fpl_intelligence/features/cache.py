@@ -9,7 +9,6 @@ or feature versions.
 from __future__ import annotations
 
 import hashlib
-import json
 import threading
 from datetime import datetime
 from typing import Any
@@ -67,9 +66,7 @@ class FeatureCache:
 
         Returns None if not cached or if the cache entry is stale.
         """
-        key = self._make_key(
-            feature_name, feature_version, entity_id, cutoff_time, data_version
-        )
+        key = self._make_key(feature_name, feature_version, entity_id, cutoff_time, data_version)
         with self._lock:
             entry = self._cache.get(key)
             if entry is None:
@@ -88,9 +85,7 @@ class FeatureCache:
         data_version: str | None = None,
     ) -> None:
         """Store a feature result in the cache."""
-        key = self._make_key(
-            feature_name, feature_version, entity_id, cutoff_time, data_version
-        )
+        key = self._make_key(feature_name, feature_version, entity_id, cutoff_time, data_version)
         with self._lock:
             if len(self._cache) >= self._max_size:
                 # Evict oldest entry (simple FIFO)
@@ -149,5 +144,7 @@ class FeatureCache:
                 "size": len(self._cache),
                 "hits": self._hits,
                 "misses": self._misses,
-                "hit_rate": self._hits / (self._hits + self._misses) if (self._hits + self._misses) > 0 else 0.0,
+                "hit_rate": self._hits / (self._hits + self._misses)
+                if (self._hits + self._misses) > 0
+                else 0.0,
             }

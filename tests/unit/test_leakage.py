@@ -85,9 +85,7 @@ class TestNoLookAheadEnforcement:
         db_session.commit()
 
         # Under PUBLIC_AVAILABILITY, this should be available
-        assert is_record_available(
-            snapshot, cutoff, InformationAccessPolicy.PUBLIC_AVAILABILITY
-        )
+        assert is_record_available(snapshot, cutoff, InformationAccessPolicy.PUBLIC_AVAILABILITY)
         # Under STRICT_REPRODUCIBILITY, this should NOT be available
         assert not is_record_available(
             snapshot, cutoff, InformationAccessPolicy.STRICT_REPRODUCIBILITY
@@ -110,9 +108,7 @@ class TestNoLookAheadEnforcement:
         db_session.commit()
 
         # Under SYSTEM_AVAILABILITY, this should be available
-        assert is_record_available(
-            snapshot, cutoff, InformationAccessPolicy.SYSTEM_AVAILABILITY
-        )
+        assert is_record_available(snapshot, cutoff, InformationAccessPolicy.SYSTEM_AVAILABILITY)
         # Under STRICT_REPRODUCIBILITY, this should NOT be available
         assert not is_record_available(
             snapshot, cutoff, InformationAccessPolicy.STRICT_REPRODUCIBILITY
@@ -128,9 +124,7 @@ class TestCalculatorNoLookAhead:
 
         # Add a future performance record
 
-        gw = db_session.scalar(
-            select(Gameweek).where(Gameweek.provider_event_id == 3)
-        )
+        gw = db_session.scalar(select(Gameweek).where(Gameweek.provider_event_id == 3))
         future_perf = PlayerGameweekPerformance(
             player_id=1,
             gameweek_id=gw.id if gw else 3,
@@ -195,7 +189,8 @@ class TestCalculatorNoLookAhead:
 
         calc = MarketFeaturesCalculator()
         result = calc.compute(
-            1, cutoff,
+            1,
+            cutoff,
             {"db": db_session, "policy": InformationAccessPolicy.STRICT_REPRODUCIBILITY},
         )
 
@@ -224,7 +219,8 @@ class TestCalculatorNoLookAhead:
 
         calc = MarketFeaturesCalculator()
         result = calc.compute(
-            1, cutoff,
+            1,
+            cutoff,
             {"db": db_session, "policy": InformationAccessPolicy.PUBLIC_AVAILABILITY},
         )
 

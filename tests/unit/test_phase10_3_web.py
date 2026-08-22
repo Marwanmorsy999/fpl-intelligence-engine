@@ -1,4 +1,5 @@
 """Phase 10.3 / 13.0 - Web dashboard tests."""
+
 from __future__ import annotations
 
 from pathlib import Path

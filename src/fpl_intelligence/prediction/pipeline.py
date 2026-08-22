@@ -155,9 +155,9 @@ class PlayerBaselinePipeline:
             A ``PlayerBaselineOutput``.
         """
         # 1. Expected minutes from the minutes model.
-        minutes_pred = self._minutes_model.predict_batch(
-            {player_id: player_features}, None
-        ).get(player_id, {})
+        minutes_pred = self._minutes_model.predict_batch({player_id: player_features}, None).get(
+            player_id, {}
+        )
         expected_minutes = minutes_pred.get("expected_minutes", 0.0)
         prob_starting = minutes_pred.get("probability_starting", 0.0)
 
@@ -173,9 +173,9 @@ class PlayerBaselinePipeline:
 
         # 3. Form baseline (fixture-adjusted).
         #    We generate an expected-points estimate from features.
-        form_pred = self._form_baseline.predict_batch(
-            {player_id: player_features}, None
-        ).get(player_id, {})
+        form_pred = self._form_baseline.predict_batch({player_id: player_features}, None).get(
+            player_id, {}
+        )
         form_xp = form_pred.get("predicted_expected_points", 0.0)
 
         # 4. Assemble FPL components.
@@ -186,9 +186,7 @@ class PlayerBaselinePipeline:
             expected_assists=self._estimate_assists(
                 form_xp, expected_minutes, match_prediction, position_code
             ),
-            expected_clean_sheet=self._estimate_clean_sheet(
-                match_prediction, player_features
-            ),
+            expected_clean_sheet=self._estimate_clean_sheet(match_prediction, player_features),
             expected_bonus=0.0,  # No bonus model yet in Phase 4.
             appearance_minutes=expected_minutes,
             expected_goals_conceded=self._estimate_goals_conceded(
@@ -276,8 +274,7 @@ class PlayerBaselinePipeline:
         # Adjust if match model gives goal expectations.
         if match_prediction is not None:
             total_goals = (
-                match_prediction.expected_home_goals
-                + match_prediction.expected_away_goals
+                match_prediction.expected_home_goals + match_prediction.expected_away_goals
             )
             avg_goals = self._match_model._league_avg_goals
             if avg_goals > 0:
@@ -292,9 +289,7 @@ class PlayerBaselinePipeline:
         base = self._estimate_goals(form_xp, minutes, match_prediction, position_code) * 0.7
         return base
 
-    def _estimate_clean_sheet(
-        self, match_prediction: Any, features: dict[str, float]
-    ) -> float:
+    def _estimate_clean_sheet(self, match_prediction: Any, features: dict[str, float]) -> float:
         if match_prediction is not None:
             is_home = features.get("is_home", 0.5)
             return (
@@ -304,9 +299,7 @@ class PlayerBaselinePipeline:
             )
         return 0.0
 
-    def _estimate_goals_conceded(
-        self, match_prediction: Any, features: dict[str, float]
-    ) -> float:
+    def _estimate_goals_conceded(self, match_prediction: Any, features: dict[str, float]) -> float:
         if match_prediction is not None:
             is_home = features.get("is_home", 0.5)
             return (
@@ -342,4 +335,3 @@ class PlayerBaselinePipeline:
             score += 0.5
 
         return round(min(1.0, score / total), 4)
-

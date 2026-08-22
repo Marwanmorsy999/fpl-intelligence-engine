@@ -22,6 +22,7 @@ Design rules
 * ``render_markdown()`` is a pure function of the model fields — no external
   I/O, no live lookups — so the same report always renders identically.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -235,9 +236,7 @@ class IntelligenceReport(BaseModel):
         lines.append("")
         lines.append(f"**Task:** {self.task}  ")
         lines.append(f"**Recommendation:** {self.recommendation}  ")
-        lines.append(
-            f"**Confidence:** {self.confidence:.2f} ({self.confidence_band})"
-        )
+        lines.append(f"**Confidence:** {self.confidence:.2f} ({self.confidence_band})")
         if self.provider_name or self.model_name:
             mock_tag = " *(mock)*" if self.is_mock else ""
             provider = self.provider_name or "unknown"
@@ -250,9 +249,7 @@ class IntelligenceReport(BaseModel):
 
         lines.append("## Quantitative Baseline")
         lines.append("")
-        lines.append(
-            "| Metric | Value |"
-        )
+        lines.append("| Metric | Value |")
         lines.append("|--------|-------|")
         lines.append(f"| Player | {label} ({pc.subject_ref}) |")
         lines.append(f"| Gameweek | {pc.gameweek} |")

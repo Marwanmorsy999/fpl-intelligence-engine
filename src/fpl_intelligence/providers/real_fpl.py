@@ -28,21 +28,33 @@ from typing import Any
 
 from fpl_intelligence.domain.environment import (
     DataEnvironment,
-    DatasetMarker,
     DatasetClass,
+    DatasetMarker,
     SourceProvenance,
 )
 from fpl_intelligence.providers.github_fetcher import DiskCachingFetcher
 
 _SEASON_STARTS = {
-    "2022-23": {"start": datetime(2022, 8, 1, tzinfo=UTC), "end": datetime(2023, 5, 31, tzinfo=UTC)},
-    "2023-24": {"start": datetime(2023, 8, 1, tzinfo=UTC), "end": datetime(2024, 5, 31, tzinfo=UTC)},
-    "2024-25": {"start": datetime(2024, 8, 1, tzinfo=UTC), "end": datetime(2025, 5, 31, tzinfo=UTC)},
-    "2025-26": {"start": datetime(2025, 8, 1, tzinfo=UTC), "end": datetime(2026, 5, 31, tzinfo=UTC)},
+    "2022-23": {
+        "start": datetime(2022, 8, 1, tzinfo=UTC),
+        "end": datetime(2023, 5, 31, tzinfo=UTC),
+    },
+    "2023-24": {
+        "start": datetime(2023, 8, 1, tzinfo=UTC),
+        "end": datetime(2024, 5, 31, tzinfo=UTC),
+    },
+    "2024-25": {
+        "start": datetime(2024, 8, 1, tzinfo=UTC),
+        "end": datetime(2025, 5, 31, tzinfo=UTC),
+    },
+    "2025-26": {
+        "start": datetime(2025, 8, 1, tzinfo=UTC),
+        "end": datetime(2026, 5, 31, tzinfo=UTC),
+    },
 }
 
 MIRROR_BASE = (
-    "https://raw.githubusercontent.com/vaastav/Fantasy-Premier-League/" "master/data/{season}"
+    "https://raw.githubusercontent.com/vaastav/Fantasy-Premier-League/master/data/{season}"
 )
 
 # Public / licensing note for the mirror.
@@ -84,8 +96,14 @@ class RealFPLProvider:
             retrieval_date=datetime.now(UTC).date().isoformat(),
             license_notes=LICENSE_NOTES,
             fields_provided=[
-                "teams", "players", "fixtures", "gameweek_performance",
-                "xG/xA", "price", "ownership(selected)", "transfers",
+                "teams",
+                "players",
+                "fixtures",
+                "gameweek_performance",
+                "xG/xA",
+                "price",
+                "ownership(selected)",
+                "transfers",
             ],
             seasons_covered=list(self._seasons),
             known_limitations=[
@@ -113,6 +131,7 @@ class RealFPLProvider:
             temporal_class=temporal,
             snapshot_timing=timing,
         )
+
     # ------------------------------------------------------------------ utils
     def _mirror_url(self, season: str, path: str) -> str:
         return f"{MIRROR_BASE.format(season=season)}/{path}"
@@ -356,4 +375,3 @@ def _dt_or_none(value: Any) -> datetime | None:
         return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
     except (TypeError, ValueError):
         return None
-

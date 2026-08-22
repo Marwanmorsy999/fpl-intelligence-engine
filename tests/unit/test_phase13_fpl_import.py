@@ -169,9 +169,7 @@ class TestFplSquadImporterMapping:
         db_session.add(player)
         db_session.flush()
         db_session.add(
-            PlayerExternalId(
-                player_id=player.id, provider="fpl", provider_player_id="1"
-            )
+            PlayerExternalId(player_id=player.id, provider="fpl", provider_player_id="1")
         )
         db_session.commit()
 
@@ -246,7 +244,7 @@ class TestFromFplEndpoint:
         assert data["entry_name"] == "Test FC"
         assert data["player_names"]["1"] == "Player1"
 
-        dec = client.get("/api/v1/decisions")
+        dec = client.get("/api/v1/decisions", params={"session_id": str(ENTRY_ID)})
         assert dec.status_code == 200
         assert dec.json()["gameweek"] == 8
 
@@ -318,7 +316,7 @@ class TestDemoSquad:
     """POST /api/v1/squad/demo builds a valid squad from seeded DB players."""
 
     def test_demo_builds_valid_squad_from_db(self, seeded_client) -> None:
-        resp = seeded_client.post("/api/v1/squad/demo")
+        resp = seeded_client.post("/api/v1/squad/demo", params={"session_id": "demo-e2e"})
         assert resp.status_code == 200, resp.text
         data = resp.json()
         squad = data["squad"]
@@ -343,7 +341,7 @@ class TestDemoSquad:
         assert all(squad["player_prices"].values())
 
         # Renders exactly like a real squad via GET /api/v1/decisions.
-        dec = seeded_client.get("/api/v1/decisions")
+        dec = seeded_client.get("/api/v1/decisions", params={"session_id": "demo-e2e"})
         assert dec.status_code == 200
         assert dec.json()["gameweek"] == 1
 

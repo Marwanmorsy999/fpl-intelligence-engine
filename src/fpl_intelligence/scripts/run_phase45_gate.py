@@ -68,8 +68,10 @@ def main() -> None:
         path = write_report(results)
         print(f"\nWrote report to: {path}")
         print(f"Total rows (featured player-gameweeks): {results.get('rows_built')}")
-        print(f"Pipeline validation: {results['pipeline_validation']['leakage_test']} "
-              f"(temporal ordering {results['pipeline_validation']['temporal_ordering']})")
+        print(
+            f"Pipeline validation: {results['pipeline_validation']['leakage_test']} "
+            f"(temporal ordering {results['pipeline_validation']['temporal_ordering']})"
+        )
         print(f"Elapsed: {time.time() - t0:.1f}s")
     finally:
         db.close()

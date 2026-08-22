@@ -4,6 +4,7 @@ All Telegram API calls are mocked; no live network traffic ever leaves this
 process. Heavy DB/LLM operations are mocked or run through ``asyncio.to_thread``
 boundaries so the event-loop safety is verified without real providers.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -469,9 +470,7 @@ class TestSimulateCommand:
         captured = capsys.readouterr()
         assert "FPL Intelligence Bot" in captured.out
 
-    async def test_live_mode_handler_sends_message(
-        self, capsys: pytest.CaptureFixture
-    ) -> None:
+    async def test_live_mode_handler_sends_message(self, capsys: pytest.CaptureFixture) -> None:
         bot = TelegramBot("token", [1], dry_run=False)
         await bot.simulate_command("start", "")
         captured = capsys.readouterr()

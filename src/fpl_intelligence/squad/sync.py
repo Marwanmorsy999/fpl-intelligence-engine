@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -31,6 +32,15 @@ logger = logging.getLogger(__name__)
 PENDING = "PENDING"
 SYNCED = "SYNCED"
 FAILED = "FAILED"
+
+
+def _build_egress() -> Any:
+    """Build the egress chain from settings (lazy import avoids cycles)."""
+    from fpl_intelligence.config import get_settings
+    from fpl_intelligence.data_providers.fpl_egress import FplEgressChain
+
+    settings = get_settings()
+    return FplEgressChain(settings.fpl_base_url)
 
 
 class NoPendingSync(Exception):
@@ -75,7 +85,7 @@ def _mark(db: Session, row: PendingSyncDB, status: str) -> None:
 
 
 async def run_pending_sync(db: Session) -> FplImportResult:
-    """Attempt the queued auto-sync: import → save squad → notify.
+    """Attempt the queued auto-sync: import (via egress chain) → save → notify.
 
     Raises:
         NoPendingSync: nothing is queued.
@@ -86,7 +96,7 @@ async def run_pending_sync(db: Session) -> FplImportResult:
     if row is None:
         raise NoPendingSync("No squad sync is pending.")
 
-    importer = FplSquadImporter()
+    importer = FplSquadImporter(egress=_build_egress())
     try:
         result = await importer.build_squad_from_entry(row.entry_id, db)
     except FplImportError:

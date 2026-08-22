@@ -49,6 +49,7 @@ class DistributionEngine:
     def __init__(self, simulation_count: int = 10_000, default_seed: int = 42) -> None:
         self._simulation_count = simulation_count
         self._default_seed = default_seed
+
     def compute_distribution(
         self,
         components: dict[str, float],
@@ -68,7 +69,8 @@ class DistributionEngine:
                 max(5.0, components.get("appearance_minutes", 60.0) * 0.3),
                 size=n,
             ),
-            0, 90,
+            0,
+            90,
         )
         clean_sheet = rng.random(n) < components.get("expected_clean_sheet", 0.0)
         bonus_prob = min(1.0, components.get("expected_bonus", 0.0) / 2.0)
@@ -78,6 +80,7 @@ class DistributionEngine:
         def_contrib = (rng.random(n) < def_prob).astype(float)
 
         from fpl_intelligence.prediction.scoring import FPLPointsComponents, FPLScoringEngine
+
         engine = FPLScoringEngine()
 
         points = np.zeros(n)
@@ -108,4 +111,3 @@ class DistributionEngine:
             ceiling=round(float(np.percentile(points, 95)), 4),
             samples=points,
         )
-

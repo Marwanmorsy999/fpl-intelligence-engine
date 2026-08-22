@@ -60,9 +60,7 @@ class TestDecisionCutoff:
 
     def test_get_gameweek_cutoff(self, db_session, populated_db) -> None:
         """Test getting a gameweek decision cutoff."""
-        cutoff = get_gameweek_decision_cutoff(
-            db_session, "2025-26", 1
-        )
+        cutoff = get_gameweek_decision_cutoff(db_session, "2025-26", 1)
         assert cutoff.gameweek == 1
         assert cutoff.season == "2025-26"
         assert cutoff.cutoff_time < cutoff.deadline_time
@@ -357,9 +355,7 @@ class TestBacktestReproducer:
             random_seed=42,
         )
         reproducer = BacktestReproducer(db_session)
-        fp = reproducer.compute_fingerprint(
-            config, {"player_form": "1.0.0"}, "baseline"
-        )
+        fp = reproducer.compute_fingerprint(config, {"player_form": "1.0.0"}, "baseline")
         assert len(fp) == 64  # SHA-256 hex digest
 
     def test_fingerprint_deterministic(self, db_session) -> None:
@@ -371,12 +367,8 @@ class TestBacktestReproducer:
             random_seed=42,
         )
         reproducer = BacktestReproducer(db_session)
-        fp1 = reproducer.compute_fingerprint(
-            config, {"player_form": "1.0.0"}, "baseline"
-        )
-        fp2 = reproducer.compute_fingerprint(
-            config, {"player_form": "1.0.0"}, "baseline"
-        )
+        fp1 = reproducer.compute_fingerprint(config, {"player_form": "1.0.0"}, "baseline")
+        fp2 = reproducer.compute_fingerprint(config, {"player_form": "1.0.0"}, "baseline")
         assert fp1 == fp2
 
     def test_fingerprint_different_config(self, db_session) -> None:
@@ -394,12 +386,8 @@ class TestBacktestReproducer:
             random_seed=42,
         )
         reproducer = BacktestReproducer(db_session)
-        fp1 = reproducer.compute_fingerprint(
-            config1, {"player_form": "1.0.0"}, "baseline"
-        )
-        fp2 = reproducer.compute_fingerprint(
-            config2, {"player_form": "1.0.0"}, "baseline"
-        )
+        fp1 = reproducer.compute_fingerprint(config1, {"player_form": "1.0.0"}, "baseline")
+        fp2 = reproducer.compute_fingerprint(config2, {"player_form": "1.0.0"}, "baseline")
         assert fp1 != fp2
 
     def test_reproduce_backtest_not_found(self, db_session) -> None:
@@ -432,6 +420,4 @@ class TestWalkForwardValidator:
         validator = WalkForwardValidator(db_session, registry, model)
 
         with pytest.raises(ValueError, match="Not enough gameweeks"):
-            validator.validate(
-                "2024-25", 1, 3, min_train_gameweeks=3
-            )
+            validator.validate("2024-25", 1, 3, min_train_gameweeks=3)

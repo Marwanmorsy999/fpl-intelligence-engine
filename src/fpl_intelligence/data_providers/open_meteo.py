@@ -19,6 +19,7 @@ Severe weather yields a small negative xPTS adjustment for the affected
 team's players (passing games suffer; set-piece threat rises). The reason
 string is always shown in the UI when an adjustment is applied.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -31,26 +32,26 @@ OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 #: FPL team id -> stadium coordinates. FPL team IDs are stable across seasons;
 #: entries marked (spare) cover legacy ids that no current club uses.
 PL_STADIUM_COORDS: dict[int, dict[str, float]] = {
-    1: {"lat": 51.5549, "lon": -0.1084, "name": "Emirates Stadium"},          # Arsenal
-    2: {"lat": 52.5398, "lon": -1.8847, "name": "Villa Park"},                # Aston Villa
-    3: {"lat": 50.7352, "lon": -1.8383, "name": "Vitality Stadium"},          # Bournemouth
-    4: {"lat": 51.4419, "lon": -0.2946, "name": "Gtech Community Stadium"},   # Brentford
-    5: {"lat": 50.8644, "lon": -0.0902, "name": "Amex Stadium"},              # Brighton
-    6: {"lat": 51.4817, "lon": -3.1791, "name": "Cardiff City Stadium"},      # (spare)
-    7: {"lat": 51.4751, "lon": -0.2216, "name": "Stamford Bridge"},           # Chelsea
-    8: {"lat": 51.5326, "lon": -0.1665, "name": "Selhurst Park"},             # Crystal Palace
-    9: {"lat": 53.4397, "lon": -2.1619, "name": "Hill Dickinson Stadium"},    # Everton
-    10: {"lat": 51.5519, "lon": -0.0687, "name": "Craven Cottage"},           # Fulham
-    11: {"lat": 52.0553, "lon": 1.4204, "name": "Portman Road"},              # (spare)
-    12: {"lat": 53.7299, "lon": -1.8689, "name": "Elland Road"},              # Leeds
-    13: {"lat": 51.5959, "lon": 0.0450, "name": "London Stadium"},            # (spare)
-    14: {"lat": 53.4308, "lon": -2.9608, "name": "Anfield"},                  # Liverpool
+    1: {"lat": 51.5549, "lon": -0.1084, "name": "Emirates Stadium"},  # Arsenal
+    2: {"lat": 52.5398, "lon": -1.8847, "name": "Villa Park"},  # Aston Villa
+    3: {"lat": 50.7352, "lon": -1.8383, "name": "Vitality Stadium"},  # Bournemouth
+    4: {"lat": 51.4419, "lon": -0.2946, "name": "Gtech Community Stadium"},  # Brentford
+    5: {"lat": 50.8644, "lon": -0.0902, "name": "Amex Stadium"},  # Brighton
+    6: {"lat": 51.4817, "lon": -3.1791, "name": "Cardiff City Stadium"},  # (spare)
+    7: {"lat": 51.4751, "lon": -0.2216, "name": "Stamford Bridge"},  # Chelsea
+    8: {"lat": 51.5326, "lon": -0.1665, "name": "Selhurst Park"},  # Crystal Palace
+    9: {"lat": 53.4397, "lon": -2.1619, "name": "Hill Dickinson Stadium"},  # Everton
+    10: {"lat": 51.5519, "lon": -0.0687, "name": "Craven Cottage"},  # Fulham
+    11: {"lat": 52.0553, "lon": 1.4204, "name": "Portman Road"},  # (spare)
+    12: {"lat": 53.7299, "lon": -1.8689, "name": "Elland Road"},  # Leeds
+    13: {"lat": 51.5959, "lon": 0.0450, "name": "London Stadium"},  # (spare)
+    14: {"lat": 53.4308, "lon": -2.9608, "name": "Anfield"},  # Liverpool
     15: {"lat": 53.5030, "lon": -2.2020, "name": "City of Manchester Stadium"},
-    16: {"lat": 54.9145, "lon": -1.6219, "name": "St James' Park"},           # Newcastle
-    17: {"lat": 52.6323, "lon": -1.6650, "name": "Turf Moor"},                # (spare)
-    18: {"lat": 52.6203, "lon": -1.1424, "name": "King Power Stadium"},       # (spare)
-    19: {"lat": 52.5092, "lon": -1.8882, "name": "St Andrew's"},              # (spare)
-    20: {"lat": 52.5869, "lon": -2.1290, "name": "Molineux Stadium"},         # Wolves
+    16: {"lat": 54.9145, "lon": -1.6219, "name": "St James' Park"},  # Newcastle
+    17: {"lat": 52.6323, "lon": -1.6650, "name": "Turf Moor"},  # (spare)
+    18: {"lat": 52.6203, "lon": -1.1424, "name": "King Power Stadium"},  # (spare)
+    19: {"lat": 52.5092, "lon": -1.8882, "name": "St Andrew's"},  # (spare)
+    20: {"lat": 52.5869, "lon": -2.1290, "name": "Molineux Stadium"},  # Wolves
 }
 
 

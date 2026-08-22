@@ -14,6 +14,7 @@ driven by ``analyze()`` (calls ``/api/v1/squad/from-fpl`` then
 * calls the one-click import and decisions endpoints;
 * parses cleanly under ``node --check`` when a node binary is available.
 """
+
 from __future__ import annotations
 
 import shutil
@@ -58,12 +59,10 @@ def test_analyze_declared_exactly_once() -> None:
 def test_boot_wiring_present() -> None:
     html = STATIC_HTML.read_text(encoding="utf-8")
     script = _extract_inline_script(html)
-    assert 'getElementById("analyzeBtn").addEventListener("click", analyze)' in script, (
+    assert '$("analyzeBtn").addEventListener("click", analyze)' in script, (
         "Analyze button must be wired to the analyze() handler"
     )
-    assert 'getElementById("teamId").addEventListener("keydown"' in script, (
-        "Enter key must trigger analyze()"
-    )
+    assert '$("teamId").addEventListener("keydown"' in script, "Enter key must trigger analyze()"
 
 
 def test_calls_one_click_endpoints() -> None:
@@ -77,23 +76,23 @@ def test_calls_one_click_endpoints() -> None:
 def test_play_names_declared_before_manual_save() -> None:
     """Hotfix v1.3.4 — PLAYER_NAMES caused a ReferenceError in saveManual().
 
-    It must be declared exactly once (as ``let``) and populated from the player
-    list, so ``saveManual``'s writes and ``render()``'s name lookups never hit an
+    It must be declared exactly once and populated from the player list, so
+    ``saveManual``'s writes and ``render()``'s name lookups never hit an
     undeclared global.
     """
     html = STATIC_HTML.read_text(encoding="utf-8")
     script = _extract_inline_script(html)
-    assert script.count("let PLAYER_NAMES") == 1, (
+    assert script.count("var PLAYER_NAMES") == 1, (
         "PLAYER_NAMES must be declared exactly once; found "
-        f"{script.count('let PLAYER_NAMES')} occurrences"
+        f"{script.count('var PLAYER_NAMES')} occurrences"
     )
-    assert "Object.fromEntries(ALL_PLAYERS.map(p => [p.id, p.web_name]))" in script, (
+    assert "Object.fromEntries(ALL_PLAYERS.map" in script, (
         "PLAYER_NAMES must be populated from the loaded /api/v1/players list"
     )
     # saveManual must still build the 15-player squad body and POST it.
     assert "player_ids: ids" in script
-    assert "captain_id: cap" in script
-    assert "vice_captain_id: vice" in script
+    assert "captain_id: MANUAL_CAP.id" in script
+    assert "vice_captain_id: MANUAL_VICE.id" in script
     assert "POST" in script and "/api/v1/squad" in script
 
 
@@ -104,7 +103,7 @@ def test_retry_sync_button_wired() -> None:
     assert "retrySyncBtn" in html
     assert "🔄 Try Again" in html
     assert "/api/v1/squad/retry-sync" in script
-    assert 'getElementById("retrySyncBtn").addEventListener("click", retrySync)' in script
+    assert '$("retrySyncBtn").addEventListener("click", retrySync)' in script
     assert 'getElementById("retrySyncBtn").style.display = "inline-block"' in script
 
 
@@ -126,9 +125,7 @@ def test_inline_script_parses_with_node() -> None:
             capture_output=True,
             text=True,
         )
-        assert result.returncode == 0, (
-            f"node --check failed:\n{result.stdout}\n{result.stderr}"
-        )
+        assert result.returncode == 0, f"node --check failed:\n{result.stdout}\n{result.stderr}"
     finally:
         Path(js_path).unlink(missing_ok=True)
 
@@ -177,11 +174,17 @@ def test_chain_banner_renders_per_source() -> None:
         "  notes: {},"
         "  market_check: { enabled: false, reason: 'no key' } } } });"
         + " var backtestBanner = $state['chainBanner'].innerHTML; "
+        # Phase 18.0 / E4: agreement claimed with ZERO fixtures is impossible.
+        + "renderChainBanner({ meta: { chain: { source: 'pre-season-proxy-v2',"
+        "  source_label: 'Pre-season proxy v2', data_quality: 'heuristic-proxy-enriched',"
+        "  notes: {}, market_check: { enabled: true, fixtures_matched: 0 } } } });"
+        + " var zeroFixtureBanner = $state['chainBanner'].innerHTML; "
         # No chain provenance (static stub path) -> banner must be empty.
         + "renderChainBanner({ meta: {} }); "
         + " var emptyBanner = $state['chainBanner'].innerHTML; "
         + " console.log('PROXY:' + proxyBanner);"
         + " console.log('BACKTEST:' + backtestBanner);"
+        + " console.log('ZEROFIX:' + zeroFixtureBanner);"
         + " console.log('EMPTY:' + emptyBanner);"
     )
 
@@ -199,6 +202,7 @@ def test_chain_banner_renders_per_source() -> None:
         out = result.stdout
         proxy_banner = _extract_console(out, "PROXY:")
         backtest_banner = _extract_console(out, "BACKTEST:")
+        zero_banner = _extract_console(out, "ZEROFIX:")
         empty_banner = _extract_console(out, "EMPTY:")
 
         # Proxy banner discloses its label, quality, coverage, and the conditional
@@ -212,9 +216,14 @@ def test_chain_banner_renders_per_source() -> None:
         # Backtest banner shows a DIFFERENT label per source.
         assert "Backtest model" in backtest_banner
         assert "historical-backtest" in backtest_banner
-        # Disabled market check (enabled:false) -> "off" line, NO "agrees" line.
-        assert "Market check: off" in backtest_banner
+        # Disabled market check (enabled:false) -> honest reason line, NO "agrees".
+        assert "Market check: no key" in backtest_banner
         assert "agrees" not in backtest_banner
+
+        # Phase 18.0 / E4: enabled with ZERO matched fixtures can never claim
+        # agreement — the banner must say no fixtures matched yet.
+        assert "no fixtures matched yet" in zero_banner
+        assert "agrees" not in zero_banner
 
         # No chain object -> banner is empty (never fabricate provenance).
         assert empty_banner == ""
@@ -225,5 +234,5 @@ def test_chain_banner_renders_per_source() -> None:
 def _extract_console(output: str, prefix: str) -> str:
     for line in output.splitlines():
         if line.startswith(prefix):
-            return line[len(prefix):]
+            return line[len(prefix) :]
     return ""

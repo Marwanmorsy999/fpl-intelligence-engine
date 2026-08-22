@@ -6,6 +6,7 @@ that cannot be computed from the available data returns ``None`` (rendered as
 ``NOT_AVAILABLE`` downstream). Zero is reserved exclusively for a genuine
 zero-valued metric.
 """
+
 from __future__ import annotations
 
 import math
@@ -81,8 +82,12 @@ def availability_metrics(
     out: dict[str, Any] = {"n": n}
     if n == 0:
         for k in (
-            "start_brier", "start_log_loss", "minutes_mae", "minutes_rmse",
-            "prob60_brier", "prob60_calibration_ece",
+            "start_brier",
+            "start_log_loss",
+            "minutes_mae",
+            "minutes_rmse",
+            "prob60_brier",
+            "prob60_calibration_ece",
         ):
             out[k] = None
         return out
@@ -99,14 +104,12 @@ def availability_metrics(
     am = [float(m) for m in actual_minutes]
     diff = np.asarray(em) - np.asarray(am)
     out["minutes_mae"] = round(float(np.mean(np.abs(diff))), 4)
-    out["minutes_rmse"] = round(float(np.sqrt(np.mean(diff ** 2))), 4)
+    out["minutes_rmse"] = round(float(np.sqrt(np.mean(diff**2))), 4)
 
     # 60+ minute probability: use start probability as P(minutes>=60) estimate.
     actual60 = [1.0 if m >= 60 else 0.0 for m in am]
     sp60 = [min(1.0, max(0.0, float(x))) for x in sp]
-    out["prob60_brier"] = round(
-        float(np.mean((np.asarray(sp60) - np.asarray(actual60)) ** 2)), 4
-    )
+    out["prob60_brier"] = round(float(np.mean((np.asarray(sp60) - np.asarray(actual60)) ** 2)), 4)
     out["prob60_calibration_ece"] = round(_calibration_ece(sp60, actual60), 4)
 
     return out
@@ -127,7 +130,10 @@ def prediction_metrics(
     """
     n = len(expected_points)
     out: dict[str, Any] = {
-        "n": n, "points_mae": None, "points_rmse": None, "spearman": None,
+        "n": n,
+        "points_mae": None,
+        "points_rmse": None,
+        "spearman": None,
     }
     if n == 0:
         return out
@@ -135,15 +141,13 @@ def prediction_metrics(
     ap = [float(v) for v in actual_points]
     diff = np.asarray(ep) - np.asarray(ap)
     out["points_mae"] = round(float(np.mean(np.abs(diff))), 4)
-    out["points_rmse"] = round(float(np.sqrt(np.mean(diff ** 2))), 4)
+    out["points_rmse"] = round(float(np.sqrt(np.mean(diff**2))), 4)
     sp = _spearman(ep, ap)
     out["spearman"] = round(sp, 4) if not math.isnan(sp) else None
     return out
 
 
-def _calibration_ece(
-    probabilities: list[float], actual: list[float], n_bins: int = 10
-) -> float:
+def _calibration_ece(probabilities: list[float], actual: list[float], n_bins: int = 10) -> float:
     """Expected calibration error for a binary probability predictor.
 
     Returns NaN when the sample is empty or every prediction falls in one bin.

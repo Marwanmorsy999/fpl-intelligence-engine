@@ -146,9 +146,7 @@ class TelegramBot:
     async def _send(self, update: Update, text: str, **kwargs: Any) -> None:
         """Send a message or print it to console in dry-run mode."""
         if self._dry_run:
-            chat_id = (
-                update.effective_chat.id if update.effective_chat else "unknown"
-            )
+            chat_id = update.effective_chat.id if update.effective_chat else "unknown"
             print(f"[DRY RUN] chat={chat_id}: {text}")
             return
         effective_message = update.effective_message
@@ -207,7 +205,8 @@ class TelegramBot:
             player_id = int(query)
         except ValueError:
             player_id = await asyncio.to_thread(
-                self._resolve_player_id, query  # type: ignore[arg-type]
+                self._resolve_player_id,
+                query,  # type: ignore[arg-type]
             )
 
         if player_id is None:
@@ -224,9 +223,7 @@ class TelegramBot:
         )
 
         try:
-            report = await asyncio.to_thread(
-                self._generate_report, player_id, query
-            )
+            report = await asyncio.to_thread(self._generate_report, player_id, query)
         except Exception as exc:
             logger.exception("report generation failed for player %s", player_id)
             await self._send(
@@ -416,9 +413,7 @@ class TelegramBot:
         lines.append(f"<b>Direction:</b> {_escape_html(adj.direction)}")
         lines.append(f"<b>Magnitude:</b> {_escape_html(adj.magnitude)}")
         if adj.cited_evidence_refs:
-            refs = ", ".join(
-                f"<code>{_escape_html(r)}</code>" for r in adj.cited_evidence_refs
-            )
+            refs = ", ".join(f"<code>{_escape_html(r)}</code>" for r in adj.cited_evidence_refs)
             lines.append(f"<b>Evidence refs:</b> {refs}")
         lines.append("")
         if adj.rationale:
@@ -463,9 +458,7 @@ class TelegramBot:
 
         return "\n".join(lines)
 
-    async def simulate_command(
-        self, command: str, args: str, user_id: int = 1
-    ) -> None:
+    async def simulate_command(self, command: str, args: str, user_id: int = 1) -> None:
         """Simulate a Telegram command for dry-run testing.
 
         Creates mock ``Update`` and ``Context`` objects and dispatches to the
@@ -540,7 +533,5 @@ class TelegramBot:
     def run(self) -> None:
         """Start the bot polling loop (live mode only)."""
         if self._dry_run:
-            raise TelegramBotError(
-                "Cannot run in dry-run mode. Use run_dry_repl() instead."
-            )
+            raise TelegramBotError("Cannot run in dry-run mode. Use run_dry_repl() instead.")
         self._application.run_polling()

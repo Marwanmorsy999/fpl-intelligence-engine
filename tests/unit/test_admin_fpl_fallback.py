@@ -4,6 +4,7 @@ These run fully offline: the official FPL provider is forced to 403, the
 Phase 11.1 connectors are replaced by fakes that return canned data, and the
 admin route's ``SessionLocal`` is redirected to an in-memory SQLite database.
 """
+
 from __future__ import annotations
 
 import httpx
@@ -14,7 +15,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from fpl_intelligence.api.routes import admin
-from fpl_intelligence.data_providers.facts import PlayerFact, FactSource
+from fpl_intelligence.data_providers.facts import FactSource, PlayerFact
 from fpl_intelligence.data_providers.football_data_org import Competition, Match
 from fpl_intelligence.db.base import Base
 from fpl_intelligence.db.models import RawRecord
@@ -148,12 +149,13 @@ def test_ingest_fpl_fallback_logs_warning(client: TestClient, caplog) -> None:
     with caplog.at_level(logging.WARNING, logger=logger.name):
         client.post("/api/v1/admin/ingest-fpl")
     assert any(
-        "FPL API blocked (403). Falling back to API-Football" in r.message
-        for r in caplog.records
+        "FPL API blocked (403). Falling back to API-Football" in r.message for r in caplog.records
     )
 
 
-def test_run_scheduler_falls_back_on_fpl_block(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_run_scheduler_falls_back_on_fpl_block(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """When the FPL news connector is blocked, the scheduler still succeeds."""
     monkeypatch.setattr(admin, "FPLAPIConnector", FakeFPLConnector)
 

@@ -4,6 +4,7 @@ Metrics and health are asserted in-memory; the log sink is asserted with
 ``caplog``; the webhook sink is asserted with ``httpx.MockTransport`` so **no
 network call is ever made inside ``pytest``**.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -100,6 +101,7 @@ def test_registry_snapshot_is_a_copy() -> None:
     assert "extra" not in reg.snapshot()
     assert reg.get("extra") is None
 
+
 def test_health_report_ok_down() -> None:
     health = HealthRegistry()
     health.report("db", True, "postgres reachable")
@@ -154,6 +156,7 @@ def test_alert_manager_fires_and_sinks_receive() -> None:
     assert len(sink.sent) == 1
     assert sink.sent[0].rule == "cpu_high"
     assert sink.sent[0].severity == "critical"
+
 
 def test_alert_manager_does_not_fire_below_threshold() -> None:
     reg = MetricRegistry()

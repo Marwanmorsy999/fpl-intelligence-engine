@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 
 import numpy as np
 
@@ -20,7 +19,7 @@ from fpl_intelligence.optimization.rules import FPLRules
 @dataclass
 class ChipEvaluation:
     """Evaluation of playing a chip."""
-    
+
     chip_name: str
     expected_score_with_chip: float
     expected_score_without_chip: float
@@ -72,7 +71,7 @@ class ChipSimulator:
 
     def evaluate_triple_captain(self, squad: SquadState, gameweek: int) -> ChipEvaluation:
         """Evaluate Triple Captain value.
-        
+
         Expected value = 3 * EV - 2 * EV = 1 * EV of best captain.
         Uses actual distributions to capture upside.
         """
@@ -80,18 +79,18 @@ class ChipSimulator:
         for pid in squad.starting_xi:
             pred = self.provider.get_player_prediction(pid, gameweek)
             fixtures = self.provider.get_fixture_count(pid, gameweek)
-            
+
             # Penalize single gameweeks
             multiplier = 1.0 if fixtures > 1 else 0.7
-            
+
             if pred.distribution is not None and len(pred.distribution) > 0:
                 ev = float(np.mean(pred.distribution)) * multiplier
             else:
                 ev = pred.expected_points * multiplier
-                
+
             if ev > best_ev:
                 best_ev = ev
-                
+
         return ChipEvaluation(
             chip_name="triple_captain",
             expected_score_with_chip=best_ev * 3,
@@ -120,14 +119,17 @@ class ChipSimulator:
             pool = []
         if not pool:
             # Fall back to the current XI when the provider exposes no pool.
-            pool = [p.expected_points for p in (self.provider.get_player_prediction(pid, gameweek) for pid in squad.squad_players)]
+            pool = [
+                p.expected_points
+                for p in (
+                    self.provider.get_player_prediction(pid, gameweek)
+                    for pid in squad.squad_players
+                )
+            ]
 
         pool_sorted = sorted(pool, reverse=True)
         top11 = pool_sorted[:11]
-        if not top11:
-            optimal_fh_ev = current_xi_ev
-        else:
-            optimal_fh_ev = sum(top11) + top11[0]  # captain scored double
+        optimal_fh_ev = current_xi_ev if not top11 else sum(top11) + top11[0]
 
         net_value = optimal_fh_ev - current_xi_ev
         return ChipEvaluation(
@@ -138,7 +140,9 @@ class ChipSimulator:
             opportunity_cost=0.0,
         )
 
-    def evaluate_wildcard(self, squad: SquadState, gameweek: int, horizon: int = 4) -> ChipEvaluation:
+    def evaluate_wildcard(
+        self, squad: SquadState, gameweek: int, horizon: int = 4
+    ) -> ChipEvaluation:
         """Evaluate Wildcard value over the horizon from provider expectations.
 
         With a Wildcard the manager can restructure to the league's best 15,
@@ -162,10 +166,7 @@ class ChipSimulator:
             gw = gameweek + offset
             pool: list[float] = []
             try:
-                pool = [
-                    p.expected_points
-                    for p in self.provider.get_all_predictions(gw).values()
-                ]
+                pool = [p.expected_points for p in self.provider.get_all_predictions(gw).values()]
             except Exception:  # noqa: BLE001
                 pool = []
             if pool:
@@ -188,49 +189,53 @@ class ChipSimulator:
         # Check active chips first - can only play one!
         if len(squad.active_chips) > 0:
             return None
-            
+
         best_chip = None
         best_value = 0.0
-        
+
         half = self.rules.get_half_season(gameweek) if self.rules.is_half_season_chips else None
-        
+
         # Determine playable chips based on rules
         playable_chips = []
         for chip in squad.remaining_chips:
             if self.rules.is_half_season_chips:
-                # Assuming chips are named "wildcard_1", "wildcard_2" or we manage them via half season
-                if f"_{half}" in chip or (half == 1 and ("_1" in chip or chip.endswith("1"))) or (half == 2 and ("_2" in chip or chip.endswith("2"))):
+                # Chips are named "wildcard_1"/"wildcard_2" or managed via half season
+                if (
+                    f"_{half}" in chip
+                    or (half == 1 and ("_1" in chip or chip.endswith("1")))
+                    or (half == 2 and ("_2" in chip or chip.endswith("2")))
+                ):
                     playable_chips.append(chip.split("_1")[0].split("_2")[0])
                 elif not ("_1" in chip or "_2" in chip):
-                     # If they are just "wildcard", assume playable for testing
-                     playable_chips.append(chip)
+                    # If they are just "wildcard", assume playable for testing
+                    playable_chips.append(chip)
             else:
                 playable_chips.append(chip.split("_1")[0].split("_2")[0])
-                
+
         if "bench_boost" in playable_chips:
             bb_eval = self.evaluate_bench_boost(squad, gameweek)
             if bb_eval.net_value > 15.0 and bb_eval.net_value > best_value:
                 best_chip = bb_eval
                 best_value = bb_eval.net_value
-                
+
         if "triple_captain" in playable_chips:
             tc_eval = self.evaluate_triple_captain(squad, gameweek)
             if tc_eval.net_value > 12.0 and tc_eval.net_value > best_value:
                 best_chip = tc_eval
                 best_value = tc_eval.net_value
-                
+
         if "free_hit" in playable_chips:
             fh_eval = self.evaluate_free_hit(squad, gameweek)
             if fh_eval.net_value > 18.0 and fh_eval.net_value > best_value:
                 best_chip = fh_eval
                 best_value = fh_eval.net_value
-                
+
         if "wildcard" in playable_chips:
             wc_eval = self.evaluate_wildcard(squad, gameweek)
             if wc_eval.net_value > 20.0 and wc_eval.net_value > best_value:
                 best_chip = wc_eval
                 best_value = wc_eval.net_value
-                
+
         if best_chip:
             action = CandidateAction(
                 action_type=ActionType(best_chip.chip_name),
@@ -246,7 +251,7 @@ class ChipSimulator:
                 probability_positive=0.7,
                 confidence=0.6,
                 main_reason=f"High EV for {best_chip.chip_name}.",
-                main_risk="Missing future opportunities."
+                main_risk="Missing future opportunities.",
             )
-            
+
         return None

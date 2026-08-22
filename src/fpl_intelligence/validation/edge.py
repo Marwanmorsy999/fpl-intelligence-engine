@@ -61,14 +61,11 @@ def _mae_rmse(pred: np.ndarray, actual: np.ndarray) -> dict[str, float]:
     return {"mae": round(mae, 4), "rmse": round(rmse, 4), "n": int(len(pred))}
 
 
-
 def spearman_mean(rows, pred_key, actual_key="actual_points") -> float:
     """Mean per-Gameweek Spearman correlation (unit of comparison = Gameweek)."""
     by_gw: dict[tuple, list[tuple[float, float]]] = {}
     for r in rows:
-        by_gw.setdefault((r["season"], r["gw"]), []).append(
-            (r[pred_key], r[actual_key])
-        )
+        by_gw.setdefault((r["season"], r["gw"]), []).append((r[pred_key], r[actual_key]))
     corrs = []
     for pairs in by_gw.values():
         if len(pairs) < 2:
@@ -112,7 +109,6 @@ def _log_loss(proba: np.ndarray, actual: np.ndarray) -> float:
 
 def _brier(proba: np.ndarray, actual: np.ndarray) -> float:
     return float(np.mean((proba - actual) ** 2))
-
 
 
 def calibration_bins(proba, actual, n_bins=10) -> list[dict[str, float]]:
@@ -167,7 +163,6 @@ def _pct(val) -> str:
     return f"{100.0 * val:.1f}%"
 
 
-
 # ---------------------------------------------------------------------------
 # Data preparation
 # ---------------------------------------------------------------------------
@@ -181,9 +176,7 @@ def prepare_season_teams(db: Session) -> dict[int, dict[str, Any]]:
     """
     from fpl_intelligence.db.models import Fixture, Gameweek
 
-    gw_map = {
-        gw.id: (gw.season_id, gw.provider_event_id) for gw in db.query(Gameweek).all()
-    }
+    gw_map = {gw.id: (gw.season_id, gw.provider_event_id) for gw in db.query(Gameweek).all()}
     team_records: dict[tuple[int, int], list[dict[str, Any]]] = {}
     for f in db.query(Fixture).all():
         if f.gameweek_id not in gw_map:
@@ -222,7 +215,6 @@ def _team_strength_as_of(records: list[dict[str, Any]], gw: int) -> dict[str, fl
         "avg_goals_conceded": defence,
         "sample": n,
     }
-
 
 
 def prepare_dataset(
@@ -264,9 +256,7 @@ def prepare_dataset(
         gw_num = gw_map.get(perf.gameweek_id, (None, 0))[1]
         if gw_num == 0:
             continue
-        player_records.setdefault((perf.player_id, perf.season_id), []).append(
-            (gw_num, perf)
-        )
+        player_records.setdefault((perf.player_id, perf.season_id), []).append((gw_num, perf))
     for recs in player_records.values():
         recs.sort(key=lambda x: x[0])
 
@@ -287,15 +277,25 @@ def prepare_dataset(
             }
         )
     return _assemble_rows(
-        rows=None, season_ids=season_ids, selected=selected,
-        membership=membership, players=players, player_records=player_records,
-        fixtures=fixtures, team_records=team_records,
+        rows=None,
+        season_ids=season_ids,
+        selected=selected,
+        membership=membership,
+        players=players,
+        player_records=player_records,
+        fixtures=fixtures,
+        team_records=team_records,
     )
 
 
-
 def _assemble_rows(
-    rows, season_ids, selected, membership, players, player_records, fixtures,
+    rows,
+    season_ids,
+    selected,
+    membership,
+    players,
+    player_records,
+    fixtures,
     team_records,
 ) -> tuple[list[dict[str, Any]], dict[tuple[int, int], list[Any]]]:
     out: list[dict[str, Any]] = []
@@ -318,8 +318,14 @@ def _assemble_rows(
             is_home = 1 if tf["home"] == team_id else 0
             opp_team = tf["away"] if is_home else tf["home"]
             feats = _build_player_features(
-                prior, position_code, is_home, team_id, opp_team,
-                team_records, season_id, target_gw,
+                prior,
+                position_code,
+                is_home,
+                team_id,
+                opp_team,
+                team_records,
+                season_id,
+                target_gw,
             )
             out.append(
                 {
@@ -363,10 +369,15 @@ def _find_fixture(fixtures, season_id: int, gw: int, team_id) -> dict[str, Any] 
     return None
 
 
-
 def _build_player_features(
-    prior, position_code: int, is_home: int, team_id: int, opp_team: int,
-    team_records, season_id: int, target_gw: int,
+    prior,
+    position_code: int,
+    is_home: int,
+    team_id: int,
+    opp_team: int,
+    team_records,
+    season_id: int,
+    target_gw: int,
 ) -> dict[str, float]:
     points = [float(r.total_points or 0) for r in prior]
     minutes = [float(r.minutes or 0) for r in prior]
@@ -414,7 +425,6 @@ def _build_player_features(
     }
 
 
-
 # ---------------------------------------------------------------------------
 # STEP 1 -- Baseline analysis (A / B / C)
 # ---------------------------------------------------------------------------
@@ -445,7 +455,8 @@ def _pred_key(model_name: str) -> str:
 
 
 def attach_baseline_predictions(
-    rows, season_codes,
+    rows,
+    season_codes,
 ) -> tuple[dict[str, list[dict[str, Any]]], dict[str, int]]:
     """Fill each row with pred_baseline_a/b/c. Returns (rows, missing_counts)."""
     a = RecentFormBaselineModel()
@@ -472,14 +483,9 @@ def evaluate_baselines(rows, season_codes: list[str]) -> dict[str, Any]:
     results: dict[str, Any] = {"per_season": {}, "aggregate": {}}
     for season in season_codes:
         sub = by_season.get(season, [])
-        results["per_season"][season] = {
-            m: compute_metrics(sub, _pred_key(m)) for m in models
-        }
-    results["aggregate"] = {
-        m: compute_metrics(rows, _pred_key(m)) for m in models
-    }
+        results["per_season"][season] = {m: compute_metrics(sub, _pred_key(m)) for m in models}
+    results["aggregate"] = {m: compute_metrics(rows, _pred_key(m)) for m in models}
     return results
-
 
 
 # ---------------------------------------------------------------------------
@@ -528,15 +534,12 @@ def _walk_forward_minutes(rows, season_codes: list[str]) -> None:
 
 def _min_metrics(rows, pkey, akey) -> dict[str, float]:
     if not rows:
-        return {"n": 0, "log_loss": float("nan"), "brier": float("nan"),
-                "ece": float("nan")}
+        return {"n": 0, "log_loss": float("nan"), "brier": float("nan"), "ece": float("nan")}
     pred = np.array([r[pkey] for r in rows], dtype=float)
     act = np.array([r[akey] for r in rows], dtype=float)
     ll = _log_loss(pred, act)
     b = _brier(pred, act)
-    return {"n": len(rows), "log_loss": round(ll, 4), "brier": round(b, 4),
-            "ece": _ece(pred, act)}
-
+    return {"n": len(rows), "log_loss": round(ll, 4), "brier": round(b, 4), "ece": _ece(pred, act)}
 
 
 def evaluate_minutes_model(rows, season_codes: list[str]) -> dict[str, Any]:
@@ -604,10 +607,17 @@ def evaluate_minutes_model(rows, season_codes: list[str]) -> dict[str, Any]:
     hp["model"] = _min_metrics(rows, "mm_pred_start", "actual_started")
     hp["prev_start_rate"] = _min_metrics(rows, "start_heuristic_prev", "actual_started")
     hp["recent_start_rate"] = _min_metrics(rows, "start_heuristic_rec", "actual_started")
-    hp["minutes_avg_mae"] = round(float(np.mean(np.abs(
-        np.array([r["minutes_heuristic_avg"] for r in rows], dtype=float)
-        - np.array([r["actual_minutes"] for r in rows], dtype=float)
-    ))), 4)
+    hp["minutes_avg_mae"] = round(
+        float(
+            np.mean(
+                np.abs(
+                    np.array([r["minutes_heuristic_avg"] for r in rows], dtype=float)
+                    - np.array([r["actual_minutes"] for r in rows], dtype=float)
+                )
+            )
+        ),
+        4,
+    )
     hp["model_minutes_mae"] = _mae_rmse(
         np.array([r["mm_pred_minutes"] for r in rows], dtype=float),
         np.array([r["actual_minutes"] for r in rows], dtype=float),
@@ -623,7 +633,6 @@ def _min_breakdown(rows, group_key) -> dict[str, dict[str, float]]:
     return groups
 
 
-
 def _min_breakdown_price(rows) -> dict[str, dict[str, float]]:
     def band(p):
         if p <= 5.5:
@@ -633,6 +642,7 @@ def _min_breakdown_price(rows) -> dict[str, dict[str, float]]:
         if p <= 9.0:
             return "7.0-9.0"
         return ">9.0"
+
     groups: dict[str, dict[str, float]] = {}
     for label in ["<=5.5", "5.5-7.0", "7.0-9.0", ">9.0"]:
         sub = [r for r in rows if band(r["price"]) == label]
@@ -649,12 +659,12 @@ def _min_breakdown_minutes(rows) -> dict[str, dict[str, float]]:
         if m < 75:
             return "45-75"
         return "75-90"
+
     groups: dict[str, dict[str, float]] = {}
     for label in ["0-10", "10-45", "45-75", "75-90"]:
         sub = [r for r in rows if bucket(r["mm_pred_minutes"]) == label]
         groups[label] = _min_metrics(sub, "mm_pred_start", "actual_started")
     return groups
-
 
 
 # ---------------------------------------------------------------------------
@@ -668,6 +678,7 @@ def evaluate_team_and_match(db: Session, season_codes: list[str]) -> dict[str, A
     gw_map = {gw.id: (gw.season_id, gw.provider_event_id) for gw in db.query(Gameweek).all()}
     team_records = prepare_season_teams(db)
     from fpl_intelligence.db.models import Season
+
     season_ids = {s.id: s.code for s in db.query(Season).all()}
 
     match_model = PoissonMatchModel()
@@ -685,14 +696,18 @@ def evaluate_team_and_match(db: Session, season_codes: list[str]) -> dict[str, A
         pred = match_model.predict_from_strengths(
             f.id,
             f.kickoff_time,
-            {"attack_strength": home["attack_strength"],
-             "defence_strength": home["defensive_strength"],
-             "home_strength": home["avg_goals_scored"],
-             "away_strength": home["avg_goals_scored"]},
-            {"attack_strength": away["attack_strength"],
-             "defence_strength": away["defensive_strength"],
-             "home_strength": away["avg_goals_scored"],
-             "away_strength": away["avg_goals_scored"]},
+            {
+                "attack_strength": home["attack_strength"],
+                "defence_strength": home["defensive_strength"],
+                "home_strength": home["avg_goals_scored"],
+                "away_strength": home["avg_goals_scored"],
+            },
+            {
+                "attack_strength": away["attack_strength"],
+                "defence_strength": away["defensive_strength"],
+                "home_strength": away["avg_goals_scored"],
+                "away_strength": away["avg_goals_scored"],
+            },
         )
         actual_home = float(f.home_score)
         actual_away = float(f.away_score)
@@ -704,14 +719,20 @@ def evaluate_team_and_match(db: Session, season_codes: list[str]) -> dict[str, A
             outcome = "draw"
         match_rows.append(
             {
-                "season": season_ids[season_id], "gw": gw_num, "fixture_id": f.id,
-                "home_team_id": f.home_team_id, "away_team_id": f.away_team_id,
-                "eh": pred.expected_home_goals, "ea": pred.expected_away_goals,
-                "ph": pred.home_win_probability, "pd": pred.draw_probability,
+                "season": season_ids[season_id],
+                "gw": gw_num,
+                "fixture_id": f.id,
+                "home_team_id": f.home_team_id,
+                "away_team_id": f.away_team_id,
+                "eh": pred.expected_home_goals,
+                "ea": pred.expected_away_goals,
+                "ph": pred.home_win_probability,
+                "pd": pred.draw_probability,
                 "pa": pred.away_win_probability,
                 "home_cs": pred.home_clean_sheet_probability,
                 "away_cs": pred.away_clean_sheet_probability,
-                "actual_home": actual_home, "actual_away": actual_away,
+                "actual_home": actual_home,
+                "actual_away": actual_away,
                 "outcome": outcome,
                 "home_attack": home["attack_strength"],
                 "home_defence": home["defensive_strength"],
@@ -770,10 +791,10 @@ def _wdl_baseline(rows) -> dict[str, float]:
     if not rows:
         return {}
     from collections import Counter
+
     cnt = Counter(r["outcome"] for r in rows)
     n = len(rows)
     return {k: round(v / n, 4) for k, v in cnt.items()}
-
 
 
 def _team_stability(season_codes, season_ids, team_records) -> dict[str, dict[str, float]]:
@@ -795,13 +816,9 @@ def _team_stability(season_codes, season_ids, team_records) -> dict[str, dict[st
                     recs = rr
             if len(recs) < 5:
                 continue
-            attacks = [
-                _team_strength_as_of(recs, gw)["attack_strength"]
-                for gw in range(11, 39)
-            ]
+            attacks = [_team_strength_as_of(recs, gw)["attack_strength"] for gw in range(11, 39)]
             defences = [
-                _team_strength_as_of(recs, gw)["defensive_strength"]
-                for gw in range(11, 39)
+                _team_strength_as_of(recs, gw)["defensive_strength"] for gw in range(11, 39)
             ]
             atks.append(float(np.std(attacks)))
             defs.append(float(np.std(defences)))
@@ -821,7 +838,6 @@ def _expected_goals_mae_league_avg(rows) -> dict[str, float]:
     aa = np.array([r["actual_away"] for r in rows], dtype=float)
     mae = float((np.mean(np.abs(1.4 - ah)) + np.mean(np.abs(1.4 - aa))) / 2.0)
     return {"league_avg_mae": round(mae, 4), "n": len(rows)}
-
 
 
 # ---------------------------------------------------------------------------
@@ -898,9 +914,7 @@ def evaluate_player_pipeline(rows, season_codes: list[str]) -> dict[str, Any]:
     res: dict[str, Any] = {"per_season": {}, "aggregate": {}, "position": {}, "price": {}}
     for season in season_codes:
         sub = by_season.get(season, [])
-        res["per_season"][season] = {
-            m: compute_metrics(sub, _pred_key(m)) for m in models
-        }
+        res["per_season"][season] = {m: compute_metrics(sub, _pred_key(m)) for m in models}
     res["aggregate"] = {m: compute_metrics(rows, _pred_key(m)) for m in models}
 
     # Position breakdown.
@@ -917,11 +931,11 @@ def evaluate_player_pipeline(rows, season_codes: list[str]) -> dict[str, Any]:
         if p <= 9.0:
             return "7.0-9.0"
         return ">9.0"
+
     for label in ["<=5.5", "5.5-7.0", "7.0-9.0", ">9.0"]:
         sub = [r for r in rows if band(r["price"]) == label]
         res["price"][label] = {m: compute_metrics(sub, _pred_key(m)) for m in models}
     return res
-
 
 
 # ---------------------------------------------------------------------------
@@ -966,9 +980,7 @@ def run_ablations(rows, season_codes: list[str]) -> dict[str, dict[str, Any]]:
         "ablation_c_team_strength": ab_c,
         "ablation_d_match_model": ab_d,
     }.items():
-        ab["delta_mae"] = round(
-            float(ab[list(ab)[1]]["mae"]) - float(ab[list(ab)[0]]["mae"]), 4
-        )
+        ab["delta_mae"] = round(float(ab[list(ab)[1]]["mae"]) - float(ab[list(ab)[0]]["mae"]), 4)
     return {
         "ablation_a_minutes": ab_a,
         "ablation_b_fixture": ab_b,
@@ -1003,14 +1015,15 @@ def captain_proxy(rows, season_codes: list[str]) -> dict[str, Any]:
 
     def stats(points, baseline_points):
         avg = float(np.mean(points))
-        success = float(np.mean(
-            [1 if p > b else 0 for p, b in zip(points, baseline_points, strict=True)]
-        ))
-        above = float(np.mean(
-            [p - b for p, b in zip(points, baseline_points, strict=True)]
-        ))
-        return {"average_points": round(avg, 4), "success_rate": round(success, 4),
-                "points_above_baseline": round(above, 4)}
+        success = float(
+            np.mean([1 if p > b else 0 for p, b in zip(points, baseline_points, strict=True)])
+        )
+        above = float(np.mean([p - b for p, b in zip(points, baseline_points, strict=True)]))
+        return {
+            "average_points": round(avg, 4),
+            "success_rate": round(success, 4),
+            "points_above_baseline": round(above, 4),
+        }
 
     return {
         "n_gameweeks": fixtures,
@@ -1021,7 +1034,6 @@ def captain_proxy(rows, season_codes: list[str]) -> dict[str, Any]:
         "vs_fixture_baseline": stats(cap_d_points, cap_c_points),
         "diagnostic_only": True,
     }
-
 
 
 # ---------------------------------------------------------------------------
@@ -1096,4 +1108,3 @@ def run_full_gate(
         "seasons_loaded": season_codes,
     }
     return results
-

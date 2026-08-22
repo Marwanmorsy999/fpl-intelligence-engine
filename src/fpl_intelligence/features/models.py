@@ -11,7 +11,6 @@ from sqlalchemy import (
     JSON,
     DateTime,
     Float,
-    ForeignKey,
     Index,
     Integer,
     String,
@@ -39,6 +38,7 @@ class FeatureDefinition(Base):
         created_at: When this definition was created.
         is_active: Whether this version is currently active.
     """
+
     __tablename__ = "feature_definitions"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -53,9 +53,7 @@ class FeatureDefinition(Base):
     )
     is_active: Mapped[bool] = mapped_column(default=True)
 
-    __table_args__ = (
-        UniqueConstraint("feature_name", "version", name="uq_feature_name_version"),
-    )
+    __table_args__ = (UniqueConstraint("feature_name", "version", name="uq_feature_name_version"),)
 
 
 class FeatureSnapshot(Base):
@@ -73,13 +71,16 @@ class FeatureSnapshot(Base):
         latest_source_time: Timestamp of the most recent source record.
         created_at: When this snapshot was computed.
     """
+
     __tablename__ = "feature_snapshots"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     entity_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     feature_name: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
     feature_version: Mapped[str] = mapped_column(String(20), nullable=False)
-    cutoff_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    cutoff_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
     value: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     is_missing: Mapped[bool] = mapped_column(default=False)
     completeness_score: Mapped[float | None] = mapped_column(Float)
@@ -91,12 +92,17 @@ class FeatureSnapshot(Base):
 
     __table_args__ = (
         UniqueConstraint(
-            "entity_id", "feature_name", "feature_version", "cutoff_time",
+            "entity_id",
+            "feature_name",
+            "feature_version",
+            "cutoff_time",
             name="uq_feature_snapshot_entity_cutoff",
         ),
         Index(
             "ix_feature_snapshot_lookup",
-            "feature_name", "feature_version", "cutoff_time",
+            "feature_name",
+            "feature_version",
+            "cutoff_time",
         ),
     )
 
@@ -116,6 +122,7 @@ class FeatureLineage(Base):
         cutoff_time: The cutoff time for this computation.
         created_at: When this lineage record was created.
     """
+
     __tablename__ = "feature_lineage"
 
     id: Mapped[int] = mapped_column(primary_key=True)

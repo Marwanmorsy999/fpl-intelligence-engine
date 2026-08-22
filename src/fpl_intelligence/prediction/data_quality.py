@@ -23,18 +23,26 @@ from typing import Any
 # Feature group definitions used by the data-completeness scorer.
 FEATURE_GROUPS: dict[str, list[str]] = {
     "player_history": [
-        "points_last_3", "points_last_5", "points_last_10",
-        "goals_last_3", "assists_last_3",
+        "points_last_3",
+        "points_last_5",
+        "points_last_10",
+        "goals_last_3",
+        "assists_last_3",
     ],
     "team_history": [
-        "attack_strength", "defensive_strength",
-        "home_avg_goals", "away_avg_goals",
+        "attack_strength",
+        "defensive_strength",
+        "home_avg_goals",
+        "away_avg_goals",
     ],
     "fixture_data": ["is_home", "fixture_difficulty", "days_of_rest"],
     "market_data": ["price", "ownership", "form", "selected_by_percent"],
     "minutes_inputs": [
-        "minutes_last_3", "minutes_last_5", "minutes_last_10",
-        "minutes_prev_match", "starts_last_3",
+        "minutes_last_3",
+        "minutes_last_5",
+        "minutes_last_10",
+        "minutes_prev_match",
+        "starts_last_3",
     ],
 }
 
@@ -145,13 +153,9 @@ def assess_data_quality(
     if overall >= 0.9:
         explain = "High data completeness. All major feature groups are well-populated."
     elif overall >= 0.7:
-        explain = (
-            f"Moderate completeness. Missing groups: {', '.join(missing_groups) or 'none'}"
-        )
+        explain = f"Moderate completeness. Missing groups: {', '.join(missing_groups) or 'none'}"
     elif overall >= 0.4:
-        explain = (
-            f"Low completeness. Significant gaps in: {', '.join(missing_groups) or 'unknown'}"
-        )
+        explain = f"Low completeness. Significant gaps in: {', '.join(missing_groups) or 'unknown'}"
     else:
         explain = "Very low data completeness. Most feature groups are missing."
 
@@ -163,4 +167,3 @@ def assess_data_quality(
         n_features_present=total_present,
         n_features_expected=total_expected,
     )
-

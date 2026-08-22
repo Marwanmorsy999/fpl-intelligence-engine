@@ -108,9 +108,11 @@ class PlayerFormCalculator(BaseFeatureCalculator):
             weights = list(range(1, len(perfs_sorted) + 1))
             total_weight = sum(weights)
             weighted_points = sum(
-                (p.total_points or 0) * w for p, w in zip(perfs_sorted, weights)
+                (p.total_points or 0) * w for p, w in zip(perfs_sorted, weights, strict=True)
             )
-            value["form_weighted_points"] = weighted_points / total_weight if total_weight > 0 else 0.0
+            value["form_weighted_points"] = (
+                weighted_points / total_weight if total_weight > 0 else 0.0
+            )
 
         # Consistency score (coefficient of variation of points)
         points_list = [p.total_points or 0 for p in perfs_sorted]
@@ -118,7 +120,7 @@ class PlayerFormCalculator(BaseFeatureCalculator):
             mean_pts = sum(points_list) / len(points_list)
             if mean_pts > 0:
                 variance = sum((p - mean_pts) ** 2 for p in points_list) / len(points_list)
-                std_pts = variance ** 0.5
+                std_pts = variance**0.5
                 value["consistency_score"] = 1.0 - min(1.0, std_pts / mean_pts)
             else:
                 value["consistency_score"] = 0.0

@@ -4,6 +4,7 @@ Covers ``RSSConnector`` and ``FPLAPIConnector`` (each with a mocked HTTP
 response, so no live network call is made) and ``ConnectorScheduler`` (the full
 fetch -> sink orchestration, error isolation, manual + scheduled execution).
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -279,13 +280,33 @@ class TestRSSConnector:
 def _fpl_payload() -> dict[str, Any]:
     return {
         "elements": [
-            {"id": 411, "web_name": "Salah", "first_name": "Mohamed", "second_name": "Salah",
-             "news": "Mohamed Salah is a doubt for this weekend's match.",
-             "chance_of_playing_next_round": 75, "chance_of_playing_this_round": 75},
-            {"id": 615, "web_name": "Palmer", "first_name": "Cole", "second_name": "Palmer",
-             "news": "", "chance_of_playing_next_round": 25, "chance_of_playing_this_round": None},
-            {"id": 859, "web_name": "Haaland", "first_name": "Erling", "second_name": "Haaland",
-             "news": "", "chance_of_playing_next_round": 100, "chance_of_playing_this_round": 100},
+            {
+                "id": 411,
+                "web_name": "Salah",
+                "first_name": "Mohamed",
+                "second_name": "Salah",
+                "news": "Mohamed Salah is a doubt for this weekend's match.",
+                "chance_of_playing_next_round": 75,
+                "chance_of_playing_this_round": 75,
+            },
+            {
+                "id": 615,
+                "web_name": "Palmer",
+                "first_name": "Cole",
+                "second_name": "Palmer",
+                "news": "",
+                "chance_of_playing_next_round": 25,
+                "chance_of_playing_this_round": None,
+            },
+            {
+                "id": 859,
+                "web_name": "Haaland",
+                "first_name": "Erling",
+                "second_name": "Haaland",
+                "news": "",
+                "chance_of_playing_next_round": 100,
+                "chance_of_playing_this_round": 100,
+            },
         ]
     }
 
@@ -356,11 +377,19 @@ class TestFPLAPIConnector:
             self._connector(handler=handler).fetch()
 
     def test_fetch_uses_web_name_fallback_to_full_name(self):
-        payload = {"elements": [
-            {"id": 1, "web_name": "", "first_name": "Kai", "second_name": "Havertz",
-             "news": "Fit again.", "chance_of_playing_next_round": 90,
-             "chance_of_playing_this_round": 90}
-        ]}
+        payload = {
+            "elements": [
+                {
+                    "id": 1,
+                    "web_name": "",
+                    "first_name": "Kai",
+                    "second_name": "Havertz",
+                    "news": "Fit again.",
+                    "chance_of_playing_next_round": 90,
+                    "chance_of_playing_this_round": 90,
+                }
+            ]
+        }
 
         def handler(request: httpx.Request) -> httpx.Response:
             return httpx.Response(200, json=payload)
@@ -370,12 +399,19 @@ class TestFPLAPIConnector:
         assert items[0].external_id == "1"
 
     def test_fetch_accepts_string_chance_values(self):
-        payload = {"elements": [
-            {"id": 9, "web_name": "Fernandes", "first_name": "Bruno",
-             "second_name": "Fernandes", "news": "",
-             "chance_of_playing_next_round": "50",
-             "chance_of_playing_this_round": "50"}
-        ]}
+        payload = {
+            "elements": [
+                {
+                    "id": 9,
+                    "web_name": "Fernandes",
+                    "first_name": "Bruno",
+                    "second_name": "Fernandes",
+                    "news": "",
+                    "chance_of_playing_next_round": "50",
+                    "chance_of_playing_this_round": "50",
+                }
+            ]
+        }
 
         def handler(request: httpx.Request) -> httpx.Response:
             return httpx.Response(200, json=payload)
@@ -383,6 +419,8 @@ class TestFPLAPIConnector:
         items = self._connector(handler=handler).fetch()
         assert len(items) == 1
         assert "chance_of_playing_next_round=50%" in items[0].content_text
+
+
 # ---------------------------------------------------------------------------
 # ConnectorScheduler
 # ---------------------------------------------------------------------------
@@ -496,8 +534,11 @@ class TestConnectorScheduler:
 
     def test_run_isolates_sink_error_per_item(self):
         conn = _MockConnector(
-            [_make_raw("c", "good", "1"), _make_raw("c", "bad", "bad"),
-             _make_raw("c", "good2", "2")]
+            [
+                _make_raw("c", "good", "1"),
+                _make_raw("c", "bad", "bad"),
+                _make_raw("c", "good2", "2"),
+            ]
         )
         sink = _FailingItemSink()
         scheduler = ConnectorScheduler({"c": conn}, sink)
@@ -529,17 +570,13 @@ class TestConnectorScheduler:
             seen.append(dry_run)
 
         scheduler = ConnectorScheduler({"c": conn}, sink, sleep=_noop_sleep)
-        reports = scheduler.run_scheduled(
-            interval_seconds=0.0, iterations=1, dry_run=True
-        )
+        reports = scheduler.run_scheduled(interval_seconds=0.0, iterations=1, dry_run=True)
         assert len(reports) == 1
         assert seen == [True]
 
     def test_report_to_dict_totals(self):
         conn = _MockConnector([_make_raw("c", "x", "1")])
-        scheduler = ConnectorScheduler(
-            {"c": conn}, lambda raw, *, connector, dry_run: None
-        )
+        scheduler = ConnectorScheduler({"c": conn}, lambda raw, *, connector, dry_run: None)
         report = scheduler.run()
         d = report.to_dict()
         assert d["total_fetched"] == 1

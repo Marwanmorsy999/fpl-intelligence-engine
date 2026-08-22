@@ -12,6 +12,7 @@ not produce a revised projection. The schema gives it nowhere to put one, and
 restated numbers against the ones it supplied. Three independent barriers, so a
 persuasive-sounding model cannot quietly become the prediction engine.
 """
+
 from __future__ import annotations
 
 from fpl_intelligence.live_intelligence.prompts import PromptTemplate
@@ -108,17 +109,15 @@ TRANSFER_RECOMMENDATION = PromptTemplate(
     version="1.0.0",
     schema_version=ANALYST_SCHEMA_VERSION,
     system=(
-        _ANALYST_CONTRACT
-        + "\nTASK: TRANSFER RECOMMENDATION REASONING\n"
+        _ANALYST_CONTRACT + "\nTASK: TRANSFER RECOMMENDATION REASONING\n"
         "Explain whether the qualitative evidence strengthens or weakens the "
         "case for the transfer the quantitative engine's numbers describe. "
         "Consider minutes security, role security and set-piece duty, since "
         "those are the levers evidence actually moves. Weigh the cost of a hit "
-        "only in qualitative terms. Set `task` to \"transfer_recommendation\"."
+        'only in qualitative terms. Set `task` to "transfer_recommendation".'
     ),
     user=(
-        _CONTEXT_BLOCK
-        + "Produce the transfer recommendation reasoning. Return one JSON object."
+        _CONTEXT_BLOCK + "Produce the transfer recommendation reasoning. Return one JSON object."
     ),
 )
 
@@ -128,20 +127,16 @@ CAPTAINCY_DEBATE = PromptTemplate(
     version="1.0.0",
     schema_version=ANALYST_SCHEMA_VERSION,
     system=(
-        _ANALYST_CONTRACT
-        + "\nTASK: CAPTAINCY DEBATE SUMMARY\n"
+        _ANALYST_CONTRACT + "\nTASK: CAPTAINCY DEBATE SUMMARY\n"
         "You are given two or more candidates. Summarise the debate honestly: "
         "state which candidate the quantitative baseline favours and by how "
         "much on its own numbers, then state whether the qualitative evidence "
         "narrows, widens or reverses that gap — qualitatively only. Captaincy "
         "is a ceiling decision, so address ceiling and floor explicitly. If the "
         "evidence does not separate the candidates, say so rather than "
-        "manufacturing a tiebreak. Set `task` to \"captaincy_debate\"."
+        'manufacturing a tiebreak. Set `task` to "captaincy_debate".'
     ),
-    user=(
-        _CONTEXT_BLOCK
-        + "Produce the captaincy debate summary. Return one JSON object."
-    ),
+    user=(_CONTEXT_BLOCK + "Produce the captaincy debate summary. Return one JSON object."),
 )
 
 
@@ -150,19 +145,15 @@ DIFFERENTIAL_RISK = PromptTemplate(
     version="1.0.0",
     schema_version=ANALYST_SCHEMA_VERSION,
     system=(
-        _ANALYST_CONTRACT
-        + "\nTASK: DIFFERENTIAL RISK PROFILE\n"
+        _ANALYST_CONTRACT + "\nTASK: DIFFERENTIAL RISK PROFILE\n"
         "Profile the risk of a low-ownership pick. Distinguish the two failure "
         "modes clearly: the player blanking (a floor problem) and the template "
         "hauling while you are not on it (a rank problem). Use the supplied "
         "floor and ceiling for the first, and the qualitative evidence for the "
         "second. Do not treat low ownership as evidence of anything by itself. "
-        "Set `task` to \"differential_risk\"."
+        'Set `task` to "differential_risk".'
     ),
-    user=(
-        _CONTEXT_BLOCK
-        + "Produce the differential risk profile. Return one JSON object."
-    ),
+    user=(_CONTEXT_BLOCK + "Produce the differential risk profile. Return one JSON object."),
 )
 
 

@@ -21,6 +21,7 @@ Nothing is ever silently dropped. An unresolved or ambiguous entity is returned
 as a status the persistence layer can record verbatim in
 ``UnresolvedLiveEvidence``.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -179,9 +180,7 @@ def _is_active(player_id: int, db: Session, season_id: int | None) -> bool:
 
     Without season context, any membership counts (whole-roster uniqueness).
     """
-    stmt = select(PlayerTeamMembership).where(
-        PlayerTeamMembership.player_id == player_id
-    )
+    stmt = select(PlayerTeamMembership).where(PlayerTeamMembership.player_id == player_id)
     if season_id is not None:
         stmt = stmt.where(PlayerTeamMembership.season_id == season_id)
     return db.scalar(stmt) is not None
@@ -262,9 +261,7 @@ def build_entity_resolver(
                 db.scalars(
                     select(Player).where(
                         (Player.web_name == norm)
-                        | (
-                            (Player.first_name + " " + Player.second_name) == norm
-                        )
+                        | ((Player.first_name + " " + Player.second_name) == norm)
                     )
                 ).all()
             )

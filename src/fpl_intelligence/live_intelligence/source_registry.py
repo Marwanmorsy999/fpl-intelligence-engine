@@ -20,6 +20,7 @@ less reliable source; TIER_0 (official structured API) is the most trustworthy
 and TIER_4 (social, unverified) the least. Everything else in the pipeline
 consumes the tier, never the raw source string.
 """
+
 from __future__ import annotations
 
 import json
@@ -320,21 +321,13 @@ class SourceRegistry:
         if existing is not None:
             return existing
 
-        resolved_type = (
-            source_type
-            or KNOWN_SOURCE_PRESETS.get(source_id)
-            or SourceType.MANUAL
-        )
+        resolved_type = source_type or KNOWN_SOURCE_PRESETS.get(source_id) or SourceType.MANUAL
         tier = reliability_tier or self.classify_tier(
             resolved_type,
             is_official_club=bool(is_official_club),
         )
         env = environment or self._default_environment
-        official = (
-            is_official_club
-            if is_official_club is not None
-            else tier.is_official
-        )
+        official = is_official_club if is_official_club is not None else tier.is_official
 
         source = LiveIntelligenceSource(
             name=source_id,

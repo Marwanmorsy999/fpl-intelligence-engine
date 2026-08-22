@@ -1,8 +1,18 @@
-"""Phase 13.0 - One-click FPL squad importer."""
+"""Phase 18.0 — One-click FPL squad importer.
+
+All FPL API traffic is routed through :class:`FplEgressChain`, which tries a
+direct fetch followed by a sequence of CORS-mask fallbacks (allorigins,
+corsproxy.io, then the user's ``$FPL_PROXY_URL`` Apps-Script proxy). Each
+strategy has a short timeout and validates the JSON shape before accepting it,
+so a blocked mask fails fast and falls through to the next one. The winning
+strategy is logged and surfaced in the ``sync_status`` line the dashboard
+renders, so the user always knows which path reached FPL.
+"""
 
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from typing import Any
 
 import httpx
@@ -10,6 +20,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from fpl_intelligence.config import get_settings
+from fpl_intelligence.data_providers.fpl_egress import (
+    FplEgressChain,
+    FplEgressError,
+    FplEgressExhaustedError,
+    validate_bootstrap_payload,
+    validate_entry_payload,
+    validate_picks_payload,
+)
 from fpl_intelligence.db.models import Player, PlayerExternalId
 from fpl_intelligence.squad.models import SquadStateCreate
 
@@ -55,7 +73,6 @@ class FplPicksNotSaved(FplImportError):
     """Picks not saved yet (HTTP 404)."""
 
 
-
 class FplPicksUnavailable(FplImportError):
     """The entry exists but its picks are unavailable (pre-season).
 
@@ -87,15 +104,26 @@ class FplImportResult:
         player_names: dict[int, str],
         entry_name: str | None,
         gameweek: int,
+        winning_strategy: str | None = None,
+        egress_attempts: list[tuple[str, str]] | None = None,
     ) -> None:
         self.squad = squad
         self.player_names = player_names
         self.entry_name = entry_name
         self.gameweek = gameweek
+        self.winning_strategy = winning_strategy
+        self.egress_attempts = egress_attempts or []
 
 
 class FplSquadImporter:
-    """Fetch a manager's squad from the official FPL API."""
+    """Fetch a manager's squad from the official FPL API through the egress chain.
+
+    All three FPL endpoints (entry, picks, bootstrap) are fetched through a
+    :class:`FplEgressChain` when one is supplied, so a blocked direct path
+    automatically falls through to CORS masks and the user's Apps-Script proxy.
+    The winning strategy is exposed via :attr:`last_winning_strategy` so the
+    dashboard's sync-status line can tell the user exactly which path worked.
+    """
 
     def __init__(
         self,
@@ -103,46 +131,66 @@ class FplSquadImporter:
         base_url: str | None = None,
         timeout: float | None = None,
         client: httpx.AsyncClient | None = None,
+        egress: FplEgressChain | None = None,
     ) -> None:
         settings = get_settings()
         self._base_url = (base_url or settings.fpl_base_url).rstrip("/")
         self._timeout = timeout if timeout is not None else settings.request_timeout_seconds
         self._client = client
+        self._egress = egress
+        self._last_winning_strategy: str | None = None
+        self._last_egress_attempts: list[tuple[str, str]] = []
+
+    @property
+    def last_winning_strategy(self) -> str | None:
+        return self._last_winning_strategy
+
+    @property
+    def last_egress_attempts(self) -> list[tuple[str, str]]:
+        return list(self._last_egress_attempts)
 
     async def build_squad_from_entry(
         self, entry_id: int, db: Session | None = None
     ) -> FplImportResult:
         """Resolve an FPL entry ID into a :class:`FplImportResult`."""
         logger.info("build_squad_from_entry: START entry_id=%s db=%s", entry_id, db is not None)
-        own_client = self._client is None
-        client = self._client or httpx.AsyncClient(
-            timeout=self._timeout, follow_redirects=True, headers=_BROWSER_HEADERS
-        )
         try:
-            logger.info("build_squad_from_entry: fetching entry %s", entry_id)
-            entry = await self._get_json(client, f"/api/entry/{entry_id}/")
+            entry = await self._fetch_json(
+                f"/api/entry/{entry_id}/",
+                validator=validate_entry_payload,
+            )
             gameweek = entry.get("current_event") or 1
             entry_name = entry.get("name")
-            logger.info("build_squad_from_entry: entry fetched gameweek=%s name=%s", gameweek, entry_name)
+            logger.info(
+                "build_squad_from_entry: entry fetched gameweek=%s name=%s",
+                gameweek,
+                entry_name,
+            )
 
             try:
-                logger.info("build_squad_from_entry: fetching picks for gw %s", gameweek)
-                picks_payload = await self._get_json(
-                    client, f"/api/entry/{entry_id}/event/{gameweek}/picks/"
+                picks_payload = await self._fetch_json(
+                    f"/api/entry/{entry_id}/event/{gameweek}/picks/",
+                    validator=validate_picks_payload,
                 )
-                logger.info("build_squad_from_entry: picks fetched count=%s", len(picks_payload.get("picks", [])))
+                logger.info(
+                    "build_squad_from_entry: picks fetched count=%s",
+                    len(picks_payload.get("picks", [])),
+                )
             except FplPicksNotSaved:
                 raise
-            logger.info("build_squad_from_entry: fetching bootstrap")
-            bootstrap = await self._get_json(client, "/api/bootstrap-static/")
-            logger.info("build_squad_from_entry: bootstrap fetched elements=%s", len(bootstrap.get("elements", [])))
-        except FplEntryNotFound:
+
+            bootstrap = await self._fetch_json(
+                "/api/bootstrap-static/",
+                validator=validate_bootstrap_payload,
+            )
+            logger.info(
+                "build_squad_from_entry: bootstrap fetched elements=%s",
+                len(bootstrap.get("elements", [])),
+            )
+        except (FplImportError, FplEgressError):
             raise
         except (httpx.HTTPStatusError, httpx.HTTPError, ValueError) as exc:
             raise FplApiUnavailable(str(exc)) from exc
-        finally:
-            if own_client:
-                await client.aclose()
 
         logger.info("build_squad_from_entry: calling _build_result")
         try:
@@ -154,29 +202,70 @@ class FplSquadImporter:
                 entry_name=entry_name,
                 db=db,
             )
-            logger.info("build_squad_from_entry: _build_result OK player_names=%s", len(result.player_names))
+            result.winning_strategy = self._last_winning_strategy
+            result.egress_attempts = list(self._last_egress_attempts)
+            logger.info(
+                "build_squad_from_entry: _build_result OK player_names=%s",
+                len(result.player_names),
+            )
             return result
         except FplImportError:
             raise
         except Exception as exc:  # noqa: BLE001 - convert unexpected errors to FplApiUnavailable
             logger.exception("build_squad_from_entry: _build_result FAILED: %s", exc)
-            raise FplApiUnavailable(f"FPL response parse failed: {type(exc).__name__}: {exc}") from exc
+            raise FplApiUnavailable(
+                f"FPL response parse failed: {type(exc).__name__}: {exc}"
+            ) from exc
 
-    async def _get_json(self, client: httpx.AsyncClient, path: str) -> dict[str, Any]:
-        response = await client.get(f"{self._base_url}{path}")
-        if response.status_code == 403:
-            raise FplRateLimitBlocked("FPL API blocked by rate limit")
-        if response.status_code == 404:
-            if path.startswith("/api/entry/") and path.endswith("/"):
-                raise FplEntryNotFound(f"FPL entry not found: {path}")
-            if "/picks/" in path:
-                raise FplPicksNotSaved("Picks not saved yet")
-            raise FplApiUnavailable(f"FPL resource not found: {path}")
-        response.raise_for_status()
-        data = response.json()
-        if not isinstance(data, dict):
-            raise FplApiUnavailable(f"Unexpected FPL response for {path}")
-        return data
+    async def _fetch_json(
+        self,
+        path: str,
+        *,
+        validator: Callable[[Any], None] | None = None,
+    ) -> dict[str, Any]:
+        """Fetch a path through the egress chain, or fall back to a direct client.
+
+        The egress chain handles 403/429/500 from FPL by trying each mask. When
+        every strategy fails we translate the exhaustion into the importer's
+        typed error hierarchy so the route can return a truthful 503.
+        """
+        if self._egress is not None:
+            try:
+                data = await self._egress.fetch(path, validator=validator)
+            except FplEgressExhaustedError as exc:
+                self._last_egress_attempts = exc.attempts
+                self._last_winning_strategy = None
+                # A 404 from *every* mask is genuinely a missing entry, not a
+                # block — but masks rarely 404, so treat exhaustion as blocked.
+                raise FplApiUnavailable(str(exc)) from exc
+            self._last_winning_strategy = self._egress.winning_strategy
+            self._last_egress_attempts = []
+            return data
+
+        # Direct path (no egress chain supplied): preserve legacy behaviour.
+        own_client = self._client is None
+        client = self._client or httpx.AsyncClient(
+            timeout=self._timeout, follow_redirects=True, headers=_BROWSER_HEADERS
+        )
+        try:
+            response = await client.get(f"{self._base_url}{path}")
+            if response.status_code == 403:
+                raise FplRateLimitBlocked("FPL API blocked by rate limit")
+            if response.status_code == 404:
+                if path.startswith("/api/entry/") and path.endswith("/"):
+                    raise FplEntryNotFound(f"FPL entry not found: {path}")
+                if "/picks/" in path:
+                    raise FplPicksNotSaved("Picks not saved yet")
+                raise FplApiUnavailable(f"FPL resource not found: {path}")
+            response.raise_for_status()
+            data = response.json()
+            if not isinstance(data, dict):
+                raise FplApiUnavailable(f"Unexpected FPL response for {path}")
+            self._last_winning_strategy = "direct"
+            return data
+        finally:
+            if own_client:
+                await client.aclose()
 
     def _build_result(
         self,
@@ -192,14 +281,10 @@ class FplSquadImporter:
         transfers: dict[str, Any] = picks_payload.get("transfers") or {}
 
         if len(picks) != 15:
-            raise FplApiUnavailable(
-                f"Expected 15 picks from FPL, got {len(picks)}"
-            )
+            raise FplApiUnavailable(f"Expected 15 picks from FPL, got {len(picks)}")
 
         element_ids = [int(p["element"]) for p in picks]
-        captain_id = next(
-            (int(p["element"]) for p in picks if p.get("is_captain")), element_ids[0]
-        )
+        captain_id = next((int(p["element"]) for p in picks if p.get("is_captain")), element_ids[0])
         vice_captain_id = next(
             (int(p["element"]) for p in picks if p.get("is_vice_captain")), element_ids[1]
         )
@@ -273,7 +358,11 @@ class FplSquadImporter:
         db: Session | None,
     ) -> dict[int, str]:
         names: dict[int, str] = {}
-        logger.info("_resolve_player_names: START element_ids=%s db=%s", element_ids, db is not None)
+        logger.info(
+            "_resolve_player_names: START element_ids=%s db=%s",
+            element_ids,
+            db is not None,
+        )
         for el in element_ids:
             name = bootstrap_names.get(el) or f"Player {el}"
             if db is not None:
@@ -283,13 +372,21 @@ class FplSquadImporter:
                 logger.info("_resolve_player_names: querying fpl_element_id=%s", el)
                 try:
                     player = db.scalar(select(Player).where(Player.fpl_element_id == el))
-                    logger.info("_resolve_player_names: fpl_element_id=%s match=%s", el, player is not None)
+                    logger.info(
+                        "_resolve_player_names: fpl_element_id=%s match=%s",
+                        el,
+                        player is not None,
+                    )
                 except Exception as exc:
-                    logger.exception("_resolve_player_names: fpl_element_id query FAILED for el=%s: %s", el, exc)
+                    logger.exception("_resolve_player_names: query FAILED for el=%s: %s", el, exc)
                     raise
                 if player is None:
                     for ext_provider in ("official_fpl", "fpl"):
-                        logger.info("_resolve_player_names: trying external_id provider=%s el=%s", ext_provider, el)
+                        logger.info(
+                            "_resolve_player_names: trying provider=%s el=%s",
+                            ext_provider,
+                            el,
+                        )
                         ext = db.execute(
                             select(PlayerExternalId).where(
                                 PlayerExternalId.provider == ext_provider,
@@ -298,7 +395,11 @@ class FplSquadImporter:
                         ).scalar_one_or_none()
                         if ext is not None:
                             player = db.get(Player, ext.player_id)
-                            logger.info("_resolve_player_names: external_id resolved el=%s -> player_id=%s", el, ext.player_id)
+                            logger.info(
+                                "_resolve_player_names: external resolved el=%s -> player_id=%s",
+                                el,
+                                ext.player_id,
+                            )
                             break
                 if player is not None:
                     name = player.web_name

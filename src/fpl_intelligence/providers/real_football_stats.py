@@ -21,8 +21,6 @@ from typing import Any
 
 from fpl_intelligence.domain.environment import (
     DataEnvironment,
-    DatasetMarker,
-    DatasetClass,
     SourceProvenance,
 )
 from fpl_intelligence.providers.real_fpl import (
@@ -45,6 +43,7 @@ class RealFootballStatsProvider:
     @property
     def provider_name(self) -> str:
         return "real_football"
+
     @property
     def provenance(self) -> SourceProvenance:
         return SourceProvenance(
@@ -59,8 +58,11 @@ class RealFootballStatsProvider:
                 "Team advanced fields (shots/possession) are not present in the source."
             ),
             fields_provided=[
-                "goals_scored", "goals_conceded", "expected_goals",
-                "expected_goals_conceded", "is_home",
+                "goals_scored",
+                "goals_conceded",
+                "expected_goals",
+                "expected_goals_conceded",
+                "is_home",
             ],
             seasons_covered=[],
             known_limitations=[
@@ -168,4 +170,3 @@ class RealFootballStatsProvider:
         self, season: str, gameweek: int | None = None
     ) -> Sequence[Mapping[str, object]]:
         return self._fpl.get_fpl_snapshots(season, gameweek)
-

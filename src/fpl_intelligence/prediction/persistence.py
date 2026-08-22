@@ -180,12 +180,9 @@ class PredictionPersistence:
         # This method bridges the two systems.
         from fpl_intelligence.backtesting.models import PlayerPrediction
 
-        stmt = (
-            select(PlayerPrediction)
-            .where(
-                PlayerPrediction.run_id == run_id,
-                PlayerPrediction.player_id == entity_id,
-            )
+        stmt = select(PlayerPrediction).where(
+            PlayerPrediction.run_id == run_id,
+            PlayerPrediction.player_id == entity_id,
         )
         backtest_preds = list(self._db.execute(stmt).scalars().all())
 
@@ -205,4 +202,3 @@ class PredictionPersistence:
             )
             output.append(record)
         return output
-

@@ -7,6 +7,7 @@ Exercises:
 * ``POST /api/v1/squad`` OpenAPI schema carries a valid example body with
   integer player IDs (no ``additionalProp`` placeholders).
 """
+
 from __future__ import annotations
 
 import pytest
@@ -43,7 +44,16 @@ def test_list_players_returns_ingested_rows(client: TestClient) -> None:
     assert len(body) == 4
     first = body[0]
     # Phase 14.0: payload extended with ``code`` (PL-CDN photo key).
-    assert set(first.keys()) == {"id", "web_name", "team", "position", "price", "code"}
+    # Phase 18.0 R1: payload exposes ``fpl_element_id`` (single id space).
+    assert set(first.keys()) == {
+        "id",
+        "fpl_element_id",
+        "web_name",
+        "team",
+        "position",
+        "price",
+        "code",
+    }
     assert isinstance(first["id"], int)
     assert isinstance(first["web_name"], str)
     # Haaland (player 4) is a FWD (position 4) on team 4 with price 6.5.
@@ -64,9 +74,9 @@ def test_list_players_filters_by_team(client: TestClient) -> None:
 def _squad_schema(schema: dict) -> dict:
     """Resolve the SquadStateCreate schema (the request body is a ``$ref``)."""
     components = schema["components"]["schemas"]
-    ref_path = (
-        schema["paths"]["/api/v1/squad"]["post"]["requestBody"]["content"]["application/json"]["schema"]["$ref"]
-    )
+    ref_path = schema["paths"]["/api/v1/squad"]["post"]["requestBody"]["content"][
+        "application/json"
+    ]["schema"]["$ref"]
     name = ref_path.split("/")[-1]
     return components[name]
 
@@ -94,7 +104,7 @@ def test_squad_try_it_out_body_is_valid(client: TestClient) -> None:
     """The example body must pass the endpoint's own validation."""
     schema = client.get("/openapi.json").json()
     example = _squad_schema(schema)["example"]
-    resp = client.post("/api/v1/squad", json=example)
+    resp = client.post("/api/v1/squad", json=example, params={"session_id": "swagger-try-it"})
     assert resp.status_code == 200
     stored = resp.json()
     assert stored["captain_id"] == example["captain_id"]

@@ -16,6 +16,7 @@ All network access is routed through :meth:`BaseDataConnector._get_json`, which
 is cache-first and testable via an injected ``httpx.MockTransport``. Per the
 Phase 11.1 rules, no live call is ever made inside ``pytest``.
 """
+
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -31,9 +32,7 @@ from fpl_intelligence.data_providers.facts import FactSource, PlayerFact
 #: Official FPL public endpoints (no key required).
 FPL_BOOTSTRAP_URL = "https://fantasy.premierleague.com/api/bootstrap-static/"
 FPL_FIXTURES_URL = "https://fantasy.premierleague.com/api/fixtures/"
-FPL_ELEMENT_SUMMARY_URL = (
-    "https://fantasy.premierleague.com/api/element-summary/{player_id}/"
-)
+FPL_ELEMENT_SUMMARY_URL = "https://fantasy.premierleague.com/api/element-summary/{player_id}/"
 
 #: FPL ``status`` letter -> normalised availability string.
 _FPL_STATUS_MAP: dict[str, str] = {
@@ -255,9 +254,7 @@ class FplOfficialConnector(BaseDataConnector):
             if fact.team_id is None:
                 continue
             if fact.team_id not in by_team:
-                by_team[fact.team_id] = self.next_fixture_difficulty(
-                    fixtures, fact.team_id
-                )
+                by_team[fact.team_id] = self.next_fixture_difficulty(fixtures, fact.team_id)
             fact.fixture_difficulty = by_team[fact.team_id]
         return facts
 

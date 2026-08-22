@@ -22,6 +22,7 @@ Providers:
   labelled ``MOCK / ENGINEERING VERIFICATION ONLY``. It is NEVER counted as real
   historical availability data.
 """
+
 from __future__ import annotations
 
 import abc
@@ -35,8 +36,7 @@ from fpl_intelligence.availability.historical.event_types import parse_event_typ
 from fpl_intelligence.availability.historical.temporal import AvailabilityTimestamps
 
 MANIFEST_LICENSE_NOTES = (
-    "Public dataset mirrors for research use. Verify upstream licensing for "
-    "any commercial use."
+    "Public dataset mirrors for research use. Verify upstream licensing for any commercial use."
 )
 
 
@@ -140,14 +140,16 @@ class RealFPLAvailabilityProvider(HistoricalAvailabilityProvider):
             # Default availability status from the official FPL 'status' code.
             status = _map_fpl_status(status_code)
 
-            description = news_raw or f"chance_of_playing_this_round={chance_this}" if (
-                chance_this not in (None, 100)
-            ) else (news_raw or None)
+            description = (
+                news_raw or f"chance_of_playing_this_round={chance_this}"
+                if (chance_this not in (None, 100))
+                else (news_raw or None)
+            )
 
             # Event type derived conservatively from the free-text news + status.
             labels = [news_raw, status_code]
-            event_type = parse_event_type(labels) if news_raw else (
-                _event_type_from_status(status_code)
+            event_type = (
+                parse_event_type(labels) if news_raw else (_event_type_from_status(status_code))
             )
 
             timestamps = AvailabilityTimestamps(
@@ -276,7 +278,16 @@ class SampleHistoricalAvailabilityProvider(HistoricalAvailabilityProvider):
 
     # Player primary IDs sampled from the real FPL mirror (deterministic).
     _PLAYER_IDS = [
-        "44", "234", "233", "9", "13", "20", "3", "7", "192", "90",
+        "44",
+        "234",
+        "233",
+        "9",
+        "13",
+        "20",
+        "3",
+        "7",
+        "192",
+        "90",
     ]
 
     def __init__(self, seasons: list[str] | None = None) -> None:
@@ -344,8 +355,10 @@ class SampleHistoricalAvailabilityProvider(HistoricalAvailabilityProvider):
             if i == 6:
                 # Unknown temporal — no timestamps at all.
                 timestamps = AvailabilityTimestamps(
-                    event_time=None, published_at=None,
-                    available_at=None, ingested_at=None,
+                    event_time=None,
+                    published_at=None,
+                    available_at=None,
+                    ingested_at=None,
                 )
             elif has_pub:
                 published = base_day + timedelta(days=0 if i != 7 else 45)

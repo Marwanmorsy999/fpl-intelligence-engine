@@ -19,6 +19,7 @@ Design rules
 * Credentials and endpoints are never hardcoded: connectors read URLs (and, where
   required, API keys) from constructor arguments or environment variables only.
 """
+
 from __future__ import annotations
 
 import time
@@ -91,9 +92,7 @@ class SourceConnector(ABC):
         self._timeout = timeout
         self._headers = dict(headers or {})
         self._headers.setdefault("User-Agent", DEFAULT_USER_AGENT)
-        self._rate = RateLimiter(
-            min_interval_seconds, clock=monotonic_clock, sleep=sleep
-        )
+        self._rate = RateLimiter(min_interval_seconds, clock=monotonic_clock, sleep=sleep)
 
     @property
     def rate_limiter(self) -> RateLimiter:
@@ -104,9 +103,7 @@ class SourceConnector(ABC):
 
     def _lazy_client(self) -> httpx.Client:
         if self._http_client is None:
-            self._http_client = httpx.Client(
-                headers=self._headers, timeout=self._timeout
-            )
+            self._http_client = httpx.Client(headers=self._headers, timeout=self._timeout)
             self._owns_client = True
         return self._http_client
 
@@ -136,9 +133,7 @@ class SourceConnector(ABC):
         self._rate.acquire()
         client = self._lazy_client()
         try:
-            response = client.get(
-                url, params=params, headers=self._headers, timeout=self._timeout
-            )
+            response = client.get(url, params=params, headers=self._headers, timeout=self._timeout)
         except httpx.HTTPError as exc:
             raise SourceConnectionError(f"GET {url} failed: {exc}") from exc
 

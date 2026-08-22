@@ -57,9 +57,7 @@ async def send_squad_synced_notification(
                 resp.raise_for_status()
                 delivered += 1
             except Exception as exc:  # noqa: BLE001 - best-effort notification
-                logger.warning(
-                    "Telegram sync notification failed for chat %s: %s", chat_id, exc
-                )
+                logger.warning("Telegram sync notification failed for chat %s: %s", chat_id, exc)
         return delivered > 0
     finally:
         if own_client:

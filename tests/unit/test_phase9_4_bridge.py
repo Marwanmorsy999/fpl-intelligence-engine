@@ -9,6 +9,7 @@ Tests cover:
 - Helper functions (_ensure_aware, _safe_str, _safe_float, _source_is_mock,
   _run_is_mock, _temporal_condition)
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -312,6 +313,7 @@ def _add_unresolved(
     db_session.flush()
     return ue
 
+
 # ---------------------------------------------------------------------------
 # Helper function tests
 # ---------------------------------------------------------------------------
@@ -412,6 +414,8 @@ class TestHelpers:
         sql = _compile(cond)
         assert "ingested_at" in sql
         assert "available_at" not in sql
+
+
 # ---------------------------------------------------------------------------
 # PredictionContextBuilder tests
 # ---------------------------------------------------------------------------
@@ -558,6 +562,8 @@ class TestEvidenceQueryResult:
 
         assert result.all_citations == [avail, tact, unres]
         assert len(result) == 3
+
+
 # ---------------------------------------------------------------------------
 # EvidenceQueryService tests
 # ---------------------------------------------------------------------------
@@ -703,7 +709,6 @@ class TestEvidenceQueryService:
         assert len(result.availability_evidence) == 1
         assert len(result.tactical_evidence) == 1
         assert len(result.unresolved_evidence) == 1
-
 
     def test_player_scoped_for_availability_and_tactical(
         self,
@@ -860,6 +865,7 @@ class TestEvidenceQueryService:
 
         assert result.all_citations == []
 
+
 # ---------------------------------------------------------------------------
 # AnalystReportGenerator tests
 # ---------------------------------------------------------------------------
@@ -960,7 +966,6 @@ class TestAnalystReportGenerator:
         assert "Qualitative Assessment" in markdown
         assert "Evidence Cited" in markdown
 
-
     def test_neutral_report_when_no_evidence(
         self,
         db_session: Session,
@@ -1047,4 +1052,3 @@ class TestStaticPredictionProvider:
     def test_get_all_predictions_empty(self):
         provider = StaticPredictionProvider()
         assert provider.get_all_predictions(3) == {}
-

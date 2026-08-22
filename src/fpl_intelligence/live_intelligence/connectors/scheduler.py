@@ -18,6 +18,7 @@ returns a report (ignored here). Tests pass a trivial recording sink, so the
 end-to-end orchestration — fetch -> sink for every connector, error isolation,
 totals — is covered offline with mock connectors.
 """
+
 from __future__ import annotations
 
 import time
@@ -134,10 +135,7 @@ class ConnectorScheduler:
         if connector is None:
             return list(self._connectors.keys())
         if connector not in self._connectors:
-            raise KeyError(
-                f"unknown connector '{connector}'; known: "
-                f"{sorted(self._connectors)}"
-            )
+            raise KeyError(f"unknown connector '{connector}'; known: {sorted(self._connectors)}")
         return [connector]
 
     def run(self, *, connector: str | None = None, dry_run: bool = False) -> SchedulerReport:

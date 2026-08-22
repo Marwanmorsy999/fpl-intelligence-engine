@@ -31,11 +31,12 @@ from fpl_intelligence.data_providers.decision_bridge import (
     FactCollectionService,
     FactOverrideProvider,
 )
+from fpl_intelligence.data_providers.fpl_egress import FplEgressChain
 from fpl_intelligence.data_providers.understat import (
     UnderstatConnector,
     build_stats_from_row,
 )
-from fpl_intelligence.db.models import Player, PlayerExternalId
+from fpl_intelligence.db.models import Player
 from fpl_intelligence.optimization.provider import DecisionPredictionProvider
 from fpl_intelligence.prediction.live_provider import SOURCE_PROXY
 from fpl_intelligence.squad.bridge import DecisionOptimizerBridge
@@ -119,7 +120,7 @@ async def set_squad(
 async def get_squad(
     db: GetDB,
     response: Response,
-    session_id: str | None = Query(None, description="Per-user session key. Required.")
+    session_id: str | None = Query(None, description="Per-user session key. Required."),
 ) -> SquadStateResponse:
     """Retrieve the squad state for a specific session.
 
@@ -184,42 +185,22 @@ def _build_player_details(
 
     # --- batch-fetch xPTS predictions from the provider ----------------------
     try:
-        predictions = provider.get_squad_predictions(
-            list(player_ids), [report.gameweek]
-        )
+        predictions = provider.get_squad_predictions(list(player_ids), [report.gameweek])
     except Exception:  # noqa: BLE001 - xPTS is best-effort, never break the request
         predictions = {}
     gw_preds = predictions.get(report.gameweek, {})
 
     details: dict[str, PlayerDetail] = {}
     for pid in sorted(player_ids):
-        # Resolve the canonical Player row for this id.
-        #
-        # Imported squads (one-click FPL flow) store OFFICIAL FPL ELEMENT ids as
-        # player_ids, so they MUST be joined via ``players.fpl_element_id`` —
-        # never against our internal auto-increment ``id`` (a different
-        # keyspace: element 445 = Haaland used to resolve to whatever internal
-        # row had id == 445, showing the wrong name under the right xPTS).
-        # Demo squads store internal DB ids and take the ``db.get`` path below.
-        player: Player | None = None
-        if not squad.is_demo:
-            player = db.scalar(select(Player).where(Player.fpl_element_id == pid))
-            if player is None:
-                # Legacy fallback for databases seeded before migration 0016:
-                # resolve through the external-id mapping table.
-                for ext_provider in ("official_fpl", "fpl"):
-                    ext = db.scalar(
-                        select(PlayerExternalId).where(
-                            PlayerExternalId.provider == ext_provider,
-                            PlayerExternalId.provider_player_id == str(pid),
-                        )
-                    )
-                    if ext is not None:
-                        player = db.get(Player, ext.player_id)
-                        break
+        # R1: every stored player_id is a canonical FPL element id. Resolve the
+        # Player row by that single key — name, team, position, price all come
+        # from this same row, so a name can never be paired with another
+        # player's price (which was the "Thiaw £15.5m" bug). Demo squads now
+        # also store element ids, so there is exactly one code path here.
+        player: Player | None = db.scalar(select(Player).where(Player.fpl_element_id == pid))
         if player is None:
-            # Demo squads (and manual squads built from GET /api/v1/players ids)
-            # use internal DB ids.
+            # Legacy fallback for rows seeded before the element-id migration:
+            # the stored value is an internal auto-increment id.
             player = db.get(Player, pid)
 
         # --- assemble PlayerDetail ------------------------------------------
@@ -361,9 +342,7 @@ async def get_decisions(
             result = FactCollectionService().collect_overrides()
             applied_overrides = result.overrides
         except Exception as exc:  # noqa: BLE001 - fall back, never fail the request
-            logger.warning(
-                "Live fact collection failed; using baseline predictions. %s", exc
-            )
+            logger.warning("Live fact collection failed; using baseline predictions. %s", exc)
             applied_overrides = []
 
     effective_provider = provider
@@ -374,9 +353,7 @@ async def get_decisions(
     report = bridge.generate_decisions(squad)
     report.meta["live_facts_applied"] = len(applied_overrides)
     report.meta["player_positions"] = squad.player_positions or {}
-    report.meta["live_fact_sources"] = sorted(
-        {o.source.value for o in applied_overrides}
-    )
+    report.meta["live_fact_sources"] = sorted({o.source.value for o in applied_overrides})
 
     # --- chain provenance: which level actually served the numbers ------------
     # ``provider`` is the base quantitative provider (LivePredictionProvider in
@@ -453,12 +430,33 @@ class FromFplRequest(BaseModel):
     )
 
 
+def _build_sync_status(result: Any, entry_id: int) -> str:
+    """Build an honest sync-status line naming the egress mask that won."""
+    strategy = getattr(result, "winning_strategy", None)
+    if strategy:
+        return f"Synced via {strategy} — FPL ID {entry_id} saved."
+    return f"FPL ID {entry_id} saved."
+
+
 @router.post("/squad/from-fpl", response_model=FromFplResponse, status_code=200)
 async def import_squad_from_fpl(
     payload: FromFplRequest, db: GetDB, response: Response
 ) -> FromFplResponse:
-    """One-click import: resolve an FPL Team ID into a saved squad."""
-    importer = FplSquadImporter()
+    """One-click import: resolve an FPL Team ID into a saved squad.
+
+    FPL API traffic is routed through the egress chain (direct → allorigins →
+    corsproxy.io → ``$FPL_PROXY_URL``) so a blocked path falls through instead
+    of 500-ing. Any failure returns HTTP 503 with a sync-payload and a truthful
+    status line (winning mask or "blocked", next retry time) — never a bare 500.
+    On success the sync-status line names the mask that reached FPL.
+    """
+    settings = get_settings()
+    egress = FplEgressChain(
+        settings.fpl_base_url,
+        timeout=settings.egress_strategy_timeout,
+        cache_ttl=settings.egress_cache_ttl,
+    )
+    importer = FplSquadImporter(egress=egress)
     try:
         result = await importer.build_squad_from_entry(payload.entry_id, db)
     except FplEntryNotFound as exc:
@@ -485,7 +483,7 @@ async def import_squad_from_fpl(
             status_code=503,
             detail="FPL API is temporarily down, please try again in 5 minutes.",
         ) from exc
-    except Exception as exc:  # noqa: BLE001 - catch-all for honest failure
+    except Exception as exc:  # noqa: BLE001 - catch-all: never surface a bare 500
         logger.exception("FPL import failed (unexpected): %s", exc)
         try:
             save_pending_sync(db, payload.entry_id)
@@ -493,18 +491,20 @@ async def import_squad_from_fpl(
             logger.warning("save_pending_sync failed: %s", sync_exc)
         raise HTTPException(
             status_code=503,
-            detail=f"FPL import failed (external): {type(exc).__name__}. Your ID is saved — we retry automatically and will Telegram you on success.",
+            detail="FPL import failed (external): contact support if this persists. "
+            "Your ID is saved — we retry automatically and will Telegram you on success.",
         ) from exc
 
     saved = SquadService(session=db).set_squad(result.squad, session_id=str(payload.entry_id))
     # Never cache responses that are specific to a session.
     response.headers["Cache-Control"] = "no-store"
+    sync_status = _build_sync_status(result, entry_id=payload.entry_id)
     return FromFplResponse(
         squad=saved,
         player_names=result.player_names,
         entry_name=result.entry_name,
         gameweek=result.gameweek,
-        sync_status="Synced successfully.",
+        sync_status=sync_status,
     )
 
 
@@ -556,15 +556,23 @@ async def retry_sync(request: Request, db: GetDB, response: Response) -> FromFpl
             status_code=503,
             detail="FPL API is temporarily down, please try again in a few minutes.",
         ) from exc
+    except Exception as exc:  # noqa: BLE001 - never surface a bare 500 on retry
+        logger.exception("Auto-sync retry failed (unexpected): %s", exc)
+        raise HTTPException(
+            status_code=503,
+            detail="FPL API is temporarily down, please try again in a few minutes.",
+        ) from exc
 
     saved = SquadService(session=db).set_squad(result.squad, session_id=session_key)
     # Never cache responses that are specific to a session.
     response.headers["Cache-Control"] = "no-store"
+    sync_status = _build_sync_status(result, entry_id=pending_before.entry_id)
     return FromFplResponse(
         squad=saved,
         player_names=result.player_names,
         entry_name=result.entry_name,
         gameweek=result.gameweek,
+        sync_status=sync_status,
     )
 
 

@@ -14,6 +14,7 @@ ISO-8601 timestamps are also accepted. Items without a parseable date are not
 dropped: they are treated as published "now", which is the honest minimum. Items
 whose ``published_at`` would land in the future (source clock skew) are dropped.
 """
+
 from __future__ import annotations
 
 import time
@@ -116,9 +117,7 @@ class RSSConnector(SourceConnector):
         try:
             root = fromstring(response.text)
         except ParseError as exc:
-            raise SourceParseError(
-                f"invalid RSS XML from {self._feed_url}: {exc}"
-            ) from exc
+            raise SourceParseError(f"invalid RSS XML from {self._feed_url}: {exc}") from exc
 
         items: list[RawItem] = []
         if root is None:

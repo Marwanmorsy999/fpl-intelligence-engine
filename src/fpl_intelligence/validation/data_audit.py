@@ -121,7 +121,8 @@ class DataCoverageReport:
                 f"| {season} | {cov.gameweeks} | {cov.players} | {cov.teams} "
                 f"| {cov.fixtures} | {cov.completed_fixtures} | {cov.postponed_fixtures} "
                 f"| {cov.player_observations} | {cov.team_observations} "
-                f"| {cov.fpl_snapshots} | {self._fmt_rate(cov.player_missing_minutes, cov.player_observations)} "
+                f"| {cov.fpl_snapshots} "
+                f"| {self._fmt_rate(cov.player_missing_minutes, cov.player_observations)} "
                 f"| {self._fmt_rate(cov.player_missing_points, cov.player_observations)} "
                 f"| {self._fmt_rate(cov.snapshot_missing_price, cov.fpl_snapshots)} "
                 f"| {round(cov.temporal_completeness * 100, 1)}% |"
@@ -156,8 +157,6 @@ def audit_data_coverage(
         report.warnings.append("No seasons found in the database.")
         return report
 
-    total_players = 0
-    total_teams = 0
     total_fixtures = 0
     total_player_obs = 0
     total_team_obs = 0
@@ -170,22 +169,22 @@ def audit_data_coverage(
     # Global distinct counts.
     report.total_players = db.scalar(select(func.count()).select_from(Player)) or 0
     report.total_teams = db.scalar(select(func.count()).select_from(Team)) or 0
-    total_players = report.total_players
-    total_teams = report.total_teams
 
     for season in seasons:
         season_id = season.id
         gw_rows = list(
             db.execute(
-                select(Gameweek).where(Gameweek.season_id == season_id).order_by(Gameweek.provider_event_id)
-            ).scalars().all()
+                select(Gameweek)
+                .where(Gameweek.season_id == season_id)
+                .order_by(Gameweek.provider_event_id)
+            )
+            .scalars()
+            .all()
         )
         gw_nums = [gw.provider_event_id for gw in gw_rows if gw.provider_event_id is not None]
 
         fixtures = list(
-            db.execute(
-                select(Fixture).where(Fixture.season_id == season_id)
-            ).scalars().all()
+            db.execute(select(Fixture).where(Fixture.season_id == season_id)).scalars().all()
         )
         completed = [f for f in fixtures if f.status == "completed"]
         postponed = [f for f in fixtures if f.postponed]
@@ -195,31 +194,41 @@ def audit_data_coverage(
                 select(PlayerGameweekPerformance).where(
                     PlayerGameweekPerformance.season_id == season_id
                 )
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )
         team_perfs = list(
             db.execute(
                 select(TeamMatchPerformance)
                 .join(Fixture, TeamMatchPerformance.fixture_id == Fixture.id)
                 .where(Fixture.season_id == season_id)
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )
         snapshots = list(
-            db.execute(
-                select(FPLSnapshot).where(FPLSnapshot.season_id == season_id)
-            ).scalars().all()
+            db.execute(select(FPLSnapshot).where(FPLSnapshot.season_id == season_id))
+            .scalars()
+            .all()
         )
 
-        players_in_season = db.scalar(
-            select(func.count(func.distinct(PlayerGameweekPerformance.player_id))).where(
-                PlayerGameweekPerformance.season_id == season_id
+        players_in_season = (
+            db.scalar(
+                select(func.count(func.distinct(PlayerGameweekPerformance.player_id))).where(
+                    PlayerGameweekPerformance.season_id == season_id
+                )
             )
-        ) or 0
-        teams_in_season = db.scalar(
-            select(func.count(func.distinct(Fixture.home_team_id))).where(
-                Fixture.season_id == season_id
+            or 0
+        )
+        teams_in_season = (
+            db.scalar(
+                select(func.count(func.distinct(Fixture.home_team_id))).where(
+                    Fixture.season_id == season_id
+                )
             )
-        ) or 0
+            or 0
+        )
 
         missing_minutes = sum(1 for p in player_perfs if p.minutes is None)
         missing_points = sum(1 for p in player_perfs if p.total_points is None)
@@ -277,7 +286,9 @@ def audit_data_coverage(
         "player_missing_minutes": _rate(total_missing_minutes, total_player_obs),
         "player_missing_points": _rate(total_missing_points, total_player_obs),
         "snapshot_missing_price": _rate(total_missing_price, total_snapshots),
-        "postponed_fixtures": _rate(report.total_fixtures - len([f for f in [] if True]), report.total_fixtures)
+        "postponed_fixtures": _rate(
+            report.total_fixtures - len([f for f in [] if True]), report.total_fixtures
+        )
         if False
         else _postponed_rate(db),
     }
@@ -295,9 +306,9 @@ def _postponed_rate(db: Session) -> float:
     total = db.scalar(select(func.count()).select_from(Fixture)) or 0
     if total <= 0:
         return 0.0
-    postponed = db.scalar(
-        select(func.count()).select_from(Fixture).where(Fixture.postponed.is_(True))
-    ) or 0
+    postponed = (
+        db.scalar(select(func.count()).select_from(Fixture).where(Fixture.postponed.is_(True))) or 0
+    )
     return round(postponed / total, 4)
 
 
@@ -319,8 +330,10 @@ def _temporal_completeness(
         if gw.deadline_time is None:
             continue
         # Count any pre-deadline performance rows for this Gameweek.
-        stmt = select(func.count()).select_from(PlayerGameweekPerformance).where(
-            PlayerGameweekPerformance.gameweek_id == gw.id
+        stmt = (
+            select(func.count())
+            .select_from(PlayerGameweekPerformance)
+            .where(PlayerGameweekPerformance.gameweek_id == gw.id)
         )
         total_for_gw = db.scalar(stmt) or 0
         if total_for_gw == 0:

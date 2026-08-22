@@ -17,6 +17,7 @@ Findings covered
 7. ``Retry-After: 0`` (and any non-positive value) is treated as absent, and
    backoff is floored at the pacing interval.
 """
+
 from __future__ import annotations
 
 import json

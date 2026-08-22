@@ -152,8 +152,7 @@ class MatchSimulator:
             (int(h), int(a)) for h, a in zip(home_goals, away_goals, strict=True)
         )
         scoreline_dist = {
-            f"{h}-{a}": round(count / n_sims, 6)
-            for (h, a), count in sorted(counter.items())
+            f"{h}-{a}": round(count / n_sims, 6) for (h, a), count in sorted(counter.items())
         }
 
         home_win = int(np.sum(home_goals > away_goals))
@@ -196,7 +195,6 @@ class MatchSimulator:
             seed=seed,
             prediction=prediction,
         )
-
 
 
 @dataclass

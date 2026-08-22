@@ -12,6 +12,7 @@ Vercel's datacenter IPs. These tests prove POST /api/v1/admin/seed-from-file:
 Fully offline: the admin ``SessionLocal`` is redirected to an in-memory SQLite
 database and ``_resolve_seed_path`` is pointed at a temp seed file.
 """
+
 from __future__ import annotations
 
 import json

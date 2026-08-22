@@ -1,8 +1,8 @@
 """Tests for historical data validation logic."""
 
-
 import pytest
 from sqlalchemy import create_engine
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from fpl_intelligence.db.base import Base
@@ -61,7 +61,7 @@ class TestSeasonIntegrity:
         db_session.commit()
 
         # Test season integrity
-        result = validate_season_integrity(db_session, season.id)
+        validate_season_integrity(db_session, season.id)
         # Gameweek references valid season
         # Fixture may have home == away - that's a fixture integrity check
 
@@ -123,7 +123,9 @@ class TestFixtureIntegrity:
 class TestPlayerStatsIntegrity:
     def test_impossible_minutes(self, db_session: Session) -> None:
         season = Season(code="2024-25", display_name="2024/25")
-        player = Player(first_name="Test", second_name="Player", web_name="T. Player", position_code=3)
+        player = Player(
+            first_name="Test", second_name="Player", web_name="T. Player", position_code=3
+        )
         gw = Gameweek(season_id=1, provider_event_id=1, name="Gameweek 1")
         team = Team(name="Team A", short_name="TMA")
         db_session.add_all([season, player, gw, team])
@@ -145,7 +147,9 @@ class TestPlayerStatsIntegrity:
 
     def test_negative_goals(self, db_session: Session) -> None:
         season = Season(code="2024-25", display_name="2024/25")
-        player = Player(first_name="Test", second_name="Player", web_name="T. Player", position_code=3)
+        player = Player(
+            first_name="Test", second_name="Player", web_name="T. Player", position_code=3
+        )
         gw = Gameweek(season_id=1, provider_event_id=1, name="Gameweek 1")
         team = Team(name="Team A", short_name="TMA")
         db_session.add_all([season, player, gw, team])
@@ -171,27 +175,37 @@ class TestDuplicateRecords:
     def test_duplicate_player_gameweek(self, db_session: Session) -> None:
         """Unique constraint prevents duplicate player+gameweek records."""
         season = Season(code="2024-25", display_name="2024/25")
-        player = Player(first_name="Test", second_name="Player", web_name="T. Player", position_code=3)
+        player = Player(
+            first_name="Test", second_name="Player", web_name="T. Player", position_code=3
+        )
         gw = Gameweek(season_id=1, provider_event_id=1, name="Gameweek 1")
         team = Team(name="Team A", short_name="TMA")
         db_session.add_all([season, player, gw, team])
         db_session.flush()
 
         # Add first record
-        db_session.add(PlayerGameweekPerformance(
-            player_id=player.id, gameweek_id=gw.id,
-            season_id=season.id, team_id=team.id,
-            minutes=90,
-        ))
+        db_session.add(
+            PlayerGameweekPerformance(
+                player_id=player.id,
+                gameweek_id=gw.id,
+                season_id=season.id,
+                team_id=team.id,
+                minutes=90,
+            )
+        )
         db_session.commit()
 
         # Adding a second record with same player+gameweek should fail
-        db_session.add(PlayerGameweekPerformance(
-            player_id=player.id, gameweek_id=gw.id,
-            season_id=season.id, team_id=team.id,
-            minutes=45,
-        ))
-        with pytest.raises(Exception):
+        db_session.add(
+            PlayerGameweekPerformance(
+                player_id=player.id,
+                gameweek_id=gw.id,
+                season_id=season.id,
+                team_id=team.id,
+                minutes=45,
+            )
+        )
+        with pytest.raises(IntegrityError):
             db_session.commit()
         db_session.rollback()
 
@@ -200,19 +214,29 @@ class TestDuplicateRecords:
         assert count == 1
 
     def test_duplicate_external_ids(self, db_session: Session) -> None:
-        player = Player(first_name="Test", second_name="Player", web_name="T. Player", position_code=3)
+        player = Player(
+            first_name="Test", second_name="Player", web_name="T. Player", position_code=3
+        )
         db_session.add(player)
         db_session.flush()
 
         # Add two external IDs with same provider+id
-        db_session.add(PlayerExternalId(player_id=player.id, provider="fpl", provider_player_id="100"))
+        db_session.add(
+            PlayerExternalId(player_id=player.id, provider="fpl", provider_player_id="100")
+        )
         db_session.flush()
         # SQLite will allow this if no unique constraint, but the validation should catch it
         try:
-            db_session.add(PlayerExternalId(player_id=player.id + 1 if player.id else 1, provider="fpl", provider_player_id="100"))
+            db_session.add(
+                PlayerExternalId(
+                    player_id=player.id + 1 if player.id else 1,
+                    provider="fpl",
+                    provider_player_id="100",
+                )
+            )
             db_session.commit()
         except Exception:
             db_session.rollback()
 
-        result = validate_no_duplicate_records(db_session)
+        validate_no_duplicate_records(db_session)
         # The validation runs, we just check it doesn't crash

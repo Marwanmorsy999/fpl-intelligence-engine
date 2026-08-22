@@ -21,6 +21,7 @@ Fact plumbing:
   applies overrides without mutating any Phase 1–8 model.
 * :class:`FactCollectionService` — wires connectors + injector together.
 """
+
 from __future__ import annotations
 
 from fpl_intelligence.data_providers.api_football import (

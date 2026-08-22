@@ -25,6 +25,7 @@ Design rules
   id, prompt hash and whether it was a mock. An evidence row whose extraction
   run is ``is_mock`` can never be reported as real validation evidence.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -211,9 +212,7 @@ class LiveIntelligenceSource(Base):
         back_populates="source", cascade="all, delete-orphan"
     )
 
-    __table_args__ = (
-        Index("ix_live_sources_type_env", "source_type", "environment"),
-    )
+    __table_args__ = (Index("ix_live_sources_type_env", "source_type", "environment"),)
 
 
 # ---------------------------------------------------------------------------
@@ -383,9 +382,7 @@ class LLMExtractionRun(Base):
         back_populates="extraction_run"
     )
 
-    __table_args__ = (
-        Index("ix_extraction_runs_status_mock", "status", "is_mock"),
-    )
+    __table_args__ = (Index("ix_extraction_runs_status_mock", "status", "is_mock"),)
 
 
 # ---------------------------------------------------------------------------

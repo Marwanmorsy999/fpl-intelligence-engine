@@ -4,6 +4,7 @@ Derives the current availability state for a player-gameweek at query time from
 accumulated :class:`AvailabilityEvent` records. States are computed on-demand
 and cached; historical events are never overwritten.
 """
+
 from __future__ import annotations
 
 from sqlalchemy import select
@@ -111,9 +112,7 @@ def get_state_with_confidence(
     )
 
 
-def state_to_adjustment(
-    status: str, confidence: float
-) -> dict[str, float]:
+def state_to_adjustment(status: str, confidence: float) -> dict[str, float]:
     """Convert an availability state into model-adjustment factors.
 
     Returns a dict with keys: start_probability, minutes_factor, confidence.

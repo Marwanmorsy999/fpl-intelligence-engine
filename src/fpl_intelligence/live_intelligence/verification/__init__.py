@@ -21,6 +21,7 @@ stack, it makes **no** live API calls inside ``pytest`` (connectors inject
 ``httpx.MockTransport``), it hardcodes no API keys, and it performs no
 aggressive scraping.
 """
+
 from __future__ import annotations
 
 from fpl_intelligence.live_intelligence.verification.live_verification import (

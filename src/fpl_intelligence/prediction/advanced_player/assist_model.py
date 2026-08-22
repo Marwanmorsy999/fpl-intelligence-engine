@@ -87,11 +87,10 @@ class AssistModel:
 
         if xa_used and xa > 0:
             xa_per_90 = xa / max(1.0, expected_minutes / 90.0)
-            base = (assists_per_90 * 0.4 + xa_per_90 * 0.6)
+            base = assists_per_90 * 0.4 + xa_per_90 * 0.6
             lambda_val = base * fixture_factor * minutes_factor * key_pass_factor
         else:
-            lambda_val = (assists_per_90 * fixture_factor * minutes_factor
-                          * key_pass_factor)
+            lambda_val = assists_per_90 * fixture_factor * minutes_factor * key_pass_factor
 
         lambda_val = max(0.01, min(3.0, lambda_val))
 

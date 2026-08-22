@@ -4,6 +4,7 @@ Exercises the resilience layer (retry with exponential backoff, circuit breaker,
 recovery manager with dead-lettering) with fully mocked clocks and sleep so no
 wall-clock delay or network call ever happens inside ``pytest``.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -308,9 +309,7 @@ def test_recording_dead_letter_sink_captures() -> None:
 
 def test_recovery_manager_recovers_while_other_stage_continues() -> None:
     """A failed operation must not abort the recovery manager for later ops."""
-    mgr = RecoveryManager(
-        retry_policy=RetryPolicy(max_attempts=1, sleep=_recording_sleep())
-    )
+    mgr = RecoveryManager(retry_policy=RetryPolicy(max_attempts=1, sleep=_recording_sleep()))
     with pytest.raises(RuntimeError):
         mgr.execute("bad", lambda: (_ for _ in ()).throw(RuntimeError("x")))
     good = mgr.execute("good", lambda: 7)

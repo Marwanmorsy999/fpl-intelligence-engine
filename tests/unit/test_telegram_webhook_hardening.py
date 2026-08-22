@@ -13,6 +13,7 @@ Two live defects are locked down here:
 Everything here runs offline: no Telegram client is built and no request leaves
 the process.
 """
+
 from __future__ import annotations
 
 import logging
@@ -54,9 +55,7 @@ def test_wrong_secret_is_rejected_without_a_server_error(
 ) -> None:
     monkeypatch.setenv("TELEGRAM_WEBHOOK_SECRET", "the-real-secret")
 
-    resp = client.post(
-        "/api/v1/telegram/webhook?secret=deliberately-invalid", json=VALID_UPDATE
-    )
+    resp = client.post("/api/v1/telegram/webhook?secret=deliberately-invalid", json=VALID_UPDATE)
 
     assert resp.status_code == 200, f"expected a clean rejection, got {resp.text}"
     assert resp.json() == {"ok": False, "error": "secret mismatch"}

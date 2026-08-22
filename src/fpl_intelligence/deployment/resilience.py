@@ -22,6 +22,7 @@ additive: it does not modify the quantitative Phases 1–8 stack, and it hardcod
 no credentials or thresholds beyond safe defaults (overridable via the
 production configuration).
 """
+
 from __future__ import annotations
 
 import logging
@@ -133,6 +134,8 @@ def retry(op: Callable[[], Any], policy: RetryPolicy) -> RetryOutcome:
         error=last_error,
         elapsed_seconds=policy.clock() - start,
     )
+
+
 class CircuitState(StrEnum):
     """Lifecycle of a circuit breaker."""
 
@@ -254,6 +257,8 @@ class CircuitBreaker:
             "consecutive_failures": self._consecutive_failures,
             "stats": self.stats,
         }
+
+
 @dataclass
 class RecoveryEntry:
     """What happened to one operation in the recovery pipeline."""

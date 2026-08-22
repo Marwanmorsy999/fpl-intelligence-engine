@@ -48,6 +48,7 @@ RULES_2026_27: dict[str, Any] = {
     },
 }
 
+
 @dataclass
 class FPLRules:
     """FPL Rules configuration object."""
@@ -98,7 +99,7 @@ class FPLRules:
     @property
     def max_rolled_transfers(self) -> int:
         return int(self.rules.get("max_rolled_transfers", 5))
-        
+
     @property
     def is_half_season_chips(self) -> bool:
         """Returns True if the 2026/27 chip rules apply (1 set per half)."""
@@ -108,7 +109,7 @@ class FPLRules:
         chips = self.rules.get("chips", {})
         chip_info = chips.get(chip_name, {})
         return int(chip_info.get("count", 0))
-        
+
     def get_half_season(self, gameweek: int) -> int:
         """Returns 1 for GW 1-19, 2 for GW 20-38."""
         return 1 if gameweek <= 19 else 2

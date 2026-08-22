@@ -87,10 +87,7 @@ class TestSquadService:
 
 
 def _pos_map() -> dict[int, int]:
-    return {
-        i: (1 if i <= 2 else (2 if i <= 7 else (3 if i <= 12 else 4)))
-        for i in range(1, 16)
-    }
+    return {i: (1 if i <= 2 else (2 if i <= 7 else (3 if i <= 12 else 4))) for i in range(1, 16)}
 
 
 class TestDecisionOptimizerBridge:
@@ -198,10 +195,7 @@ class TestDecisionOptimizerBridge:
             player_positions=positions,
         )
         report = bridge.generate_decisions(squad)
-        assert (
-            report.chip_recommendation is None
-            or report.chip_recommendation.chip_name is None
-        )
+        assert report.chip_recommendation is None or report.chip_recommendation.chip_name is None
 
 
 # ---------------------------------------------------------------------------
@@ -343,9 +337,7 @@ class TestSquadAPI:
         resp = client.get("/api/v1/decisions", params={"session_id": "user_b"})
         assert resp.status_code == 404
 
-    def test_post_squad_with_positions_generates_full_report(
-        self, client: TestClient
-    ) -> None:
+    def test_post_squad_with_positions_generates_full_report(self, client: TestClient) -> None:
         positions = _pos_map()
         prices = {i: 5.0 for i in range(1, 16)}
         teams = {i: (1 if i <= 5 else 2) for i in range(1, 16)}

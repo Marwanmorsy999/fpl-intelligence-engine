@@ -19,6 +19,7 @@ Usage in the engine:
 Implied-probability conversion: ``p = 1 / decimal_odds``, normalised over the
 2-way (h2h) book so probabilities sum to 1.0 (overround removed).
 """
+
 from __future__ import annotations
 
 import logging

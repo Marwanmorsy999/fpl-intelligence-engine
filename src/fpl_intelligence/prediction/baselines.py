@@ -125,7 +125,8 @@ class RecentFormBaselineModel(PredictionModel):
 
     def _completeness(self, features: dict[str, float]) -> float:
         present = sum(
-            1 for key in ("points_last_3", "points_last_5", "points_last_10")
+            1
+            for key in ("points_last_3", "points_last_5", "points_last_10")
             if features.get(key, 0) > 0 or key in features
         )
         return present / 3.0
@@ -386,4 +387,3 @@ BASELINE_MODELS = {
     "baseline_b": MinutesAdjustedBaselineModel,
     "baseline_c": FixtureAdjustedBaselineModel,
 }
-

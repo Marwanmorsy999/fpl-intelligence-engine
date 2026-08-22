@@ -23,6 +23,7 @@ it makes **no** live API calls inside ``pytest`` (Slack HTTP is mocked with
 ``httpx.MockTransport``; Email SMTP is an injected fake), and it hardcodes no
 credentials.
 """
+
 from __future__ import annotations
 
 import logging
@@ -152,9 +153,7 @@ class LogNotifier(Notifier):
 
     name = "log"
 
-    def __init__(
-        self, *, logger: logging.Logger | None = None, clock: Clock = utc_now
-    ) -> None:
+    def __init__(self, *, logger: logging.Logger | None = None, clock: Clock = utc_now) -> None:
         self._logger = logger or logging.getLogger("fpl_intelligence.notifications")
         self._clock = clock
 
@@ -333,9 +332,7 @@ class NotificationService:
         if not self._notifiers:
             raise ValueError("at least one notifier is required")
         self._clock = clock
-        self._rate = RateLimiter(
-            min_interval_seconds, clock=monotonic_clock, sleep=sleep
-        )
+        self._rate = RateLimiter(min_interval_seconds, clock=monotonic_clock, sleep=sleep)
         self._max_alerts_per_batch = int(max_alerts_per_batch)
 
     @property
@@ -352,7 +349,8 @@ class NotificationService:
         return self.send_alerts([alert])
 
     def send_alerts(
-        self, alerts: Iterable[Alert],
+        self,
+        alerts: Iterable[Alert],
     ) -> NotificationDispatchReport:
         """Dispatch a batch of alerts to every channel.
 

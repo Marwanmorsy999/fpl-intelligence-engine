@@ -27,6 +27,7 @@ This module is additive: it does not modify the quantitative Phases 1–8 stack,
 it makes **no** live API calls inside ``pytest`` (connectors inject mocked HTTP
 transports), and it hardcodes no keys.
 """
+
 from __future__ import annotations
 
 import time
@@ -122,13 +123,9 @@ class Scheduler:
         self._alert_generator = alert_generator
         self._notification_service = notification_service
         self._sleep = sleep
-        self._rate = RateLimiter(
-            min_interval_seconds, clock=monotonic_clock, sleep=sleep
-        )
+        self._rate = RateLimiter(min_interval_seconds, clock=monotonic_clock, sleep=sleep)
         self._buffer: list[RawItem] = []
-        self._connector_scheduler = ConnectorScheduler(
-            connectors, self._sink, sleep=sleep
-        )
+        self._connector_scheduler = ConnectorScheduler(connectors, self._sink, sleep=sleep)
 
     @property
     def connectors(self) -> Mapping[str, SourceConnector]:
@@ -139,9 +136,7 @@ class Scheduler:
         """Expose pacing so callers/tests can inspect the rate-limit stats."""
         return self._rate
 
-    def _sink(
-        self, raw: RawItem, *, connector: SourceConnector, dry_run: bool
-    ) -> Any:
+    def _sink(self, raw: RawItem, *, connector: SourceConnector, dry_run: bool) -> Any:
         report = self._ingest(raw, connector=connector, dry_run=dry_run)
         self._buffer.append(raw)
         return report
@@ -164,9 +159,7 @@ class Scheduler:
         """
         self._rate.acquire()
         self._buffer.clear()
-        connector_report = self._connector_scheduler.run(
-            connector=connector, dry_run=dry_run
-        )
+        connector_report = self._connector_scheduler.run(connector=connector, dry_run=dry_run)
         ingested_items = list(self._buffer)
         report = SchedulerRunReport(
             connector_report=connector_report,
@@ -183,9 +176,7 @@ class Scheduler:
 
         if notify and self._notification_service is not None and report.alerts:
             try:
-                report.notifications = self._notification_service.send_alerts(
-                    report.alerts
-                )
+                report.notifications = self._notification_service.send_alerts(report.alerts)
             except Exception as exc:  # noqa: BLE001 - never abort the pass
                 report.errors.append(f"notification dispatch failed: {exc}")
 

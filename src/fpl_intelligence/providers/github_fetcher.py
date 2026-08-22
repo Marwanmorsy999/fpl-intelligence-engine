@@ -21,9 +21,10 @@ import io
 import json
 import logging
 import time
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 import httpx
 
@@ -33,7 +34,7 @@ DEFAULT_RAW_ROOT = Path(__file__).resolve().parents[3] / "data" / "raw"
 
 # Polite low request rate to avoid hammering the source (no fragile scraping).
 DEFAULT_USER_AGENT = (
-    "fpl-intelligence-engine/0.1 (reproducible historical-data import; " "educational/research use)"
+    "fpl-intelligence-engine/0.1 (reproducible historical-data import; educational/research use)"
 )
 DEFAULT_DELAY_SECONDS = 0.35
 
@@ -93,11 +94,8 @@ class DiskCachingFetcher:
         target = self.raw_path(provider, season, dataset, filename)
         if target.exists() and target.stat().st_size > 0:
             return target
-        if dataset == "manifest":
-            # manifest carries the retrieval metadata and is written below
-            body = self._fetch_text(url)
-        else:
-            body = self._fetch_text(url)
+        # manifest carries the retrieval metadata and is written below
+        body = self._fetch_text(url)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(body, encoding="utf-8")
         return target

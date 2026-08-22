@@ -28,6 +28,7 @@ Escape hatches for tests
   asserting on malformed JSON, schema violations or hallucinated quotes.
 * ``rules``: replace the default keyword rules entirely.
 """
+
 from __future__ import annotations
 
 import json
@@ -71,7 +72,6 @@ def _keyword_match(keyword: str, text: str) -> bool:
     return bool(_keyword_pattern(keyword).search(text))
 
 
-
 @dataclass(frozen=True)
 class KeywordRule:
     """Maps a keyword to a deterministic piece of extracted evidence.
@@ -94,93 +94,157 @@ class KeywordRule:
 DEFAULT_RULES: tuple[KeywordRule, ...] = (
     # -- availability --
     KeywordRule(
-        "ruled out", "availability", EvidenceType.INJURY,
-        AvailabilityStatus.OUT, confidence=0.9,
+        "ruled out",
+        "availability",
+        EvidenceType.INJURY,
+        AvailabilityStatus.OUT,
+        confidence=0.9,
     ),
     KeywordRule(
-        "out for", "availability", EvidenceType.INJURY,
-        AvailabilityStatus.OUT, confidence=0.85,
+        "out for",
+        "availability",
+        EvidenceType.INJURY,
+        AvailabilityStatus.OUT,
+        confidence=0.85,
     ),
     KeywordRule(
-        "injured", "availability", EvidenceType.INJURY,
-        AvailabilityStatus.OUT, confidence=0.8,
+        "injured",
+        "availability",
+        EvidenceType.INJURY,
+        AvailabilityStatus.OUT,
+        confidence=0.8,
     ),
     KeywordRule(
-        "suspended", "availability", EvidenceType.SUSPENSION,
-        AvailabilityStatus.SUSPENDED, confidence=0.9,
+        "suspended",
+        "availability",
+        EvidenceType.SUSPENSION,
+        AvailabilityStatus.SUSPENDED,
+        confidence=0.9,
     ),
     KeywordRule(
-        "doubt", "availability", EvidenceType.FITNESS,
-        AvailabilityStatus.DOUBTFUL, confidence=0.7,
+        "doubt",
+        "availability",
+        EvidenceType.FITNESS,
+        AvailabilityStatus.DOUBTFUL,
+        confidence=0.7,
     ),
     KeywordRule(
-        "touch and go", "availability", EvidenceType.FITNESS,
-        AvailabilityStatus.QUESTIONABLE, confidence=0.6,
+        "touch and go",
+        "availability",
+        EvidenceType.FITNESS,
+        AvailabilityStatus.QUESTIONABLE,
+        confidence=0.6,
     ),
     KeywordRule(
-        "back in training", "availability", EvidenceType.TRAINING,
-        AvailabilityStatus.SUSPECT, confidence=0.75,
+        "back in training",
+        "availability",
+        EvidenceType.TRAINING,
+        AvailabilityStatus.SUSPECT,
+        confidence=0.75,
     ),
     KeywordRule(
-        "trained fully", "availability", EvidenceType.TRAINING,
-        AvailabilityStatus.START, confidence=0.8,
+        "trained fully",
+        "availability",
+        EvidenceType.TRAINING,
+        AvailabilityStatus.START,
+        confidence=0.8,
     ),
     KeywordRule(
-        "will start", "availability", EvidenceType.LINEUP_HINT,
-        AvailabilityStatus.START, confidence=0.85,
+        "will start",
+        "availability",
+        EvidenceType.LINEUP_HINT,
+        AvailabilityStatus.START,
+        confidence=0.85,
     ),
     KeywordRule(
-        "on the bench", "availability", EvidenceType.LINEUP_HINT,
-        AvailabilityStatus.BENCH, confidence=0.7,
+        "on the bench",
+        "availability",
+        EvidenceType.LINEUP_HINT,
+        AvailabilityStatus.BENCH,
+        confidence=0.7,
     ),
     KeywordRule(
-        "unavailable", "availability", EvidenceType.FITNESS,
-        AvailabilityStatus.DOUBTFUL, confidence=0.75,
+        "unavailable",
+        "availability",
+        EvidenceType.FITNESS,
+        AvailabilityStatus.DOUBTFUL,
+        confidence=0.75,
     ),
     KeywordRule(
-        "unavailable", "availability", EvidenceType.FITNESS,
-        AvailabilityStatus.DOUBTFUL, confidence=0.75,
+        "unavailable",
+        "availability",
+        EvidenceType.FITNESS,
+        AvailabilityStatus.DOUBTFUL,
+        confidence=0.75,
     ),
     KeywordRule(
-        "available", "availability", EvidenceType.FITNESS,
-        AvailabilityStatus.AVAILABLE, confidence=0.7,
+        "available",
+        "availability",
+        EvidenceType.FITNESS,
+        AvailabilityStatus.AVAILABLE,
+        confidence=0.7,
     ),
     # -- tactical --
     KeywordRule(
-        "formation", "tactical", TacticalEvidenceType.FORMATION,
-        value_from_sentence=True, confidence=0.7,
+        "formation",
+        "tactical",
+        TacticalEvidenceType.FORMATION,
+        value_from_sentence=True,
+        confidence=0.7,
     ),
     KeywordRule(
-        "penalties", "tactical", TacticalEvidenceType.SET_PIECE_PENALTIES,
-        direction=TacticalDirection.POSITIVE, confidence=0.8,
+        "penalties",
+        "tactical",
+        TacticalEvidenceType.SET_PIECE_PENALTIES,
+        direction=TacticalDirection.POSITIVE,
+        confidence=0.8,
     ),
     KeywordRule(
-        "free kicks", "tactical", TacticalEvidenceType.SET_PIECE_FREEKICKS,
-        direction=TacticalDirection.POSITIVE, confidence=0.75,
+        "free kicks",
+        "tactical",
+        TacticalEvidenceType.SET_PIECE_FREEKICKS,
+        direction=TacticalDirection.POSITIVE,
+        confidence=0.75,
     ),
     KeywordRule(
-        "corners", "tactical", TacticalEvidenceType.SET_PIECE_CORNERS,
-        direction=TacticalDirection.POSITIVE, confidence=0.75,
+        "corners",
+        "tactical",
+        TacticalEvidenceType.SET_PIECE_CORNERS,
+        direction=TacticalDirection.POSITIVE,
+        confidence=0.75,
     ),
     KeywordRule(
-        "rotate", "tactical", TacticalEvidenceType.ROTATION_TENDENCY,
-        direction=TacticalDirection.NEGATIVE, confidence=0.65,
+        "rotate",
+        "tactical",
+        TacticalEvidenceType.ROTATION_TENDENCY,
+        direction=TacticalDirection.NEGATIVE,
+        confidence=0.65,
     ),
     KeywordRule(
-        "rested", "tactical", TacticalEvidenceType.ROTATION_TENDENCY,
-        direction=TacticalDirection.NEGATIVE, confidence=0.7,
+        "rested",
+        "tactical",
+        TacticalEvidenceType.ROTATION_TENDENCY,
+        direction=TacticalDirection.NEGATIVE,
+        confidence=0.7,
     ),
     KeywordRule(
-        "new role", "tactical", TacticalEvidenceType.ROLE_CHANGE,
-        direction=TacticalDirection.UNKNOWN, confidence=0.6,
-    ),
-    KeywordRule(
-        "play him further forward", "tactical",
+        "new role",
+        "tactical",
         TacticalEvidenceType.ROLE_CHANGE,
-        direction=TacticalDirection.POSITIVE, confidence=0.7,
+        direction=TacticalDirection.UNKNOWN,
+        confidence=0.6,
     ),
     KeywordRule(
-        "new manager", "tactical", TacticalEvidenceType.MANAGER_CHANGE,
+        "play him further forward",
+        "tactical",
+        TacticalEvidenceType.ROLE_CHANGE,
+        direction=TacticalDirection.POSITIVE,
+        confidence=0.7,
+    ),
+    KeywordRule(
+        "new manager",
+        "tactical",
+        TacticalEvidenceType.MANAGER_CHANGE,
         confidence=0.85,
     ),
 )

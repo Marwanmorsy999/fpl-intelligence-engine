@@ -23,6 +23,7 @@ Graceful degradation is built in: :meth:`LiveFactInjector.inject_from_connectors
 calls each connector inside its own try/except, so a failing or disabled source
 simply contributes no facts instead of aborting the whole pipeline.
 """
+
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -76,9 +77,10 @@ class LiveFactInjector:
 
         def add(override: FactOverride) -> None:
             existing = by_id.get(override.player_id)
-            if existing is None or _SOURCE_PRIORITY[override.source] >= _SOURCE_PRIORITY[
-                existing.source
-            ]:
+            if (
+                existing is None
+                or _SOURCE_PRIORITY[override.source] >= _SOURCE_PRIORITY[existing.source]
+            ):
                 by_id[override.player_id] = override
 
         for fact in fpl_facts or []:
@@ -126,11 +128,16 @@ class LiveFactInjector:
         if "suspended" in news:
             status = "suspended"
             parts.append("FPL news contains 'suspended'")
-        elif fact.status and not start and fact.status in (
-            "injured",
-            "doubtful",
-            "unavailable",
-            "out",
+        elif (
+            fact.status
+            and not start
+            and fact.status
+            in (
+                "injured",
+                "doubtful",
+                "unavailable",
+                "out",
+            )
         ):
             status = fact.status
             parts.append(f"FPL status={fact.status}")
@@ -254,6 +261,4 @@ class LiveFactInjector:
 
         overrides = self.build_overrides(fpl_facts, af_facts, fd_facts)
         by_player = {o.player_id: o for o in overrides}
-        return LiveFactResult(
-            overrides=overrides, by_player=by_player, diagnostics=diagnostics
-        )
+        return LiveFactResult(overrides=overrides, by_player=by_player, diagnostics=diagnostics)

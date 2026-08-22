@@ -7,6 +7,7 @@ outcomes. When a metric cannot be computed from the available historical data
 it is reported as ``None`` (rendered ``NOT_AVAILABLE``), never as ``0.0``.
 Zero is reserved for a genuine zero-valued metric.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -33,6 +34,7 @@ class Phase7EvaluationResult:
     Availability and prediction metrics are real computed values or ``None``
     (== NOT_AVAILABLE). They are never ``0.0`` placeholders.
     """
+
     season: str
     baseline_total_points: float
     phase7_total_points: float
@@ -82,19 +84,23 @@ def _compute_prediction_metrics(
         )
     )
     if gw is None:
-        return {"availability": availability_metrics([], [], [], []),
-                "prediction": prediction_metrics([], [])}
+        return {
+            "availability": availability_metrics([], [], [], []),
+            "prediction": prediction_metrics([], []),
+        }
 
     actuals = list(
         db.execute(
-            select(PlayerGameweekPerformance).where(
-                PlayerGameweekPerformance.gameweek_id == gw.id
-            )
-        ).scalars().all()
+            select(PlayerGameweekPerformance).where(PlayerGameweekPerformance.gameweek_id == gw.id)
+        )
+        .scalars()
+        .all()
     )
     if not actuals:
-        return {"availability": availability_metrics([], [], [], []),
-                "prediction": prediction_metrics([], [])}
+        return {
+            "availability": availability_metrics([], [], [], []),
+            "prediction": prediction_metrics([], []),
+        }
 
     start_prob: list[float] = []
     started: list[float] = []
@@ -141,6 +147,7 @@ def evaluate_phase7(
             SeasonSplit,
             enforce_holdout,
         )
+
         split = SeasonSplit(
             development_seasons=seasons_split.get("development", []),
             final_holdout_seasons=seasons_split.get("holdout", []),
@@ -158,29 +165,40 @@ def evaluate_phase7(
     base_preds = baseline_provider.get_all_predictions(1)
     ordered = sorted(
         base_preds.items(),
-        key=lambda kv: kv[1].expected_points, reverse=True,
+        key=lambda kv: kv[1].expected_points,
+        reverse=True,
     )
     players = [pid for pid, _ in ordered[:15]]
 
     def _squad() -> SquadState:
         return SquadState(
-            manager_id=1, season=season, gameweek=1, squad_players=players,
-            starting_xi=players[:11], bench_order=players[11:15],
-            captain=players[0], vice_captain=players[1],
-            bank=0.0, team_value=100.0,
-            free_transfers=1, rolled_transfers=0, transfer_hits=0,
+            manager_id=1,
+            season=season,
+            gameweek=1,
+            squad_players=players,
+            starting_xi=players[:11],
+            bench_order=players[11:15],
+            captain=players[0],
+            vice_captain=players[1],
+            bank=0.0,
+            team_value=100.0,
+            free_transfers=1,
+            rolled_transfers=0,
+            transfer_hits=0,
         )
 
-    baseline_result = DecisionBacktester(
-        baseline_provider, db
-    ).backtest_strategy(
-        "baseline", 1, 38, _squad(),
+    baseline_result = DecisionBacktester(baseline_provider, db).backtest_strategy(
+        "baseline",
+        1,
+        38,
+        _squad(),
         objective=DecisionObjective.MAXIMIZE_GW_POINTS,
     )
-    phase7_result = DecisionBacktester(
-        phase7_provider, db
-    ).backtest_strategy(
-        "phase7", 1, 38, _squad(),
+    phase7_result = DecisionBacktester(phase7_provider, db).backtest_strategy(
+        "phase7",
+        1,
+        38,
+        _squad(),
         objective=DecisionObjective.MAXIMIZE_GW_POINTS,
     )
     b_total = float(baseline_result.get("total_points", 0.0))
@@ -189,12 +207,9 @@ def evaluate_phase7(
     p_gw = float(phase7_result.get("gw_average", 0.0))
     b_trans = int(baseline_result.get("transfer_events", 0))
     p_trans = int(phase7_result.get("transfer_events", 0))
-    improvement = (
-        ((p_total - b_total) / b_total * 100.0) if b_total > 0 else 0.0
-    )
+    improvement = ((p_total - b_total) / b_total * 100.0) if b_total > 0 else 0.0
     captain_delta = float(
-        phase7_result.get("captain_points", 0.0)
-        - baseline_result.get("captain_points", 0.0)
+        phase7_result.get("captain_points", 0.0) - baseline_result.get("captain_points", 0.0)
     )
 
     # Real availability + prediction metrics for the Phase 7 provider.

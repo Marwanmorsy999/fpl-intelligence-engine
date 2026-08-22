@@ -17,6 +17,7 @@ layout, so the function bundle must ship ``src/**`` and ``api/index.py`` must
 put it on ``sys.path``. Both halves are asserted here; the runtime half is
 exercised end-to-end in ``test_vercel_runtime_import.py``.
 """
+
 from __future__ import annotations
 
 import json
@@ -252,8 +253,7 @@ def test_deployment_artifacts_contain_no_secrets(artifact: Path) -> None:
     text = path.read_text(encoding="utf-8")
     for pattern in SECRET_PATTERNS:
         assert not pattern.search(text), (
-            f"{path.name} appears to contain a hardcoded credential "
-            f"matching {pattern.pattern!r}"
+            f"{path.name} appears to contain a hardcoded credential matching {pattern.pattern!r}"
         )
 
 

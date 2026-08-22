@@ -11,6 +11,7 @@ Nothing here imports the Phase 1–8 model internals: a :class:`FactOverride` is
 pure data the :class:`~fpl_intelligence.data_providers.decision_bridge.FactOverrideProvider`
 consumes without mutating any upstream model.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

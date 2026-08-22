@@ -14,6 +14,7 @@ The runner consumes the Phase 9.5/9.6 (ingestion/scheduling), Phase 9.7
 (verification) and the new Phase 9.8 deployment stack read-only. It does **not**
 modify the quantitative Phases 1–8 stack and hardcodes no credentials.
 """
+
 from __future__ import annotations
 
 import logging
@@ -95,6 +96,8 @@ class DeploymentReport:
                 else None
             ),
         }
+
+
 class DeploymentRunner:
     """Run one deployment pass with injectable infrastructure.
 
@@ -144,9 +147,7 @@ class DeploymentRunner:
         try:
             config = self.config
         except ProductionConfigError as exc:
-            checks.append(
-                ReadinessCheck("config_load", False, f"{type(exc).__name__}: {exc}")
-            )
+            checks.append(ReadinessCheck("config_load", False, f"{type(exc).__name__}: {exc}"))
             return ReadinessReport(checks)
         checks.append(ReadinessCheck("config_load", True, f"loaded {self._config_path}"))
 

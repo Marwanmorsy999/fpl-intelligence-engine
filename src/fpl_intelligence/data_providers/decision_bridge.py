@@ -18,6 +18,7 @@ The FastAPI ``GET /api/v1/decisions`` endpoint uses these: when live facts are
 requested it calls :meth:`FactCollectionService.collect_overrides`, wraps the
 provider, and otherwise falls back to the baseline provider unchanged.
 """
+
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -116,9 +117,7 @@ class FactOverrideProvider(DecisionPredictionProvider):
         base = self._base.get_squad_predictions(squad_players, gameweeks)
         out: dict[int, dict[int, PlayerPrediction]] = {}
         for gw, by_player in base.items():
-            out[gw] = {
-                pid: self.get_player_prediction(pid, gw) for pid in by_player
-            }
+            out[gw] = {pid: self.get_player_prediction(pid, gw) for pid in by_player}
         return out
 
     def get_all_predictions(self, gameweek: int) -> dict[int, PlayerPrediction]:
@@ -148,14 +147,10 @@ class FactCollectionService:
         self._fd = football_data_connector
 
     def _build_fpl(self) -> FplOfficialConnector:
-        return self._fpl or FplOfficialConnector(
-            cache=self._cache, http_client=self._http_client
-        )
+        return self._fpl or FplOfficialConnector(cache=self._cache, http_client=self._http_client)
 
     def _build_api_football(self) -> ApiFootballConnector:
-        return self._api or ApiFootballConnector(
-            cache=self._cache, http_client=self._http_client
-        )
+        return self._api or ApiFootballConnector(cache=self._cache, http_client=self._http_client)
 
     def _build_football_data(self) -> FootballDataOrgConnector:
         return self._fd or FootballDataOrgConnector(

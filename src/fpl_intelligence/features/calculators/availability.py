@@ -111,7 +111,9 @@ class PlayerAvailabilityCalculator(BaseFeatureCalculator):
         if snapshots:
             latest = max(snapshots, key=lambda s: s.event_time)
             value["inferred_from_snapshots"] = True
-            value["latest_snapshot_time"] = latest.event_time.isoformat() if latest.event_time else None
+            value["latest_snapshot_time"] = (
+                latest.event_time.isoformat() if latest.event_time else None
+            )
             # We cannot infer injury status from FPL snapshots alone
             # This would require a dedicated injury data source
 

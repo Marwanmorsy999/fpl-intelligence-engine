@@ -17,6 +17,7 @@ once at construction. Every other layer treats a disabled connector as
 All network access is cache-first and testable via an injected
 ``httpx.MockTransport``; no live call is ever made inside ``pytest``.
 """
+
 from __future__ import annotations
 
 import logging
@@ -87,11 +88,7 @@ def parse_lineups(
         if not isinstance(team, dict):
             continue
         team_id = team.get("team", {}).get("id") if isinstance(team.get("team"), dict) else None
-        team_name = (
-            team.get("team", {}).get("name")
-            if isinstance(team.get("team"), dict)
-            else None
-        )
+        team_name = team.get("team", {}).get("name") if isinstance(team.get("team"), dict) else None
         for slot in team.get("startXI", []) or []:
             player = (slot or {}).get("player") or {}
             af_id = player.get("id")
@@ -257,9 +254,7 @@ class ApiFootballConnector(BaseDataConnector):
             raise DataProviderDisabledError(
                 "fetch_injuries requires at least one of date/team_id/season."
             )
-        payload = self._get_json(
-            f"{self._base_url}/injuries", params=params, sensitive=True
-        )
+        payload = self._get_json(f"{self._base_url}/injuries", params=params, sensitive=True)
         return parse_injuries(payload, fpl_id_map=fpl_id_map)
 
     def fetch_confirmed_lineups(
@@ -272,9 +267,11 @@ class ApiFootballConnector(BaseDataConnector):
         self._require_enabled()
         facts: list[PlayerFact] = []
         for fixture in self.fetch_fixtures_by_date(date):
-            fid = fixture.get("fixture", {}).get("id") if isinstance(
-                fixture.get("fixture"), dict
-            ) else fixture.get("id")
+            fid = (
+                fixture.get("fixture", {}).get("id")
+                if isinstance(fixture.get("fixture"), dict)
+                else fixture.get("id")
+            )
             if fid is None:
                 continue
             facts.extend(self.fetch_lineups(fid))

@@ -140,7 +140,7 @@ class Phase5Comparison:
         rank_y = np.argsort(np.argsort(y)) + 1
         d = rank_x - rank_y
         n = len(x)
-        return 1.0 - (6.0 * np.sum(d ** 2)) / (n * (n ** 2 - 1))
+        return 1.0 - (6.0 * np.sum(d**2)) / (n * (n**2 - 1))
 
     def _top_k_capture(self, preds: np.ndarray, actuals: np.ndarray, k: int) -> float:
         """Compute top-k capture rate."""

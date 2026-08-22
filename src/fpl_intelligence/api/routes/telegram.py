@@ -4,6 +4,7 @@ Exposes ``POST /api/v1/telegram/webhook`` for FaaS deployments (Vercel), where
 the long-running polling worker cannot run. The webhook secret is supplied via
 the ``secret`` query parameter (embedded in the Telegram ``setWebhook`` URL).
 """
+
 from __future__ import annotations
 
 import logging

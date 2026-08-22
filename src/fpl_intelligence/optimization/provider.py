@@ -41,7 +41,7 @@ class PlayerPrediction:
 
 class DecisionPredictionProvider(abc.ABC):
     """Abstract interface for predictions to be consumed by the optimizer.
-    
+
     This ensures the optimizer doesn't hardcode dependencies on any
     specific Phase 4 or Phase 5 model implementations.
     """
@@ -52,14 +52,16 @@ class DecisionPredictionProvider(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_squad_predictions(self, squad_players: list[int], gameweeks: list[int]) -> dict[int, dict[int, PlayerPrediction]]:
+    def get_squad_predictions(
+        self, squad_players: list[int], gameweeks: list[int]
+    ) -> dict[int, dict[int, PlayerPrediction]]:
         """Get predictions for a list of players over multiple gameweeks.
-        
+
         Returns:
             Dict mapping gameweek -> (Dict mapping player_id -> PlayerPrediction)
         """
         pass
-    
+
     @abc.abstractmethod
     def get_all_predictions(self, gameweek: int) -> dict[int, PlayerPrediction]:
         """Get predictions for all players in a gameweek (useful for transfers)."""

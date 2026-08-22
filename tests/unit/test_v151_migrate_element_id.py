@@ -13,6 +13,7 @@ tests prove it:
 Fully offline: the admin ``SessionLocal`` is redirected to an in-memory SQLite
 database and ``_resolve_seed_path`` is pointed at a temp seed file.
 """
+
 from __future__ import annotations
 
 import json
@@ -20,7 +21,7 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from fpl_intelligence.api import deps

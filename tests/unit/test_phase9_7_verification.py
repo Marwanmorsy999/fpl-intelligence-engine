@@ -9,6 +9,7 @@ call is ever made inside ``pytest``:
 * :class:`EndToEndVerifier` — the full pipeline: fetch -> ingest -> extract ->
   resolve -> synthesize -> report -> alert -> notify.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -400,9 +401,7 @@ class TestEndToEndVerifier:
         assert report.alerts >= 2
         assert report.notifications_delivered == report.alerts
 
-    def test_fetch_failure_reported_when_sources_down(
-        self, db_session_factory: Any
-    ) -> None:
+    def test_fetch_failure_reported_when_sources_down(self, db_session_factory: Any) -> None:
         connectors = {
             "rss": _make_rss_connector(_down),
             "fpl_api": _make_fpl_connector(_down),
@@ -461,6 +460,3 @@ class TestEndToEndVerifier:
             "report",
             "alert",
         }
-
-
-

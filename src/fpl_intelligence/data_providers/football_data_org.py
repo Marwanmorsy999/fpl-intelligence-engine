@@ -18,6 +18,7 @@ expose per-player availability, so this connector contributes no
 owned by Phase 9.2.1). It exists so the engine can enrich match context and so
 the API-first architecture is uniform across providers.
 """
+
 from __future__ import annotations
 
 import logging

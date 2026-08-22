@@ -180,6 +180,7 @@ class DecisionReport(BaseModel):
     players: dict[str, PlayerDetail] = Field(default_factory=dict)
     meta: dict[str, Any] = Field(default_factory=dict)
 
+
 class FromFplResponse(BaseModel):
     """Response for ``POST /api/v1/squad/from-fpl``.
 

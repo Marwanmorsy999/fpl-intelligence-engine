@@ -10,6 +10,7 @@ Confidence model:
   when they conflict.
 - Manager quotes in press conferences carry high weight for near-term availability.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -123,19 +124,13 @@ def corroborate(
     # Aggregate confidence with diminishing returns for corroboration.
     # confidence = 1 - product(1 - conf_i) for all items of the chosen status,
     # then blend with lower-status items at half weight.
-    same_status = [
-        conf for conf, item in item_confs
-        if item["status_mentioned"] == chosen_status
-    ]
-    other_status = [
-        conf for conf, item in item_confs
-        if item["status_mentioned"] != chosen_status
-    ]
+    same_status = [conf for conf, item in item_confs if item["status_mentioned"] == chosen_status]
+    other_status = [conf for conf, item in item_confs if item["status_mentioned"] != chosen_status]
 
     if same_status:
         prod = 1.0
         for conf in same_status:
-            prod *= (1.0 - conf)
+            prod *= 1.0 - conf
         agg_conf = 1.0 - prod
     else:
         agg_conf = 0.0
@@ -145,10 +140,7 @@ def corroborate(
         agg_conf = 1.0 - (1.0 - agg_conf) * (1.0 - conf * 0.5)
 
     # Boost if official source corroborates.
-    has_official = any(
-        item["reliability"] == SourceReliability.OFFICIAL
-        for _, item in item_confs
-    )
+    has_official = any(item["reliability"] == SourceReliability.OFFICIAL for _, item in item_confs)
     if has_official:
         agg_conf = min(0.99, agg_conf + 0.15 * (1.0 - agg_conf))
 

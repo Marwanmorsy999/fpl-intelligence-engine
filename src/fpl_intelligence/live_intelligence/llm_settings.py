@@ -34,6 +34,7 @@ sentence, not surface a ``None`` five frames later. :class:`MissingEnvFileError`
 and :class:`MissingAPIKeyError` both carry the exact variable name, the file
 that was searched, and the remedy.
 """
+
 from __future__ import annotations
 
 import hashlib

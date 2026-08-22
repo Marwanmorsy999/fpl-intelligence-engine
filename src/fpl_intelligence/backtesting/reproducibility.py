@@ -77,9 +77,7 @@ class BacktestReproducer:
         Raises:
             ValueError: If the run is not found.
         """
-        run = self._db.scalar(
-            select(BacktestRun).where(BacktestRun.run_id == run_id)
-        )
+        run = self._db.scalar(select(BacktestRun).where(BacktestRun.run_id == run_id))
         if run is None:
             raise ValueError(f"BacktestRun {run_id!r} not found.")
 
@@ -131,9 +129,7 @@ class BacktestReproducer:
         Returns:
             True if the versions match what was used in the original run.
         """
-        run = self._db.scalar(
-            select(BacktestRun).where(BacktestRun.run_id == run_id)
-        )
+        run = self._db.scalar(select(BacktestRun).where(BacktestRun.run_id == run_id))
         if run is None:
             return False
 

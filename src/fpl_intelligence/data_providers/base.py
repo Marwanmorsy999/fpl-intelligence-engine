@@ -13,6 +13,7 @@ failures surface as typed errors the caller decides how to handle.
 Credentials and endpoints are never hardcoded: keyed connectors read their key
 from an environment variable (or a constructor argument) only.
 """
+
 from __future__ import annotations
 
 import logging
@@ -76,9 +77,7 @@ class BaseDataConnector(ABC):  # noqa: B024 - shared plumbing, not a standalone 
         self._timeout = timeout
         self._headers = dict(headers or {})
         self._headers.setdefault("User-Agent", DEFAULT_USER_AGENT)
-        self._rate = RateLimiter(
-            min_interval_seconds, clock=monotonic_clock, sleep=sleep
-        )
+        self._rate = RateLimiter(min_interval_seconds, clock=monotonic_clock, sleep=sleep)
 
     @property
     def cache(self) -> ResponseCache:
@@ -96,9 +95,7 @@ class BaseDataConnector(ABC):  # noqa: B024 - shared plumbing, not a standalone 
 
     def _lazy_client(self) -> httpx.Client:
         if self._http_client is None:
-            self._http_client = httpx.Client(
-                headers=self._headers, timeout=self._timeout
-            )
+            self._http_client = httpx.Client(headers=self._headers, timeout=self._timeout)
             self._owns_client = True
         return self._http_client
 
@@ -141,17 +138,11 @@ class BaseDataConnector(ABC):  # noqa: B024 - shared plumbing, not a standalone 
         if response.status_code == httpx.codes.TOO_MANY_REQUESTS:
             raise DataConnectionError(f"source rate-limited (429): {endpoint}")
         if response.is_error:
-            raise DataConnectionError(
-                f"GET {endpoint} -> HTTP {response.status_code}"
-            )
+            raise DataConnectionError(f"GET {endpoint} -> HTTP {response.status_code}")
         try:
             payload = response.json()
         except ValueError as exc:
-            raise DataParseError(
-                f"{self.name} payload is not valid JSON: {exc}"
-            ) from exc
+            raise DataParseError(f"{self.name} payload is not valid JSON: {exc}") from exc
 
-        self._cache.store(
-            endpoint, dict(params) if params else None, payload, sensitive=sensitive
-        )
+        self._cache.store(endpoint, dict(params) if params else None, payload, sensitive=sensitive)
         return payload

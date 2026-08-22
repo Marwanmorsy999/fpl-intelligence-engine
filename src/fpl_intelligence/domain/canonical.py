@@ -22,7 +22,9 @@ def normalize_season(data: Mapping[str, object], provider_name: str) -> dict[str
     }
 
 
-def normalize_team(data: Mapping[str, object], provider_name: str, schema_version: str = "v1") -> dict[str, Any]:
+def normalize_team(
+    data: Mapping[str, object], provider_name: str, schema_version: str = "v1"
+) -> dict[str, Any]:
     """Convert provider team data to canonical format.
 
     Handles different provider schemas (v1, v2, etc.) by mapping
@@ -42,7 +44,9 @@ def normalize_team(data: Mapping[str, object], provider_name: str, schema_versio
     }
 
 
-def normalize_player(data: Mapping[str, object], provider_name: str, schema_version: str = "v1") -> dict[str, Any]:
+def normalize_player(
+    data: Mapping[str, object], provider_name: str, schema_version: str = "v1"
+) -> dict[str, Any]:
     """Convert provider player data to canonical format.
 
     Handles different provider schemas by mapping field names.
@@ -67,7 +71,9 @@ def normalize_player(data: Mapping[str, object], provider_name: str, schema_vers
     }
 
 
-def normalize_fixture(data: Mapping[str, object], provider_name: str, schema_version: str = "v1") -> dict[str, Any]:
+def normalize_fixture(
+    data: Mapping[str, object], provider_name: str, schema_version: str = "v1"
+) -> dict[str, Any]:
     """Convert provider fixture data to canonical format.
 
     Handles different provider schemas by mapping field names.
@@ -81,7 +87,9 @@ def normalize_fixture(data: Mapping[str, object], provider_name: str, schema_ver
             "away_team_id": str(data.get("away", "")),
             "home_score": _int_or_none(data.get("home_score")),
             "away_score": _int_or_none(data.get("away_score")),
-            "status": str(data.get("match_status", "scheduled")) if data.get("match_status") else "scheduled",
+            "status": str(data.get("match_status", "scheduled"))
+            if data.get("match_status")
+            else "scheduled",
             "postponed": bool(data.get("is_postponed", False)),
         }
 

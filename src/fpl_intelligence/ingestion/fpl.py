@@ -31,9 +31,7 @@ def _hash_payload(payload: Any) -> str:
     return hashlib.sha256(serialized).hexdigest()
 
 
-def _save_raw_record(
-    db: Session, endpoint: str, payload: Any, season_code: str
-) -> None:
+def _save_raw_record(db: Session, endpoint: str, payload: Any, season_code: str) -> None:
     """Insert a RawRecord, skipping it when an identical payload already exists."""
     payload_hash = _hash_payload(payload)
     existing = db.scalar(

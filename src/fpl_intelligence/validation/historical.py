@@ -22,6 +22,7 @@ from fpl_intelligence.db.models import (
 @dataclass
 class HistoricalValidationError:
     """A single validation error."""
+
     table: str
     field: str
     message: str
@@ -31,12 +32,17 @@ class HistoricalValidationError:
 @dataclass
 class HistoricalValidationResult:
     """Result of running all validation checks."""
+
     passed: bool = True
     errors: list[HistoricalValidationError] = field(default_factory=list)
 
     def add_error(self, table: str, field: str, message: str, record_id: int | None = None) -> None:
         self.passed = False
-        self.errors.append(HistoricalValidationError(table=table, field=field, message=message, record_id=record_id))
+        self.errors.append(
+            HistoricalValidationError(
+                table=table, field=field, message=message, record_id=record_id
+            )
+        )
 
     def summary(self) -> str:
         if self.passed:
@@ -47,7 +53,9 @@ class HistoricalValidationResult:
         return "\n".join(lines)
 
 
-def validate_season_integrity(db: Session, season_id: int | None = None) -> HistoricalValidationResult:
+def validate_season_integrity(
+    db: Session, season_id: int | None = None
+) -> HistoricalValidationResult:
     """Validate that gameweeks and fixtures reference valid seasons."""
     result = HistoricalValidationResult()
 
@@ -60,7 +68,12 @@ def validate_season_integrity(db: Session, season_id: int | None = None) -> Hist
     for gw in gameweeks:
         season = db.get(Season, gw.season_id)
         if season is None:
-            result.add_error("gameweeks", "season_id", f"Gameweek {gw.id} references non-existent season {gw.season_id}", gw.id)
+            result.add_error(
+                "gameweeks",
+                "season_id",
+                f"Gameweek {gw.id} references non-existent season {gw.season_id}",
+                gw.id,
+            )
 
     # Check fixtures
     query = select(Fixture)
@@ -71,20 +84,37 @@ def validate_season_integrity(db: Session, season_id: int | None = None) -> Hist
     for fixture in fixtures:
         season = db.get(Season, fixture.season_id)
         if season is None:
-            result.add_error("fixtures", "season_id", f"Fixture {fixture.id} references non-existent season {fixture.season_id}", fixture.id)
+            result.add_error(
+                "fixtures",
+                "season_id",
+                f"Fixture {fixture.id} references non-existent season {fixture.season_id}",
+                fixture.id,
+            )
 
         home_team = db.get(Team, fixture.home_team_id)
         if home_team is None:
-            result.add_error("fixtures", "home_team_id", f"Fixture {fixture.id} references non-existent home team {fixture.home_team_id}", fixture.id)
+            result.add_error(
+                "fixtures",
+                "home_team_id",
+                f"Fixture {fixture.id} references non-existent home team {fixture.home_team_id}",
+                fixture.id,
+            )
 
         away_team = db.get(Team, fixture.away_team_id)
         if away_team is None:
-            result.add_error("fixtures", "away_team_id", f"Fixture {fixture.id} references non-existent away team {fixture.away_team_id}", fixture.id)
+            result.add_error(
+                "fixtures",
+                "away_team_id",
+                f"Fixture {fixture.id} references non-existent away team {fixture.away_team_id}",
+                fixture.id,
+            )
 
     return result
 
 
-def validate_gameweek_integrity(db: Session, season_id: int | None = None) -> HistoricalValidationResult:
+def validate_gameweek_integrity(
+    db: Session, season_id: int | None = None
+) -> HistoricalValidationResult:
     """Validate gameweek data integrity."""
     result = HistoricalValidationResult()
 
@@ -97,14 +127,16 @@ def validate_gameweek_integrity(db: Session, season_id: int | None = None) -> Hi
         # Check deadline ordering
         if gw.start_time and gw.deadline_time and gw.start_time < gw.deadline_time:
             result.add_error(
-                "gameweeks", "deadline_time",
+                "gameweeks",
+                "deadline_time",
                 f"Gameweek {gw.id}: deadline ({gw.deadline_time}) is after start ({gw.start_time})",
                 gw.id,
             )
 
         if gw.end_time and gw.start_time and gw.end_time < gw.start_time:
             result.add_error(
-                "gameweeks", "end_time",
+                "gameweeks",
+                "end_time",
                 f"Gameweek {gw.id}: end ({gw.end_time}) is before start ({gw.start_time})",
                 gw.id,
             )
@@ -112,7 +144,9 @@ def validate_gameweek_integrity(db: Session, season_id: int | None = None) -> Hi
     return result
 
 
-def validate_fixture_integrity(db: Session, season_id: int | None = None) -> HistoricalValidationResult:
+def validate_fixture_integrity(
+    db: Session, season_id: int | None = None
+) -> HistoricalValidationResult:
     """Validate fixture data integrity."""
     result = HistoricalValidationResult()
 
@@ -124,19 +158,36 @@ def validate_fixture_integrity(db: Session, season_id: int | None = None) -> His
     for fixture in fixtures:
         # Check for negative scores
         if fixture.home_score is not None and fixture.home_score < 0:
-            result.add_error("fixtures", "home_score", f"Fixture {fixture.id}: negative home score {fixture.home_score}", fixture.id)
+            result.add_error(
+                "fixtures",
+                "home_score",
+                f"Fixture {fixture.id}: negative home score {fixture.home_score}",
+                fixture.id,
+            )
 
         if fixture.away_score is not None and fixture.away_score < 0:
-            result.add_error("fixtures", "away_score", f"Fixture {fixture.id}: negative away score {fixture.away_score}", fixture.id)
+            result.add_error(
+                "fixtures",
+                "away_score",
+                f"Fixture {fixture.id}: negative away score {fixture.away_score}",
+                fixture.id,
+            )
 
         # Check home != away
         if fixture.home_team_id == fixture.away_team_id:
-            result.add_error("fixtures", "home_team_id", f"Fixture {fixture.id}: home team equals away team", fixture.id)
+            result.add_error(
+                "fixtures",
+                "home_team_id",
+                f"Fixture {fixture.id}: home team equals away team",
+                fixture.id,
+            )
 
     return result
 
 
-def validate_player_stats_integrity(db: Session, season_id: int | None = None) -> HistoricalValidationResult:
+def validate_player_stats_integrity(
+    db: Session, season_id: int | None = None
+) -> HistoricalValidationResult:
     """Validate player performance statistics."""
     result = HistoricalValidationResult()
 
@@ -149,8 +200,10 @@ def validate_player_stats_integrity(db: Session, season_id: int | None = None) -
         # Check for impossible minutes
         if perf.minutes is not None and (perf.minutes < 0 or perf.minutes > 120):
             result.add_error(
-                "player_gameweek_performances", "minutes",
-                f"Player {perf.player_id} Gameweek {perf.gameweek_id}: impossible minutes {perf.minutes}",
+                "player_gameweek_performances",
+                "minutes",
+                f"Player {perf.player_id} Gameweek {perf.gameweek_id}: "
+                f"impossible minutes {perf.minutes}",
                 perf.id,
             )
 
@@ -159,20 +212,32 @@ def validate_player_stats_integrity(db: Session, season_id: int | None = None) -
             value = getattr(perf, field_name, None)
             if value is not None and value < 0:
                 result.add_error(
-                    "player_gameweek_performances", field_name,
-                    f"Player {perf.player_id} Gameweek {perf.gameweek_id}: negative {field_name} ({value})",
+                    "player_gameweek_performances",
+                    field_name,
+                    f"Player {perf.player_id} Gameweek {perf.gameweek_id}: "
+                    f"negative {field_name} ({value})",
                     perf.id,
                 )
 
         # Check player exists
         player = db.get(Player, perf.player_id)
         if player is None:
-            result.add_error("player_gameweek_performances", "player_id", f"Player {perf.player_id} not found", perf.id)
+            result.add_error(
+                "player_gameweek_performances",
+                "player_id",
+                f"Player {perf.player_id} not found",
+                perf.id,
+            )
 
         # Check gameweek exists
         gameweek = db.get(Gameweek, perf.gameweek_id)
         if gameweek is None:
-            result.add_error("player_gameweek_performances", "gameweek_id", f"Gameweek {perf.gameweek_id} not found", perf.id)
+            result.add_error(
+                "player_gameweek_performances",
+                "gameweek_id",
+                f"Gameweek {perf.gameweek_id} not found",
+                perf.id,
+            )
 
     return result
 
@@ -194,7 +259,8 @@ def validate_no_duplicate_records(db: Session) -> HistoricalValidationResult:
     duplicates = db.execute(subquery).all()
     for dup in duplicates:
         result.add_error(
-            "player_gameweek_performances", "player_id, gameweek_id",
+            "player_gameweek_performances",
+            "player_id, gameweek_id",
             f"Duplicate record: player {dup.player_id}, gameweek {dup.gameweek_id}",
         )
 
@@ -213,7 +279,8 @@ def validate_no_duplicate_records(db: Session) -> HistoricalValidationResult:
     pe_duplicates = db.execute(pe_subquery).all()
     for dup in pe_duplicates:
         result.add_error(
-            "player_external_ids", "provider, provider_player_id",
+            "player_external_ids",
+            "provider, provider_player_id",
             f"Duplicate external ID: provider={dup.provider}, id={dup.provider_player_id}",
         )
 
@@ -229,7 +296,8 @@ def validate_no_duplicate_records(db: Session) -> HistoricalValidationResult:
     te_duplicates = db.execute(te_subquery).all()
     for dup in te_duplicates:
         result.add_error(
-            "team_external_ids", "provider, provider_team_id",
+            "team_external_ids",
+            "provider, provider_team_id",
             f"Duplicate external ID: provider={dup.provider}, id={dup.provider_team_id}",
         )
 

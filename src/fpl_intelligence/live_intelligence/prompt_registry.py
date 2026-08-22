@@ -29,6 +29,7 @@ silently: changing one word fails the suite until the author *also* bumps
 ``version`` and updates the lock, which is exactly the moment to ask whether
 previously-collected evidence is still comparable.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -197,6 +198,11 @@ class LockedPrompt:
 #: the emitted block here. Never update the hash without bumping the version —
 #: that is precisely the silent change this lock exists to prevent.
 PROMPT_HASH_LOCK: dict[str, LockedPrompt] = {
+    "phase18.analyst.summary": LockedPrompt(
+        version="1.0.0",
+        schema_version="1.0.0",
+        template_hash="df9336296fdb85fbed071297d7bd2bd9229bc0d66628e63b14825611d5ef59ec",
+    ),
     "phase9.analyst.captaincy": LockedPrompt(
         version="1.0.0",
         schema_version="phase9.analyst.v1",

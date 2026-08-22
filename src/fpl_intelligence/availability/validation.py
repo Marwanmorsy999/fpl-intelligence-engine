@@ -11,6 +11,7 @@ Phase 7 empirical validation is BLOCKED for lack of historical availability
 data, rather than fabricating a BASELINE == PHASE7 result as a meaningful
 experiment.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -40,6 +41,7 @@ from fpl_intelligence.db.models import (
 @dataclass
 class AvailabilitySeasonCoverage:
     """Per-season availability intelligence coverage."""
+
     season: str
     availability_events: int = 0
     injuries: int = 0
@@ -67,6 +69,7 @@ class AvailabilitySeasonCoverage:
 @dataclass
 class AvailabilityCoverageReport:
     """Aggregate availability coverage across seasons."""
+
     seasons: list[str] = field(default_factory=list)
     season_coverage: dict[str, AvailabilitySeasonCoverage] = field(default_factory=dict)
     total_events: int = 0
@@ -86,9 +89,7 @@ class AvailabilityCoverageReport:
     def to_dict(self) -> dict[str, Any]:
         return {
             "seasons": self.seasons,
-            "season_coverage": {
-                s: c.to_dict() for s, c in self.season_coverage.items()
-            },
+            "season_coverage": {s: c.to_dict() for s, c in self.season_coverage.items()},
             "total_events": self.total_events,
             "total_evidence": self.total_evidence,
             "total_player_gameweeks": self.total_player_gameweeks,
@@ -117,24 +118,21 @@ def audit_availability_coverage(
             continue
         sid = season.id
 
-        gw_ids = list(
-            db.scalars(
-                select(Gameweek.id).where(Gameweek.season_id == sid)
-            ).all()
-        )
+        gw_ids = list(db.scalars(select(Gameweek.id).where(Gameweek.season_id == sid)).all())
         player_gws = 0
         if gw_ids:
-            player_gws = db.scalar(
-                select(func.count()).select_from(PlayerGameweekPerformance).where(
-                    PlayerGameweekPerformance.gameweek_id.in_(gw_ids)
+            player_gws = (
+                db.scalar(
+                    select(func.count())
+                    .select_from(PlayerGameweekPerformance)
+                    .where(PlayerGameweekPerformance.gameweek_id.in_(gw_ids))
                 )
-            ) or 0
+                or 0
+            )
 
         event_player_gws = set(
             db.scalars(
-                select(AvailabilityEvent.player_id).where(
-                    AvailabilityEvent.season_id == sid
-                )
+                select(AvailabilityEvent.player_id).where(AvailabilityEvent.season_id == sid)
             ).all()
         )
         # Player-gameweeks with evidence: distinct (player_id) among events is
@@ -145,54 +143,61 @@ def audit_availability_coverage(
         cov = AvailabilitySeasonCoverage(
             season=code,
             availability_events=db.scalar(
-                select(func.count()).select_from(AvailabilityEvent).where(
-                    AvailabilityEvent.season_id == sid
-                )
-            ) or 0,
+                select(func.count())
+                .select_from(AvailabilityEvent)
+                .where(AvailabilityEvent.season_id == sid)
+            )
+            or 0,
             injuries=db.scalar(
-                select(func.count()).select_from(PlayerInjury)
+                select(func.count())
+                .select_from(PlayerInjury)
                 .join(
                     PlayerGameweekPerformance,
                     PlayerGameweekPerformance.player_id == PlayerInjury.player_id,
                 )
                 .where(PlayerGameweekPerformance.season_id == sid)
-            ) or 0,
+            )
+            or 0,
             suspensions=db.scalar(
-                select(func.count()).select_from(PlayerSuspension).where(
-                    PlayerSuspension.season_id == sid
-                )
-            ) or 0,
+                select(func.count())
+                .select_from(PlayerSuspension)
+                .where(PlayerSuspension.season_id == sid)
+            )
+            or 0,
             training_reports=db.scalar(
-                select(func.count()).select_from(TrainingReport)
+                select(func.count())
+                .select_from(TrainingReport)
                 .join(
                     PlayerGameweekPerformance,
                     PlayerGameweekPerformance.player_id == TrainingReport.player_id,
                 )
                 .where(PlayerGameweekPerformance.season_id == sid)
-            ) or 0,
+            )
+            or 0,
             press_conferences=db.scalar(
-                select(func.count()).select_from(PressConference).where(
-                    PressConference.season_id == sid
-                )
-            ) or 0,
+                select(func.count())
+                .select_from(PressConference)
+                .where(PressConference.season_id == sid)
+            )
+            or 0,
             player_mentions=db.scalar(
-                select(func.count()).select_from(PlayerMention)
+                select(func.count())
+                .select_from(PlayerMention)
                 .join(
                     PressConference,
                     PressConference.id == PlayerMention.press_conference_id,
                 )
                 .where(PressConference.season_id == sid)
-            ) or 0,
+            )
+            or 0,
             evidence_records=db.scalar(
-                select(func.count()).select_from(AvailabilityEvidence)
+                select(func.count())
+                .select_from(AvailabilityEvidence)
                 .join(Season, Season.id == sid)
-            ) or 0,
-            articles=db.scalar(
-                select(func.count()).select_from(AvailabilityArticle)
-            ) or 0,
-            sources=db.scalar(
-                select(func.count()).select_from(AvailabilitySource)
-            ) or 0,
+            )
+            or 0,
+            articles=db.scalar(select(func.count()).select_from(AvailabilityArticle)) or 0,
+            sources=db.scalar(select(func.count()).select_from(AvailabilitySource)) or 0,
             player_gameweeks=player_gws,
             player_gameweeks_with_evidence=with_evidence,
         )
@@ -208,6 +213,7 @@ def audit_availability_coverage(
 @dataclass
 class TemporalAvailabilityReport:
     """Temporal-eligibility audit for availability events."""
+
     total_events: int = 0
     eligible_events: int = 0
     excluded_future_events: int = 0

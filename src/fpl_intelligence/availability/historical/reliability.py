@@ -8,6 +8,7 @@ The metadata is persisted to the ``source_reliability_metadata`` table so the
 import path can attach a source to every event and so the coverage audit can
 report per-source reliability.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -42,7 +43,9 @@ class SourceReliabilityMetadata:
         }
 
 
-def neutral_reliability(source_type: str, source_name: str, **kwargs: Any) -> SourceReliabilityMetadata:
+def neutral_reliability(
+    source_type: str, source_name: str, **kwargs: Any
+) -> SourceReliabilityMetadata:
     """Build a SourceReliabilityMetadata with a neutral accuracy prior.
 
     ``verified_accuracy`` defaults to NEUTRAL_PRIOR (0.5) and is only ever set to

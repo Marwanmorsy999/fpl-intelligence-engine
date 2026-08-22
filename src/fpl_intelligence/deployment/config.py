@@ -23,6 +23,7 @@ Design rules:
   production constraints (PostgreSQL only, sane retry/breaker bounds) and feeds
   the deployment readiness report.
 """
+
 from __future__ import annotations
 
 import os
@@ -133,7 +134,7 @@ class ProductionConfig(BaseSettings):
     docker_tag: str = "production"
     docker_context_path: str = "."
     dockerfile_path: str = "Dockerfile"
-# -- derived helpers --------------------------------------------------------
+    # -- derived helpers --------------------------------------------------------
 
     @property
     def notify_channel_list(self) -> list[str]:

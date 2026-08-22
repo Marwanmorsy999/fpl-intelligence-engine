@@ -16,6 +16,7 @@ SQLite engine, the upstream FPL importer is faked, the Telegram sender is
 mocked (AsyncMock), and the scheduler connectors are replaced with offline
 fakes.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -229,7 +230,6 @@ def test_from_fpl_503_persists_auto_sync(
     assert rows[0].status == "PENDING"
 
 
-
 def test_retry_sync_success_saves_and_notifies(
     client: TestClient,
     sl: sessionmaker,
@@ -252,7 +252,8 @@ def test_retry_sync_success_saves_and_notifies(
     assert len(body["squad"]["player_ids"]) == 15
 
     # The squad is persisted and the queued row is SYNCED.
-    assert client.get("/api/v1/squad").status_code == 200
+    resp_squad = client.get("/api/v1/squad", params={"session_id": "777"})
+    assert resp_squad.status_code == 200
     rows = _pending_rows(sl)
     assert rows[0].status == "SYNCED"
     notifier.assert_awaited_once_with("Test FC")
@@ -319,7 +320,8 @@ def test_scheduler_syncs_pending_squad(
     assert body["auto_sync"]["synced"] is True
 
     # Squad persisted, pending row cleared to SYNCED, notification sent.
-    assert client.get("/api/v1/squad").status_code == 200
+    resp_squad = client.get("/api/v1/squad", params={"session_id": "777"})
+    assert resp_squad.status_code == 200
     rows = _pending_rows(sl)
     assert rows[0].status == "SYNCED"
     notifier.assert_awaited_once_with("Sched FC")
@@ -331,4 +333,3 @@ def test_scheduler_skips_when_no_pending(client: TestClient) -> None:
     body = resp.json()
     assert body["auto_sync"]["queued"] is False
     assert body["auto_sync"]["synced"] is False
-

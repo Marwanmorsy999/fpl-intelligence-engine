@@ -4,6 +4,7 @@ Every test mocks the configuration file (``tmp_path`` YAML) and the environment
 (``environ=...``) so no real ``os.environ`` or ``.env`` is ever consulted. Secrets
 are asserted to be env-only and to be redacted in serialised output.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -57,7 +58,9 @@ def test_secrets_only_from_env(tmp_path: Path) -> None:
     path = _write_config(
         tmp_path, {"slack_webhook_url": "file://ignored-secret", "smtp_password": "file-pass"}
     )
-    config = load_production_config(path, environ={"SLACK_WEBHOOK_URL": "https://hooks.example.com"})
+    config = load_production_config(
+        path, environ={"SLACK_WEBHOOK_URL": "https://hooks.example.com"}
+    )
     assert config.slack_webhook_url == "https://hooks.example.com"
     assert config.smtp_password is None
 

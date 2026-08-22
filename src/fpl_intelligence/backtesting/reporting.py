@@ -45,9 +45,7 @@ class BacktestReport:
         Raises:
             ValueError: If the run is not found.
         """
-        run = self._db.scalar(
-            select(BacktestRun).where(BacktestRun.run_id == run_id)
-        )
+        run = self._db.scalar(select(BacktestRun).where(BacktestRun.run_id == run_id))
         if run is None:
             raise ValueError(f"BacktestRun {run_id!r} not found.")
 
@@ -61,24 +59,29 @@ class BacktestReport:
         for gw in gw_results:
             metrics = gw.evaluation_metrics or {}
             all_metrics.append(metrics)
-            per_gw_metrics.append({
-                "season": gw.season,
-                "gameweek": gw.gameweek,
-                "decision_cutoff": gw.decision_cutoff.isoformat()
-                if gw.decision_cutoff
-                else None,
-                "metrics": metrics,
-            })
+            per_gw_metrics.append(
+                {
+                    "season": gw.season,
+                    "gameweek": gw.gameweek,
+                    "decision_cutoff": gw.decision_cutoff.isoformat()
+                    if gw.decision_cutoff
+                    else None,
+                    "metrics": metrics,
+                }
+            )
 
         # Compute aggregate metrics
         summary = self._aggregate_metrics(all_metrics)
 
         # Get prediction count
-        pred_count = self._db.scalar(
-            select(func.count()).select_from(PlayerPrediction).where(
-                PlayerPrediction.run_id == run.id
+        pred_count = (
+            self._db.scalar(
+                select(func.count())
+                .select_from(PlayerPrediction)
+                .where(PlayerPrediction.run_id == run.id)
             )
-        ) or 0
+            or 0
+        )
 
         return {
             "run_id": run_id,

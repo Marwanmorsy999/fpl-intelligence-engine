@@ -23,6 +23,7 @@ What it guarantees
   ``available_at`` ride along into the Phase 7/8 evidence tables because the
   extractor inherits them from the ledger view, never from the model.
 """
+
 from __future__ import annotations
 
 import json
@@ -107,9 +108,7 @@ def map_temporal_class(raw_class: str) -> LedgerTemporalClass:
 
 def _require_aware(name: str, value: datetime) -> None:
     if value.tzinfo is None or value.utcoffset() is None:
-        raise ValueError(
-            f"{name} must be timezone-aware; got naive datetime {value!r}"
-        )
+        raise ValueError(f"{name} must be timezone-aware; got naive datetime {value!r}")
 
 
 class RawItem(BaseModel):
@@ -477,10 +476,7 @@ def snapshot_evidence(
                 kind="tactical",
                 subject_ref=subject_ref,
                 summary=(
-                    tac.value_text
-                    or tac.description
-                    or tac.source_quote
-                    or str(tac.evidence_type)
+                    tac.value_text or tac.description or tac.source_quote or str(tac.evidence_type)
                 ),
                 source_name=view.source_name,
                 source_reliability=view.source_reliability,
@@ -692,8 +688,7 @@ def ingest_raw_text(
             url=url,
             external_id=external_id,
             available_at=available_at,
-            temporal_class=temporal_class
-            or RawTemporalClass.NO_DEADLINE_CONTEXT.value,
+            temporal_class=temporal_class or RawTemporalClass.NO_DEADLINE_CONTEXT.value,
         )
     except ValidationError as exc:
         return ManualIngestReport(
@@ -724,12 +719,8 @@ def ingest_raw_text(
             availability_policy=AvailabilityDerivationPolicy.CONSERVATIVE,
             now=now,
         )
-        resolved_temporal_class = str(
-            classify_ledger_entry(timestamps, deadline_at, policy)
-        )
-        raw = raw.model_copy(
-            update={"temporal_class": resolved_temporal_class}
-        )
+        resolved_temporal_class = str(classify_ledger_entry(timestamps, deadline_at, policy))
+        raw = raw.model_copy(update={"temporal_class": resolved_temporal_class})
 
     item = ledger.persist(
         raw,

@@ -7,6 +7,7 @@ Long-running process invoked by the PaaS ``bot`` process type (see the root
 If the required configuration is missing the process exits non-zero so the PaaS
 health checks / restart policy can surface the misconfiguration clearly.
 """
+
 from __future__ import annotations
 
 import logging

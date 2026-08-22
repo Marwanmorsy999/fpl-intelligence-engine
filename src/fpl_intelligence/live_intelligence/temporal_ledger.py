@@ -37,6 +37,7 @@ Ordering invariants
 ``event_time`` is deliberately *not* ordered against the others: a press
 conference published today can legitimately describe a future absence.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -212,11 +213,7 @@ def validate_timestamps(
                     f"pipeline clock ({now.isoformat()}). Back-dating and "
                     "forward-dating are both rejected."
                 )
-        if (
-            not allow_future_event_time
-            and ts.event_time is not None
-            and ts.event_time > now
-        ):
+        if not allow_future_event_time and ts.event_time is not None and ts.event_time > now:
             raise TemporalIntegrityError(
                 f"event_time ({ts.event_time.isoformat()}) is in the future."
             )
@@ -229,9 +226,7 @@ def build_timestamps(
     ingested_at: datetime,
     published_at: datetime | None = None,
     event_time: datetime | None = None,
-    availability_policy: AvailabilityDerivationPolicy = (
-        AvailabilityDerivationPolicy.CONSERVATIVE
-    ),
+    availability_policy: AvailabilityDerivationPolicy = (AvailabilityDerivationPolicy.CONSERVATIVE),
     now: datetime | None = None,
 ) -> LedgerTimestamps:
     """Derive ``available_at`` and return a validated :class:`LedgerTimestamps`."""

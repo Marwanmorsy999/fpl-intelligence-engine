@@ -11,6 +11,7 @@ Failure is always recorded, never swallowed. A run that produced nothing has a
 status explaining exactly which stage rejected it, which is what makes the
 ledger auditable rather than merely populated.
 """
+
 from __future__ import annotations
 
 import abc
@@ -476,11 +477,7 @@ class PromptedLLMExtractor(LLMExtractor):
         availability, tactical, rejected = self._ground_and_inherit(item, envelope, provenance)
 
         if not availability and not tactical:
-            status = (
-                ExtractionStatus.GROUNDING_REJECTED
-                if rejected
-                else ExtractionStatus.EMPTY
-            )
+            status = ExtractionStatus.GROUNDING_REJECTED if rejected else ExtractionStatus.EMPTY
         else:
             status = ExtractionStatus.OK
 
@@ -502,9 +499,7 @@ class PromptedLLMExtractor(LLMExtractor):
         item: LedgerItemView,
         envelope: ExtractionEnvelope,
         provenance: ExtractionProvenance,
-    ) -> tuple[
-        list[AvailabilityEvidenceDraft], list[TacticalEvidenceDraft], list[RejectedItem]
-    ]:
+    ) -> tuple[list[AvailabilityEvidenceDraft], list[TacticalEvidenceDraft], list[RejectedItem]]:
         """Reject ungrounded items; stamp survivors with the ledger's timestamps.
 
         This is where the no-look-ahead guarantee is realised: the drafts take
@@ -520,9 +515,7 @@ class PromptedLLMExtractor(LLMExtractor):
         rejected: list[RejectedItem] = []
 
         for claim in envelope.availability_evidence:
-            if self._require_grounding and not quote_is_grounded(
-                claim.source_quote, item.raw_text
-            ):
+            if self._require_grounding and not quote_is_grounded(claim.source_quote, item.raw_text):
                 rejected.append(
                     RejectedItem(
                         kind="availability",
@@ -535,9 +528,7 @@ class PromptedLLMExtractor(LLMExtractor):
 
         for tac_claim in envelope.tactical_evidence:
             tac: ExtractedTacticalEvidence = tac_claim
-            if self._require_grounding and not quote_is_grounded(
-                tac.source_quote, item.raw_text
-            ):
+            if self._require_grounding and not quote_is_grounded(tac.source_quote, item.raw_text):
                 rejected.append(
                     RejectedItem(
                         kind="tactical",
@@ -734,7 +725,8 @@ def persist_extraction(
     def _resolve_player(entity: str | None, team: str | None = None) -> ResolutionResult:
         if resolve_player is None:
             return ResolutionResult(
-                ResolutionStatus.UNRESOLVED_PLAYER, None,
+                ResolutionStatus.UNRESOLVED_PLAYER,
+                None,
                 "player could not be resolved to a canonical id",
             )
         raw = resolve_player(entity, team)
@@ -742,7 +734,8 @@ def persist_extraction(
             return raw
         if raw is None:
             return ResolutionResult(
-                ResolutionStatus.UNRESOLVED_PLAYER, None,
+                ResolutionStatus.UNRESOLVED_PLAYER,
+                None,
                 "player could not be resolved to a canonical id",
             )
         return ResolutionResult(ResolutionStatus.RESOLVED, int(raw), "resolved by legacy resolver")
@@ -759,7 +752,8 @@ def persist_extraction(
             return raw
         if raw is None:
             return ResolutionResult(
-                ResolutionStatus.UNRESOLVED_TEAM, None,
+                ResolutionStatus.UNRESOLVED_TEAM,
+                None,
                 "team could not be resolved to a canonical id",
             )
         return ResolutionResult(ResolutionStatus.RESOLVED, int(raw), "resolved by legacy resolver")
@@ -767,9 +761,7 @@ def persist_extraction(
     # -- availability evidence (Phase 7 table + Phase 9 provenance link) ----
     raw_item = (
         db.scalar(
-            select(LiveIntelligenceRawItem).where(
-                LiveIntelligenceRawItem.id == result.raw_item_id
-            )
+            select(LiveIntelligenceRawItem).where(LiveIntelligenceRawItem.id == result.raw_item_id)
         )
         if result.raw_item_id is not None
         else None
@@ -849,9 +841,7 @@ def persist_extraction(
                 report.unresolved_count += 1
                 if team_res.status is ResolutionStatus.AMBIGUOUS_PLAYER:
                     report.ambiguous_count += 1
-                _record_unresolved(
-                    db, report, run.id, source_id, draft_t, team_res, now
-                )
+                _record_unresolved(db, report, run.id, source_id, draft_t, team_res, now)
         player_id: int | None = None
         if draft_t.player_name and resolve_player is not None:
             player_res = _resolve_player(draft_t.player_name, draft_t.team_name)
@@ -862,9 +852,7 @@ def persist_extraction(
                 report.unresolved_count += 1
                 if player_res.status is ResolutionStatus.AMBIGUOUS_PLAYER:
                     report.ambiguous_count += 1
-                _record_unresolved(
-                    db, report, run.id, source_id, draft_t, player_res, now
-                )
+                _record_unresolved(db, report, run.id, source_id, draft_t, player_res, now)
 
         db.add(
             TacticalEvidence(

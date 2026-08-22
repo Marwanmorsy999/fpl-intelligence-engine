@@ -19,6 +19,7 @@ default; ``--build`` performs the Docker build). This layer is additive: it does
 calls inside ``pytest`` (builders, webhooks and clocks are injected seams), and
 hardcodes no API keys.
 """
+
 from fpl_intelligence.deployment.config import (
     CONFIG_SCHEMA_VERSION,
     DEFAULT_CONFIG_PATH,

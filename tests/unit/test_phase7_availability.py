@@ -5,6 +5,7 @@ state derivation, adjustment factors, minutes-model wrapper, prediction
 provider wrapper, DB providers, and the evaluate_phase7 framework) using
 deterministic fixtures. No synthetic full-season data is used.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -51,6 +52,7 @@ from fpl_intelligence.optimization.provider import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _item(
     reliability: str,
     evidence_type: str,
@@ -71,6 +73,7 @@ def _item(
 # Evidence corroboration
 # ---------------------------------------------------------------------------
 
+
 class TestEvidenceCorroboration:
     def test_empty_returns_unknown(self):
         result = ev.corroborate([])
@@ -79,89 +82,119 @@ class TestEvidenceCorroboration:
         assert result["evidence_count"] == 0
 
     def test_single_source(self):
-        result = ev.corroborate([
-            _item(SourceReliability.VERIFIED_JOURNALIST, EvidenceType.INJURY, "doubtful"),
-        ])
+        result = ev.corroborate(
+            [
+                _item(SourceReliability.VERIFIED_JOURNALIST, EvidenceType.INJURY, "doubtful"),
+            ]
+        )
         assert result["status"] == AvailabilityStatus.DOUBTFUL
         assert result["evidence_count"] == 1
         assert result["confidence"] > 0.0
         assert result["confidence"] <= 1.0
 
     def test_multiple_corroborating_sources(self):
-        result = ev.corroborate([
-            _item(SourceReliability.RELIABLE_JOURNALIST, EvidenceType.INJURY, "doubtful", "a"),
-            _item(SourceReliability.VERIFIED_JOURNALIST, EvidenceType.INJURY, "doubtful", "b"),
-        ])
+        result = ev.corroborate(
+            [
+                _item(SourceReliability.RELIABLE_JOURNALIST, EvidenceType.INJURY, "doubtful", "a"),
+                _item(SourceReliability.VERIFIED_JOURNALIST, EvidenceType.INJURY, "doubtful", "b"),
+            ]
+        )
         assert result["status"] == AvailabilityStatus.DOUBTFUL
         assert result["evidence_count"] == 2
         # Corroboration must increase confidence (deterministic here).
-        single = ev.corroborate([
-            _item(SourceReliability.RELIABLE_JOURNALIST, EvidenceType.INJURY, "doubtful", "a"),
-        ])
+        single = ev.corroborate(
+            [
+                _item(SourceReliability.RELIABLE_JOURNALIST, EvidenceType.INJURY, "doubtful", "a"),
+            ]
+        )
         assert result["confidence"] > single["confidence"]
 
     def test_conflicting_sources_pick_most_severe(self):
-        result = ev.corroborate([
-            _item(SourceReliability.VERIFIED_JOURNALIST, EvidenceType.FITNESS, "start", "a"),
-            _item(SourceReliability.VERIFIED_JOURNALIST, EvidenceType.INJURY, "out", "b"),
-        ])
+        result = ev.corroborate(
+            [
+                _item(SourceReliability.VERIFIED_JOURNALIST, EvidenceType.FITNESS, "start", "a"),
+                _item(SourceReliability.VERIFIED_JOURNALIST, EvidenceType.INJURY, "out", "b"),
+            ]
+        )
         # OUT ranks above START in severity ordering.
         assert result["status"] == AvailabilityStatus.OUT
 
     def test_available_corroborates_below_out(self):
         """Phase 9.1.1 — 'available' is a real status but OUT still wins."""
-        result = ev.corroborate([
-            _item(SourceReliability.VERIFIED_JOURNALIST, EvidenceType.FITNESS, "available", "a"),
-            _item(SourceReliability.VERIFIED_JOURNALIST, EvidenceType.INJURY, "out", "b"),
-        ])
+        result = ev.corroborate(
+            [
+                _item(
+                    SourceReliability.VERIFIED_JOURNALIST, EvidenceType.FITNESS, "available", "a"
+                ),
+                _item(SourceReliability.VERIFIED_JOURNALIST, EvidenceType.INJURY, "out", "b"),
+            ]
+        )
         assert result["status"] == AvailabilityStatus.OUT
 
     def test_available_alone_corroborates(self):
         """Phase 9.1.1 — a lone 'available' claim resolves to AVAILABLE."""
-        result = ev.corroborate([
-            _item(SourceReliability.VERIFIED_JOURNALIST, EvidenceType.FITNESS, "available", "a"),
-        ])
+        result = ev.corroborate(
+            [
+                _item(
+                    SourceReliability.VERIFIED_JOURNALIST, EvidenceType.FITNESS, "available", "a"
+                ),
+            ]
+        )
         assert result["status"] == AvailabilityStatus.AVAILABLE
 
     def test_official_source_boost(self):
-        base = ev.corroborate([
-            _item(SourceReliability.RELIABLE_JOURNALIST, EvidenceType.INJURY, "doubtful", "a"),
-        ])
-        boosted = ev.corroborate([
-            _item(SourceReliability.RELIABLE_JOURNALIST, EvidenceType.INJURY, "doubtful", "a"),
-            _item(SourceReliability.OFFICIAL, EvidenceType.INJURY, "doubtful", "club"),
-        ])
+        base = ev.corroborate(
+            [
+                _item(SourceReliability.RELIABLE_JOURNALIST, EvidenceType.INJURY, "doubtful", "a"),
+            ]
+        )
+        boosted = ev.corroborate(
+            [
+                _item(SourceReliability.RELIABLE_JOURNALIST, EvidenceType.INJURY, "doubtful", "a"),
+                _item(SourceReliability.OFFICIAL, EvidenceType.INJURY, "doubtful", "club"),
+            ]
+        )
         assert boosted["confidence"] >= base["confidence"]
 
     def test_diminishing_returns(self):
         # confidence(1) < confidence(1+2) < confidence(1+2+3)
-        c1 = ev.corroborate([
-            _item(SourceReliability.UNVERIFIED, EvidenceType.INJURY, "doubtful", "a"),
-        ])["confidence"]
-        c2 = ev.corroborate([
-            _item(SourceReliability.UNVERIFIED, EvidenceType.INJURY, "doubtful", "a"),
-            _item(SourceReliability.UNVERIFIED, EvidenceType.INJURY, "doubtful", "b"),
-        ])["confidence"]
-        c3 = ev.corroborate([
-            _item(SourceReliability.UNVERIFIED, EvidenceType.INJURY, "doubtful", "a"),
-            _item(SourceReliability.UNVERIFIED, EvidenceType.INJURY, "doubtful", "b"),
-            _item(SourceReliability.UNVERIFIED, EvidenceType.INJURY, "doubtful", "c"),
-        ])["confidence"]
+        c1 = ev.corroborate(
+            [
+                _item(SourceReliability.UNVERIFIED, EvidenceType.INJURY, "doubtful", "a"),
+            ]
+        )["confidence"]
+        c2 = ev.corroborate(
+            [
+                _item(SourceReliability.UNVERIFIED, EvidenceType.INJURY, "doubtful", "a"),
+                _item(SourceReliability.UNVERIFIED, EvidenceType.INJURY, "doubtful", "b"),
+            ]
+        )["confidence"]
+        c3 = ev.corroborate(
+            [
+                _item(SourceReliability.UNVERIFIED, EvidenceType.INJURY, "doubtful", "a"),
+                _item(SourceReliability.UNVERIFIED, EvidenceType.INJURY, "doubtful", "b"),
+                _item(SourceReliability.UNVERIFIED, EvidenceType.INJURY, "doubtful", "c"),
+            ]
+        )["confidence"]
         # Marginal gain shrinks: c2-c1 > c3-c2 (diminishing returns).
         assert (c2 - c1) > (c3 - c2)
         assert c3 <= 1.0
 
     def test_low_confidence_evidence(self):
-        result = ev.corroborate([
-            _item(SourceReliability.UNVERIFIED, EvidenceType.TRANSFER_NEWS, "doubtful", "a"),
-        ])
+        result = ev.corroborate(
+            [
+                _item(SourceReliability.UNVERIFIED, EvidenceType.TRANSFER_NEWS, "doubtful", "a"),
+            ]
+        )
         assert result["confidence"] < 0.5
 
     def test_duplicate_evidence(self):
-        dup = ev.corroborate([
-            _item(SourceReliability.VERIFIED_JOURNALIST, EvidenceType.INJURY, "doubtful", "a"),
-            _item(SourceReliability.VERIFIED_JOURNALIST, EvidenceType.INJURY, "doubtful", "a"),
-        ])
+        dup = ev.corroborate(
+            [
+                _item(SourceReliability.VERIFIED_JOURNALIST, EvidenceType.INJURY, "doubtful", "a"),
+                _item(SourceReliability.VERIFIED_JOURNALIST, EvidenceType.INJURY, "doubtful", "a"),
+            ]
+        )
         assert dup["evidence_count"] == 2
         assert dup["sources"] == ["a"]  # deduplicated source names
 
@@ -169,6 +202,7 @@ class TestEvidenceCorroboration:
 # ---------------------------------------------------------------------------
 # Availability state derivation
 # ---------------------------------------------------------------------------
+
 
 class TestStateDerivation:
     def test_all_statuses_known(self):
@@ -230,6 +264,7 @@ class TestStateDerivation:
 # AvailabilityAwareMinutesModel
 # ---------------------------------------------------------------------------
 
+
 class _FakeMinutesModel:
     model_name = "fake_minutes"
     model_version = "1.0"
@@ -238,14 +273,16 @@ class _FakeMinutesModel:
         return {"model_name": self.model_name, "model_version": self.model_version}
 
     def predict(self, X, context=None):
-        return [{
-            "expected_minutes": 60.0,
-            "probability_starting": 0.8,
-            "probability_30_plus": 0.85,
-            "probability_60_plus": 0.8,
-            "data_completeness": 0.9,
-            "method": "fake",
-        }]
+        return [
+            {
+                "expected_minutes": 60.0,
+                "probability_starting": 0.8,
+                "probability_30_plus": 0.85,
+                "probability_60_plus": 0.8,
+                "data_completeness": 0.9,
+                "method": "fake",
+            }
+        ]
 
 
 class _FakeAvailabilityProvider:
@@ -309,13 +346,18 @@ class TestAvailabilityAwareMinutesModel:
 # AvailabilityAwarePredictionProvider
 # ---------------------------------------------------------------------------
 
+
 class _FakeDecisionProvider(DecisionPredictionProvider):
     def __init__(self):
         self._pred = PlayerPrediction(
-            player_id=1, gameweek=1,
-            expected_points=5.0, expected_minutes=60.0, start_probability=0.8,
+            player_id=1,
+            gameweek=1,
+            expected_points=5.0,
+            expected_minutes=60.0,
+            start_probability=0.8,
             distribution=np.array([0.0, 2.0, 4.0, 6.0, 8.0, 10.0]),
-            floor=0.0, ceiling=10.0,
+            floor=0.0,
+            ceiling=10.0,
         )
 
     def get_player_prediction(self, player_id, gameweek):
@@ -393,18 +435,24 @@ class TestAvailabilityAwarePredictionProvider:
 # DB providers
 # ---------------------------------------------------------------------------
 
+
 class TestDBProviders:
     def _seed_basic(self, db_session):
         """Create the minimal supporting rows (season/team/gameweek/player)."""
         from fpl_intelligence.db.models import Gameweek, Player, Season, Team
+
         season = Season(code="2025-26", display_name="2025/26")
         db_session.add(season)
         db_session.flush()
         team = Team(name="Arsenal", short_name="ARS")
         db_session.add(team)
         db_session.flush()
-        gw = Gameweek(season_id=season.id, provider_event_id=1, name="GW1",
-                      deadline_time=datetime(2025, 8, 1, tzinfo=UTC))
+        gw = Gameweek(
+            season_id=season.id,
+            provider_event_id=1,
+            name="GW1",
+            deadline_time=datetime(2025, 8, 1, tzinfo=UTC),
+        )
         db_session.add(gw)
         db_session.flush()
         player = Player(first_name="A", second_name="B", web_name="AB", position_code=4)
@@ -426,13 +474,20 @@ class TestDBProviders:
         source = AvailabilitySource(name="official", reliability="official")
         db_session.add(source)
         db_session.flush()
-        db_session.add(AvailabilityEvent(
-            player_id=pid, season_id=sid, gameweek_id=gwid,
-            status="out", confidence=0.9, evidence_count=1,
-            primary_source_id=source.id,
-            valid_from=datetime(2025, 9, 1, tzinfo=UTC),
-            valid_to=None, is_current=True,
-        ))
+        db_session.add(
+            AvailabilityEvent(
+                player_id=pid,
+                season_id=sid,
+                gameweek_id=gwid,
+                status="out",
+                confidence=0.9,
+                evidence_count=1,
+                primary_source_id=source.id,
+                valid_from=datetime(2025, 9, 1, tzinfo=UTC),
+                valid_to=None,
+                is_current=True,
+            )
+        )
         db_session.commit()
         provider = DBAvailabilityProvider(db_session)
         # Query before the event's valid_from -> no event.
@@ -447,11 +502,15 @@ class TestDBProviders:
         source = AvailabilitySource(name="sky", reliability="reliable_journalist")
         db_session.add(source)
         db_session.flush()
-        db_session.add(AvailabilityArticle(
-            source_id=source.id, url="https://x/1", headline="News",
-            published_at=datetime(2025, 8, 10, tzinfo=UTC),
-            content="content",
-        ))
+        db_session.add(
+            AvailabilityArticle(
+                source_id=source.id,
+                url="https://x/1",
+                headline="News",
+                published_at=datetime(2025, 8, 10, tzinfo=UTC),
+                content="content",
+            )
+        )
         db_session.commit()
         provider = DBNewsProvider(db_session)
         articles = provider.fetch_evidence()
@@ -462,10 +521,14 @@ class TestDBProviders:
         source = AvailabilitySource(name="sky", reliability="reliable_journalist")
         db_session.add(source)
         db_session.flush()
-        db_session.add(AvailabilityArticle(
-            source_id=source.id, url="https://x/1", headline="News",
-            published_at=datetime(2025, 8, 10, tzinfo=UTC),
-        ))
+        db_session.add(
+            AvailabilityArticle(
+                source_id=source.id,
+                url="https://x/1",
+                headline="News",
+                published_at=datetime(2025, 8, 10, tzinfo=UTC),
+            )
+        )
         db_session.commit()
         provider = DBNewsProvider(db_session)
         # since after publish date -> no articles
@@ -475,10 +538,15 @@ class TestDBProviders:
 
     def test_training_limited(self, db_session):
         _, _, pid = self._seed_basic(db_session)
-        db_session.add(TrainingReport(
-            player_id=pid, session_at=datetime(2025, 8, 10, tzinfo=UTC),
-            participated=True, limited=True, training_load=0.5,
-        ))
+        db_session.add(
+            TrainingReport(
+                player_id=pid,
+                session_at=datetime(2025, 8, 10, tzinfo=UTC),
+                participated=True,
+                limited=True,
+                training_load=0.5,
+            )
+        )
         db_session.commit()
         provider = DBAvailabilityProvider(db_session)
         limited, load = provider.is_training_limited(pid, datetime(2025, 8, 11, tzinfo=UTC))
@@ -490,6 +558,7 @@ class TestDBProviders:
 # Phase 7 evaluation
 # ---------------------------------------------------------------------------
 
+
 class TestPhase7Evaluation:
     def test_evaluate_phase7_requires_db(self):
         with pytest.raises(RuntimeError):
@@ -497,11 +566,20 @@ class TestPhase7Evaluation:
 
     def test_result_dataclass_fields(self):
         result = Phase7EvaluationResult(
-            season="2024-25", baseline_total_points=100.0, phase7_total_points=110.0,
-            baseline_gw_average=2.6, phase7_gw_average=2.9,
-            baseline_transfers=10, phase7_transfers=12, transfer_delta=2,
-            captain_delta=1.5, start_prob_accuracy=0.0, minutes_mae=12.0,
-            points_mae=1.2, roi_delta=10.0, improvement_pct=10.0,
+            season="2024-25",
+            baseline_total_points=100.0,
+            phase7_total_points=110.0,
+            baseline_gw_average=2.6,
+            phase7_gw_average=2.9,
+            baseline_transfers=10,
+            phase7_transfers=12,
+            transfer_delta=2,
+            captain_delta=1.5,
+            start_prob_accuracy=0.0,
+            minutes_mae=12.0,
+            points_mae=1.2,
+            roi_delta=10.0,
+            improvement_pct=10.0,
         )
         d = result.to_dict()
         assert d["season"] == "2024-25"
@@ -532,8 +610,12 @@ class TestPhase7Evaluation:
         db_session.add(team)
         db_session.flush()
         team_id = team.id
-        gw = Gameweek(season_id=sid, provider_event_id=1, name="GW1",
-                      deadline_time=datetime(2024, 8, 1, tzinfo=UTC))
+        gw = Gameweek(
+            season_id=sid,
+            provider_event_id=1,
+            name="GW1",
+            deadline_time=datetime(2024, 8, 1, tzinfo=UTC),
+        )
         db_session.add(gw)
         db_session.flush()
         gwid = gw.id
@@ -544,14 +626,21 @@ class TestPhase7Evaluation:
             db_session.add(pl)
             db_session.flush()
             players.append(pl)
-        db_session.add_all([
-            PlayerGameweekPerformance(
-                player_id=p.id, gameweek_id=gwid, season_id=sid, team_id=team_id,
-                minutes=90, total_points=i + 1,
-                ingested_at=datetime(2024, 8, 1, tzinfo=UTC),
-                available_at=datetime(2024, 8, 1, tzinfo=UTC),
-            ) for i, p in enumerate(players)
-        ])
+        db_session.add_all(
+            [
+                PlayerGameweekPerformance(
+                    player_id=p.id,
+                    gameweek_id=gwid,
+                    season_id=sid,
+                    team_id=team_id,
+                    minutes=90,
+                    total_points=i + 1,
+                    ingested_at=datetime(2024, 8, 1, tzinfo=UTC),
+                    available_at=datetime(2024, 8, 1, tzinfo=UTC),
+                )
+                for i, p in enumerate(players)
+            ]
+        )
         db_session.commit()
         pids = [p.id for p in players]
 
@@ -567,10 +656,14 @@ class TestPhase7Evaluation:
                 # backtester selects it as captain (different actual points).
                 pts = 10.0 if idx == self._captain_idx else 1.0
                 return PlayerPrediction(
-                    player_id=pid, gameweek=gw, expected_points=pts,
-                    expected_minutes=60.0, start_probability=0.8,
+                    player_id=pid,
+                    gameweek=gw,
+                    expected_points=pts,
+                    expected_minutes=60.0,
+                    start_probability=0.8,
                     distribution=np.array([pts, pts, pts]),
-                    floor=0.0, ceiling=pts * 2,
+                    floor=0.0,
+                    ceiling=pts * 2,
                 )
 
             def get_player_prediction(self, player_id, gameweek):
@@ -607,13 +700,20 @@ class TestPhase7Evaluation:
 # Real evaluation metrics
 # ---------------------------------------------------------------------------
 
+
 class TestAvailabilityMetrics:
     def test_empty_returns_none_not_zero(self):
         """Empty sample -> all metrics None, never 0.0 placeholders."""
         m = mtr.availability_metrics([], [], [], [])
         assert m["n"] == 0
-        for key in ("start_brier", "start_log_loss", "minutes_mae", "minutes_rmse",
-                    "prob60_brier", "prob60_calibration_ece"):
+        for key in (
+            "start_brier",
+            "start_log_loss",
+            "minutes_mae",
+            "minutes_rmse",
+            "prob60_brier",
+            "prob60_calibration_ece",
+        ):
             assert m[key] is None
 
     def test_perfect_predictions_zero_brier(self):
@@ -674,17 +774,23 @@ class TestPredictionMetrics:
 # DB availability source resolution
 # ---------------------------------------------------------------------------
 
+
 class TestSourceResolution:
     def _seed(self, db_session):
         from fpl_intelligence.db.models import Gameweek, Player, Season, Team
+
         season = Season(code="2025-26", display_name="2025/26")
         db_session.add(season)
         db_session.flush()
         team = Team(name="Arsenal", short_name="ARS")
         db_session.add(team)
         db_session.flush()
-        gw = Gameweek(season_id=season.id, provider_event_id=1, name="GW1",
-                      deadline_time=datetime(2025, 8, 1, tzinfo=UTC))
+        gw = Gameweek(
+            season_id=season.id,
+            provider_event_id=1,
+            name="GW1",
+            deadline_time=datetime(2025, 8, 1, tzinfo=UTC),
+        )
         db_session.add(gw)
         db_session.flush()
         player = Player(first_name="A", second_name="B", web_name="AB", position_code=4)
@@ -698,11 +804,19 @@ class TestSourceResolution:
         src = AvailabilitySource(name="team_official", reliability="official")
         db_session.add(src)
         db_session.flush()
-        db_session.add(AvailabilityEvent(
-            player_id=pid, season_id=sid, gameweek_id=gwid, status="out",
-            confidence=0.9, evidence_count=1, primary_source_id=src.id,
-            valid_from=datetime(2025, 8, 10, tzinfo=UTC), is_current=True,
-        ))
+        db_session.add(
+            AvailabilityEvent(
+                player_id=pid,
+                season_id=sid,
+                gameweek_id=gwid,
+                status="out",
+                confidence=0.9,
+                evidence_count=1,
+                primary_source_id=src.id,
+                valid_from=datetime(2025, 8, 10, tzinfo=UTC),
+                is_current=True,
+            )
+        )
         db_session.commit()
         provider = DBAvailabilityProvider(db_session)
         status, conf, sources = provider.get_availability(pid, datetime(2025, 8, 15, tzinfo=UTC))
@@ -711,11 +825,19 @@ class TestSourceResolution:
 
     def test_no_source_returns_empty(self, db_session):
         sid, gwid, pid = self._seed(db_session)
-        db_session.add(AvailabilityEvent(
-            player_id=pid, season_id=sid, gameweek_id=gwid, status="doubtful",
-            confidence=0.5, evidence_count=1, primary_source_id=None,
-            valid_from=datetime(2025, 8, 10, tzinfo=UTC), is_current=True,
-        ))
+        db_session.add(
+            AvailabilityEvent(
+                player_id=pid,
+                season_id=sid,
+                gameweek_id=gwid,
+                status="doubtful",
+                confidence=0.5,
+                evidence_count=1,
+                primary_source_id=None,
+                valid_from=datetime(2025, 8, 10, tzinfo=UTC),
+                is_current=True,
+            )
+        )
         db_session.commit()
         provider = DBAvailabilityProvider(db_session)
         status, conf, sources = provider.get_availability(pid, datetime(2025, 8, 15, tzinfo=UTC))
@@ -728,11 +850,19 @@ class TestSourceResolution:
         src = AvailabilitySource(name="sky_sports", reliability="reliable_journalist")
         db_session.add(src)
         db_session.flush()
-        db_session.add(AvailabilityEvent(
-            player_id=pid, season_id=sid, gameweek_id=gwid, status="out",
-            confidence=0.9, evidence_count=1, primary_source_id=src.id,
-            valid_from=datetime(2025, 9, 1, tzinfo=UTC), is_current=True,
-        ))
+        db_session.add(
+            AvailabilityEvent(
+                player_id=pid,
+                season_id=sid,
+                gameweek_id=gwid,
+                status="out",
+                confidence=0.9,
+                evidence_count=1,
+                primary_source_id=src.id,
+                valid_from=datetime(2025, 9, 1, tzinfo=UTC),
+                is_current=True,
+            )
+        )
         db_session.commit()
         provider = DBAvailabilityProvider(db_session)
         # Query before valid_from -> no event, no source.
@@ -747,11 +877,19 @@ class TestSourceResolution:
         primary = AvailabilitySource(name="club_official", reliability="official")
         db_session.add(primary)
         db_session.flush()
-        db_session.add(AvailabilityEvent(
-            player_id=pid, season_id=sid, gameweek_id=gwid, status="out",
-            confidence=0.9, evidence_count=2, primary_source_id=primary.id,
-            valid_from=datetime(2025, 8, 10, tzinfo=UTC), is_current=True,
-        ))
+        db_session.add(
+            AvailabilityEvent(
+                player_id=pid,
+                season_id=sid,
+                gameweek_id=gwid,
+                status="out",
+                confidence=0.9,
+                evidence_count=2,
+                primary_source_id=primary.id,
+                valid_from=datetime(2025, 8, 10, tzinfo=UTC),
+                is_current=True,
+            )
+        )
         db_session.commit()
         provider = DBAvailabilityProvider(db_session)
         status, conf, sources = provider.get_availability(pid, datetime(2025, 8, 15, tzinfo=UTC))
@@ -762,17 +900,23 @@ class TestSourceResolution:
 # Availability validation audits
 # ---------------------------------------------------------------------------
 
+
 class TestValidationAudits:
     def _seed(self, db_session):
         from fpl_intelligence.db.models import Gameweek, Player, Season, Team
+
         season = Season(code="2024-25", display_name="2024/25")
         db_session.add(season)
         db_session.flush()
         team = Team(name="Arsenal", short_name="ARS")
         db_session.add(team)
         db_session.flush()
-        gw = Gameweek(season_id=season.id, provider_event_id=1, name="GW1",
-                      deadline_time=datetime(2024, 8, 1, tzinfo=UTC))
+        gw = Gameweek(
+            season_id=season.id,
+            provider_event_id=1,
+            name="GW1",
+            deadline_time=datetime(2024, 8, 1, tzinfo=UTC),
+        )
         db_session.add(gw)
         db_session.flush()
         player = Player(first_name="A", second_name="B", web_name="AB", position_code=4)
@@ -791,22 +935,38 @@ class TestValidationAudits:
 
     def test_coverage_with_event(self, db_session):
         sid, gwid, pid = self._seed(db_session)
-        db_session.add(AvailabilityEvent(
-            player_id=pid, season_id=sid, gameweek_id=gwid, status="out",
-            confidence=0.9, evidence_count=1, primary_source_id=None,
-            valid_from=datetime(2024, 8, 1, tzinfo=UTC), is_current=True,
-        ))
+        db_session.add(
+            AvailabilityEvent(
+                player_id=pid,
+                season_id=sid,
+                gameweek_id=gwid,
+                status="out",
+                confidence=0.9,
+                evidence_count=1,
+                primary_source_id=None,
+                valid_from=datetime(2024, 8, 1, tzinfo=UTC),
+                is_current=True,
+            )
+        )
         db_session.commit()
         report = audit_availability_coverage(db_session, ["2024-25"])
         assert report.total_events == 1
 
     def test_temporal_all_eligible(self, db_session):
         sid, gwid, pid = self._seed(db_session)
-        db_session.add(AvailabilityEvent(
-            player_id=pid, season_id=sid, gameweek_id=gwid, status="out",
-            confidence=0.9, evidence_count=1, primary_source_id=None,
-            valid_from=datetime(2024, 7, 1, tzinfo=UTC), is_current=True,
-        ))
+        db_session.add(
+            AvailabilityEvent(
+                player_id=pid,
+                season_id=sid,
+                gameweek_id=gwid,
+                status="out",
+                confidence=0.9,
+                evidence_count=1,
+                primary_source_id=None,
+                valid_from=datetime(2024, 7, 1, tzinfo=UTC),
+                is_current=True,
+            )
+        )
         db_session.commit()
         report = audit_temporal_availability(db_session)
         assert report.total_events == 1
@@ -816,11 +976,19 @@ class TestValidationAudits:
     def test_temporal_future_excluded(self, db_session):
         sid, gwid, pid = self._seed(db_session)
         # Event valid_from AFTER the GW deadline -> future event, excluded.
-        db_session.add(AvailabilityEvent(
-            player_id=pid, season_id=sid, gameweek_id=gwid, status="out",
-            confidence=0.9, evidence_count=1, primary_source_id=None,
-            valid_from=datetime(2024, 9, 1, tzinfo=UTC), is_current=True,
-        ))
+        db_session.add(
+            AvailabilityEvent(
+                player_id=pid,
+                season_id=sid,
+                gameweek_id=gwid,
+                status="out",
+                confidence=0.9,
+                evidence_count=1,
+                primary_source_id=None,
+                valid_from=datetime(2024, 9, 1, tzinfo=UTC),
+                is_current=True,
+            )
+        )
         db_session.commit()
         report = audit_temporal_availability(db_session)
         assert report.total_events == 1
@@ -832,11 +1000,19 @@ class TestValidationAudits:
         event cannot be persisted. Verify the audit reports zero missing-
         timestamp events when all persisted events carry a valid_from."""
         sid, gwid, pid = self._seed(db_session)
-        db_session.add(AvailabilityEvent(
-            player_id=pid, season_id=sid, gameweek_id=gwid, status="out",
-            confidence=0.9, evidence_count=1, primary_source_id=None,
-            valid_from=datetime(2024, 7, 1, tzinfo=UTC), is_current=True,
-        ))
+        db_session.add(
+            AvailabilityEvent(
+                player_id=pid,
+                season_id=sid,
+                gameweek_id=gwid,
+                status="out",
+                confidence=0.9,
+                evidence_count=1,
+                primary_source_id=None,
+                valid_from=datetime(2024, 7, 1, tzinfo=UTC),
+                is_current=True,
+            )
+        )
         db_session.commit()
         report = audit_temporal_availability(db_session)
         assert report.missing_timestamp_events == 0

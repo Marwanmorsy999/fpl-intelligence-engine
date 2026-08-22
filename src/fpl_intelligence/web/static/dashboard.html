@@ -236,9 +236,13 @@ window.__photoFail = function (img) {
 };
 window.__badgeFail = function (img) { img.style.display = "none"; };
 
+var PL_PHOTOS_ENABLED = false; /* Phase 18.0: PL CDN off by default — avatars only. */
+
 function photoHTML(p, big) {
   var name = p.web_name || ("Player " + p.id);
-  if (p.code) {
+  /* P3/E3: initials avatars only by default. PL photo requests flood the
+     console with 400s; the CDN is reached only when the flag is on. */
+  if (PL_PHOTOS_ENABLED && p.code) {
     var cls = big ? "player-photo photo-big" : "player-photo";
     return '<img class="' + cls + '" alt="' + esc(name) + '" loading="lazy" src="' + PHOTO_BASE + p.code + '.png" onerror="window.__photoFail(this)">';
   }
@@ -247,6 +251,10 @@ function photoHTML(p, big) {
 }
 function badgeHTML(teamId) {
   if (!teamId) { return ""; }
+  if (!PL_PHOTOS_ENABLED) {
+    /* No badge request either — the colored avatar already identifies the player. */
+    return "";
+  }
   return '<img class="team-badge" alt="" loading="lazy" src="' + BADGE_BASE + teamId + '.png" onerror="window.__badgeFail(this)">';
 }
 
@@ -369,8 +377,22 @@ async function analyze() {
     if (res.status === 503) {
       document.getElementById("retrySyncBtn").style.display = "inline-block";
       var body503 = await res.json().catch(function () { return {}; });
-      var detail = body503.detail || "FPL is blocking our servers right now.";
-      showError(detail + " Your ID is saved — we retry daily at 06:30 UTC and will Telegram you on success.");
+      var detail503 = body503.detail || "FPL is blocking our servers right now.";
+      var nowStr = new Date().toUTCString();
+      $("error").innerHTML = '<div class="font-semibold">' + esc(detail503) + "</div>"
+        + '<div class="mt-2 rounded-xl border border-sky-900 bg-[#0b1526] p-3 text-xs text-slate-300" id="syncStatusCard">'
+        + '<div class="font-bold text-sky-300 mb-1">📋 Sync status</div>'
+        + "<div>Last attempt: " + esc(nowStr) + "</div>"
+        + "<div>Egress: <span class='text-red-400'>blocked</span> — direct + allorigins + corsproxy"
+        + ($("teamId").value ? " + your proxy" : "") + " all failed</div>"
+        + "<div>Next retry: daily 06:30 UTC · we will Telegram you on success.</div>"
+        + "</div>"
+        + '<div class="mt-2 text-xs text-slate-400">Meanwhile: press 🔄 Try Again above, or '
+        + '<button id="manualCta" class="underline text-sky-400 font-semibold" type="button">Enter Squad Manually</button>.</div>';
+      $("error").style.display = "block";
+      var cta = document.getElementById("manualCta");
+      if (cta) { cta.addEventListener("click", function () { toggleManual(); }); }
+      $("status").style.display = "none";
       return;
     }
     if (res.status === 404) { throw new Error("Could not find that FPL Team ID. Please double-check the number."); }
@@ -570,11 +592,15 @@ function renderCaptain(report) {
   var chain = report.meta && report.meta.chain;
   if (chain) {
     var notes = chain.notes || {};
-    if (chain.market_check && chain.market_check.enabled === true) {
-      var mc = chain.market_check.fixtures_matched != null ? " (" + chain.market_check.fixtures_matched + " fixtures)" : "";
-      html += '<p class="mt-2 text-sm text-emerald-300/90">📈 Market check agrees' + esc(mc) + "</p>";
-    } else if (chain.market_check && chain.market_check.enabled === false) {
-      html += '<p class="mt-2 text-sm text-slate-500">📈 Market check: unavailable</p>';
+    var mcOn = chain.market_check && chain.market_check.enabled === true
+      && Number(chain.market_check.fixtures_matched || 0) > 0;
+    if (mcOn) {
+      html += '<p class="mt-2 text-sm text-emerald-300/90">📈 Market check agrees (' + chain.market_check.fixtures_matched + " fixtures)</p>";
+    } else if (chain.market_check) {
+      /* Off, or matched zero fixtures — never claim agreement without data. */
+      var reason = chain.market_check.reason
+        || (Number(chain.market_check.fixtures_matched || 0) === 0 ? "no fixtures matched yet" : "unavailable");
+      html += '<p class="mt-2 text-sm text-slate-500">📈 Market check: ' + esc(reason) + "</p>";
     }
     if (notes.weather_severe_fixtures != null && notes.weather_severe_fixtures !== 0) {
       html += '<p class="mt-2 text-sm text-amber-300/90">🌧 Severe-weather fixtures: ' + notes.weather_severe_fixtures + "</p>";
@@ -679,11 +705,14 @@ function renderChainBanner(report) {
   if (notes.understat_players_matched != null) {
     noteLines.push('<span class="chain-note">Understat matched: ' + notes.understat_players_matched + " players</span>");
   }
-  if (chain.market_check && chain.market_check.enabled === false) {
-    noteLines.push('<span class="chain-note no">Market check: off' + (chain.market_check.reason ? ' (' + esc(chain.market_check.reason) + ')' : "") + "</span>");
-  } else if (chain.market_check && chain.market_check.enabled === true) {
-    var mc = chain.market_check.fixtures_matched != null ? " · " + chain.market_check.fixtures_matched + " fixtures" : "";
-    noteLines.push('<span class="chain-note ok">Market check: agrees' + mc + "</span>");
+  var mcOn = chain.market_check && chain.market_check.enabled === true
+    && Number(chain.market_check.fixtures_matched || 0) > 0;
+  if (!chain.market_check || !mcOn) {
+    var mcReason = (chain.market_check && chain.market_check.reason)
+      || "no fixtures matched yet";
+    noteLines.push('<span class="chain-note no">📈 Market check: ' + esc(mcReason) + "</span>");
+  } else {
+    noteLines.push('<span class="chain-note ok">📈 Market check: agrees · ' + chain.market_check.fixtures_matched + " fixtures</span>");
   }
   if (notes.weather_severe_fixtures != null && notes.weather_severe_fixtures !== 0
       && !(Array.isArray(notes.weather_severe_fixtures) && notes.weather_severe_fixtures.length === 0)) {
@@ -801,7 +830,10 @@ function getManualPicksList() {
 }
 
 function isPlayerPicked(playerId) {
-  return !!MANUAL_PICKS[playerId];
+  for (var key in MANUAL_PICKS) {
+    if (MANUAL_PICKS[key] && MANUAL_PICKS[key].id === playerId) return true;
+  }
+  return false;
 }
 
 function updatePickCounter() {
@@ -827,19 +859,27 @@ function filterPlayers(query, position) {
   var q = query.toLowerCase().trim();
   return ALL_PLAYERS.filter(function (p) {
     if (position && p.position !== position) return false;
-    if (!q) return false;
+    if (q.length < 2) return false;
+    var teamShort = p.team ? ("t" + p.team) : "";
+    var posStr = POS_NAMES[p.position] || "";
+    var priceStr = (p.price != null) ? (p.price.toFixed(1) + "m") : "";
     return (p.web_name && p.web_name.toLowerCase().indexOf(q) !== -1) ||
-           (String(p.id).indexOf(q) !== -1);
+           (teamShort.indexOf(q) !== -1) ||
+           (posStr.toLowerCase().indexOf(q) !== -1) ||
+           (priceStr.indexOf(q) !== -1);
   }).slice(0, 20); /* cap to 20 results for performance */
 }
 
 function buildAutocompleteItem(p) {
   var picked = isPlayerPicked(p.id);
   var teamShort = p.team ? ("T" + p.team) : "";
-  return '<div class="autocomplete-item' + (picked ? ' opacity-50' : '') + '" data-id="' + p.id + '" data-name="' + esc(p.web_name) + '">'
+  // R1: the canonical id the squad engine expects is the FPL element id.
+  // Fall back to the internal id only for legacy rows without an element id.
+  var canonicalId = (p.fpl_element_id != null) ? p.fpl_element_id : p.id;
+  return '<div class="autocomplete-item' + (picked ? ' opacity-50' : '') + '" data-id="' + canonicalId + '" data-name="' + esc(p.web_name) + '" data-price="' + Number(p.price || 0).toFixed(1) + '">'
     + '<span>' + esc(p.web_name) + ' <span class="pos-badge">' + (POS_NAMES[p.position] || "") + '</span></span>'
     + '<span class="team-short">' + esc(teamShort) + ' · ' + fmtPrice(p.price) + '</span>'
-    + '</div>';
+    + "</div>";
 }
 
 function showAutocomplete(inputEl, listEl, position, onPick) {
@@ -858,9 +898,15 @@ function showAutocomplete(inputEl, listEl, position, onPick) {
       item.addEventListener("click", function () {
         var pid = parseInt(item.getAttribute("data-id"), 10);
         var name = item.getAttribute("data-name");
-        var player = ALL_PLAYERS.find(function (p) { return p.id === pid; });
+        var player = ALL_PLAYERS.find(function (p) {
+          return (p.fpl_element_id != null ? p.fpl_element_id : p.id) === pid;
+        });
         if (player && !isPlayerPicked(player.id)) {
-          onPick(player, inputEl, listEl);
+          // Normalise so the stored id is the canonical FPL element id (R1):
+          // the squad engine joins on fpl_element_id everywhere.
+          var canonical = (player.fpl_element_id != null) ? player.fpl_element_id : player.id;
+          var pick = Object.assign({}, player, { id: canonical });
+          onPick(pick, inputEl, listEl);
         }
       });
     })(items[i]);
@@ -934,7 +980,8 @@ function setupCaptainAutocomplete(inputEl, listEl, isCaptain) {
       listEl.innerHTML = '<div class="autocomplete-item text-slate-500">Pick players first</div>';
     } else {
       listEl.innerHTML = matches.map(function (p) {
-        return '<div class="autocomplete-item" data-id="' + p.id + '">'
+        var canonicalId = (p.fpl_element_id != null) ? p.fpl_element_id : p.id;
+        return '<div class="autocomplete-item" data-id="' + canonicalId + '">'
           + esc(p.web_name) + ' <span class="pos-badge">' + (POS_NAMES[p.position] || "") + '</span> '
           + '<span class="team-short">' + fmtPrice(p.price) + '</span></div>';
       }).join("");
@@ -945,10 +992,14 @@ function setupCaptainAutocomplete(inputEl, listEl, isCaptain) {
       (function (item) {
         item.addEventListener("click", function () {
           var pid = parseInt(item.getAttribute("data-id"), 10);
-          var player = ALL_PLAYERS.find(function (p) { return p.id === pid; });
+          var player = ALL_PLAYERS.find(function (p) {
+            return (p.fpl_element_id != null ? p.fpl_element_id : p.id) === pid;
+          });
           if (player) {
-            if (isCaptain) { MANUAL_CAP = player; inputEl.value = player.web_name; }
-            else { MANUAL_VICE = player; inputEl.value = player.web_name; }
+            var canonical = (player.fpl_element_id != null) ? player.fpl_element_id : player.id;
+            var pick = Object.assign({}, player, { id: canonical });
+            if (isCaptain) { MANUAL_CAP = pick; inputEl.value = player.web_name; }
+            else { MANUAL_VICE = pick; inputEl.value = player.web_name; }
             listEl.style.display = "none";
           }
         });
@@ -1062,14 +1113,16 @@ async function saveManual() {
     vice_captain_id: MANUAL_VICE.id,
     bank: 0,
     free_transfers: 1,
-    chips_available: [],
+    chips_available: ["wildcard", "free_hit", "bench_boost", "triple_captain"],
     gameweek: 1,
     player_positions: {},
     player_prices: {},
     player_teams: {}
   };
   ids.forEach(function (id) {
-    var p = ALL_PLAYERS.find(function (x) { return x.id === id; });
+    var p = ALL_PLAYERS.find(function (x) {
+      return ((x.fpl_element_id != null ? x.fpl_element_id : x.id) === id);
+    });
     if (p) {
       squad.player_positions[id] = p.position || 1;
       squad.player_prices[id] = p.price || 5.0;

@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 
 from fpl_intelligence import __version__
-from fpl_intelligence.api.deps import assert_no_static_stub_in_production, GetDB
+from fpl_intelligence.api.deps import GetDB, assert_no_static_stub_in_production
 from fpl_intelligence.api.routes.admin import router as admin_router
 from fpl_intelligence.api.routes.analyst import router as analyst_router
 from fpl_intelligence.api.routes.data_sources import router as data_sources_router

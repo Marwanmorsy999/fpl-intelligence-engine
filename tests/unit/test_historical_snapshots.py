@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import create_engine
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from fpl_intelligence.db.base import Base
@@ -53,7 +54,9 @@ def gameweek(db_session: Session, season: Season) -> Gameweek:
 class TestSnapshotInsertion:
     """Test inserting new snapshots."""
 
-    def test_insert_new_snapshot(self, db_session: Session, player: Player, season: Season, gameweek: Gameweek) -> None:
+    def test_insert_new_snapshot(
+        self, db_session: Session, player: Player, season: Season, gameweek: Gameweek
+    ) -> None:
         snapshot = FPLSnapshot(
             player_id=player.id,
             season_id=season.id,
@@ -84,7 +87,9 @@ class TestSnapshotInsertion:
 class TestSnapshotPreservation:
     """Test that previous snapshots are preserved."""
 
-    def test_preserve_previous_snapshot(self, db_session: Session, player: Player, season: Season, gameweek: Gameweek) -> None:
+    def test_preserve_previous_snapshot(
+        self, db_session: Session, player: Player, season: Season, gameweek: Gameweek
+    ) -> None:
         # First snapshot
         snap1 = FPLSnapshot(
             player_id=player.id,
@@ -127,7 +132,9 @@ class TestSnapshotPreservation:
 class TestSnapshotOverwritePrevention:
     """Test that accidental overwrites are prevented."""
 
-    def test_unique_constraint_prevents_exact_duplicate(self, db_session: Session, player: Player, season: Season, gameweek: Gameweek) -> None:
+    def test_unique_constraint_prevents_exact_duplicate(
+        self, db_session: Session, player: Player, season: Season, gameweek: Gameweek
+    ) -> None:
         event_time = datetime(2024, 8, 16, 18, 0, tzinfo=UTC)
         snap1 = FPLSnapshot(
             player_id=player.id,
@@ -154,7 +161,7 @@ class TestSnapshotOverwritePrevention:
         db_session.add(snap2)
 
         # The unique constraint (player_id, gameweek_id, event_time) should prevent duplicates
-        with pytest.raises(Exception):
+        with pytest.raises(IntegrityError):
             db_session.commit()
         db_session.rollback()
 

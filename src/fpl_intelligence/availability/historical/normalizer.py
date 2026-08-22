@@ -10,6 +10,7 @@ provider-independent representation that carries:
 - source + reliability
 - provider provenance (provider, provider_event_id)
 """
+
 from __future__ import annotations
 
 from typing import Any

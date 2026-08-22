@@ -76,9 +76,7 @@ class ModelRegistryEntry(Base):
     )
 
     __table_args__ = (
-        UniqueConstraint(
-            "model_name", "model_version", name="uq_model_registry_name_version"
-        ),
+        UniqueConstraint("model_name", "model_version", name="uq_model_registry_name_version"),
     )
 
 
@@ -156,9 +154,7 @@ class TeamStrengthRecord(Base):
     __tablename__ = "team_strengths"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    team_id: Mapped[int] = mapped_column(
-        ForeignKey("teams.id"), nullable=False, index=True
-    )
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), nullable=False, index=True)
     season: Mapped[str] = mapped_column(String(20), nullable=False)
     cutoff_time: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, index=True
@@ -178,7 +174,10 @@ class TeamStrengthRecord(Base):
 
     __table_args__ = (
         UniqueConstraint(
-            "team_id", "season", "cutoff_time", "feature_version",
+            "team_id",
+            "season",
+            "cutoff_time",
+            "feature_version",
             name="uq_team_strength_cutoff",
         ),
     )
@@ -210,9 +209,7 @@ class MatchPredictionRecord(Base):
     __tablename__ = "match_predictions"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    fixture_id: Mapped[int] = mapped_column(
-        ForeignKey("fixtures.id"), nullable=False, index=True
-    )
+    fixture_id: Mapped[int] = mapped_column(ForeignKey("fixtures.id"), nullable=False, index=True)
     season: Mapped[str] = mapped_column(String(20), nullable=False)
     cutoff_time: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, index=True
@@ -238,8 +235,10 @@ class MatchPredictionRecord(Base):
 
     __table_args__ = (
         UniqueConstraint(
-            "fixture_id", "cutoff_time", "model_name", "model_version",
+            "fixture_id",
+            "cutoff_time",
+            "model_name",
+            "model_version",
             name="uq_match_prediction_fixture_cutoff",
         ),
     )
-

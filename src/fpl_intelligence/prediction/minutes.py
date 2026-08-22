@@ -432,4 +432,3 @@ def _log_loss(proba: np.ndarray, actual: np.ndarray) -> float:
     eps = 1e-12
     proba = np.clip(proba, eps, 1 - eps)
     return float(-np.mean(actual * np.log(proba) + (1 - actual) * np.log(1 - proba)))
-

@@ -29,6 +29,7 @@ This module is additive: it does not modify the quantitative Phases 1–8 stack,
 makes **no** live API calls inside ``pytest`` (tests feed the generator `RawItem`
 objects directly and inject the clock / sleep seams), and it hardcodes no keys.
 """
+
 from __future__ import annotations
 
 import time
@@ -255,9 +256,7 @@ class AlertGenerator:
         if max_alerts_per_pass < 1:
             raise ValueError("max_alerts_per_pass must be at least 1")
         self._clock = clock
-        self._rate = RateLimiter(
-            min_interval_seconds, clock=monotonic_clock, sleep=sleep
-        )
+        self._rate = RateLimiter(min_interval_seconds, clock=monotonic_clock, sleep=sleep)
         self._max_alerts_per_pass = int(max_alerts_per_pass)
         self._keywords = dict(keywords or DEFAULT_KEYWORDS)
         self._classify = classifier or classify_alert_type
@@ -312,9 +311,7 @@ class AlertGenerator:
         if alert_type is None:
             return None
         needle = f"{item.title}\n{item.content_text}".lower()
-        matched = tuple(
-            phrase for phrase in self._keywords.get(alert_type, ()) if phrase in needle
-        )
+        matched = tuple(phrase for phrase in self._keywords.get(alert_type, ()) if phrase in needle)
         body = item.content_text
         if len(body) > 500:
             body = f"{body[:500].rstrip()}…"

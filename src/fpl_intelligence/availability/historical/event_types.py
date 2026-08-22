@@ -5,6 +5,7 @@ Phase 7 canonical statuses/evidence types. The mapping is deliberately
 conservative: we never infer a more specific medical/availability state than
 the source supports, and we use UNKNOWN where appropriate.
 """
+
 from __future__ import annotations
 
 from enum import StrEnum

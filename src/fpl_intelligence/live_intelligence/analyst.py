@@ -30,6 +30,7 @@ Four enforcement barriers
    evidence never reaches the prompt, so the analyst cannot leak it into a
    narrative even if it wanted to.
 """
+
 from __future__ import annotations
 
 import json
@@ -421,8 +422,7 @@ class AIAnalyst:
         """Synthesise a captaincy-debate report across two or more candidates."""
         if len(predictions) < 2:
             raise ValueError(
-                "A captaincy debate needs at least two candidates; "
-                f"got {len(predictions)}."
+                f"A captaincy debate needs at least two candidates; got {len(predictions)}."
             )
         baselines = [
             QuantitativeBaseline(
@@ -440,9 +440,7 @@ class AIAnalyst:
             )
             for p in predictions
         ]
-        label = subject_label or " vs ".join(
-            b.display_name or b.subject_ref for b in baselines
-        )
+        label = subject_label or " vs ".join(b.display_name or b.subject_ref for b in baselines)
         analyst_report = self.analyse(
             AnalystContext(
                 task=AnalystTask.CAPTAINCY_DEBATE,
@@ -532,9 +530,7 @@ class AIAnalyst:
             qualitative_adjustment=ReportQualitativeAdjustment(
                 direction=output.qualitative_adjustment.direction,
                 magnitude=output.qualitative_adjustment.magnitude,
-                cited_evidence_refs=list(
-                    output.qualitative_adjustment.cited_evidence_refs
-                ),
+                cited_evidence_refs=list(output.qualitative_adjustment.cited_evidence_refs),
                 rationale=output.qualitative_adjustment.rationale,
             ),
             net_assessment=output.net_assessment,
@@ -589,12 +585,9 @@ class AIAnalyst:
         """Summarise a captaincy debate across two or more candidates."""
         if len(baselines) < 2:
             raise ValueError(
-                "A captaincy debate needs at least two candidates; "
-                f"got {len(baselines)}."
+                f"A captaincy debate needs at least two candidates; got {len(baselines)}."
             )
-        label = subject_label or " vs ".join(
-            b.display_name or b.subject_ref for b in baselines
-        )
+        label = subject_label or " vs ".join(b.display_name or b.subject_ref for b in baselines)
         return self.analyse(
             AnalystContext(
                 task=AnalystTask.CAPTAINCY_DEBATE,
@@ -661,16 +654,13 @@ class AIAnalyst:
         try:
             payload = json.loads(strip_code_fence(response.text))
         except (json.JSONDecodeError, TypeError) as exc:
-            raise AnalystGuardrailError(
-                f"analyst response is not valid JSON: {exc}"
-            ) from exc
+            raise AnalystGuardrailError(f"analyst response is not valid JSON: {exc}") from exc
 
         try:
             output = AnalystOutput.model_validate(payload)
         except ValidationError as exc:
             raise AnalystGuardrailError(
-                "analyst response failed schema validation: "
-                f"{exc.errors(include_url=False)[:3]}"
+                f"analyst response failed schema validation: {exc.errors(include_url=False)[:3]}"
             ) from exc
 
         self._enforce_guardrails(safe_context, output)
@@ -741,9 +731,7 @@ class AIAnalyst:
 
         return kept, excluded
 
-    def _exclusion_reason(
-        self, item: EvidenceCitation, deadline: datetime | None
-    ) -> str | None:
+    def _exclusion_reason(self, item: EvidenceCitation, deadline: datetime | None) -> str | None:
         if item.is_mock and not self._allow_mock_evidence:
             return "was produced by a mock extraction and is not real evidence"
         if item.temporal_class == LedgerTemporalClass.NO_DEADLINE_CONTEXT:
@@ -772,8 +760,7 @@ class AIAnalyst:
         """Reject output that blurs the quantitative/qualitative boundary."""
         if str(output.task) != str(context.task):
             raise AnalystGuardrailError(
-                f"analyst returned task '{output.task}' but was asked for "
-                f"'{context.task}'."
+                f"analyst returned task '{output.task}' but was asked for '{context.task}'."
             )
 
         # 1. Every supplied subject must be restated.

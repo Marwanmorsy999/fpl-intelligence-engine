@@ -150,17 +150,8 @@ class PoissonMatchModel:
         away_attack = away.get("attack_strength", 1.0)
         home_defence = home.get("defence_strength", 1.0)
 
-        lambda_home = (
-            self._league_avg_goals
-            * home_attack
-            * away_defence
-            * self._home_advantage
-        )
-        lambda_away = (
-            self._league_avg_goals
-            * away_attack
-            * home_defence
-        )
+        lambda_home = self._league_avg_goals * home_attack * away_defence * self._home_advantage
+        lambda_away = self._league_avg_goals * away_attack * home_defence
 
         # Clamp to a realistic range.
         lambda_home = max(0.1, min(5.0, lambda_home))
@@ -247,4 +238,3 @@ def normalize_probabilities(probs: dict[str, float]) -> dict[str, float]:
     if total <= 0:
         return probs
     return {k: v / total for k, v in probs.items()}
-

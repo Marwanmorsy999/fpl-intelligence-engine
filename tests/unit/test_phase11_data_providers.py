@@ -5,6 +5,7 @@ network call), every parsing path is fed fixture JSON, the cache hit/miss/TTL
 behaviour is asserted with an injected clock, and the injector / decision bridge
 are tested for both override application and graceful degradation.
 """
+
 from __future__ import annotations
 
 import sys
@@ -441,9 +442,7 @@ class TestApiFootballParsing:
         monkeypatch.delenv("API_FOOTBALL_KEY", raising=False)
         conn = ApiFootballConnector(
             api_key="k",
-            http_client=make_client(
-                lambda req: (_ for _ in ()).throw(httpx.ConnectError("down"))
-            ),
+            http_client=make_client(lambda req: (_ for _ in ()).throw(httpx.ConnectError("down"))),
             clock=lambda: 0.0,
             monotonic_clock=lambda: 0.0,
             sleep=_noop_sleep,
@@ -607,9 +606,7 @@ class TestLiveFactInjector:
         assert ov.expected_minutes == 90
 
     def test_api_football_bench(self):
-        fact = PlayerFact(
-            source=FactSource.API_FOOTBALL, name="X", fpl_player_id=2, is_bench=True
-        )
+        fact = PlayerFact(source=FactSource.API_FOOTBALL, name="X", fpl_player_id=2, is_bench=True)
         overrides = self._injector().build_overrides([], [fact], [])
         ov = overrides[0]
         assert ov.start_probability == 0.0
@@ -639,9 +636,7 @@ class TestLiveFactInjector:
         fpl = PlayerFact(
             source=FactSource.FPL_OFFICIAL, name="X", fpl_player_id=5, chance_of_playing=100
         )
-        api = PlayerFact(
-            source=FactSource.API_FOOTBALL, name="X", fpl_player_id=5, is_bench=True
-        )
+        api = PlayerFact(source=FactSource.API_FOOTBALL, name="X", fpl_player_id=5, is_bench=True)
         overrides = self._injector().build_overrides([fpl], [api], [])
         assert len(overrides) == 1
         assert overrides[0].start_probability == 0.0
@@ -713,8 +708,10 @@ class TestFactOverrideProvider:
     def test_override_start_zero_minutes_zero(self):
         base = self._base()
         ov = FactOverride(
-            player_id=1, source=FactSource.FPL_OFFICIAL,
-            start_probability=0.0, expected_minutes=0.0,
+            player_id=1,
+            source=FactSource.FPL_OFFICIAL,
+            start_probability=0.0,
+            expected_minutes=0.0,
         )
         prov = FactOverrideProvider(base, [ov])
         pred = prov.get_player_prediction(1, 1)
@@ -725,8 +722,10 @@ class TestFactOverrideProvider:
     def test_override_start_and_minutes_rescale_points(self):
         base = self._base()
         ov = FactOverride(
-            player_id=1, source=FactSource.API_FOOTBALL,
-            start_probability=1.0, expected_minutes=90.0,
+            player_id=1,
+            source=FactSource.API_FOOTBALL,
+            start_probability=1.0,
+            expected_minutes=90.0,
         )
         prov = FactOverrideProvider(base, [ov])
         pred = prov.get_player_prediction(1, 1)
@@ -766,8 +765,10 @@ class TestFactOverrideProvider:
     def test_bridge_uses_overridden_provider(self):
         base = self._base()
         ov = FactOverride(
-            player_id=411, source=FactSource.FPL_OFFICIAL,
-            start_probability=0.0, expected_minutes=0.0,
+            player_id=411,
+            source=FactSource.FPL_OFFICIAL,
+            start_probability=0.0,
+            expected_minutes=0.0,
         )
         prov = FactOverrideProvider(base, [ov])
         player_ids = [411, 615, 859] + [900 + i for i in range(12)]
@@ -827,9 +828,7 @@ class TestFactCollectionService:
             sleep=_noop_sleep,
         )
         service = FactCollectionService(api_football_connector=api)
-        result = service.collect_overrides(
-            date="2026-08-22", fpl_id_map={900: 411, 902: 859}
-        )
+        result = service.collect_overrides(date="2026-08-22", fpl_id_map={900: 411, 902: 859})
         ids = {o.player_id for o in result.overrides}
         assert 411 in ids
 
@@ -850,6 +849,7 @@ def _squad_payload() -> dict:
     player_ids = [411, 615, 859] + [900 + i for i in range(12)]
     positions = {pid: (i % 4) + 1 for i, pid in enumerate(player_ids)}
     return {
+        "session_id": "livefacts-test",
         "player_ids": player_ids,
         "captain_id": 411,
         "vice_captain_id": 615,
@@ -887,7 +887,10 @@ def api_client(db_session):
 class TestDecisionsEndpointLiveFacts:
     def test_baseline_when_live_facts_false(self, api_client):
         api_client.post("/api/v1/squad", json=_squad_payload())
-        resp = api_client.get("/api/v1/decisions", params={"live_facts": "false"})
+        resp = api_client.get(
+            "/api/v1/decisions",
+            params={"live_facts": "false", "session_id": "livefacts-test"},
+        )
         assert resp.status_code == 200
         body = resp.json()
         assert body["meta"]["live_facts_applied"] == 0
@@ -904,8 +907,10 @@ class TestDecisionsEndpointLiveFacts:
                 "collect_overrides": lambda self: LiveFactResult(
                     overrides=[
                         FactOverride(
-                            player_id=411, source=FactSource.FPL_OFFICIAL,
-                            start_probability=0.0, expected_minutes=0.0,
+                            player_id=411,
+                            source=FactSource.FPL_OFFICIAL,
+                            start_probability=0.0,
+                            expected_minutes=0.0,
                         )
                     ],
                     by_player={411: FactOverride(player_id=411, source=FactSource.FPL_OFFICIAL)},
@@ -914,7 +919,10 @@ class TestDecisionsEndpointLiveFacts:
             },
         )()
         monkeypatch.setattr(squad_route, "FactCollectionService", lambda: fake)
-        resp = api_client.get("/api/v1/decisions", params={"live_facts": "true"})
+        resp = api_client.get(
+            "/api/v1/decisions",
+            params={"live_facts": "true", "session_id": "livefacts-test"},
+        )
         assert resp.status_code == 200
         body = resp.json()
         assert body["meta"]["live_facts_applied"] == 1
@@ -930,7 +938,10 @@ class TestDecisionsEndpointLiveFacts:
 
         fake = type("S", (), {"collect_overrides": boom})()
         monkeypatch.setattr(squad_route, "FactCollectionService", lambda: fake)
-        resp = api_client.get("/api/v1/decisions", params={"live_facts": "true"})
+        resp = api_client.get(
+            "/api/v1/decisions",
+            params={"live_facts": "true", "session_id": "livefacts-test"},
+        )
         assert resp.status_code == 200
         assert resp.json()["meta"]["live_facts_applied"] == 0
 
@@ -961,8 +972,10 @@ class TestFetchLiveFactsCLI:
         result = LiveFactResult(
             overrides=[
                 FactOverride(
-                    player_id=1, source=FactSource.FPL_OFFICIAL,
-                    start_probability=0.0, availability_status="suspended",
+                    player_id=1,
+                    source=FactSource.FPL_OFFICIAL,
+                    start_probability=0.0,
+                    availability_status="suspended",
                 )
             ],
             by_player={1: FactOverride(player_id=1, source=FactSource.FPL_OFFICIAL)},

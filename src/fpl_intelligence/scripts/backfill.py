@@ -15,13 +15,12 @@ import argparse
 import logging
 import sys
 
-from fpl_intelligence.config import get_settings
 from fpl_intelligence.db.session import SessionLocal
 from fpl_intelligence.ingestion.historical import import_season
 from fpl_intelligence.providers import (
     MockHistoricalDataProvider,
-    RealFPLProvider,
     RealFootballStatsProvider,
+    RealFPLProvider,
 )
 from fpl_intelligence.validation.historical import (
     validate_fixture_integrity,
@@ -46,7 +45,9 @@ def _get_provider(provider_name: str):  # type: ignore[no-untyped-def]
             return RealFootballStatsProvider(fpl=RealFPLProvider(fetcher=fetcher))
         return RealFPLProvider(fetcher=fetcher)
     providers = {
-        "mock_provider": MockHistoricalDataProvider(provider_name="mock_provider", schema_version="v1"),
+        "mock_provider": MockHistoricalDataProvider(
+            provider_name="mock_provider", schema_version="v1"
+        ),
         "mock_provider_v2": MockHistoricalDataProvider(
             provider_name="mock_provider_v2", schema_version="v2"
         ),
@@ -158,10 +159,14 @@ def main() -> None:
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
 
-    settings = get_settings()
     logger.info(
         "Starting backfill: season=%s provider=%s dataset=%s dry_run=%s force=%s resume=%s",
-        args.season, args.provider, args.dataset, args.dry_run, args.force, args.resume,
+        args.season,
+        args.provider,
+        args.dataset,
+        args.dry_run,
+        args.force,
+        args.resume,
     )
 
     provider = _get_provider(args.provider)

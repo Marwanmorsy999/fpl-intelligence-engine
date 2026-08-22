@@ -26,9 +26,16 @@ GetDB = deps.GetDB
 
 
 class PlayerSummary(BaseModel):
-    """Compact view of an ingested player for squad-building."""
+    """Compact view of an ingested player for squad-building.
+
+    ``fpl_element_id`` is the canonical, single-ID-space identifier the squad
+    engine uses everywhere (R1). The frontend picks by this value; when it is
+    ``null`` (a legacy row not yet linked to FPL) the internal ``id`` is used as
+    a fallback.
+    """
 
     id: int
+    fpl_element_id: int | None = None
     web_name: str
     team: int | None = None
     position: int | None = None
@@ -39,20 +46,28 @@ class PlayerSummary(BaseModel):
 
 
 def _latest_team_id(db: Session, player_id: int) -> int | None:
-    membership = db.execute(
-        select(PlayerTeamMembership)
-        .where(PlayerTeamMembership.player_id == player_id)
-        .order_by(PlayerTeamMembership.id.desc())
-    ).scalars().first()
+    membership = (
+        db.execute(
+            select(PlayerTeamMembership)
+            .where(PlayerTeamMembership.player_id == player_id)
+            .order_by(PlayerTeamMembership.id.desc())
+        )
+        .scalars()
+        .first()
+    )
     return membership.team_id if membership is not None else None
 
 
 def _latest_price(db: Session, player_id: int) -> float | None:
-    perf = db.execute(
-        select(PlayerGameweekPerformance)
-        .where(PlayerGameweekPerformance.player_id == player_id)
-        .order_by(PlayerGameweekPerformance.gameweek_id.desc())
-    ).scalars().first()
+    perf = (
+        db.execute(
+            select(PlayerGameweekPerformance)
+            .where(PlayerGameweekPerformance.player_id == player_id)
+            .order_by(PlayerGameweekPerformance.gameweek_id.desc())
+        )
+        .scalars()
+        .first()
+    )
     return perf.price if perf is not None else None
 
 
@@ -70,9 +85,7 @@ async def list_players(
     """
     query = select(Player)
     if team is not None:
-        subq = select(PlayerTeamMembership.player_id).where(
-            PlayerTeamMembership.team_id == team
-        )
+        subq = select(PlayerTeamMembership.player_id).where(PlayerTeamMembership.team_id == team)
         query = query.where(Player.id.in_(subq))
 
     players = db.execute(query.order_by(Player.id)).scalars().all()
@@ -80,6 +93,7 @@ async def list_players(
     return [
         PlayerSummary(
             id=p.id,
+            fpl_element_id=p.fpl_element_id,
             web_name=p.web_name,
             team=_latest_team_id(db, p.id),
             position=p.position_code,

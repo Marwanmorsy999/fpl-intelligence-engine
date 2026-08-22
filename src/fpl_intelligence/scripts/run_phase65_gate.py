@@ -5,6 +5,7 @@ under ``data/raw/real_fpl``) and runs the real :class:`DecisionBacktester` over
 the development seasons and the locked 2025-26 holdout. Every metric is computed
 from actual historical observations - never hardcoded constants.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -56,18 +57,25 @@ class FormProvider(DecisionPredictionProvider):
                     PlayerGameweekPerformance.season_id == self.season_id,
                     PlayerGameweekPerformance.gameweek_id.is_not(None),
                 )
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )
         prior = [p.total_points or 0 for p in perfs if self._n(p.gameweek_id) < gw]
         return float(np.mean(prior)) if prior else 2.0
+
     def get_player_prediction(self, player_id, gameweek):
         ev = self._ev(player_id, gameweek)
         return PlayerPrediction(
-            player_id=player_id, gameweek=gameweek, expected_points=round(ev, 4),
-            expected_minutes=60.0, start_probability=0.7,
-            distribution=np.array([ev]), floor=0.0, ceiling=ev * 2.0,
+            player_id=player_id,
+            gameweek=gameweek,
+            expected_points=round(ev, 4),
+            expected_minutes=60.0,
+            start_probability=0.7,
+            distribution=np.array([ev]),
+            floor=0.0,
+            ceiling=ev * 2.0,
         )
-
 
     def get_squad_predictions(self, sp, gws):
         return {gw: {pid: self.get_player_prediction(pid, gw) for pid in sp} for gw in gws}
@@ -78,7 +86,9 @@ class FormProvider(DecisionPredictionProvider):
                 select(PlayerGameweekPerformance.player_id)
                 .where(PlayerGameweekPerformance.season_id == self.season_id)
                 .distinct()
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )
         return {pid: self.get_player_prediction(pid, gameweek) for pid in pids}
 
@@ -108,10 +118,19 @@ def run_season(db: Session, code: str) -> dict:
     ordered = sorted(preds.items(), key=lambda kv: kv[1].expected_points, reverse=True)
     players = [pid for pid, _ in ordered[:15]]
     squad = SquadState(
-        manager_id=1, season=code, gameweek=1, squad_players=players,
-        starting_xi=players[:11], bench_order=players[11:15], captain=players[0],
-        vice_captain=players[1], bank=0.0, team_value=100.0,
-        free_transfers=1, rolled_transfers=0, transfer_hits=0,
+        manager_id=1,
+        season=code,
+        gameweek=1,
+        squad_players=players,
+        starting_xi=players[:11],
+        bench_order=players[11:15],
+        captain=players[0],
+        vice_captain=players[1],
+        bank=0.0,
+        team_value=100.0,
+        free_transfers=1,
+        rolled_transfers=0,
+        transfer_hits=0,
     )
     try:
         res = DecisionBacktester(prov, db).backtest_strategy(
@@ -134,6 +153,7 @@ def main() -> None:
 
     t0 = time.time()
     from fpl_intelligence.providers.github_fetcher import DiskCachingFetcher
+
     fetcher = DiskCachingFetcher(
         raw_root=Path(__file__).resolve().parents[3] / "data" / "raw", offline=args.offline
     )
@@ -152,8 +172,11 @@ def main() -> None:
             print(f"  import failed {s}: {exc}")
 
     seasons_results: dict[str, dict] = {
-        s: (run_season(db, s) if s in imported
-            else {"season": s, "status": "BLOCKED", "reason": "import failed"})
+        s: (
+            run_season(db, s)
+            if s in imported
+            else {"season": s, "status": "BLOCKED", "reason": "import failed"}
+        )
         for s in seasons
     }
     meta: dict[str, object] = {
@@ -176,4 +199,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

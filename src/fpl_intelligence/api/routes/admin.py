@@ -8,6 +8,7 @@ Auth: when ``CRON_SECRET`` is configured, requests must carry the
 ``Authorization: Bearer <CRON_SECRET>`` header (which Vercel Cron sends
 automatically).
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -69,9 +70,7 @@ SEASON_CODE = "2026-27"
 
 #: Phase 11.1 fallback providers used when the official FPL API blocks Vercel's
 #: datacenter IPs (403/429) or is unreachable.
-_FALLBACK_WARNING = (
-    "FPL API blocked (403). Falling back to API-Football for lineups and news."
-)
+_FALLBACK_WARNING = "FPL API blocked (403). Falling back to API-Football for lineups and news."
 
 #: FPL's API rejects non-browser User-Agents (403). Reuse a browser-like UA for
 #: the live-intelligence scheduler connector too.
@@ -102,9 +101,7 @@ def _require_cron_auth(
 
 
 def _build_connectors() -> dict[str, SourceConnector]:
-    connectors: dict[str, SourceConnector] = {
-        "fpl_api": FPLAPIConnector(headers=_BROWSER_HEADERS)
-    }
+    connectors: dict[str, SourceConnector] = {"fpl_api": FPLAPIConnector(headers=_BROWSER_HEADERS)}
     rss_url = os.environ.get("RSS_FEED_URL")
     if rss_url:
         connectors["rss"] = RSSConnector(rss_url)
@@ -448,6 +445,8 @@ async def ingest_fpl_endpoint(
 # --------------------------------------------------------------------------- #
 
 _SEED_REL = Path("data") / "seed" / "fpl_bootstrap_seed.json"
+
+
 def _resolve_seed_path() -> Path:
     """Locate the committed seed file from the repo root *or* the Vercel bundle.
 
@@ -464,8 +463,7 @@ def _resolve_seed_path() -> Path:
         if candidate.is_file():
             return candidate
     raise FileNotFoundError(
-        "fpl_bootstrap_seed.json not found; looked in "
-        + ", ".join(str(c) for c in candidates)
+        "fpl_bootstrap_seed.json not found; looked in " + ", ".join(str(c) for c in candidates)
     )
 
 
@@ -616,7 +614,6 @@ async def seed_from_file_endpoint(
         db.close()
 
 
-
 # --------------------------------------------------------------------------- #
 # Phase 13.6 — one-time data initialization
 # --------------------------------------------------------------------------- #
@@ -760,11 +757,7 @@ async def migrate_fpl_code_endpoint() -> dict:
 
         total = db.scalar(select(func.count()).select_from(Player)) or 0
         coded = (
-            db.scalar(
-                select(func.count())
-                .select_from(Player)
-                .where(Player.fpl_code.is_not(None))
-            )
+            db.scalar(select(func.count()).select_from(Player).where(Player.fpl_code.is_not(None)))
             or 0
         )
         db.add(
@@ -837,6 +830,8 @@ async def alembic_version_check() -> dict:
         )
     finally:
         db.close()
+
+
 # --------------------------------------------------------------------------- #
 # Squad imports store OFFICIAL FPL element ids as player_ids, and the decisions
 # enrichment now joins them via ``players.fpl_element_id`` (migration 0016).
@@ -928,9 +923,7 @@ async def migrate_fpl_element_id_endpoint() -> dict:
         total = db.scalar(select(func.count()).select_from(Player)) or 0
         aligned = (
             db.scalar(
-                select(func.count())
-                .select_from(Player)
-                .where(Player.fpl_element_id.is_not(None))
+                select(func.count()).select_from(Player).where(Player.fpl_element_id.is_not(None))
             )
             or 0
         )
@@ -1011,11 +1004,7 @@ async def reseed_fpl_codes_endpoint() -> dict:
         report = await run_in_threadpool(_seed_from_file, db, _resolve_seed_path())
         total = db.scalar(select(func.count()).select_from(Player)) or 0
         coded = (
-            db.scalar(
-                select(func.count())
-                .select_from(Player)
-                .where(Player.fpl_code.is_not(None))
-            )
+            db.scalar(select(func.count()).select_from(Player).where(Player.fpl_code.is_not(None)))
             or 0
         )
         db.add(
@@ -1044,4 +1033,3 @@ async def reseed_fpl_codes_endpoint() -> dict:
         )
     finally:
         db.close()
-

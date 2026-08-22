@@ -3,19 +3,18 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
 
 import numpy as np
 from sqlalchemy.orm import Session
 
 from fpl_intelligence.optimization.domain import (
+    ActionType,
     CandidateAction,
     DecisionObjective,
     Recommendation,
     SquadState,
-    ActionType,
 )
 from fpl_intelligence.optimization.provider import DecisionPredictionProvider
 from fpl_intelligence.optimization.rules import FPLRules
@@ -144,7 +143,6 @@ def simulate_decision(
     )
 
 
-
 class DecisionRecorder:
     """Persists recommendations immutably."""
 
@@ -169,11 +167,11 @@ class DecisionRecorder:
             "squad_state": squad_state.to_dict(),
             "recommendation": recommendation.to_dict(),
         }
-        
+
         try:
             with open(self.log_path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(record) + "\\n")
-        except IOError:
+        except OSError:
             pass
 
 
@@ -215,7 +213,9 @@ class DecisionBacktester:
 
     def _season_id(self, season: str) -> int:
         from sqlalchemy import select
+
         from fpl_intelligence.db.models import Season
+
         assert self.db is not None
         season_row = self.db.scalar(select(Season).where(Season.code == season))
         if season_row is None:
@@ -232,7 +232,9 @@ class DecisionBacktester:
         since the schema stores the GW number there, not in a ``number`` column.
         """
         from sqlalchemy import select
+
         from fpl_intelligence.db.models import Gameweek, PlayerGameweekPerformance
+
         assert self.db is not None
         gw = self.db.scalar(
             select(Gameweek).where(
@@ -246,7 +248,9 @@ class DecisionBacktester:
                 select(PlayerGameweekPerformance).where(
                     PlayerGameweekPerformance.gameweek_id == gw.id
                 )
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )
         return {p.player_id: float(p.total_points or 0) for p in perfs}
 
@@ -257,32 +261,29 @@ class DecisionBacktester:
         so we read it directly from ``Player.position_code``.
         """
         from sqlalchemy import select
+
         from fpl_intelligence.db.models import Player
+
         assert self.db is not None
-        rows = list(
-            self.db.execute(
-                select(Player.id, Player.position_code)
-            ).all()
-        )
+        rows = list(self.db.execute(select(Player.id, Player.position_code)).all())
         return {pid: pos for pid, pos in rows if pos is not None}
 
     @staticmethod
     def _is_valid_formation(positions: list[int]) -> bool:
         from collections import Counter
+
         counts = Counter(positions)
         limits = {1: (1, 1), 2: (3, 5), 3: (2, 5), 4: (1, 3)}
-        if len(positions) != 11:
-            return False
-        for pos, (lo, hi) in limits.items():
-            if not (lo <= counts.get(pos, 0) <= hi):
-                return False
-        return True
+        return len(positions) == 11 and all(
+            lo <= counts.get(pos, 0) <= hi for pos, (lo, hi) in limits.items()
+        )
 
     def _select_starting_xi(
         self, pids: list[int], positions: dict[int, int], evs: dict[int, float]
     ) -> list[int]:
         """Greedy formation-valid starting XI selection by EV."""
         from itertools import combinations
+
         ordered = sorted(pids, key=lambda p: evs.get(p, 0.0), reverse=True)
         pool = ordered[:13]
         best = None
@@ -418,4 +419,3 @@ class DecisionBacktester:
             "captain_extra": round(captain_points, 2),
             "downside_variance": round(float(np.var(gw_scores)), 2),
         }
-

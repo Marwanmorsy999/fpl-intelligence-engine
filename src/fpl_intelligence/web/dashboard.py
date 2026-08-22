@@ -7,6 +7,7 @@ Phase 11.2 (frontend separation): the dashboard routes are only registered when
 ``SERVE_STATIC_DASHBOARD`` is enabled, so the FastAPI app can run as a pure JSON
 API while the static SPA is hosted separately (e.g. on Vercel/Netlify).
 """
+
 from __future__ import annotations
 
 from pathlib import Path

@@ -131,8 +131,14 @@ class TeamFeaturesCalculator(BaseFeatureCalculator):
 
         # Strength metrics
         league_avg_goals = 1.4  # Approximate Premier League average
-        value["attack_strength"] = value["avg_goals_scored"] / league_avg_goals if league_avg_goals > 0 else 1.0
-        value["defensive_strength"] = league_avg_goals / value["avg_goals_conceded"] if value["avg_goals_conceded"] > 0 else 1.0
+        value["attack_strength"] = (
+            value["avg_goals_scored"] / league_avg_goals if league_avg_goals > 0 else 1.0
+        )
+        value["defensive_strength"] = (
+            league_avg_goals / value["avg_goals_conceded"]
+            if value["avg_goals_conceded"] > 0
+            else 1.0
+        )
 
         # Latest match info
         latest = perfs[-1]

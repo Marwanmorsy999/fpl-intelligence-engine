@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 
-class DecisionObjective(str, Enum):
+class DecisionObjective(StrEnum):
     """Explicit optimization objectives."""
 
     MAXIMIZE_GW_POINTS = "maximize_gw_points"
@@ -17,7 +17,7 @@ class DecisionObjective(str, Enum):
     PROTECT_RANK = "protect_rank"
 
 
-class ActionType(str, Enum):
+class ActionType(StrEnum):
     """Types of actions."""
 
     ROLL = "roll"
@@ -48,7 +48,15 @@ class SquadState:
     rolled_transfers: int
     transfer_hits: int
     active_chips: list[str] = field(default_factory=list)
-    remaining_chips: list[str] = field(default_factory=lambda: ["wildcard_1", "wildcard_2", "free_hit", "bench_boost", "triple_captain"])
+    remaining_chips: list[str] = field(
+        default_factory=lambda: [
+            "wildcard_1",
+            "wildcard_2",
+            "free_hit",
+            "bench_boost",
+            "triple_captain",
+        ]
+    )
     transfer_history: list[dict[str, Any]] = field(default_factory=list)
     team_value_history: list[float] = field(default_factory=list)
 

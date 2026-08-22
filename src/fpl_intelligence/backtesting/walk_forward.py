@@ -20,11 +20,11 @@ from fpl_intelligence.backtesting.cutoff import (
     get_all_gameweek_cutoffs,
 )
 from fpl_intelligence.backtesting.evaluation import BacktestEvaluator
+from fpl_intelligence.config.holdout import HoldoutMode, enforce_holdout
 from fpl_intelligence.features.temporal import (
     DEFAULT_POLICY,
     InformationAccessPolicy,
 )
-from fpl_intelligence.config.holdout import HoldoutMode, enforce_holdout
 
 
 @dataclass
@@ -93,9 +93,7 @@ class WalkForwardValidator:
         # Enforce holdout: fail loudly if season is locked holdout.
         enforce_holdout(season=season, mode=HoldoutMode.DEVELOPMENT)
 
-        cutoffs = get_all_gameweek_cutoffs(
-            self._db, season, start_gameweek, end_gameweek, policy
-        )
+        cutoffs = get_all_gameweek_cutoffs(self._db, season, start_gameweek, end_gameweek, policy)
 
         if len(cutoffs) < min_train_gameweeks + 1:
             raise ValueError(
@@ -113,19 +111,13 @@ class WalkForwardValidator:
             test_cutoff_time = test_cutoff.cutoff_time
 
             # Compute features for the test cutoff
-            features = self._features.compute_features(
-                self._db, test_cutoff
-            )
+            features = self._features.compute_features(self._db, test_cutoff)
 
             # Generate predictions
-            predictions = self._model.predict_batch(
-                features, test_cutoff, {"db": self._db}
-            )
+            predictions = self._model.predict_batch(features, test_cutoff, {"db": self._db})
 
             # Get actual outcomes
-            actuals = self._get_actual_outcomes(
-                test_cutoff, self._db
-            )
+            actuals = self._get_actual_outcomes(test_cutoff, self._db)
 
             # Evaluate
             metrics = self._evaluator.evaluate(predictions, actuals)
@@ -188,11 +180,8 @@ class WalkForwardValidator:
         """
         from fpl_intelligence.db.models import PlayerGameweekPerformance
 
-        stmt = (
-            select(PlayerGameweekPerformance)
-            .where(
-                PlayerGameweekPerformance.gameweek_id == cutoff.gameweek,
-            )
+        stmt = select(PlayerGameweekPerformance).where(
+            PlayerGameweekPerformance.gameweek_id == cutoff.gameweek,
         )
         perfs = list(db.execute(stmt).scalars().all())
 

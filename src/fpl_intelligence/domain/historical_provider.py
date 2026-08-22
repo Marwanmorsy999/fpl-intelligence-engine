@@ -13,6 +13,7 @@ from typing import Protocol
 
 class HistoricalSeasonData(Mapping[str, object]):
     """Represents a season from a provider's perspective."""
+
     season_name: str
     start_date: datetime | None
     end_date: datetime | None
@@ -21,6 +22,7 @@ class HistoricalSeasonData(Mapping[str, object]):
 
 class HistoricalTeamData(Mapping[str, object]):
     """Represents a team from a provider's perspective."""
+
     provider_team_id: str
     name: str
     short_name: str | None
@@ -28,6 +30,7 @@ class HistoricalTeamData(Mapping[str, object]):
 
 class HistoricalPlayerData(Mapping[str, object]):
     """Represents a player from a provider's perspective."""
+
     provider_player_id: str
     first_name: str
     second_name: str
@@ -37,6 +40,7 @@ class HistoricalPlayerData(Mapping[str, object]):
 
 class HistoricalFixtureData(Mapping[str, object]):
     """Represents a fixture from a provider's perspective."""
+
     provider_fixture_id: str
     gameweek: int | None
     kickoff_time: datetime | None
@@ -50,6 +54,7 @@ class HistoricalFixtureData(Mapping[str, object]):
 
 class HistoricalPlayerMatchData(Mapping[str, object]):
     """Represents a player's match statistics from a provider's perspective."""
+
     provider_player_id: str
     provider_fixture_id: str
     team_id: str | None
@@ -78,6 +83,7 @@ class HistoricalPlayerMatchData(Mapping[str, object]):
 
 class HistoricalTeamMatchData(Mapping[str, object]):
     """Represents a team's match statistics from a provider's perspective."""
+
     provider_team_id: str
     provider_fixture_id: str
     is_home: bool
@@ -92,6 +98,7 @@ class HistoricalTeamMatchData(Mapping[str, object]):
 
 class HistoricalFPLHistoryData(Mapping[str, object]):
     """Represents a player's FPL history data from a provider's perspective."""
+
     provider_player_id: str
     season_name: str
     gameweek: int | None
@@ -170,6 +177,8 @@ class HistoricalFootballDataProvider(Protocol):
         """Return FPL history data for all players in a season."""
         ...
 
-    def get_fpl_snapshots(self, season: str, gameweek: int | None = None) -> Sequence[Mapping[str, object]]:
+    def get_fpl_snapshots(
+        self, season: str, gameweek: int | None = None
+    ) -> Sequence[Mapping[str, object]]:
         """Return FPL snapshot data (price, ownership, etc.) at a point in time."""
         ...

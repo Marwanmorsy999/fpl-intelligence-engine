@@ -23,6 +23,7 @@ inherited from :class:`SourceConnector`.
 ``--dry-run`` paths / tests inject ``http_client`` (e.g. ``httpx.MockTransport``)
 so no live network call is ever made inside ``pytest``.
 """
+
 from __future__ import annotations
 
 import math
@@ -111,19 +112,13 @@ class FPLAPIConnector(SourceConnector):
         try:
             payload = response.json()
         except ValueError as exc:
-            raise SourceParseError(
-                f"FPL bootstrap payload is not valid JSON: {exc}"
-            ) from exc
+            raise SourceParseError(f"FPL bootstrap payload is not valid JSON: {exc}") from exc
         if not isinstance(payload, dict):
-            raise SourceParseError(
-                "FPL bootstrap payload must be a JSON object"
-            )
+            raise SourceParseError("FPL bootstrap payload must be a JSON object")
 
         elements = payload.get("elements")
         if not isinstance(elements, list):
-            raise SourceParseError(
-                "FPL bootstrap payload missing 'elements' list"
-            )
+            raise SourceParseError("FPL bootstrap payload missing 'elements' list")
 
         now: datetime = self._clock()
         items: list[RawItem] = []
@@ -155,9 +150,8 @@ class FPLAPIConnector(SourceConnector):
             content = news
             title = name
         else:
-            has_risk = (
-                (chance_next is not None and chance_next < 100)
-                or (chance_this is not None and chance_this < 100)
+            has_risk = (chance_next is not None and chance_next < 100) or (
+                chance_this is not None and chance_this < 100
             )
             if not has_risk:
                 # Fully available ('news' empty, all chances 100/unset): no signal.

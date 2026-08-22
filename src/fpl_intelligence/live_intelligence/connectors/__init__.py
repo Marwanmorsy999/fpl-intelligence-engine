@@ -16,17 +16,18 @@ This layer is additive: it does not modify the quantitative Phases 1–8 stack,
 makes **no** live API calls inside ``pytest`` (tests inject ``httpx`` mock
 transports), hardcodes no API keys, and performs no aggressive scraping.
 """
+
 from __future__ import annotations
 
 from fpl_intelligence.live_intelligence.connectors.base import (
+    SourceConnectionError,
     SourceConnector,
     SourceConnectorError,
-    SourceConnectionError,
     SourceParseError,
 )
 from fpl_intelligence.live_intelligence.connectors.fpl_api import (
-    FPLAPIConnector,
     FPL_BOOTSTRAP_URL,
+    FPLAPIConnector,
 )
 from fpl_intelligence.live_intelligence.connectors.rss import RSSConnector
 from fpl_intelligence.live_intelligence.connectors.scheduler import (

@@ -8,14 +8,13 @@ The cache must:
 * Re-run the chain for a different gameweek (cache miss).
 * Be per-instance — a fresh provider has an empty cache.
 """
+
 from __future__ import annotations
 
-import pytest
 from sqlalchemy.orm import Session
 
 from fpl_intelligence.prediction.live_provider import (
     LivePredictionProvider,
-    PredictionChainResult,
 )
 
 
@@ -50,11 +49,9 @@ class TestChainCacheBehavior:
         assert 1 in provider1._chain_cache
 
         provider2 = LivePredictionProvider(session=db_session)
-        assert 0 == len(provider2._chain_cache)
+        assert len(provider2._chain_cache) == 0
 
-    def test_cache_reduces_redundant_work(
-        self, db_session: Session
-    ) -> None:
+    def test_cache_reduces_redundant_work(self, db_session: Session) -> None:
         """Multiple get_player_prediction calls for same GW return cached results."""
         provider = LivePredictionProvider(session=db_session)
 
@@ -66,11 +63,9 @@ class TestChainCacheBehavior:
         assert pred2 is not None
         assert pred3 is not None
         # All three served from a single chain resolution (one GW cached)
-        assert 1 == len(provider._chain_cache)
+        assert len(provider._chain_cache) == 1
 
-    def test_cache_identity_same_gameweek(
-        self, db_session: Session
-    ) -> None:
+    def test_cache_identity_same_gameweek(self, db_session: Session) -> None:
         """get_player_prediction for same GW returns results from identical chain."""
         provider = LivePredictionProvider(session=db_session)
 
@@ -83,14 +78,12 @@ class TestChainCacheBehavior:
 
         assert first_cached is second_cached
 
-    def test_cache_stores_result_after_resolution(
-        self, db_session: Session
-    ) -> None:
+    def test_cache_stores_result_after_resolution(self, db_session: Session) -> None:
         """After resolve_chain, the result is stored in _chain_cache."""
         provider = LivePredictionProvider(session=db_session)
-        assert 0 == len(provider._chain_cache)
+        assert len(provider._chain_cache) == 0
 
         result = provider.resolve_chain(5)
 
-        assert 1 == len(provider._chain_cache)
+        assert len(provider._chain_cache) == 1
         assert provider._chain_cache[5] is result
