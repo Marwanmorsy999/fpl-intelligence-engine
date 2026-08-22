@@ -151,22 +151,34 @@ def _build_player_details(
 
     details: dict[str, PlayerDetail] = {}
     for pid in sorted(player_ids):
-        # Try DB lookup by internal id (demo squads use internal DB ids).
-        player = db.get(Player, pid)
-
-        # If not found, try resolving an FPL element id via PlayerExternalId
-        # (real imports store FPL element ids as player_ids).
-        if player is None:
-            for provider_key in ("official_fpl", "fpl"):
-                ext = db.scalar(
-                    select(PlayerExternalId).where(
-                        PlayerExternalId.provider == provider_key,
-                        PlayerExternalId.provider_player_id == str(pid),
+        # Resolve the canonical Player row for this id.
+        #
+        # Imported squads (one-click FPL flow) store OFFICIAL FPL ELEMENT ids as
+        # player_ids, so they MUST be joined via ``players.fpl_element_id`` —
+        # never against our internal auto-increment ``id`` (a different
+        # keyspace: element 445 = Haaland used to resolve to whatever internal
+        # row had id == 445, showing the wrong name under the right xPTS).
+        # Demo squads store internal DB ids and take the ``db.get`` path below.
+        player: Player | None = None
+        if not squad.is_demo:
+            player = db.scalar(select(Player).where(Player.fpl_element_id == pid))
+            if player is None:
+                # Legacy fallback for databases seeded before migration 0016:
+                # resolve through the external-id mapping table.
+                for ext_provider in ("official_fpl", "fpl"):
+                    ext = db.scalar(
+                        select(PlayerExternalId).where(
+                            PlayerExternalId.provider == ext_provider,
+                            PlayerExternalId.provider_player_id == str(pid),
+                        )
                     )
-                )
-                if ext is not None:
-                    player = db.get(Player, ext.player_id)
-                    break
+                    if ext is not None:
+                        player = db.get(Player, ext.player_id)
+                        break
+        if player is None:
+            # Demo squads (and manual squads built from GET /api/v1/players ids)
+            # use internal DB ids.
+            player = db.get(Player, pid)
 
         # --- assemble PlayerDetail ------------------------------------------
         if player is not None:

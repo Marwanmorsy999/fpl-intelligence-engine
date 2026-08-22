@@ -104,6 +104,12 @@ class Player(Base):
     #: FPL element ``code`` — the numeric key the official Premier League CDN uses
     #: for player photo URLs (``resources.premierleague.com/photos/players/110x140/{code}.png``).
     fpl_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    #: Official FPL element ID (the ``id`` on fantasy.premierleague.com). Entry
+    #: picks reference players by THIS id, so squad imports must join on
+    #: ``fpl_element_id`` — never on our internal auto-increment ``id``.
+    fpl_element_id: Mapped[int | None] = mapped_column(
+        Integer, nullable=True, unique=True, index=True
+    )
 
     external_ids: Mapped[list[PlayerExternalId]] = relationship(
         back_populates="player", cascade="all, delete-orphan"

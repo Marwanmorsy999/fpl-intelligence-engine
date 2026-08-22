@@ -35,6 +35,7 @@ from fpl_intelligence.db.models import (
     Gameweek,
     IngestionRun,
     Player,
+    PlayerExternalId,
     PlayerGameweekPerformance,
     PlayerTeamMembership,
     RawRecord,
@@ -785,6 +786,135 @@ async def migrate_fpl_code_endpoint() -> dict:
     except Exception as exc:  # noqa: BLE001 - surface for visibility
         db.rollback()
         logger.exception("migrate-fpl-code failed")
+        return JSONResponse(
+            status_code=500, content={"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        )
+    finally:
+        db.close()
+
+
+# --------------------------------------------------------------------------- #
+# v1.5.1 hotfix — apply migration 0016 (players.fpl_element_id) to production
+# --------------------------------------------------------------------------- #
+# Squad imports store OFFICIAL FPL element ids as player_ids, and the decisions
+# enrichment now joins them via ``players.fpl_element_id`` (migration 0016).
+# Vercel's build command is just ``pip install .`` — migrations never run on
+# deploy — so the deployed database must be patched out-of-band, exactly like
+# the Phase 14.0 fpl_code hotfix above. This narrow, UNAUTHENTICATED one-shot:
+#   1. adds players.fpl_element_id (+ unique index) when missing,
+#   2. backfills it from the official_fpl external-id mapping,
+#   3. stamps alembic_version to 0016 when the version table exists,
+#   4. replays the idempotent seed so every row carries its real element id.
+# It seals itself after a successful run (410 thereafter).
+# --------------------------------------------------------------------------- #
+
+_MIGRATE_ELEMENT_JOB_NAME = "migrate-fpl-element-id"
+
+
+def _element_migration_applied(db: Session) -> bool:
+    """True once a successful migrate-fpl-element-id run has been recorded."""
+    return (
+        db.scalar(
+            select(IngestionRun).where(
+                IngestionRun.job_name == _MIGRATE_ELEMENT_JOB_NAME,
+                IngestionRun.source == _INIT_SOURCE,
+                IngestionRun.status == "SUCCESS",
+            )
+        )
+        is not None
+    )
+
+
+@router.post("/admin/migrate-fpl-element-id")
+async def migrate_fpl_element_id_endpoint() -> dict:
+    """Add ``players.fpl_element_id`` and backfill it, exactly once.
+
+    Returns 410 after the first successful run. Unauthenticated by design: it
+    is a temporary, self-disabling one-shot migration for the deployment.
+    """
+    db = SessionLocal()
+    try:
+        if _element_migration_applied(db):
+            return JSONResponse(
+                status_code=410,
+                content={
+                    "ok": False,
+                    "error": "Migration already applied. This endpoint is disabled "
+                    "after its first successful run.",
+                },
+            )
+
+        insp = sa_inspect(db.get_bind())
+        columns = [c["name"] for c in insp.get_columns("players")]
+        column_added = False
+        if "fpl_element_id" not in columns:
+            db.execute(text("ALTER TABLE players ADD COLUMN fpl_element_id INTEGER"))
+            column_added = True
+        indexes = [i["name"] for i in insp.get_indexes("players")]
+        if "ix_players_fpl_element_id" not in indexes:
+            db.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS ix_players_fpl_element_id "
+                    "ON players (fpl_element_id)"
+                )
+            )
+        db.commit()
+
+        # Backfill from the official FPL external-id mapping (pre-seed rows).
+        ext_rows = db.execute(
+            select(PlayerExternalId.player_id, PlayerExternalId.provider_player_id).where(
+                PlayerExternalId.provider.in_(("official_fpl", "fpl"))
+            )
+        ).all()
+        backfilled = 0
+        for player_id, provider_player_id in ext_rows:
+            if not str(provider_player_id).isdigit():
+                continue
+            player = db.get(Player, int(player_id))
+            if player is not None and player.fpl_element_id is None:
+                player.fpl_element_id = int(provider_player_id)
+                backfilled += 1
+        db.commit()
+
+        if insp.has_table("alembic_version"):
+            db.execute(text("DELETE FROM alembic_version"))
+            db.execute(text("INSERT INTO alembic_version (version_num) VALUES ('0016')"))
+            db.commit()
+
+        report = await run_in_threadpool(_seed_from_file, db, _resolve_seed_path())
+
+        total = db.scalar(select(func.count()).select_from(Player)) or 0
+        aligned = (
+            db.scalar(
+                select(func.count())
+                .select_from(Player)
+                .where(Player.fpl_element_id.is_not(None))
+            )
+            or 0
+        )
+        db.add(
+            IngestionRun(
+                source=_INIT_SOURCE,
+                job_name=_MIGRATE_ELEMENT_JOB_NAME,
+                season_code=str(report.get("season_code") or SEASON_CODE),
+                status="SUCCESS",
+                started_at=datetime.now(UTC),
+                finished_at=datetime.now(UTC),
+                records_processed=int(aligned),
+            )
+        )
+        db.commit()
+        return {
+            "ok": True,
+            "column_added": column_added,
+            "backfilled_from_external_ids": backfilled,
+            "players": int(total),
+            "players_with_element_id": int(aligned),
+            "seed_report": report,
+        }
+    except Exception as exc:  # noqa: BLE001 - surface for visibility
+        db.rollback()
+        logger.exception("migrate-fpl-element-id failed")
         return JSONResponse(
             status_code=500, content={"ok": False, "error": f"{type(exc).__name__}: {exc}"}
         )

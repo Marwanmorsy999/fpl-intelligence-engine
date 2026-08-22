@@ -257,15 +257,22 @@ class FplSquadImporter:
         for el in element_ids:
             name = bootstrap_names.get(el) or f"Player {el}"
             if db is not None:
-                ext = db.execute(
-                    select(PlayerExternalId).where(
-                        PlayerExternalId.provider == "fpl",
-                        PlayerExternalId.provider_player_id == str(el),
-                    )
-                ).scalar_one_or_none()
-                if ext is not None:
-                    player = db.get(Player, ext.player_id)
-                    if player is not None:
-                        name = player.web_name
+                # Primary: direct join on the official FPL element id column
+                # (never our internal auto-increment id). Fallback: the legacy
+                # external-id mapping table.
+                player = db.scalar(select(Player).where(Player.fpl_element_id == el))
+                if player is None:
+                    for ext_provider in ("official_fpl", "fpl"):
+                        ext = db.execute(
+                            select(PlayerExternalId).where(
+                                PlayerExternalId.provider == ext_provider,
+                                PlayerExternalId.provider_player_id == str(el),
+                            )
+                        ).scalar_one_or_none()
+                        if ext is not None:
+                            player = db.get(Player, ext.player_id)
+                            break
+                if player is not None:
+                    name = player.web_name
             names[el] = name
         return names

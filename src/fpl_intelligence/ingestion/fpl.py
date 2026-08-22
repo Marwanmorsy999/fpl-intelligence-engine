@@ -115,6 +115,9 @@ def _get_or_create_player(
             PlayerExternalId.provider_player_id == provider_player_id,
         )
     )
+    # The provider id IS the official FPL element id — mirror it onto the
+    # dedicated column so squad imports can join directly (v1.5.1 alignment fix).
+    element_id = int(provider_player_id) if str(provider_player_id).isdigit() else None
     if ext is not None:
         player = ext.player
         player.first_name = first_name
@@ -123,6 +126,8 @@ def _get_or_create_player(
         player.position_code = position_code
         if fpl_code is not None:
             player.fpl_code = fpl_code
+        if element_id is not None:
+            player.fpl_element_id = element_id
         return player
 
     player = Player(
@@ -131,6 +136,7 @@ def _get_or_create_player(
         web_name=web_name,
         position_code=position_code,
         fpl_code=fpl_code,
+        fpl_element_id=element_id,
     )
     db.add(player)
     db.flush()
