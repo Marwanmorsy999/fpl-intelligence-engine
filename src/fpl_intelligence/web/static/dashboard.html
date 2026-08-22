@@ -20,6 +20,8 @@
   .pill { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.72rem; font-weight: 800; padding: 0.3rem 0.75rem; border-radius: 999px; border: 1px solid #334155; background: #0b1526; color: #94a3b8; }
   .pill.ok { border-color: #166534; background: #052e16; color: #4ade80; }
   .pill.bad { border-color: #7f1d1d; background: #450a0a; color: #f87171; }
+  .pill.source { border-color: #1e40af; background: #172554; color: #93c5fd; }
+  .pill.demo { border-color: #b45309; background: #451a03; color: #fbbf24; }
   .pitch { background: linear-gradient(165deg, #128f52 0%, #0d7745 55%, #0a5c33 100%); border-radius: 18px; border: 2px solid rgba(255,255,255,0.22); position: relative; overflow: hidden; }
   .pitch::before { content: ""; position: absolute; inset: 0; border: 2px solid rgba(255,255,255,0.18); border-radius: 18px; margin: 7px; pointer-events: none; }
   .pitch-mid { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: rgba(255,255,255,0.16); transform: translateX(-50%); pointer-events: none; }
@@ -48,13 +50,26 @@
   .chain-note { font-size: 0.68rem; color: #94a3b8; }
   .chain-note.ok { color: #4ade80; }
   .chain-note.no { color: #f87171; }
-  .price-tag { font-size: 0.68rem; color: #94a3b8; font-weight: 600; margin-top: 1px; }
-  .web-name { font-size: 0.72rem; font-weight: 700; color: #e2e8f0; margin: 4px 0 1px; line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .summary-stat { background: #0b1526; border: 1px solid #253348; border-radius: 14px; padding: 0.9rem 1rem; }
   .summary-stat .label { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8; font-weight: 700; }
   .summary-stat .value { font-size: 1.35rem; font-weight: 800; color: #fff; margin-top: 2px; }
   .summary-stat .sub { font-size: 0.7rem; color: #64748b; margin-top: 1px; }
   .chip-alert { background: linear-gradient(135deg, #1e1b4b, #312e81); border: 1px solid #6366f1; border-radius: 14px; padding: 0.9rem 1.1rem; }
+  .autocomplete-wrap { position: relative; }
+  .autocomplete-list { position: absolute; z-index: 50; top: 100%; left: 0; right: 0; max-height: 200px; overflow-y: auto; background: #0b1526; border: 1px solid #334155; border-radius: 10px; margin-top: 4px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+  .autocomplete-item { padding: 0.5rem 0.8rem; cursor: pointer; font-size: 0.85rem; color: #e2e8f0; border-bottom: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center; }
+  .autocomplete-item:last-child { border-bottom: none; }
+  .autocomplete-item:hover, .autocomplete-item.active { background: #16233c; }
+  .autocomplete-item .pos-badge { font-size: 0.65rem; font-weight: 700; color: #7dd3fc; }
+  .autocomplete-item .team-short { font-size: 0.65rem; color: #94a3b8; }
+  .slot-picked { border-color: #22c55e !important; background: #052e16 !important; }
+  .slot-picked .slot-name { color: #4ade80; }
+  .slot-name { font-size: 0.75rem; font-weight: 600; color: #94a3b8; }
+  .budget-bar { height: 6px; border-radius: 3px; background: #1e293b; overflow: hidden; }
+  .budget-fill { height: 100%; border-radius: 3px; transition: width .2s ease, background-color .2s ease; }
+  .budget-ok { background: #22c55e; }
+  .budget-warn { background: #f59e0b; }
+  .budget-over { background: #ef4444; }
   @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
   .anim-in { animation: fadeUp .35s ease both; }
 </style>
@@ -71,6 +86,9 @@
     </div>
     <span class="text-xs font-bold px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-600 text-slate-300">Season 2026/27</span>
     <span id="healthPill" class="pill">● Checking…</span>
+    <span id="sourceChip" class="pill source" style="display:none"></span>
+    <span id="demoChip" class="pill demo" style="display:none">DEMO</span>
+    <button id="startOverBtn" class="btn-ghost" style="display:none" type="button">Start Over</button>
   </header>
 
   <!-- ======= Input ======= -->
@@ -97,15 +115,26 @@
   <section id="manualEntry" class="fg-card rounded-2xl p-6 shadow-xl mb-8" style="display:none">
     <h2 class="text-lg font-bold text-sky-400 mb-1">Manual Squad Entry</h2>
     <p class="text-slate-400 text-sm mb-4">Pick 2 GK · 5 DEF · 5 MID · 3 FWD, then choose your captain and vice.</p>
-    <div id="manualForm" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:0.7rem;"></div>
+    <div id="pickCounter" class="mb-3 text-sm font-semibold"></div>
+    <div id="budgetTracker" class="mb-4">
+      <div class="flex justify-between text-xs text-slate-400 mb-1"><span>Total spend</span><span id="budgetText">£0.0m / £100.0m</span></div>
+      <div class="budget-bar"><div id="budgetFill" class="budget-fill budget-ok" style="width:0%"></div></div>
+    </div>
+    <div id="manualForm" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:0.7rem;"></div>
     <div class="flex flex-wrap gap-4 mt-4">
-      <div class="flex-1 min-w-[150px]">
-        <label for="manualCap" class="text-xs text-slate-400 block mb-1 font-semibold">Captain</label>
-        <select id="manualCap" class="input-dark"></select>
+      <div class="flex-1 min-w-[180px]">
+        <label class="text-xs text-slate-400 block mb-1 font-semibold">Captain</label>
+        <div class="autocomplete-wrap" id="capWrap">
+          <input id="manualCap" type="text" class="input-dark" placeholder="Type to search your 15 players…" autocomplete="off" />
+          <div id="capList" class="autocomplete-list" style="display:none"></div>
+        </div>
       </div>
-      <div class="flex-1 min-w-[150px]">
-        <label for="manualVice" class="text-xs text-slate-400 block mb-1 font-semibold">Vice-Captain</label>
-        <select id="manualVice" class="input-dark"></select>
+      <div class="flex-1 min-w-[180px]">
+        <label class="text-xs text-slate-400 block mb-1 font-semibold">Vice-Captain</label>
+        <div class="autocomplete-wrap" id="viceWrap">
+          <input id="manualVice" type="text" class="input-dark" placeholder="Type to search your 15 players…" autocomplete="off" />
+          <div id="viceList" class="autocomplete-list" style="display:none"></div>
+        </div>
       </div>
     </div>
     <button class="btn-primary mt-5 w-full" id="saveManualBtn" type="button">Save &amp; Analyze</button>
@@ -149,19 +178,25 @@
 </div>
 <script>
 "use strict";
-/* Phase 14.0 — Professional dashboard. Vanilla JS + Tailwind (CDN).
+/* Phase 16.0 — Real system, no demo. Vanilla JS + Tailwind (CDN).
    All API calls use relative URLs (API = "") so the page works on any origin. */
 var API = "";
 var PHOTO_BASE = "https://resources.premierleague.com/photos/players/110x140/";
 var BADGE_BASE = "https://resources.premierleague.com/badges/70/t";
 var ALL_PLAYERS = [];
-let PLAYER_NAMES = {};
-/* Per-request session key isolating this browser's squad row from other users.
-   Set after a successful import/demo; null falls back to the shared default. */
+var PLAYER_NAMES = {};
 var CURRENT_SESSION_ID = null;
+var CURRENT_SOURCE = null; /* "fpl_id", "manual", or "demo" */
+var CURRENT_SOURCE_LABEL = "";
+var MANUAL_PICKS = {}; /* slotKey -> player object */
+var MANUAL_CAP = null;
+var MANUAL_VICE = null;
 var POS_NAMES = { 1: "GK", 2: "DEF", 3: "MID", 4: "FWD" };
 var CHIP_LABELS = { wildcard: "Wildcard", free_hit: "Free Hit", bench_boost: "Bench Boost", triple_captain: "Triple Captain" };
 var AVATAR_COLORS = ["#2563eb", "#059669", "#d97706", "#dc2626", "#7c3aed", "#0891b2", "#be185d", "#4d7c0f"];
+var LS_SESSION_KEY = "fpl_session_id";
+var LS_SOURCE_KEY = "fpl_session_source";
+var LS_SOURCE_LABEL_KEY = "fpl_session_source_label";
 
 function $(id) { return document.getElementById(id); }
 function esc(s) {
@@ -211,6 +246,67 @@ function setStatus(msg) { var el = $("status"); el.textContent = msg; el.style.d
 function showError(msg) { var el = $("error"); el.textContent = msg; el.style.display = "block"; }
 function hideMessages() { $("status").style.display = "none"; $("error").style.display = "none"; }
 
+/* ---------- Session persistence ---------- */
+function saveSessionToStorage(sessionId, source, label) {
+  try {
+    localStorage.setItem(LS_SESSION_KEY, sessionId);
+    localStorage.setItem(LS_SOURCE_KEY, source);
+    localStorage.setItem(LS_SOURCE_LABEL_KEY, label);
+  } catch (e) { /* storage may be unavailable */ }
+}
+function clearSessionFromStorage() {
+  try {
+    localStorage.removeItem(LS_SESSION_KEY);
+    localStorage.removeItem(LS_SOURCE_KEY);
+    localStorage.removeItem(LS_SOURCE_LABEL_KEY);
+  } catch (e) { /* ignore */ }
+}
+function getSessionFromStorage() {
+  try {
+    var sid = localStorage.getItem(LS_SESSION_KEY);
+    if (!sid) return null;
+    return {
+      session_id: sid,
+      source: localStorage.getItem(LS_SOURCE_KEY),
+      label: localStorage.getItem(LS_SOURCE_LABEL_KEY) || ""
+    };
+  } catch (e) { return null; }
+}
+
+function updateSourceChip() {
+  var chip = $("sourceChip");
+  var demoChip = $("demoChip");
+  var startOver = $("startOverBtn");
+  if (CURRENT_SESSION_ID && CURRENT_SOURCE) {
+    chip.style.display = "inline-flex";
+    chip.textContent = CURRENT_SOURCE_LABEL;
+    startOver.style.display = "inline-block";
+    if (CURRENT_SOURCE === "demo") {
+      demoChip.style.display = "inline-flex";
+    } else {
+      demoChip.style.display = "none";
+    }
+  } else {
+    chip.style.display = "none";
+    demoChip.style.display = "none";
+    startOver.style.display = "none";
+  }
+}
+
+function startOver() {
+  CURRENT_SESSION_ID = null;
+  CURRENT_SOURCE = null;
+  CURRENT_SOURCE_LABEL = "";
+  clearSessionFromStorage();
+  hideMessages();
+  $("results").style.display = "none";
+  $("manualEntry").style.display = "none";
+  $("teamId").value = "";
+  $("demoBanner").style.display = "none";
+  $("demoChip").style.display = "none";
+  updateSourceChip();
+}
+
 async function checkHealth() {
   var pill = $("healthPill");
   try {
@@ -225,7 +321,7 @@ async function loadPlayers() {
   var res = await fetch(API + "/api/v1/players");
   if (!res.ok) { throw new Error("Player list unavailable (" + res.status + ")"); }
   ALL_PLAYERS = await res.json();
-  PLAYER_NAMES = Object.fromEntries(ALL_PLAYERS.map(p => [p.id, p.web_name]));
+  PLAYER_NAMES = Object.fromEntries(ALL_PLAYERS.map(function (p) { return [p.id, p.web_name]; }));
 }
 
 function nameOf(pid, report) {
@@ -244,6 +340,10 @@ async function analyze() {
 
   /* Scope all subsequent reads/writes to this user's entry_id row. */
   CURRENT_SESSION_ID = String(entryId);
+  CURRENT_SOURCE = "fpl_id";
+  CURRENT_SOURCE_LABEL = "FPL ID " + entryId;
+  saveSessionToStorage(CURRENT_SESSION_ID, CURRENT_SOURCE, CURRENT_SOURCE_LABEL);
+  updateSourceChip();
 
   var btn = $("analyzeBtn");
   hideMessages();
@@ -260,9 +360,13 @@ async function analyze() {
     });
     if (res.status === 503) {
       document.getElementById("retrySyncBtn").style.display = "inline-block";
-      throw new Error("FPL is temporarily unavailable. Press 🔄 Try Again in a few minutes — your ID is queued for sync.");
+      throw new Error("FPL is blocking our servers right now. Your ID is saved and we retry automatically. Meanwhile: press \uD83D\uDD04 Try Again, or type your squad below using Enter Squad Manually.");
     }
     if (res.status === 404) { throw new Error("Could not find that FPL Team ID. Please double-check the number."); }
+    if (res.status === 403) {
+      document.getElementById("retrySyncBtn").style.display = "inline-block";
+      throw new Error("FPL is blocking our servers right now. Your ID is saved and we retry automatically. Meanwhile: press \uD83D\uDD04 Try Again, or type your squad below using Enter Squad Manually.");
+    }
     if (res.status === 409) {
       document.getElementById("retrySyncBtn").style.display = "inline-block";
       throw new Error("Picks not saved yet — use Enter Squad Manually for now, or Try Again closer to kickoff.");
@@ -295,6 +399,12 @@ async function retrySync() {
     /* The queued sync targets the entry_id the user originally entered. */
     var rawId = $("teamId").value.trim();
     CURRENT_SESSION_ID = rawId ? String(parseInt(rawId, 10)) : null;
+    if (CURRENT_SESSION_ID) {
+      CURRENT_SOURCE = "fpl_id";
+      CURRENT_SOURCE_LABEL = "FPL ID " + rawId;
+      saveSessionToStorage(CURRENT_SESSION_ID, CURRENT_SOURCE, CURRENT_SOURCE_LABEL);
+      updateSourceChip();
+    }
     var res = await fetch(API + "/api/v1/squad/retry-sync", { method: "POST", headers: { "Content-Type": "application/json" } });
     if (res.status === 429) { throw new Error("Too many retries. Please wait a minute and press Try Again."); }
     if (res.status === 404) { throw new Error("No queued sync found — enter your Team ID and Analyze again."); }
@@ -316,16 +426,25 @@ async function retrySync() {
 }
 
 async function renderFromApi() {
-  var url = API + "/api/v1/decisions";
-  if (CURRENT_SESSION_ID) { url += "?session_id=" + encodeURIComponent(CURRENT_SESSION_ID); }
+  hideMessages();
+  if (!CURRENT_SESSION_ID) {
+    showError("No squad saved for this session.");
+    return;
+  }
+  var url = API + "/api/v1/decisions?session_id=" + encodeURIComponent(CURRENT_SESSION_ID);
   var res = await fetch(url);
   if (!res.ok) {
     var body = await res.json().catch(function () { return {}; });
+    /* On 404 with no squad, clear the stale session and show empty state. */
+    if (res.status === 404) {
+      startOver();
+      showError(body.detail || "No squad saved for this session.");
+      return;
+    }
     throw new Error(body.detail || ("Could not generate decisions (" + res.status + ")."));
   }
   var report = await res.json();
   renderReport(report);
-  hideMessages();
   $("results").style.display = "block";
 }
 
@@ -567,6 +686,11 @@ async function demoTeam() {
   try {
     /* Unique per-request key so concurrent demo users don't share a row. */
     CURRENT_SESSION_ID = "demo_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+    CURRENT_SOURCE = "demo";
+    CURRENT_SOURCE_LABEL = "Demo Squad";
+    saveSessionToStorage(CURRENT_SESSION_ID, CURRENT_SOURCE, CURRENT_SOURCE_LABEL);
+    updateSourceChip();
+
     var res = await fetch(API + "/api/v1/squad/demo?session_id=" + encodeURIComponent(CURRENT_SESSION_ID), { method: "POST", headers: { "Content-Type": "application/json" } });
     if (!res.ok) {
       var body = await res.json().catch(function () { return {}; });
@@ -587,45 +711,234 @@ async function demoTeam() {
   }
 }
 
+/* ---------- Searchable player picker ---------- */
+function getManualPicksList() {
+  var picks = [];
+  for (var key in MANUAL_PICKS) {
+    if (MANUAL_PICKS[key]) picks.push(MANUAL_PICKS[key]);
+  }
+  return picks;
+}
+
+function isPlayerPicked(playerId) {
+  return !!MANUAL_PICKS[playerId];
+}
+
+function updatePickCounter() {
+  var picks = getManualPicksList();
+  var count = picks.length;
+  var total = picks.reduce(function (sum, p) { return sum + (p.price || 0); }, 0);
+  var el = $("pickCounter");
+  if (el) {
+    el.textContent = count + "/15 picked";
+    el.className = "mb-3 text-sm font-semibold " + (count === 15 ? "text-emerald-400" : "text-slate-400");
+  }
+  var budgetFill = $("budgetFill");
+  var budgetText = $("budgetText");
+  if (budgetFill && budgetText) {
+    var pct = Math.min((total / 100) * 100, 100);
+    budgetFill.style.width = pct + "%";
+    budgetFill.className = "budget-fill " + (total > 100 ? "budget-over" : (total > 95 ? "budget-warn" : "budget-ok"));
+    budgetText.textContent = "£" + total.toFixed(1) + "m / £100.0m";
+  }
+}
+
+function filterPlayers(query, position) {
+  var q = query.toLowerCase().trim();
+  return ALL_PLAYERS.filter(function (p) {
+    if (position && p.position !== position) return false;
+    if (!q) return false;
+    return (p.web_name && p.web_name.toLowerCase().indexOf(q) !== -1) ||
+           (String(p.id).indexOf(q) !== -1);
+  }).slice(0, 20); /* cap to 20 results for performance */
+}
+
+function buildAutocompleteItem(p) {
+  var picked = isPlayerPicked(p.id);
+  var teamShort = p.team ? ("T" + p.team) : "";
+  return '<div class="autocomplete-item' + (picked ? ' opacity-50' : '') + '" data-id="' + p.id + '" data-name="' + esc(p.web_name) + '">'
+    + '<span>' + esc(p.web_name) + ' <span class="pos-badge">' + (POS_NAMES[p.position] || "") + '</span></span>'
+    + '<span class="team-short">' + esc(teamShort) + ' · ' + fmtPrice(p.price) + '</span>'
+    + '</div>';
+}
+
+function showAutocomplete(inputEl, listEl, position, onPick) {
+  var query = inputEl.value;
+  var results = filterPlayers(query, position);
+  if (results.length === 0) {
+    listEl.innerHTML = '<div class="autocomplete-item text-slate-500">No matches</div>';
+  } else {
+    listEl.innerHTML = results.map(buildAutocompleteItem).join("");
+  }
+  listEl.style.display = "block";
+  /* Click handlers */
+  var items = listEl.querySelectorAll(".autocomplete-item[data-id]");
+  for (var i = 0; i < items.length; i++) {
+    (function (item) {
+      item.addEventListener("click", function () {
+        var pid = parseInt(item.getAttribute("data-id"), 10);
+        var name = item.getAttribute("data-name");
+        var player = ALL_PLAYERS.find(function (p) { return p.id === pid; });
+        if (player && !isPlayerPicked(player.id)) {
+          onPick(player, inputEl, listEl);
+        }
+      });
+    })(items[i]);
+  }
+}
+
+function hideAutocomplete(listEl) {
+  setTimeout(function () { listEl.style.display = "none"; }, 150);
+}
+
+function setupSlotAutocomplete(inputEl, listEl, position, slotKey, onPickCallback) {
+  inputEl.addEventListener("input", function () {
+    showAutocomplete(inputEl, listEl, position, function (player) {
+      MANUAL_PICKS[slotKey] = player;
+      inputEl.value = player.web_name;
+      inputEl.classList.add("slot-picked");
+      listEl.style.display = "none";
+      if (onPickCallback) onPickCallback();
+      updatePickCounter();
+    });
+  });
+  inputEl.addEventListener("focus", function () {
+    if (inputEl.value.length >= 2) {
+      showAutocomplete(inputEl, listEl, position, function (player) {
+        MANUAL_PICKS[slotKey] = player;
+        inputEl.value = player.web_name;
+        inputEl.classList.add("slot-picked");
+        listEl.style.display = "none";
+        if (onPickCallback) onPickCallback();
+        updatePickCounter();
+      });
+    }
+  });
+  inputEl.addEventListener("blur", function () {
+    hideAutocomplete(listEl);
+  });
+  /* Keyboard navigation */
+  inputEl.addEventListener("keydown", function (e) {
+    var items = listEl.querySelectorAll(".autocomplete-item[data-id]");
+    var active = listEl.querySelector(".autocomplete-item.active");
+    var idx = Array.prototype.indexOf.call(items, active);
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (active) active.classList.remove("active");
+      var next = items[idx + 1] || items[0];
+      if (next) next.classList.add("active");
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (active) active.classList.remove("active");
+      var prev = items[idx - 1] || items[items.length - 1];
+      if (prev) prev.classList.add("active");
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (active) {
+        active.click();
+      } else if (items.length > 0) {
+        items[0].click();
+      }
+    }
+  });
+}
+
+function setupCaptainAutocomplete(inputEl, listEl, isCaptain) {
+  inputEl.addEventListener("input", function () {
+    var query = inputEl.value.toLowerCase().trim();
+    var picks = getManualPicksList();
+    var matches = picks.filter(function (p) {
+      return p.web_name && p.web_name.toLowerCase().indexOf(query) !== -1;
+    });
+    if (matches.length === 0) {
+      listEl.innerHTML = '<div class="autocomplete-item text-slate-500">Pick players first</div>';
+    } else {
+      listEl.innerHTML = matches.map(function (p) {
+        return '<div class="autocomplete-item" data-id="' + p.id + '">'
+          + esc(p.web_name) + ' <span class="pos-badge">' + (POS_NAMES[p.position] || "") + '</span> '
+          + '<span class="team-short">' + fmtPrice(p.price) + '</span></div>';
+      }).join("");
+    }
+    listEl.style.display = "block";
+    var items = listEl.querySelectorAll(".autocomplete-item[data-id]");
+    for (var i = 0; i < items.length; i++) {
+      (function (item) {
+        item.addEventListener("click", function () {
+          var pid = parseInt(item.getAttribute("data-id"), 10);
+          var player = ALL_PLAYERS.find(function (p) { return p.id === pid; });
+          if (player) {
+            if (isCaptain) { MANUAL_CAP = player; inputEl.value = player.web_name; }
+            else { MANUAL_VICE = player; inputEl.value = player.web_name; }
+            listEl.style.display = "none";
+          }
+        });
+      })(items[i]);
+    }
+  });
+  inputEl.addEventListener("blur", function () { hideAutocomplete(listEl); });
+  inputEl.addEventListener("keydown", function (e) {
+    var items = listEl.querySelectorAll(".autocomplete-item[data-id]");
+    var active = listEl.querySelector(".autocomplete-item.active");
+    var idx = Array.prototype.indexOf.call(items, active);
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (active) active.classList.remove("active");
+      var next = items[idx + 1] || items[0];
+      if (next) next.classList.add("active");
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (active) active.classList.remove("active");
+      var prev = items[idx - 1] || items[items.length - 1];
+      if (prev) prev.classList.add("active");
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (active) { active.click(); } else if (items.length > 0) { items[0].click(); }
+    }
+  });
+}
+
 /* ---------- Manual squad entry ---------- */
-function manualPicks() {
-  return Array.prototype.map.call(document.querySelectorAll(".manual-pick"), function (sel) {
-    return sel.value ? parseInt(sel.value, 10) : 0;
-  });
-}
-
-function refreshManualCaptains() {
-  var ids = manualPicks().filter(function (id) { return id; });
-  var opts = ids.map(function (id) {
-    var p = ALL_PLAYERS.find(function (x) { return x.id === id; });
-    return '<option value="' + id + '">' + esc(p ? p.web_name : id) + "</option>";
-  }).join("");
-  ["manualCap", "manualVice"].forEach(function (fid) {
-    var sel = $(fid);
-    var cur = sel.value;
-    sel.innerHTML = '<option value="">— pick —</option>' + opts;
-    if (cur && ids.indexOf(parseInt(cur, 10)) !== -1) { sel.value = cur; }
-  });
-}
-
 function buildManualForm() {
   var groups = [[1, "Goalkeeper", 2], [2, "Defender", 5], [3, "Midfielder", 5], [4, "Forward", 3]];
   var html = "";
+  var slotIndex = 0;
   groups.forEach(function (g) {
-    var pool = ALL_PLAYERS.filter(function (p) { return p.position === g[0]; });
     for (var i = 0; i < g[2]; i++) {
-      html += '<div><label class="text-xs text-slate-400 block mb-1 font-semibold">' + g[1] + " " + (i + 1) + '</label>'
-        + '<select class="input-dark manual-pick" data-pos="' + g[0] + '"><option value="">— pick —</option>'
-        + pool.map(function (p) {
-          return '<option value="' + p.id + '">' + esc(p.web_name) + " (" + fmtPrice(p.price) + ")</option>";
-        }).join("") + "</select></div>";
+      var slotKey = "slot_" + slotIndex;
+      html += '<div class="autocomplete-wrap">'
+        + '<label class="slot-name">' + g[1] + " " + (i + 1) + '</label>'
+        + '<input type="text" class="input-dark manual-slot" data-slotkey="' + slotKey + '" data-pos="' + g[0] + '" placeholder="Type 2+ chars to search…" autocomplete="off" />'
+        + '<div class="autocomplete-list slot-list" style="display:none"></div>'
+        + '</div>';
+      slotIndex++;
     }
   });
   $("manualForm").innerHTML = html;
-  Array.prototype.forEach.call(document.querySelectorAll(".manual-pick"), function (sel) {
-    sel.addEventListener("change", refreshManualCaptains);
-  });
-  refreshManualCaptains();
+  /* Attach autocomplete to each slot */
+  var slots = document.querySelectorAll(".manual-slot");
+  for (var j = 0; j < slots.length; j++) {
+    (function (slotInput) {
+      var listEl = slotInput.parentElement.querySelector(".slot-list");
+      var pos = parseInt(slotInput.getAttribute("data-pos"), 10);
+      var slotKey = slotInput.getAttribute("data-slotkey");
+      setupSlotAutocomplete(slotInput, listEl, pos, slotKey, function () {
+        refreshCaptainInputs();
+      });
+    })(slots[j]);
+  }
+  updatePickCounter();
+}
+
+function refreshCaptainInputs() {
+  /* Clear captain/vice if their player was removed from picks */
+  if (MANUAL_CAP && !isPlayerPicked(MANUAL_CAP.id)) {
+    MANUAL_CAP = null;
+    $("manualCap").value = "";
+  }
+  if (MANUAL_VICE && !isPlayerPicked(MANUAL_VICE.id)) {
+    MANUAL_VICE = null;
+    $("manualVice").value = "";
+  }
 }
 
 async function toggleManual() {
@@ -637,6 +950,9 @@ async function toggleManual() {
     setStatus("Loading the player list…");
     await loadPlayers();
     buildManualForm();
+    /* Setup captain/vice autocomplete */
+    setupCaptainAutocomplete($("manualCap"), $("capList"), true);
+    setupCaptainAutocomplete($("manualVice"), $("viceList"), false);
     section.style.display = "block";
     $("status").style.display = "none";
   } catch (e) {
@@ -646,17 +962,24 @@ async function toggleManual() {
 }
 
 async function saveManual() {
-  var ids = manualPicks();
-  if (ids.some(function (id) { return !id; })) { showError("Please pick all 15 players (2 GK, 5 DEF, 5 MID, 3 FWD)."); return; }
-  if (new Set(ids).size !== 15) { showError("Duplicate players selected — each of the 15 picks must be unique."); return; }
-  var cap = parseInt($("manualCap").value, 10);
-  var vice = parseInt($("manualVice").value, 10);
-  if (!cap || !vice) { showError("Please select a captain and a vice-captain."); return; }
-  if (cap === vice) { showError("Captain and vice-captain must be different players."); return; }
+  var picks = getManualPicksList();
+  if (picks.length !== 15) { showError("Please pick all 15 players (2 GK, 5 DEF, 5 MID, 3 FWD). Currently: " + picks.length + "/15."); return; }
+  if (!MANUAL_CAP || !MANUAL_VICE) { showError("Please select a captain and a vice-captain."); return; }
+  if (MANUAL_CAP.id === MANUAL_VICE.id) { showError("Captain and vice-captain must be different players."); return; }
+
+  /* Generate a unique session key for this manual squad */
+  var manualSessionId = "manual-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8);
+  CURRENT_SESSION_ID = manualSessionId;
+  CURRENT_SOURCE = "manual";
+  CURRENT_SOURCE_LABEL = "Manual Squad";
+  saveSessionToStorage(CURRENT_SESSION_ID, CURRENT_SOURCE, CURRENT_SOURCE_LABEL);
+  updateSourceChip();
+
+  var ids = picks.map(function (p) { return p.id; });
   var squad = {
     player_ids: ids,
-    captain_id: cap,
-    vice_captain_id: vice,
+    captain_id: MANUAL_CAP.id,
+    vice_captain_id: MANUAL_VICE.id,
     bank: 0,
     free_transfers: 1,
     chips_available: [],
@@ -674,13 +997,14 @@ async function saveManual() {
       PLAYER_NAMES[id] = p.web_name;
     }
   });
+
   var btn = $("saveManualBtn");
   hideMessages();
   $("results").style.display = "none";
   btn.disabled = true;
   setStatus("Saving your squad…");
   try {
-    var res = await fetch(API + "/api/v1/squad", {
+    var res = await fetch(API + "/api/v1/squad?session_id=" + encodeURIComponent(manualSessionId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(squad)
@@ -701,16 +1025,40 @@ async function saveManual() {
   }
 }
 
-/* ---------- Boot ---------- */
-checkHealth();
-document.getElementById("analyzeBtn").addEventListener("click", analyze);
-document.getElementById("teamId").addEventListener("keydown", function (e) {
-  if (e.key === "Enter" || e.key === "NumpadEnter" || e.keyCode === 13) { e.preventDefault(); analyze(); }
-});
-document.getElementById("demoBtn").addEventListener("click", demoTeam);
-document.getElementById("toggleManualBtn").addEventListener("click", toggleManual);
-document.getElementById("saveManualBtn").addEventListener("click", saveManual);
-document.getElementById("retrySyncBtn").addEventListener("click", retrySync);
+/* ---------- Boot: restore session from localStorage ---------- */
+function boot() {
+  checkHealth();
+  var stored = getSessionFromStorage();
+  if (stored && stored.session_id) {
+    /* Restore the session state but don't auto-load a squad.
+       The user sees the source chip and can continue. */
+    CURRENT_SESSION_ID = stored.session_id;
+    CURRENT_SOURCE = stored.source;
+    CURRENT_SOURCE_LABEL = stored.label || "";
+    updateSourceChip();
+    /* If it's a demo session, show the demo banner context */
+    if (CURRENT_SOURCE === "demo") {
+      $("demoBanner").style.display = "block";
+      $("teamName").textContent = "Demo Squad";
+    } else if (CURRENT_SOURCE === "fpl_id") {
+      $("teamName").textContent = "Saved squad — source: " + CURRENT_SOURCE_LABEL;
+    } else if (CURRENT_SOURCE === "manual") {
+      $("teamName").textContent = "Saved squad — source: Manual Squad";
+    }
+  }
+  /* Wire up event listeners */
+  $("analyzeBtn").addEventListener("click", analyze);
+  $("teamId").addEventListener("keydown", function (e) {
+    if (e.key === "Enter" || e.key === "NumpadEnter" || e.keyCode === 13) { e.preventDefault(); analyze(); }
+  });
+  $("demoBtn").addEventListener("click", demoTeam);
+  $("toggleManualBtn").addEventListener("click", toggleManual);
+  $("saveManualBtn").addEventListener("click", saveManual);
+  $("retrySyncBtn").addEventListener("click", retrySync);
+  $("startOverBtn").addEventListener("click", startOver);
+}
+
+boot();
 </script>
 </body>
 </html>

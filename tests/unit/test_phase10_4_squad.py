@@ -34,7 +34,7 @@ class TestSquadService:
             chips_available=["wildcard", "free_hit"],
             gameweek=5,
         )
-        stored = svc.set_squad(payload)
+        stored = svc.set_squad(payload, session_id="mem_user")
         assert stored.player_ids == list(range(1, 16))
         assert stored.captain_id == 1
         assert stored.bank == 1.5
@@ -44,7 +44,7 @@ class TestSquadService:
 
     def test_get_squad_returns_none_when_empty(self) -> None:
         svc = SquadService()
-        assert svc.get_squad() is None
+        assert svc.get_squad(session_id="empty") is None
 
     def test_set_squad_replaces_previous(self) -> None:
         svc = SquadService()
@@ -60,9 +60,9 @@ class TestSquadService:
             vice_captain_id=19,
             gameweek=5,
         )
-        svc.set_squad(first)
-        svc.set_squad(second)
-        current = svc.get_squad()
+        svc.set_squad(first, session_id="rep_user")
+        svc.set_squad(second, session_id="rep_user")
+        current = svc.get_squad(session_id="rep_user")
         assert current is not None
         assert current.player_ids == list(range(10, 25))
         assert current.gameweek == 5
@@ -75,10 +75,10 @@ class TestSquadService:
             vice_captain_id=2,
             gameweek=1,
         )
-        svc.set_squad(payload)
-        assert svc.get_squad() is not None
-        svc.clear()
-        assert svc.get_squad() is None
+        svc.set_squad(payload, session_id="clr_user")
+        assert svc.get_squad(session_id="clr_user") is not None
+        svc.clear(session_id="clr_user")
+        assert svc.get_squad(session_id="clr_user") is None
 
 
 # ---------------------------------------------------------------------------
@@ -248,12 +248,23 @@ class TestSquadAPI:
             "chips_available": ["wildcard", "free_hit"],
             "gameweek": 5,
         }
-        resp = client.post("/api/v1/squad", json=payload)
+        resp = client.post("/api/v1/squad", json=payload, params={"session_id": "post_user"})
         assert resp.status_code == 200
         body = resp.json()
         assert body["gameweek"] == 5
         assert body["bank"] == 1.5
         assert body["updated_at"] is not None
+
+    def test_post_squad_requires_session_id(self, client: TestClient) -> None:
+        """Missing session_id -> 400 error."""
+        payload = {
+            "player_ids": list(range(1, 16)),
+            "captain_id": 1,
+            "vice_captain_id": 2,
+            "gameweek": 1,
+        }
+        resp = client.post("/api/v1/squad", json=payload)
+        assert resp.status_code == 400
 
     def test_post_squad_validates_player_count(self, client: TestClient) -> None:
         payload = {
@@ -262,7 +273,7 @@ class TestSquadAPI:
             "vice_captain_id": 2,
             "gameweek": 1,
         }
-        resp = client.post("/api/v1/squad", json=payload)
+        resp = client.post("/api/v1/squad", json=payload, params={"session_id": "validate_user"})
         assert resp.status_code == 422
 
     def test_get_squad_returns_stored_state(self, client: TestClient) -> None:
@@ -274,17 +285,22 @@ class TestSquadAPI:
             "free_transfers": 1,
             "gameweek": 10,
         }
-        client.post("/api/v1/squad", json=payload)
-        resp = client.get("/api/v1/squad")
+        client.post("/api/v1/squad", json=payload, params={"session_id": "test_user"})
+        resp = client.get("/api/v1/squad", params={"session_id": "test_user"})
         assert resp.status_code == 200
         body = resp.json()
         assert body["gameweek"] == 10
         assert body["captain_id"] == 10
 
-    def test_get_squad_returns_null_when_empty(self, client: TestClient) -> None:
+    def test_get_squad_returns_404_when_no_session(self, client: TestClient) -> None:
+        """Missing session_id -> 404, never returns another user's squad."""
         resp = client.get("/api/v1/squad")
-        assert resp.status_code == 200
-        assert resp.json() is None
+        assert resp.status_code == 404
+
+    def test_get_squad_returns_404_for_unknown_session(self, client: TestClient) -> None:
+        """Unknown session_id -> 404, never falls back to a default."""
+        resp = client.get("/api/v1/squad", params={"session_id": "never_seen"})
+        assert resp.status_code == 404
 
     def test_get_decisions_returns_report(self, client: TestClient) -> None:
         payload = {
@@ -296,8 +312,8 @@ class TestSquadAPI:
             "gameweek": 3,
             "player_positions": _pos_map(),
         }
-        client.post("/api/v1/squad", json=payload)
-        resp = client.get("/api/v1/decisions")
+        client.post("/api/v1/squad", json=payload, params={"session_id": "dec_user"})
+        resp = client.get("/api/v1/decisions", params={"session_id": "dec_user"})
         assert resp.status_code == 200
         body = resp.json()
         assert body["gameweek"] == 3
@@ -306,7 +322,25 @@ class TestSquadAPI:
         assert body["captain"] is not None
 
     def test_get_decisions_returns_404_when_no_squad(self, client: TestClient) -> None:
+        resp = client.get("/api/v1/decisions", params={"session_id": "no_squad_user"})
+        assert resp.status_code == 404
+
+    def test_get_decisions_requires_session_id(self, client: TestClient) -> None:
+        """Missing session_id -> 404, never returns another user's squad."""
         resp = client.get("/api/v1/decisions")
+        assert resp.status_code == 404
+
+    def test_get_decisions_session_a_cant_read_session_b(self, client: TestClient) -> None:
+        """Session A's squad is invisible to session B."""
+        payload = {
+            "player_ids": list(range(1, 16)),
+            "captain_id": 1,
+            "vice_captain_id": 2,
+            "gameweek": 1,
+            "player_positions": _pos_map(),
+        }
+        client.post("/api/v1/squad", json=payload, params={"session_id": "user_a"})
+        resp = client.get("/api/v1/decisions", params={"session_id": "user_b"})
         assert resp.status_code == 404
 
     def test_post_squad_with_positions_generates_full_report(
@@ -326,8 +360,8 @@ class TestSquadAPI:
             "player_prices": prices,
             "player_teams": teams,
         }
-        client.post("/api/v1/squad", json=payload)
-        resp = client.get("/api/v1/decisions")
+        client.post("/api/v1/squad", json=payload, params={"session_id": "full_report_user"})
+        resp = client.get("/api/v1/decisions", params={"session_id": "full_report_user"})
         assert resp.status_code == 200
         body = resp.json()
         assert body["transfer_plan"] is not None

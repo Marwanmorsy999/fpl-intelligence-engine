@@ -81,9 +81,9 @@ class SquadStateCreate(BaseModel):
     )
     session_id: str | None = Field(
         default=None,
-        description="Optional session key isolating this squad row. When omitted "
-        "the service falls back to DEFAULT_SESSION_ID (shared global row). For "
-        "per-user isolation pass the user's FPL entry_id here.",
+        description="Optional session key isolating this squad row. For "
+        "per-user isolation pass the user's FPL entry_id here. When omitted "
+        "the route requires the query param instead.",
         examples=["1234567"],
     )
 

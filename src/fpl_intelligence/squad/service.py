@@ -20,9 +20,6 @@ from sqlalchemy.orm import Session
 from fpl_intelligence.squad.models import SquadStateCreate, SquadStateResponse
 from fpl_intelligence.squad.models_db import SquadStateDB
 
-#: Default session key used by the single-global squad API.
-DEFAULT_SESSION_ID = "default"
-
 #: A callable that returns a fresh SQLAlchemy ``Session``.
 SessionFactory = Callable[[], Session]
 
@@ -100,7 +97,7 @@ class SquadService:
     # -- public API ---------------------------------------------------------
 
     def set_squad(
-        self, payload: SquadStateCreate, session_id: str = DEFAULT_SESSION_ID
+        self, payload: SquadStateCreate, session_id: str
     ) -> SquadStateResponse:
         """Persist a new squad state and return the stored representation."""
         state = SquadStateResponse(**payload.model_dump(), updated_at=datetime.now(UTC))
@@ -118,7 +115,7 @@ class SquadService:
                     db.close()
         return state
 
-    def get_squad(self, session_id: str = DEFAULT_SESSION_ID) -> SquadStateResponse | None:
+    def get_squad(self, session_id: str) -> SquadStateResponse | None:
         """Return the current squad state, or None if not set."""
         if not self._is_persistent():
             with self._lock:
@@ -137,7 +134,7 @@ class SquadService:
                 if own:
                     db.close()
 
-    def clear(self, session_id: str = DEFAULT_SESSION_ID) -> None:
+    def clear(self, session_id: str) -> None:
         """Remove the stored squad state (test helper / admin action)."""
         if not self._is_persistent():
             with self._lock:

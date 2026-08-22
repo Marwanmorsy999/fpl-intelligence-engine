@@ -11,7 +11,7 @@ from __future__ import annotations
 from sqlalchemy.orm import sessionmaker
 
 from fpl_intelligence.squad.models import SquadStateCreate
-from fpl_intelligence.squad.service import DEFAULT_SESSION_ID, SquadService
+from fpl_intelligence.squad.service import SquadService
 
 
 def _payload(**overrides: object) -> SquadStateCreate:
@@ -49,7 +49,10 @@ class TestSquadServiceSessionBinding:
     def test_set_replaces_previous(self, db_session) -> None:
         svc = SquadService(session=db_session)
         svc.set_squad(_payload(gameweek=1), session_id="replace_user")
-        svc.set_squad(_payload(gameweek=5, player_ids=list(range(10, 25)), captain_id=20), session_id="replace_user")
+        svc.set_squad(
+            _payload(gameweek=5, player_ids=list(range(10, 25)), captain_id=20),
+            session_id="replace_user",
+        )
         current = svc.get_squad(session_id="replace_user")
         assert current is not None
         assert current.gameweek == 5
@@ -91,11 +94,14 @@ class TestSquadServiceSessionFactory:
         # An unknown key still returns None.
         assert svc_a.get_squad(session_id="user_c") is None
 
-    def test_default_session_key(self, db_session) -> None:
+    def test_session_id_is_required_no_implicit_default(self, db_session) -> None:
+        """No implicit default session: each key is fully isolated."""
         factory = sessionmaker(bind=db_session.get_bind(), expire_on_commit=False)
         svc = SquadService(session_factory=factory)
-        svc.set_squad(_payload(gameweek=3))
-        assert svc.get_squad(session_id=DEFAULT_SESSION_ID).gameweek == 3  # type: ignore[union-attr]
+        svc.set_squad(_payload(gameweek=3), session_id="explicit_key")
+        # A different key returns None — no shared default row.
+        assert svc.get_squad(session_id="other_key") is None
+        assert svc.get_squad(session_id="explicit_key").gameweek == 3  # type: ignore[union-attr]
 
 
 class TestSquadServiceInMemoryFallback:

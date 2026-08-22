@@ -20,7 +20,7 @@ import threading
 import time
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -53,7 +53,7 @@ from fpl_intelligence.squad.models import (
     SquadStateCreate,
     SquadStateResponse,
 )
-from fpl_intelligence.squad.service import DEFAULT_SESSION_ID, SquadService
+from fpl_intelligence.squad.service import SquadService
 from fpl_intelligence.squad.sync import (
     NoPendingSync,
     get_pending_sync,
@@ -91,28 +91,54 @@ def _retry_sync_rate_limited(host: str, limit: int, window: float) -> bool:
 
 @router.post("/squad", response_model=SquadStateResponse, status_code=200)
 async def set_squad(
-    payload: SquadStateCreate, db: GetDB, session_id: str | None = Query(None)
+    payload: SquadStateCreate, db: GetDB, response: Response, session_id: str | None = Query(None)
 ) -> SquadStateResponse:
     """Persist the user's FPL squad state.
 
-    Optional ``session_id`` query param isolates this squad to a per-user key
-    (e.g. the FPL entry_id). When omitted the shared default row is used.
+    ``session_id`` query param isolates this squad to a per-user key
+    (e.g. the FPL entry_id). When omitted the payload's ``session_id`` is used.
     """
-    key = session_id or payload.session_id or DEFAULT_SESSION_ID
-    return SquadService(session=db).set_squad(payload, session_id=key)
+    key = session_id or payload.session_id
+    if not key:
+        raise HTTPException(
+            status_code=400,
+            detail="session_id is required (query param or body field).",
+        )
+    result = SquadService(session=db).set_squad(payload, session_id=key)
+    # Never cache responses that are specific to a session.
+    response.headers["Cache-Control"] = "no-store"
+    return result
 
 
-@router.get("/squad", response_model=SquadStateResponse | None)
+@router.get(
+    "/squad",
+    response_model=SquadStateResponse,
+    responses={404: {"description": "No squad saved for this session"}},
+)
 async def get_squad(
-    db: GetDB, session_id: str | None = Query(None)
-) -> SquadStateResponse | None:
-    """Retrieve the current squad state, or ``null`` if none has been set.
+    db: GetDB,
+    response: Response,
+    session_id: str | None = Query(None, description="Per-user session key. Required.")
+) -> SquadStateResponse:
+    """Retrieve the squad state for a specific session.
 
-    Optional ``session_id`` query param reads a per-user squad row. When
-    omitted the shared default row is returned.
+    ``session_id`` is REQUIRED. Returns 404 if missing or if no squad has been
+    saved for that key — never falls back to a default or another user's squad.
     """
-    key = session_id or DEFAULT_SESSION_ID
-    return SquadService(session=db).get_squad(session_id=key)
+    if not session_id:
+        raise HTTPException(
+            status_code=404,
+            detail="No squad saved for this session",
+        )
+    squad = SquadService(session=db).get_squad(session_id=session_id)
+    if squad is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No squad saved for this session",
+        )
+    # Never cache responses that are specific to a session.
+    response.headers["Cache-Control"] = "no-store"
+    return squad
 
 
 def _build_player_details(
@@ -269,9 +295,14 @@ def _build_player_details(
     return details
 
 
-@router.get("/decisions", response_model=DecisionReport)
+@router.get(
+    "/decisions",
+    response_model=DecisionReport,
+    responses={404: {"description": "No squad saved for this session"}},
+)
 async def get_decisions(
     db: GetDB,
+    response: Response,
     provider: Annotated[DecisionPredictionProvider, Depends(deps.get_prediction_provider)],
     live_facts: bool = Query(
         False,
@@ -279,11 +310,13 @@ async def get_decisions(
     ),
     session_id: str | None = Query(
         None,
-        description="Per-user session key. Reads the squad row for this session. "
-        "When omitted the shared default squad is used.",
+        description="Per-user session key. REQUIRED. Reads the squad row for this session.",
     ),
 ) -> DecisionReport:
     """Generate a personalized :class:`DecisionReport` for the stored squad.
+
+    ``session_id`` is REQUIRED. Returns 404 if missing or if no squad has been
+    saved for that key — never falls back to a default or another user's squad.
 
     When ``live_facts=true`` the engine attempts to fetch hard facts from the
     official FPL API (and any keyed provider that is enabled) and override the
@@ -296,13 +329,20 @@ async def get_decisions(
     report, so the dashboard can render photos, badges, and prices without
     additional lookups.
     """
-    key = session_id or DEFAULT_SESSION_ID
-    squad = SquadService(session=db).get_squad(session_id=key)
+    if not session_id:
+        raise HTTPException(
+            status_code=404,
+            detail="No squad saved for this session",
+        )
+    squad = SquadService(session=db).get_squad(session_id=session_id)
     if squad is None:
         raise HTTPException(
             status_code=404,
-            detail="No squad configured. POST /api/v1/squad first.",
+            detail="No squad saved for this session",
         )
+
+    # Never cache responses that are specific to a session.
+    response.headers["Cache-Control"] = "no-store"
 
     applied_overrides: list = []
     if live_facts:
@@ -404,7 +444,7 @@ class FromFplRequest(BaseModel):
 
 @router.post("/squad/from-fpl", response_model=FromFplResponse, status_code=200)
 async def import_squad_from_fpl(
-    payload: FromFplRequest, db: GetDB
+    payload: FromFplRequest, db: GetDB, response: Response
 ) -> FromFplResponse:
     """One-click import: resolve an FPL Team ID into a saved squad."""
     importer = FplSquadImporter()
@@ -436,6 +476,8 @@ async def import_squad_from_fpl(
         ) from exc
 
     saved = SquadService(session=db).set_squad(result.squad, session_id=str(payload.entry_id))
+    # Never cache responses that are specific to a session.
+    response.headers["Cache-Control"] = "no-store"
     return FromFplResponse(
         squad=saved,
         player_names=result.player_names,
@@ -445,7 +487,7 @@ async def import_squad_from_fpl(
 
 
 @router.post("/squad/retry-sync", response_model=FromFplResponse, status_code=200)
-async def retry_sync(request: Request, db: GetDB) -> FromFplResponse:
+async def retry_sync(request: Request, db: GetDB, response: Response) -> FromFplResponse:
     """Public, rate-limited retry for a queued auto-sync squad import.
 
     When :func:`import_squad_from_fpl` previously failed with a transient 503
@@ -470,7 +512,9 @@ async def retry_sync(request: Request, db: GetDB) -> FromFplResponse:
         # Capture the entry_id BEFORE the sync runs — on success the row is
         # marked SYNCED and no longer returned by get_pending_sync.
         pending_before = get_pending_sync(db)
-        session_key = str(pending_before.entry_id) if pending_before else DEFAULT_SESSION_ID
+        if pending_before is None:
+            raise NoPendingSync("No pending sync found")
+        session_key = str(pending_before.entry_id)
         result = await run_pending_sync(db)
     except NoPendingSync as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -492,6 +536,8 @@ async def retry_sync(request: Request, db: GetDB) -> FromFplResponse:
         ) from exc
 
     saved = SquadService(session=db).set_squad(result.squad, session_id=session_key)
+    # Never cache responses that are specific to a session.
+    response.headers["Cache-Control"] = "no-store"
     return FromFplResponse(
         squad=saved,
         player_names=result.player_names,
@@ -503,6 +549,7 @@ async def retry_sync(request: Request, db: GetDB) -> FromFplResponse:
 @router.post("/squad/demo", response_model=FromFplResponse, status_code=200)
 async def demo_squad(
     db: GetDB,
+    response: Response,
     session_id: str | None = Query(
         None,
         description="Per-request session key. Generated by the caller so "
@@ -518,8 +565,9 @@ async def demo_squad(
     Each call generates a unique per-request ``session_id`` so concurrent demo
     users do not collide on a shared row.
     """
-    from fpl_intelligence.squad.demo import DemoSquadError
     from uuid import uuid4
+
+    from fpl_intelligence.squad.demo import DemoSquadError
 
     try:
         squad = build_demo_squad(db)
@@ -538,6 +586,8 @@ async def demo_squad(
     # The frontend may supply its own; otherwise we generate one server-side.
     demo_session_id = session_id or f"demo_{uuid4().hex}"
     saved = SquadService(session=db).set_squad(squad, session_id=demo_session_id)
+    # Never cache responses that are specific to a session.
+    response.headers["Cache-Control"] = "no-store"
     return FromFplResponse(
         squad=saved,
         player_names=player_names,
