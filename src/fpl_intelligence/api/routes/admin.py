@@ -1485,3 +1485,70 @@ async def materialize_endpoint(
         )
     finally:
         db.close()
+
+
+_BOOTSTRAP_MATERIALIZED_JOB_NAME = "materialize-bootstrap"
+
+
+def _bootstrap_materialized_applied(db: Session) -> bool:
+    return (
+        db.scalar(
+            select(IngestionRun).where(
+                IngestionRun.job_name == _BOOTSTRAP_MATERIALIZED_JOB_NAME,
+                IngestionRun.source == _INIT_SOURCE,
+                IngestionRun.status == "SUCCESS",
+            )
+        )
+        is not None
+    )
+
+
+@router.post("/admin/bootstrap-materialized")
+async def bootstrap_materialized_endpoint() -> dict:
+    """Phase 20.1 — one-shot incident recovery: populate the read models NOW.
+
+    Runs :func:`materialize_all` once so the deployed engine serves warm data
+    immediately instead of waiting for the 06:10 cron. Self-disabling: returns
+    410 after its first successful run (same pattern as the migration hotfixes).
+    Unauthenticated by design: temporary, one-shot, and only writes derived
+    cache tables from public sources.
+    """
+    db = SessionLocal()
+    try:
+        if _bootstrap_materialized_applied(db):
+            return JSONResponse(
+                status_code=410,
+                content={
+                    "ok": False,
+                    "error": "Materialized bootstrap already applied. This endpoint "
+                    "is disabled; use POST /admin/materialize (cron auth).",
+                },
+            )
+
+        from fpl_intelligence.materialize import materialize_all
+
+        report = await materialize_all(db, season_code=SEASON_CODE)
+        db.add(
+            IngestionRun(
+                source=_INIT_SOURCE,
+                job_name=_BOOTSTRAP_MATERIALIZED_JOB_NAME,
+                season_code=SEASON_CODE,
+                status="SUCCESS",
+                started_at=datetime.now(UTC),
+                finished_at=datetime.now(UTC),
+                records_processed=int(report.get("predictions", {}).get("rows") or 0),
+            )
+        )
+        db.commit()
+        ok = bool(report.get("predictions", {}).get("ok")) or bool(
+            report.get("fixtures", {}).get("ok")
+        )
+        return JSONResponse(status_code=200 if ok else 502, content={"ok": ok, **report})
+    except Exception as exc:  # noqa: BLE001 - surface for visibility
+        db.rollback()
+        logger.exception("bootstrap-materialized failed")
+        return JSONResponse(
+            status_code=500, content={"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        )
+    finally:
+        db.close()
