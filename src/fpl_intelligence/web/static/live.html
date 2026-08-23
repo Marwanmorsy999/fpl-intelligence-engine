@@ -45,7 +45,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var $ = function (id) { return document.getElementById(id); };
   try {
     /* Phase 20.1: restore from the v20 persistent session (legacy key fallback). */
-    var sess = FPLApp.readSession();
+    var sess = FPLApp.session.read();
     if (!sess) {
       var legacy = null;
       try { legacy = localStorage.getItem("fpl_session_id"); } catch (e2) {}
