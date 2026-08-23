@@ -1,8 +1,11 @@
-"""Phase 19.0 — machine-to-machine sync endpoints.
+"""Phase 19.0/19.1 — machine-to-machine sync endpoints.
 
 Three push routes (bookmarklet, Google Apps Script fetcher, GitHub Actions)
 guarded by ``Authorization: Bearer <SYNC_PUSH_TOKEN>``, plus the public read
 models they feed: track record, live board, sync status and crests.
+
+Phase 19.1 adds :class:`BookmarkletCorsMiddleware` so the bookmarklet can POST
+to the push routes from fantasy.premierleague.com pages (browser preflight).
 
 Auth contract
 -------------
@@ -20,6 +23,9 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.requests import Request
+from starlette.responses import Response
 
 from fpl_intelligence.api import deps
 from fpl_intelligence.config import get_settings
@@ -38,6 +44,51 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/sync", tags=["sync"])
 
 GetDB = deps.GetDB
+
+# --------------------------------------------------------------------------- #
+# Phase 19.1 — CORS for the bookmarklet's cross-origin pushes
+# --------------------------------------------------------------------------- #
+
+# The bookmarklet executes on fantasy.premierleague.com and POSTs here, so the
+# browser preflights every push. Without these headers fetch() dies with
+# "Failed to fetch" before the Bearer check ever runs.
+_PUSH_PATHS = frozenset(
+    {
+        "/api/v1/sync/squad-push",
+        "/api/v1/sync/live-push",
+        "/api/v1/sync/history-push",
+    }
+)
+
+_PREFLIGHT_HEADERS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Authorization, Content-Type",
+    "Access-Control-Max-Age": "86400",
+}
+
+
+class BookmarkletCorsMiddleware(BaseHTTPMiddleware):
+    """Answer CORS for exactly the three sync push routes.
+
+    ``*`` is safe: :func:`_require_push_auth` remains the security boundary and
+    rejects every request without a valid Bearer token, so the wildcard merely
+    exposes an endpoint that refuses anonymous traffic anyway. Registered
+    BEFORE the generic ``CORS_ORIGINS`` middleware in main.py, which keeps that
+    list authoritative wherever it applies (this one only fills gaps).
+    """
+
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
+        if request.url.path not in _PUSH_PATHS:
+            return await call_next(request)
+        if request.method == "OPTIONS":
+            return Response(status_code=204, headers=_PREFLIGHT_HEADERS)
+        response = await call_next(request)
+        if "access-control-allow-origin" not in response.headers:
+            response.headers["Access-Control-Allow-Origin"] = "*"
+        return response
 
 
 def _require_push_auth(

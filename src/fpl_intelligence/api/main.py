@@ -11,6 +11,7 @@ from fpl_intelligence.api.routes.data_sources import router as data_sources_rout
 from fpl_intelligence.api.routes.intelligence import router as intelligence_router
 from fpl_intelligence.api.routes.players import router as players_router
 from fpl_intelligence.api.routes.squad import router as squad_router
+from fpl_intelligence.api.routes.sync import BookmarkletCorsMiddleware
 from fpl_intelligence.api.routes.sync import router as sync_router
 from fpl_intelligence.api.routes.telegram import router as telegram_router
 from fpl_intelligence.common.logging import silence_credential_leaking_loggers
@@ -31,6 +32,12 @@ assert_no_static_stub_in_production()
 silence_credential_leaking_loggers()
 
 app = FastAPI(title="FPL Intelligence Engine", version=__version__)
+
+# Phase 19.1 — the bookmarklet POSTs to the sync push routes from
+# fantasy.premierleague.com and needs CORS regardless of CORS_ORIGINS. Added
+# before the generic middleware below, so a configured origins list stays the
+# outermost (authoritative) layer; this one only fills the gaps.
+app.add_middleware(BookmarkletCorsMiddleware)
 
 # Phase 11.2 — allow a separately hosted frontend (Vercel/Netlify) to call this
 # API. Origins are supplied as a comma-separated CORS_ORIGINS env var. An empty

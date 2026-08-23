@@ -61,6 +61,63 @@ SQUAD_PUSH_BODY = {
 }
 
 
+PUSH_PATHS = [
+    "/api/v1/sync/squad-push",
+    "/api/v1/sync/live-push",
+    "/api/v1/sync/history-push",
+]
+FPL_ORIGIN = {"Origin": "https://fantasy.premierleague.com"}
+
+
+class TestBookmarkletCors:
+    """Phase 19.1 — the bookmarklet POSTs cross-origin from fantasy.premierleague.com."""
+
+    @pytest.mark.parametrize("path", PUSH_PATHS)
+    def test_preflight_options_is_204_with_cors_headers(self, api, path):
+        client, _db, _token = api
+        resp = client.options(
+            path,
+            headers={
+                **FPL_ORIGIN,
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "authorization, content-type",
+            },
+        )
+        assert resp.status_code == 204, resp.text
+        assert resp.headers["access-control-allow-origin"] == "*"
+        assert resp.headers["access-control-allow-methods"] == "POST, OPTIONS"
+        assert resp.headers["access-control-allow-headers"] == "Authorization, Content-Type"
+        assert resp.headers["access-control-max-age"] == "86400"
+        # Preflight must answer before any auth check — browsers send it bare.
+        assert resp.content == b""
+
+    def test_post_response_carries_allow_origin_star(self, api):
+        client, _db, token = api
+        resp = client.post(
+            "/api/v1/sync/squad-push",
+            json=SQUAD_PUSH_BODY,
+            headers={**_bearer(token), **FPL_ORIGIN},
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.headers["access-control-allow-origin"] == "*"
+
+    def test_post_without_token_still_401(self, api):
+        client, _db, _token = api
+        resp = client.post(
+            "/api/v1/sync/squad-push", json=SQUAD_PUSH_BODY, headers=dict(FPL_ORIGIN)
+        )
+        assert resp.status_code == 401
+
+    def test_non_push_routes_untouched(self, api):
+        client, _db, token = api
+        client.post("/api/v1/sync/live-push", json={
+            "gameweek": 2, "elements": [{"element_id": 1, "points": 0}]
+        }, headers=_bearer(token))
+        resp = client.get("/api/v1/sync/status")
+        assert resp.status_code == 200
+        assert "access-control-allow-origin" not in resp.headers
+
+
 class TestPushAuth:
     def test_missing_token_config_rejects_with_503(self, api, monkeypatch):
         client, db, _token = api
