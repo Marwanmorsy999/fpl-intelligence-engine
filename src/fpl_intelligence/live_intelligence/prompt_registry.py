@@ -198,6 +198,11 @@ class LockedPrompt:
 #: the emitted block here. Never update the hash without bumping the version —
 #: that is precisely the silent change this lock exists to prevent.
 PROMPT_HASH_LOCK: dict[str, LockedPrompt] = {
+    "assistant.brief": LockedPrompt(
+        version="1.0.0",
+        schema_version="1.0.0",
+        template_hash="23b2be5426a96d6f89f39245f4ca8f5956fc1720a64884059bd1d41864820497",
+    ),
     "phase18.analyst.summary": LockedPrompt(
         version="1.0.0",
         schema_version="1.0.0",
