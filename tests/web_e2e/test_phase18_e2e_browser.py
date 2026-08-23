@@ -218,7 +218,7 @@ def _mock_analyst(route: Route) -> None:
                     "based on Pre-season proxy v2 (price + fixtures + xG). "
                     "The engine recommends rolling your free transfer."
                 ),
-                "model": "groq/llama-3.3-70b-versatile",
+                "model": "groq/openai/gpt-oss-120b",
                 "session_id": "whatever",
                 "gameweek": 3,
             }

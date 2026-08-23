@@ -75,12 +75,14 @@ API_KEY_ENV_VAR: dict[LLMProviderName, str] = {
 }
 
 #: Default model per provider. Chosen to sit inside the free tier of each
-#: service at the time of writing; override with ``LLM_MODEL``.
+#: service; override with ``LLM_MODEL``. Verified live 2026-08: Groq retired
+#: ``llama-3.3-70b-versatile`` and Gemini blocks new keys from 2.5, so these
+#: point at currently-served IDs (``gemini-flash-latest`` is a stable alias).
 DEFAULT_MODELS: dict[LLMProviderName, str] = {
     LLMProviderName.MOCK: "mock-deterministic-v1",
-    LLMProviderName.GEMINI: "gemini-2.5-flash",
-    LLMProviderName.GROQ: "llama-3.3-70b-versatile",
-    LLMProviderName.OPENROUTER: "meta-llama/llama-3.3-70b-instruct:free",
+    LLMProviderName.GEMINI: "gemini-flash-latest",
+    LLMProviderName.GROQ: "openai/gpt-oss-120b",
+    LLMProviderName.OPENROUTER: "nvidia/nemotron-3-super-120b-a12b:free",
 }
 
 #: Free-tier guardrail defaults, referenced by the docs and the dry-run banner.
