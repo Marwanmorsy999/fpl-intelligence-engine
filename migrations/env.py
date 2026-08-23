@@ -8,6 +8,7 @@ from fpl_intelligence.db import models  # noqa: F401
 from fpl_intelligence.db.base import Base
 from fpl_intelligence.live_intelligence import models as live_intelligence_models  # noqa: F401
 from fpl_intelligence.squad import models_db  # noqa: F401
+from fpl_intelligence.sync import materialized_models  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:

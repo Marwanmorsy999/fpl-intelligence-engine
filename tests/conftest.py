@@ -24,6 +24,7 @@ from fpl_intelligence.db.models import (
     TeamExternalId,
 )
 from fpl_intelligence.squad.models_db import SquadStateDB  # noqa: F401
+from fpl_intelligence.sync import materialized_models as _materialized_models  # noqa: F401
 from fpl_intelligence.sync import models as _sync_models  # noqa: F401
 
 # Phase 19.0: register every sync-layer table on the shared metadata before
@@ -35,7 +36,16 @@ _SYNC_TABLES = (
     _sync_models.SyncLivePointDB,
     _sync_models.SyncLogDB,
 )
+
+# Phase 20.1: register the materialized read-model tables too.
+_MATERIALIZED_TABLES = (
+    _materialized_models.ElementFactDB,
+    _materialized_models.FixturesCacheDB,
+    _materialized_models.NewsCacheDB,
+    _materialized_models.PredictionCurrentDB,
+)
 assert all(_SYNC_TABLES), "sync models must be importable for metadata registration"
+assert all(_MATERIALIZED_TABLES), "materialized models must be importable"
 
 
 @pytest.fixture

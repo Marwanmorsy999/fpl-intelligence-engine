@@ -3,39 +3,37 @@
 ``GET /api/v1/player/{player_id}/drawer?session_id=`` bundles everything the
 frontend drawer shows in one call:
 
-* last-5 gameweek form bars (official ``element-summary`` history),
-* Understat xG/xA per 90 (matched players only),
-* minutes played, selected-by %, price change,
+* last-5 gameweek form bars (materialized ``ingested_history``),
+* Understat xG/xA per 90 (matched players only, offline snapshot),
+* minutes played, selected-by %, price change (materialized ``element_facts``),
 * xPTS + breakdown from the prediction chain,
-* next-5 fixture strip,
-* BBC news flags when any headline matched.
+* next-5 fixture strip (materialized ``fixtures_cache``),
+* BBC news flags when any headline matched (materialized ``news_cache``).
+
+Phase 20.1: every input is read from indexed tables written by the daily
+06:10 materialize cron — ZERO live network fetches in the request path. This
+is the fix for the production 504 (the old implementation fetched bootstrap +
+element-summary live per request and hung until timeout behind blocked FPL).
 """
 
 from __future__ import annotations
 
 import logging
-import threading
-import time
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from fpl_intelligence.api import deps
-from fpl_intelligence.api.routes.fixtures import load_fixtures
-from fpl_intelligence.api.routes.news import _cached_items as cached_news_items
-from fpl_intelligence.config import get_settings
+from fpl_intelligence.api.routes.fixtures import _team_names, load_fixtures
 from fpl_intelligence.data_providers.bbc_news import (
     NEWS_KEYWORDS,
     build_aliases,
     match_headlines,
 )
-from fpl_intelligence.data_providers.fpl_egress import (
-    FplEgressChain,
-    validate_bootstrap_payload,
-)
-from fpl_intelligence.db.models import Player
 from fpl_intelligence.fixtures.scanner import (
     NEUTRAL_FDR,
     average_fdr,
@@ -43,8 +41,10 @@ from fpl_intelligence.fixtures.scanner import (
     parse_fixtures,
     player_run,
 )
-from fpl_intelligence.prediction.live_provider import SOURCE_PROXY
+from fpl_intelligence.materialize.service import NEWS_MAX_AGE_SECONDS
 from fpl_intelligence.squad.service import SquadService
+from fpl_intelligence.sync.materialized_models import ElementFactDB
+from fpl_intelligence.sync.models import IngestedGameweekDB
 
 router = APIRouter(prefix="/player", tags=["player"])
 logger = logging.getLogger(__name__)
@@ -54,55 +54,23 @@ GetDB = deps.GetDB
 FORM_GWS = 5
 HORIZON_GWS = 5
 
-_bootstrap_lock = threading.Lock()
-_bootstrap_cache: tuple[float, dict[str, Any]] | None = None
 
-
-async def _bootstrap_element(player_id: int) -> dict[str, Any] | None:
-    """The bootstrap element row for one player (cache-first, 10 min TTL)."""
-    global _bootstrap_cache
-    ttl = 600.0
-    with _bootstrap_lock:
-        if _bootstrap_cache is not None and time.monotonic() - _bootstrap_cache[0] < ttl:
-            elements = _bootstrap_cache[1].get("elements") or []
-        else:
-            settings = get_settings()
-            egress = FplEgressChain(
-                settings.fpl_base_url,
-                timeout=settings.egress_strategy_timeout,
-                cache_ttl=ttl,
-            )
-            try:
-                payload = await egress.fetch(
-                    "/api/bootstrap-static/", validator=validate_bootstrap_payload
-                )
-            except Exception as exc:  # noqa: BLE001 — drawer degrades gracefully
-                logger.warning("bootstrap fetch failed in drawer: %s", exc)
-                return None
-            with _bootstrap_lock:
-                _bootstrap_cache = (time.monotonic(), payload)
-            elements = payload.get("elements") or []
-    for el in elements:
-        if isinstance(el, dict) and el.get("id") == player_id:
-            return el
-    return None
-
-
-async def _element_summary_history(player_id: int) -> list[dict[str, Any]]:
-    """Last finished gameweeks from the official element-summary endpoint."""
-    settings = get_settings()
-    egress = FplEgressChain(
-        settings.fpl_base_url,
-        timeout=min(6.0, settings.egress_strategy_timeout),
-        cache_ttl=1800,
-    )
-    try:
-        payload = await egress.fetch(f"/api/element-summary/{player_id}/")
-    except Exception as exc:  # noqa: BLE001 — form bars are best-effort
-        logger.warning("element-summary failed for %s: %s", player_id, exc)
-        return []
-    history = payload.get("history") or []
-    return [h for h in history if isinstance(h, dict) and h.get("finished", True)]
+def _form_bars_from_history(db: Session, player_id: int) -> list[dict[str, Any]]:
+    """Last-5 finished gameweeks from the materialized results table."""
+    rows = db.execute(
+        select(
+            IngestedGameweekDB.gameweek,
+            IngestedGameweekDB.total_points,
+            IngestedGameweekDB.minutes,
+        )
+        .where(IngestedGameweekDB.element_id == int(player_id))
+        .order_by(IngestedGameweekDB.gameweek.desc())
+        .limit(FORM_GWS)
+    ).all()
+    return [
+        {"gw": gw, "points": points, "minutes": minutes}
+        for gw, points, minutes in sorted(rows)
+    ]
 
 
 @router.get("/{player_id}/drawer")
@@ -121,15 +89,23 @@ async def player_drawer(
     response.headers["Cache-Control"] = "no-store"
 
     # --- identity ------------------------------------------------------------
-    row: Player | None = db.scalar(select(Player).where(Player.fpl_element_id == player_id))
-    web_name = row.web_name if row else f"Player {player_id}"
-    first_name = row.first_name if row else ""
-    second_name = row.second_name if row else ""
+    row: ElementFactDB | None = db.get(ElementFactDB, int(player_id))
+    from fpl_intelligence.db.models import Player  # noqa: PLC0415
+
+    prow: Player | None = db.scalar(select(Player).where(Player.fpl_element_id == player_id))
+    web_name = (
+        (prow.web_name if prow else None)
+        or (row.web_name if row else None)
+        or f"Player {player_id}"
+    )
+    first_name = prow.first_name if prow else ""
+    second_name = prow.second_name if prow else ""
 
     # --- fixtures -------------------------------------------------------------
     fixture_runs: list[dict[str, Any]] = []
     avg_fdr = NEUTRAL_FDR
-    rows = parse_fixtures(await load_fixtures())
+    team_names = _team_names(db)
+    rows = parse_fixtures(await load_fixtures(db))
     if rows:
         current = max(
             min((r.event for r in rows if not r.finished), default=squad.gameweek),
@@ -140,15 +116,15 @@ async def player_drawer(
         for r in rows:
             rows_by_gw.setdefault(r.event, []).append(r)
         team = (squad.player_teams or {}).get(player_id)
-        runs = [r for r in player_run(team, rows_by_gw, horizon)]
+        runs = [r for r in player_run(team, rows_by_gw, horizon, team_names=team_names)]
         fixture_runs = [r.__dict__ for r in runs]
         real = [r for r in runs if r.opponent_id != 0]
         if real:
             avg_fdr = round(average_fdr(real), 2)
 
     # --- prediction chain xPTS + breakdown ------------------------------------
-    # The provider chain does synchronous network I/O; offload it so the
-    # event loop keeps serving other requests while it runs.
+    # Phase 20.1: the provider serves the materialized table first (fast path);
+    # the inline chain is only a fallback while the cron has never run.
     provider = deps.get_prediction_provider(db)
     expected_points = None
     breakdown = None
@@ -173,12 +149,12 @@ async def player_drawer(
             if pred.start_probability is not None:
                 start_prob = round(float(pred.start_probability), 3)
             raw_breakdown = getattr(pred, "breakdown", None)
-            if prediction_source == SOURCE_PROXY and isinstance(raw_breakdown, dict):
+            if isinstance(raw_breakdown, dict):
                 breakdown = {k: round(float(v), 2) for k, v in raw_breakdown.items()}
     except Exception as exc:  # noqa: BLE001 — xPTS is best-effort
         logger.warning("drawer predictions failed for %s: %s", player_id, exc)
 
-    # --- Understat xG/xA (matched players only) -------------------------------
+    # --- Understat xG/xA (matched players only; OFFLINE snapshot, no network) --
     index_getter = getattr(provider, "understat_index", None)
     if callable(index_getter) and web_name:
         try:
@@ -196,24 +172,21 @@ async def player_drawer(
         except Exception as exc:  # noqa: BLE001
             logger.warning("drawer understat failed for %s: %s", player_id, exc)
 
-    # --- bootstrap facts + last-5 form ----------------------------------------
-    element = await _bootstrap_element(player_id)
+    # --- element facts + last-5 form (both materialized) -----------------------
     minutes_played = selected_by = cost_change = status = None
-    if element is not None:
-        minutes_played = element.get("minutes")
-        selected_by = element.get("selected_by_percent")
-        cost_change = element.get("cost_change_event")
-        status = element.get("status")
+    if row is not None:
+        minutes_played = row.minutes
+        selected_by = row.selected_by_percent
+        cost_change = row.cost_change_event
+        status = row.status
 
-    form_history = await _element_summary_history(player_id)
-    form_bars = [
-        {"gw": h.get("round"), "points": h.get("total_points"), "minutes": h.get("minutes")}
-        for h in form_history[-FORM_GWS:]
-    ]
+    form_bars = _form_bars_from_history(db, player_id)
 
-    # --- news flags -----------------------------------------------------------
+    # --- news flags (materialized cache) ---------------------------------------
     news_flag = None
-    items = await cached_news_items()
+    from fpl_intelligence.api.routes.news import cached_items_from_db  # noqa: PLC0415
+
+    items, fetched_at = cached_items_from_db(db, max_age_seconds=NEWS_MAX_AGE_SECONDS)
     if items and web_name:
         flags = match_headlines(
             items,
@@ -226,6 +199,11 @@ async def player_drawer(
 
     aliases = sorted(build_aliases(web_name, first_name, second_name))
 
+    generated_at = (
+        fetched_at.isoformat()
+        if fetched_at is not None
+        else datetime.now(UTC).isoformat()
+    )
     return {
         "session_id": session_id,
         "gameweek": squad.gameweek,
@@ -254,5 +232,5 @@ async def player_drawer(
         "avg_fdr": avg_fdr,
         "news_flags": news_flag,
         "aliases": aliases,
-        "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "generated_at": generated_at,
     }

@@ -41,6 +41,7 @@ import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -61,17 +62,27 @@ logger = logging.getLogger(__name__)
 SOURCE_BACKTEST = "model-backtest"
 SOURCE_BASELINE = "baseline-model"
 SOURCE_PROXY = "pre-season-proxy-v2"
+#: Phase 20.1 — precomputed by the daily cron, served from ``predictions_current``.
+SOURCE_MATERIALIZED = "materialized-chain"
 
 QUALITY_BACKTEST = "historical-backtest"
 QUALITY_BASELINE = "ingested-gameweek-history"
 QUALITY_PROXY = "heuristic-proxy-enriched"
+QUALITY_MATERIALIZED = "precomputed-daily-materialize"
 
 #: Human-readable chain labels surfaced in the dashboard banner/badges.
 SOURCE_LABELS: dict[str, str] = {
     SOURCE_BACKTEST: "Backtest model",
     SOURCE_BASELINE: "Baseline model (2025/26 features)",
     SOURCE_PROXY: "Pre-season proxy v2 (price + fixtures + xG + market)",
+    SOURCE_MATERIALIZED: "Materialized daily predictions (cron 06:10)",
 }
+
+#: Phase 20.1 — a materialized level must cover at least this many players to
+#: be trusted over the inline chain.
+MATERIALIZED_MIN_COVERAGE = 50
+#: ...and be no older than this (the daily cron refreshes anyway).
+MATERIALIZED_MAX_AGE_SECONDS = 36 * 3600.0
 
 #: Minimum fraction of the player universe needing ingested history before
 #: the baseline level is considered trustworthy.
@@ -937,6 +948,59 @@ class LivePredictionProvider:
 
     # -- chain resolution --------------------------------------------------------
 
+    def _materialized_level(self, gameweek: int) -> ChainLevel | None:
+        """Phase 20.1 — read the cron-precomputed level for ``gameweek``.
+
+        Returns a :class:`ChainLevel` built purely from ``predictions_current``
+        (one indexed query, zero network) when fresh rows cover enough of the
+        universe; ``None`` otherwise so the inline chain takes over.
+        """
+        from datetime import timedelta
+
+        try:
+            from fpl_intelligence.sync.materialized_models import PredictionCurrentDB
+        except ImportError:  # pragma: no cover — table missing on old deploys
+            return None
+
+        cutoff = datetime.now(UTC) - timedelta(seconds=MATERIALIZED_MAX_AGE_SECONDS)
+        try:
+            rows = self.session.execute(
+                select(PredictionCurrentDB).where(
+                    PredictionCurrentDB.gameweek == int(gameweek),
+                    PredictionCurrentDB.computed_at >= cutoff,
+                )
+            ).scalars().all()
+        except Exception as exc:  # noqa: BLE001 — fall back to the inline chain
+            logger.warning("materialized level query failed: %s", exc)
+            return None
+
+        if len(rows) < MATERIALIZED_MIN_COVERAGE:
+            return None
+
+        points: dict[int, float] = {}
+        per_player: dict[int, dict[str, float]] = {}
+        for row in rows:
+            pid = int(row.element_id)
+            points[pid] = float(row.expected_points)
+            extras: dict[str, float] = {"conf": 0.75, "compl": 0.85}
+            if row.minutes_estimate is not None:
+                extras["minutes"] = float(row.minutes_estimate)
+            if row.start_prob is not None:
+                extras["start"] = float(row.start_prob)
+            per_player[pid] = extras
+
+        return ChainLevel(
+            source=SOURCE_MATERIALIZED,
+            data_quality=QUALITY_MATERIALIZED,
+            points=points,
+            covered=len(points),
+            notes={
+                "computed_at": max(r.computed_at for r in rows).isoformat(),
+                "origin": "daily materialize cron (06:10 UTC)",
+            },
+            per_player=per_player,
+        )
+
     def resolve_chain(self, gameweek: int) -> PredictionChainResult:
         """Run every level best-first and return the full chain outcome.
 
@@ -953,6 +1017,25 @@ class LivePredictionProvider:
             return self._chain_cache[gameweek]
 
         _t_start = time.perf_counter()
+
+        # Phase 20.1 — materialized fast path: the daily cron already ran the
+        # full chain; serve it from one indexed query with zero network I/O.
+        # This is what keeps every prod data call under 2s.
+        materialized = self._materialized_level(gameweek)
+        if materialized is not None and materialized.points:
+            result = PredictionChainResult(
+                gameweek=gameweek, levels=[materialized], resolved=materialized
+            )
+            self.last_result = result
+            logger.info(
+                "resolve_chain gw=%d: served from materialized table %.3fs (%d players)",
+                gameweek,
+                time.perf_counter() - _t_start,
+                materialized.covered,
+            )
+            self._chain_cache[gameweek] = result
+            return result
+
         catalog = self.player_catalog()
         logger.info(
             "resolve_chain gw=%d: player_catalog %.3fs", gameweek, time.perf_counter() - _t_start

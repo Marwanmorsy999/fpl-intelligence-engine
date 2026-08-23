@@ -1307,3 +1307,181 @@ async def friday_brief_endpoint(
         }
     finally:
         db.close()
+
+# --------------------------------------------------------------------------- #
+# Phase 20.1 — materialization cron (06:10 UTC) + self-sealing DDL hotfix
+# --------------------------------------------------------------------------- #
+# The prod incident root cause: request paths computed everything inline and
+# hit FPL endpoints that are blocked from Vercel datacenter IPs (drawer 504,
+# stale/wrong fixtures, slow navigation). The fix is "materialize, don't
+# compute per request": one daily cron fetches vaastav GW results, fixtures,
+# BBC RSS and precomputes per-player xPTS for the next 5 GWs into read-model
+# tables. Request paths then serve from indexed tables with zero egress.
+# --------------------------------------------------------------------------- #
+
+_MIGRATE_MATERIALIZED_JOB_NAME = "migrate-materialized-tables"
+
+_MATERIALIZED_DDL: tuple[str, ...] = (
+    """
+    CREATE TABLE IF NOT EXISTS fixtures_cache (
+        id SERIAL PRIMARY KEY,
+        source VARCHAR(120) NOT NULL DEFAULT 'vaastav',
+        payload JSONB NOT NULL,
+        fetched_at TIMESTAMP WITH TIME ZONE NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS news_cache (
+        id SERIAL PRIMARY KEY,
+        source VARCHAR(120) NOT NULL DEFAULT 'bbc-rss',
+        headline_count INTEGER NOT NULL DEFAULT 0,
+        payload JSONB NOT NULL,
+        fetched_at TIMESTAMP WITH TIME ZONE NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS element_facts (
+        element_id INTEGER PRIMARY KEY,
+        web_name VARCHAR(120),
+        team_id INTEGER,
+        minutes INTEGER,
+        selected_by_percent VARCHAR(20),
+        cost_change_event INTEGER,
+        status VARCHAR(20),
+        news VARCHAR(500),
+        updated_at TIMESTAMP WITH TIME ZONE NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS predictions_current (
+        gameweek INTEGER NOT NULL,
+        element_id INTEGER NOT NULL,
+        expected_points DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+        minutes_estimate DOUBLE PRECISION,
+        start_prob DOUBLE PRECISION,
+        xg_per_90 DOUBLE PRECISION,
+        xa_per_90 DOUBLE PRECISION,
+        source VARCHAR(60),
+        data_quality VARCHAR(60),
+        breakdown JSONB,
+        computed_at TIMESTAMP WITH TIME ZONE NOT NULL,
+        CONSTRAINT uq_pred_current_gw_element UNIQUE (gameweek, element_id)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS ix_predictions_current_element "
+    "ON predictions_current (element_id)",
+)
+
+
+def _materialized_migration_applied(db: Session) -> bool:
+    return (
+        db.scalar(
+            select(IngestionRun).where(
+                IngestionRun.job_name == _MIGRATE_MATERIALIZED_JOB_NAME,
+                IngestionRun.source == _INIT_SOURCE,
+                IngestionRun.status == "SUCCESS",
+            )
+        )
+        is not None
+    )
+
+
+@router.post("/admin/migrate-materialized-tables")
+async def migrate_materialized_tables_endpoint() -> dict:
+    """Create the four Phase 20.1 read-model tables; idempotent DDL.
+
+    Returns 410 after the first successful run. Unauthenticated by design:
+    temporary, self-disabling one-shot migration for the deployment.
+    """
+    db = SessionLocal()
+    try:
+        if _materialized_migration_applied(db):
+            return JSONResponse(
+                status_code=410,
+                content={
+                    "ok": False,
+                    "error": "Materialized-table migration already applied. This "
+                    "endpoint is disabled after its first successful run.",
+                },
+            )
+
+        table_names = (
+            "fixtures_cache",
+            "news_cache",
+            "element_facts",
+            "predictions_current",
+        )
+        insp = sa_inspect(db.get_bind())
+        existing_before = {n for n in table_names if insp.has_table(n)}
+        created_now: list[str] = []
+        for ddl in _MATERIALIZED_DDL:
+            db.execute(text(ddl))
+        db.commit()
+
+        insp2 = sa_inspect(db.get_bind())
+        for name in table_names:
+            if name not in existing_before and insp2.has_table(name):
+                created_now.append(name)
+
+        if insp2.has_table("alembic_version"):
+            row = db.execute(text("SELECT version_num FROM alembic_version")).first()
+            current = row[0] if row else None
+            if current and current < "0018":
+                db.execute(text("DELETE FROM alembic_version"))
+                db.execute(
+                    text("INSERT INTO alembic_version (version_num) VALUES ('0018')")
+                )
+                db.commit()
+
+        db.add(
+            IngestionRun(
+                source=_INIT_SOURCE,
+                job_name=_MIGRATE_MATERIALIZED_JOB_NAME,
+                season_code=SEASON_CODE,
+                status="SUCCESS",
+                started_at=datetime.now(UTC),
+                finished_at=datetime.now(UTC),
+                records_processed=len(created_now),
+            )
+        )
+        db.commit()
+        return {"ok": True, "tables_created": created_now}
+    except Exception as exc:  # noqa: BLE001 - surface for visibility
+        db.rollback()
+        logger.exception("migrate-materialized-tables failed")
+        return JSONResponse(
+            status_code=500, content={"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        )
+    finally:
+        db.close()
+
+
+@router.get("/admin/materialize")
+@router.post("/admin/materialize")
+async def materialize_endpoint(
+    _: None = Depends(_require_cron_auth),
+) -> dict:
+    """Phase 20.1 — run the full materialization pipeline.
+
+    Fetches (from Vercel-reachable sources only): vaastav GW results +
+    fixtures.csv + players_raw.csv via raw.githubusercontent, BBC Sport RSS
+    directly — then precomputes per-player xPTS for the next 5 gameweeks into
+    ``predictions_current``. Idempotent; safe to re-run any time.
+    """
+    from fpl_intelligence.materialize import materialize_all
+
+    db = SessionLocal()
+    try:
+        report = await materialize_all(db, season_code=SEASON_CODE)
+        ok = bool(report.get("predictions", {}).get("ok")) or bool(
+            report.get("fixtures", {}).get("ok")
+        )
+        return JSONResponse(status_code=200 if ok else 502, content={"ok": ok, **report})
+    except Exception as exc:  # noqa: BLE001 - surface for cron visibility
+        db.rollback()
+        logger.exception("materialize failed")
+        return JSONResponse(
+            status_code=500, content={"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        )
+    finally:
+        db.close()

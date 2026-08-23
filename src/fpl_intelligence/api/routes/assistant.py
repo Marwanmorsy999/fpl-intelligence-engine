@@ -26,7 +26,7 @@ from sqlalchemy.orm import Session
 
 from fpl_intelligence.api import deps
 from fpl_intelligence.api.routes.analyst import _build_real_provider
-from fpl_intelligence.api.routes.fixtures import load_fixtures
+from fpl_intelligence.api.routes.fixtures import _team_names, load_fixtures
 from fpl_intelligence.api.routes.news import _cached_items as cached_news_items
 from fpl_intelligence.data_providers.bbc_news import (
     NEWS_KEYWORDS,
@@ -123,17 +123,18 @@ async def _gather_facts(db: Session, session_id: str) -> dict[str, Any]:
     squad_swing = 0.0
     targets: list[str] = []
     try:
-        rows = parse_fixtures(await load_fixtures())
+        rows = parse_fixtures(await load_fixtures(db))
         current_gw = max(infer_current_gameweek(rows), squad.gameweek)
         horizon5 = next_gameweeks(rows, current_gw, 5)
         horizon4 = next_gameweeks(rows, current_gw, 4)
+        team_names = _team_names(db)
         rows_by_gw: dict[int, list[Any]] = {}
         for r in rows:
             rows_by_gw.setdefault(r.event, []).append(r)
         starter_avgs: list[float] = []
         for idx, pid in enumerate(squad.player_ids):
             team = (squad.player_teams or {}).get(pid)
-            runs = [r for r in player_run(team, rows_by_gw, horizon5)]
+            runs = [r for r in player_run(team, rows_by_gw, horizon5, team_names=team_names)]
             real = [r for r in runs if r.opponent_id != 0]
             avg = round(average_fdr(real), 2) if real else 3.0
             if idx < 11:
@@ -148,7 +149,9 @@ async def _gather_facts(db: Session, session_id: str) -> dict[str, Any]:
         exclude = {t for t in (squad.player_teams or {}).values() if t}
         targets = [
             f"{t.short_name} (avg FDR {t.avg_fdr})"
-            for t in easiest_team_runs(rows_by_gw, horizon4, top=5, exclude_teams=exclude)
+            for t in easiest_team_runs(
+                rows_by_gw, horizon4, top=5, exclude_teams=exclude, team_names=team_names
+            )
         ]
     except Exception as exc:  # noqa: BLE001 — fixtures enrich, never block the brief
         logger.warning("brief fixture scan failed: %s", exc)

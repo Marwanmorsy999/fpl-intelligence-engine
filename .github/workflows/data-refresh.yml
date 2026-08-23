@@ -34,3 +34,22 @@ jobs:
             echo "ENGINE_BASE secret is not set (e.g. https://your-app.vercel.app)"; exit 2
           fi
           python scripts/data_refresh.py
+
+      # Phase 20.1 — self-sealing DDL hotfix, then run the materialization
+      # pipeline directly from Vercel (vaastav raw.githubusercontent + BBC RSS
+      # are not blocked). The 06:10 cron does this daily; this step makes the
+      # workflow an on-demand trigger too.
+      - name: Materialize read models (migrate once, then run)
+        env:
+          ENGINE_BASE: ${{ secrets.ENGINE_BASE }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -e
+          echo "::group::migrate-materialized-tables"
+          curl -fsS -X POST "$ENGINE_BASE/api/v1/admin/migrate-materialized-tables" \
+            || echo "(already applied or failed — continuing; endpoint self-disables after success)"
+          echo "::endgroup::"
+          echo "::group::materialize"
+          curl -fsS -X POST "$ENGINE_BASE/api/v1/admin/materialize" \
+            -H "Authorization: Bearer $CRON_SECRET"
+          echo "::endgroup::"

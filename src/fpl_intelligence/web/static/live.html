@@ -44,8 +44,14 @@ document.addEventListener("DOMContentLoaded", function () {
   FPLApp.renderNav("/live");
   var $ = function (id) { return document.getElementById(id); };
   try {
-    var saved = localStorage.getItem("fpl_session_id");
-    if (saved && /^\d+$/.test(saved)) $("entryInput").value = saved;
+    /* Phase 20.1: restore from the v20 persistent session (legacy key fallback). */
+    var sess = FPLApp.readSession();
+    if (!sess) {
+      var legacy = null;
+      try { legacy = localStorage.getItem("fpl_session_id"); } catch (e2) {}
+      sess = legacy ? { key: String(legacy) } : null;
+    }
+    if (sess && sess.key && /^\d+$/.test(String(sess.key))) $("entryInput").value = String(sess.key);
   } catch (e) {}
 
   function row(r) {

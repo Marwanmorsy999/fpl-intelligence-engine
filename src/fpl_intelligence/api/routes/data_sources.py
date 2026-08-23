@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter
+from sqlalchemy import func
 
 from fpl_intelligence.api import deps
 from fpl_intelligence.config import get_settings
@@ -28,6 +29,13 @@ def _file_age_days(path: str) -> float | None:
         return round(age / 86400.0, 1)
     except OSError:
         return None
+
+
+def _age_seconds_since(when: datetime) -> float:
+    """Age of a stored timestamp in seconds (naive values treated as UTC)."""
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=UTC)
+    return max(0.0, (datetime.now(UTC) - when).total_seconds())
 
 
 @router.get("/data-sources", summary="Live status of every data source")
@@ -142,33 +150,97 @@ async def data_sources(db: deps.GetDB) -> dict[str, Any]:
         llm_status = "template-fallback"
         llm_detail = "no LLM keys configured"
 
-    # --- Phase 20.0: fixtures scan + BBC news radar cache states -------------
-    from fpl_intelligence.api.routes.fixtures import (  # noqa: PLC0415
-        _fixtures_cache as fx_cache,
-    )
-    from fpl_intelligence.api.routes.news import (  # noqa: PLC0415
-        NEWS_TTL_SECONDS,
-    )
-    from fpl_intelligence.api.routes.news import (
-        _feed_cache as news_cache,
-    )
+    # --- Phase 20.1: fixtures scan + BBC news radar states (materialized) -----
+    from sqlalchemy import select  # noqa: PLC0415
 
-    if fx_cache is not None and time.time() - fx_cache[0] < settings.egress_cache_ttl:
-        fixtures_status = "ok"
-        fixtures_detail = (
-            f"{len(fx_cache[1])} fixtures · scanned {int(time.time() - fx_cache[0])}s ago"
-        )
+    from fpl_intelligence.materialize.service import (  # noqa: PLC0415
+        FIXTURES_MAX_AGE_SECONDS,
+        NEWS_MAX_AGE_SECONDS,
+    )
+    from fpl_intelligence.sync.materialized_models import (  # noqa: PLC0415
+        FixturesCacheDB,
+        NewsCacheDB,
+        PredictionCurrentDB,
+    )
+    from fpl_intelligence.sync.models import IngestedGameweekDB
+
+    fx_row = db.scalar(
+        select(FixturesCacheDB).order_by(FixturesCacheDB.id.desc()).limit(1)
+    )
+    if fx_row is not None:
+        age_h = _age_seconds_since(fx_row.fetched_at) / 3600
+        n_fix = len(fx_row.payload or [])
+        if age_h * 3600 <= FIXTURES_MAX_AGE_SECONDS and n_fix:
+            fixtures_status = "ok"
+            fixtures_detail = (
+                f"{n_fix} fixtures cached {age_h:.1f}h ago (source: {fx_row.source})"
+            )
+        else:
+            fixtures_status = "stale"
+            fixtures_detail = f"cache is {age_h:.0f}h old — waiting for cron"
     else:
         fixtures_status = "pending"
-        fixtures_detail = "first scan runs on demand from My Team / Decisions"
+        fixtures_detail = "no cached fixtures yet — run /api/v1/admin/materialize"
 
-    if news_cache is not None and time.time() - news_cache[0] < NEWS_TTL_SECONDS:
-        age_min = int((time.time() - news_cache[0]) / 60)
-        bbc_status = "ok"
-        bbc_detail = f"{len(news_cache[1])} headlines cached {age_min} min ago"
+    news_row = db.scalar(select(NewsCacheDB).order_by(NewsCacheDB.id.desc()).limit(1))
+    if news_row is not None:
+        age_min = _age_seconds_since(news_row.fetched_at) / 60
+        if age_min * 60 <= NEWS_MAX_AGE_SECONDS and news_row.headline_count:
+            bbc_status = "ok"
+            bbc_detail = (
+                f"{news_row.headline_count} headlines cached "
+                f"{int(age_min)} min ago ({news_row.source})"
+            )
+        else:
+            bbc_status = "stale"
+            bbc_detail = f"last scan {int(age_min / 60)}h ago"
     else:
         bbc_status = "pending"
-        bbc_detail = "no fresh scan yet — runs on squad pages"
+        bbc_detail = "no news scan yet — runs on squad pages"
+
+    last_ingest = db.scalar(
+        select(IngestedGameweekDB.ingested_at)
+        .order_by(IngestedGameweekDB.ingested_at.desc())
+        .limit(1)
+    )
+    ingested_gws = sorted(
+        {
+            int(gw)
+            for (gw,) in db.execute(select(IngestedGameweekDB.gameweek).distinct()).all()
+        }
+    )
+    if last_ingest is not None:
+        ingest_age_h = _age_seconds_since(last_ingest) / 3600
+        vaastav_status = "ok" if ingested_gws else "empty"
+        vaastav_detail = (
+            f"GWs {ingested_gws[-3:]} ingested, last {ingest_age_h:.1f}h ago"
+            if ingested_gws
+            else f"ingest ran but no GW rows yet ({ingest_age_h:.1f}h ago)"
+        )
+    else:
+        vaastav_status = "pending"
+        vaastav_detail = "no vaastav results ingested yet — daily 06:10 UTC cron"
+
+    pred_rows = db.execute(
+        select(PredictionCurrentDB.gameweek, func.count())
+        .group_by(PredictionCurrentDB.gameweek)
+        .order_by(PredictionCurrentDB.gameweek)
+    ).all()
+    pred_last = db.scalar(
+        select(PredictionCurrentDB.computed_at)
+        .order_by(PredictionCurrentDB.computed_at.desc())
+        .limit(1)
+    )
+    if pred_rows:
+        pred_age_h = (
+            _age_seconds_since(pred_last) / 3600 if pred_last is not None else None
+        )
+        gw_txt = ",".join(f"GW{gw}({n})" for gw, n in pred_rows[:6])
+        predictions_status = "ok" if (pred_age_h or 0) <= 36 else "stale"
+        predictions_detail = f"xPTS for {gw_txt} — computed {pred_age_h:.1f}h ago"
+    else:
+        predictions_status = "pending"
+        predictions_detail = "no precomputed xPTS yet — daily 06:10 UTC cron"
 
     return {
         "as_of": now,
@@ -180,6 +252,14 @@ async def data_sources(db: deps.GetDB) -> dict[str, Any]:
             "bbc_news": {
                 "status": bbc_status,
                 "detail": bbc_detail,
+            },
+            "vaastav_results": {
+                "status": vaastav_status,
+                "detail": vaastav_detail,
+            },
+            "predictions_materialized": {
+                "status": predictions_status,
+                "detail": predictions_detail,
             },
             "fpl_import": {
                 "status": fpl_status,

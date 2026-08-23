@@ -46,8 +46,14 @@ document.addEventListener("DOMContentLoaded", function () {
   var POS_NAMES = { 1: "GK", 2: "DEF", 3: "MID", 4: "FWD" };
 
   try {
-    var saved = localStorage.getItem("fpl_session_id");
-    if (saved && /^\d+$/.test(saved)) $("entryInput").value = saved;
+    /* Phase 20.1: restore from the v20 persistent session (legacy key fallback). */
+    var sess = FPLApp.readSession();
+    if (!sess && arguments.length === 0) {
+      var legacy = null;
+      try { legacy = localStorage.getItem("fpl_session_id"); } catch (e2) {}
+      sess = legacy ? { key: String(legacy) } : null;
+    }
+    if (sess && sess.key && /^\d+$/.test(String(sess.key))) $("entryInput").value = String(sess.key);
   } catch (e) {}
 
   function esc(s) { return FPLApp.esc(s); }
@@ -146,6 +152,7 @@ document.addEventListener("DOMContentLoaded", function () {
   $("entryInput").addEventListener("keydown", function (ev) {
     if (ev.key === "Enter") load();
   });
+  /* Auto-load the saved session's track record — no re-typing (Phase 20.1). */
   if ($("entryInput").value) load();
 });
 </script>

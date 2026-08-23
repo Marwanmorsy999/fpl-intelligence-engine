@@ -32,11 +32,23 @@ NEUTRAL_FDR = 3.0
 NEUTRAL_FDR_INT = 3
 
 
-def team_short_name(team_id: int | None) -> str:
-    """Short name for an official FPL team id; ``T{id}`` when unknown."""
+def team_short_name(
+    team_id: int | None, names: Mapping[int, str] | None = None
+) -> str:
+    """Short name for an official FPL team id.
+
+    Phase 20.1: prefers a DB-backed ``names`` map (official id -> short name)
+    so reshuffled season team ids always render correctly; the static map is
+    only a last-resort fallback for unseeded deployments.
+    """
     if team_id is None:
         return "?"
-    return TEAM_SHORT_NAMES.get(int(team_id), f"T{int(team_id)}")
+    key = int(team_id)
+    if names:
+        hit = names.get(key)
+        if hit:
+            return hit
+    return TEAM_SHORT_NAMES.get(key, f"T{key}")
 
 
 @dataclass(frozen=True)
@@ -132,6 +144,7 @@ def player_run(
     team_id: int | None,
     rows_by_gw: Mapping[int, Sequence[FixtureRow]],
     horizon: Sequence[int],
+    team_names: Mapping[int, str] | None = None,
 ) -> list[PlayerRun]:
     """Project one club's fixtures across the horizon (one entry per GW)."""
     runs: list[PlayerRun] = []
@@ -154,7 +167,7 @@ def player_run(
             PlayerRun(
                 gw=gw,
                 opponent_id=opponent,
-                opponent=team_short_name(opponent),
+                opponent=team_short_name(opponent, team_names),
                 is_home=is_home,
                 difficulty=int(difficulty),
             )
@@ -184,6 +197,7 @@ def easiest_team_runs(
     horizon: Sequence[int],
     top: int = 5,
     exclude_teams: Iterable[int] = (),
+    team_names: Mapping[int, str] | None = None,
 ) -> list[TeamRun]:
     """Rank every club by average FDR over the horizon, easiest first."""
     excluded = set(exclude_teams)
@@ -194,14 +208,14 @@ def easiest_team_runs(
             seen.add(row.home_team)
             seen.add(row.away_team)
     for team_id in sorted(seen - excluded):
-        runs = player_run(team_id, rows_by_gw, horizon)
+        runs = player_run(team_id, rows_by_gw, horizon, team_names=team_names)
         real = [r for r in runs if r.opponent_id != 0]
         if not real:
             continue
         summaries.append(
             TeamRun(
                 team_id=team_id,
-                short_name=team_short_name(team_id),
+                short_name=team_short_name(team_id, team_names),
                 avg_fdr=round(average_fdr(real), 2),
                 runs=real,
             )

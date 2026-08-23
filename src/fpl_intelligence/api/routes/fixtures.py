@@ -6,25 +6,27 @@
 * a squad swing score (positive = easy patch),
 * the top-5 easiest team runs over the next 4 gameweeks (transfer targets).
 
-Data is the free official FPL ``/api/fixtures/`` payload fetched through the
-egress chain; the raw payload is cached in-process so repeated scans are cheap.
+Phase 20.1: data comes from the materialized ``fixtures_cache`` table (written
+by the daily 06:10 cron from vaastav raw.githubusercontent) — zero live
+network fetches in the request path. Team short names come from the DB Team
+table (official bootstrap ids), never from a hardcoded season-specific map.
 """
 
 from __future__ import annotations
 
 import logging
-import threading
-import time
 from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Response
+from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from fpl_intelligence.api import deps
 from fpl_intelligence.config import get_settings
 from fpl_intelligence.fixtures.scanner import (
     NEUTRAL_FDR,
+    TEAM_SHORT_NAMES,
     average_fdr,
     easiest_team_runs,
     infer_current_gameweek,
@@ -33,7 +35,9 @@ from fpl_intelligence.fixtures.scanner import (
     player_run,
     squad_swing_score,
 )
+from fpl_intelligence.materialize import load_cached_fixtures, team_names_from_db
 from fpl_intelligence.squad.service import SquadService
+from fpl_intelligence.sync.materialized_models import FixturesCacheDB
 
 router = APIRouter(prefix="/fixtures", tags=["fixtures"])
 logger = logging.getLogger(__name__)
@@ -45,33 +49,34 @@ PLAYER_HORIZON_GWS = 5
 TEAM_HORIZON_GWS = 4
 TOP_TEAM_RUNS = 5
 
-#: In-process cache of the raw FPL fixtures payload (shared across requests).
-_fixtures_lock = threading.Lock()
-_fixtures_cache: tuple[float, list[dict[str, Any]]] | None = None
+
+def _team_names(db: Session) -> dict[int, str]:
+    """DB-backed official-id -> short-name map; falls back to the static map.
+
+    The fallback only fills gaps so an unseeded deployment still renders
+    something instead of ``T7``-style placeholders for every team.
+    """
+    names = team_names_from_db(db)
+    if not names:
+        return dict(TEAM_SHORT_NAMES)
+    merged = dict(TEAM_SHORT_NAMES)
+    merged.update(names)
+    return merged
 
 
-def _cached_fixtures(max_age_seconds: float) -> list[dict[str, Any]]:
-    """Return cached raw fixtures when fresh; ``[]`` otherwise."""
-    global _fixtures_cache
-    with _fixtures_lock:
-        if _fixtures_cache is not None and time.monotonic() - _fixtures_cache[0] < max_age_seconds:
-            return _fixtures_cache[1]
-    return []
+async def load_fixtures(db: Session) -> list[dict[str, Any]]:
+    """Raw FPL fixtures payload, materialized-cache-first (Phase 20.1).
 
-
-def _store_fixtures(raw: Any) -> None:
-    global _fixtures_cache
-    if isinstance(raw, list):
-        with _fixtures_lock:
-            _fixtures_cache = (time.monotonic(), raw)
-
-
-async def load_fixtures() -> list[dict[str, Any]]:
-    """Raw FPL fixtures payload through the egress chain, cache-first."""
-    settings = get_settings()
-    cached = _cached_fixtures(settings.egress_cache_ttl or 300)
+    Reads ``fixtures_cache`` (written by the 06:10 cron from vaastav) so the
+    request path performs ZERO live network fetches. Falls back to the egress
+    chain only when no cached payload exists yet — and stores whatever it
+    fetches back into the cache for the next caller.
+    """
+    cached = load_cached_fixtures(db)
     if cached:
         return cached
+
+    settings = get_settings()
     from fpl_intelligence.data_providers.fpl_egress import FplEgressChain  # noqa: PLC0415
 
     egress = FplEgressChain(
@@ -87,7 +92,22 @@ async def load_fixtures() -> list[dict[str, Any]]:
             status_code=503,
             detail="Fixture data unavailable right now (FPL blocked or offline).",
         ) from exc
-    _store_fixtures(raw)
+
+    # Backfill the materialized cache so subsequent requests stay off-network.
+    if isinstance(raw, list) and raw:
+        try:
+            db.execute(delete(FixturesCacheDB))
+            db.add(
+                FixturesCacheDB(
+                    source="egress-backfill",
+                    payload=raw,
+                    fetched_at=datetime.now(UTC),
+                )
+            )
+            db.commit()
+        except Exception as exc:  # noqa: BLE001 — caching is best-effort
+            logger.warning("fixtures cache backfill failed: %s", exc)
+            db.rollback()
     return raw if isinstance(raw, list) else []
 
 
@@ -105,12 +125,13 @@ async def fixture_scan(
         raise HTTPException(status_code=404, detail="No squad saved for this session")
     response.headers["Cache-Control"] = "no-store"
 
-    rows = parse_fixtures(await load_fixtures())
+    rows = parse_fixtures(await load_fixtures(db))
     if not rows:
         raise HTTPException(status_code=503, detail="No upcoming fixtures published yet.")
     current_gw = max(infer_current_gameweek(rows), squad.gameweek)
     horizon = next_gameweeks(rows, current_gw, PLAYER_HORIZON_GWS)
     team_horizon = next_gameeeks_safe(rows, current_gw)
+    team_names = _team_names(db)
     rows_by_gw: dict[int, list[Any]] = {}
     for row in rows:
         rows_by_gw.setdefault(row.event, []).append(row)
@@ -122,7 +143,7 @@ async def fixture_scan(
     starter_avgs: list[float] = []
     for idx, pid in enumerate(squad.player_ids):
         team = (squad.player_teams or {}).get(pid)
-        runs = player_run(team, rows_by_gw, horizon)
+        runs = player_run(team, rows_by_gw, horizon, team_names=team_names)
         real_runs = [r for r in runs if r.opponent_id != 0]
         avg = round(average_fdr(real_runs), 2) if real_runs else NEUTRAL_FDR
         # First 11 entries are starters under the FPL picks convention.
@@ -147,7 +168,13 @@ async def fixture_scan(
         p["web_name"] = names.get(p["player_id"], f"Player {p['player_id']}")
 
     exclude = {t for t in (squad.player_teams or {}).values() if t}
-    targets = easiest_team_runs(rows_by_gw, team_horizon, top=TOP_TEAM_RUNS, exclude_teams=exclude)
+    targets = easiest_team_runs(
+        rows_by_gw,
+        team_horizon,
+        top=TOP_TEAM_RUNS,
+        exclude_teams=exclude,
+        team_names=team_names,
+    )
 
     return {
         "session_id": session_id,
