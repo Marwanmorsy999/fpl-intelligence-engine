@@ -10,6 +10,7 @@ exhausted) — never just because keys exist.
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 
@@ -122,6 +123,29 @@ def _captain_name(report: dict[str, Any]) -> str:
     return "No captain"
 
 
+def _unwrap_summary_text(text: str) -> str:
+    """Unwrap a JSON envelope some models add around the requested prose.
+
+    If the model answered with ``{"summary": "..."}`` (optionally fenced),
+    surface the inner string; otherwise return the text unchanged.
+    """
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        stripped = stripped.strip("`").lstrip()
+        if stripped.lower().startswith("json"):
+            stripped = stripped[4:].lstrip()
+    if not (stripped.startswith("{") and stripped.endswith("}")):
+        return text.strip()
+    try:
+        parsed = json.loads(stripped)
+    except json.JSONDecodeError:
+        return text.strip()
+    inner = parsed.get("summary") if isinstance(parsed, dict) else None
+    if isinstance(inner, str) and inner.strip():
+        return inner.strip()
+    return text.strip()
+
+
 def _build_prompt(report: dict[str, Any]) -> LLMPrompt:
     """Render the registered analyst template with this report's facts."""
     return ANALYST_SUMMARY.render(
@@ -220,7 +244,7 @@ async def analyst_summary(
         try:
             raw = await run_in_threadpool(llm.complete, prompt)
             if raw and raw.text and raw.text.strip():
-                summary = raw.text.strip()
+                summary = _unwrap_summary_text(raw.text)
             else:
                 summary = _template_summary(report_dict)
             # Label from the provider that ACTUALLY answered (fallback-aware).
