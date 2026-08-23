@@ -16,17 +16,19 @@
 <div class="wrap">
 
   <h1 style="font-size:22px;font-weight:800;color:#fff;margin:0 0 4px">My team</h1>
-  <p class="muted small" style="margin-top:0">The squad currently synced to the engine (via bookmarklet or Apps Script), with prices and captaincy.</p>
+  <p class="muted small" style="margin-top:0">Your synced squad with prices, captaincy, fixture difficulty and squad analysis — restored automatically from your saved session.</p>
 
-  <div style="display:flex;gap:8px;margin:16px 0 20px">
-    <input id="entryInput" class="input" style="max-width:220px" placeholder="FPL entry id" inputmode="numeric">
-    <button id="loadBtn" class="btn" type="button">Load squad</button>
-    <a class="btn-ghost" href="/connect" style="text-decoration:none">How to sync →</a>
-  </div>
+  <div id="metaLine" class="muted small" style="margin:14px 0"></div>
+  <div id="statusLine" class="muted small"></div>
 
-  <div id="metaLine" class="muted small" style="margin-bottom:14px"></div>
-
+  <div class="section-h">Squad</div>
   <div id="squadGrid" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(210px,1fr))"></div>
+
+  <div class="section-h">Squad analysis</div>
+  <div id="squadPanel" class="card"><span class="faint small">Loads with your squad…</span></div>
+
+  <div class="section-h">Fixture difficulty — next 5 gameweeks</div>
+  <div id="fixtureTableBox" class="card"><span class="faint small">Scanning fixtures…</span></div>
 
 </div>
 <script>
@@ -35,10 +37,7 @@ document.addEventListener("DOMContentLoaded", function () {
   FPLApp.renderNav("/my-team");
   var $ = function (id) { return document.getElementById(id); };
   var POS_NAMES = { 1: "GK", 2: "DEF", 3: "MID", 4: "FWD" };
-  try {
-    var saved = localStorage.getItem("fpl_session_id");
-    if (saved && /^\d+$/.test(saved)) $("entryInput").value = saved;
-  } catch (e) {}
+  var CURRENT_SQUAD = null;
 
   function tile(pid, squad, slotIdx, names) {
     var isC = pid === squad.captain_id;
@@ -46,6 +45,7 @@ document.addEventListener("DOMContentLoaded", function () {
     var name = (names && names[pid]) || "Player " + pid;
     var pos = ((squad.player_positions || {})[pid]);
     var price = ((squad.player_prices || {})[pid]);
+    var runs = window.__MT_FIXTURE_RUNS && window.__MT_FIXTURE_RUNS[pid];
     return (
       '<div class="card" data-testid="squad-tile">' +
         '<div style="display:flex;align-items:center;gap:8px">' +
@@ -56,17 +56,100 @@ document.addEventListener("DOMContentLoaded", function () {
           '<span style="margin-left:auto">' +
             (isC ? '<span class="pill warn">C×2</span>' : isV ? '<span class="pill">VC</span>' : "") +
             '<span class="faint small" style="margin-left:6px">#' + slotIdx + "</span></span>" +
-        "</div></div>"
+        "</div>" +
+        FPLApp.fixtureStripHTML(runs) +
+      "</div>"
     );
   }
 
-  function load() {
-    var entry = ($("entryInput").value || "").trim();
-    if (!/^\d+$/.test(entry)) { alert("Enter your numeric FPL entry id."); return; }
-    try { localStorage.setItem("fpl_session_id", entry); } catch (e) {}
-    fetch("/api/v1/squad?session_id=" + encodeURIComponent(entry))
+  function renderSquadPanel(squad) {
+    /* Spend per position bars, club-exposure warning (>3 from one club),
+       bench value. All computed from the saved squad metadata. */
+    var prices = squad.player_prices || {};
+    var positions = squad.player_positions || {};
+    var teams = squad.player_teams || {};
+    var spendByPos = { 1: 0, 2: 0, 3: 0, 4: 0 };
+    var byClub = {};
+    var total = 0;
+    (squad.player_ids || []).forEach(function (pid) {
+      var price = Number(prices[pid] || 0);
+      total += price;
+      var pos = positions[pid];
+      if (pos && spendByPos[pos] !== undefined) spendByPos[pos] += price;
+      var t = teams[pid];
+      if (t) byClub[t] = (byClub[t] || 0) + 1;
+    });
+
+    var maxSpend = Math.max.apply(null, Object.keys(spendByPos).map(function (k) { return spendByPos[k]; }).concat([0.01]));
+    var posRows = [1, 2, 3, 4].map(function (pos) {
+      var v = spendByPos[pos];
+      var pct = Math.round((v / maxSpend) * 100);
+      return '<div style="display:flex;align-items:center;gap:10px;padding:6px 0">'
+        + '<span class="faint small" style="width:34px">' + POS_NAMES[pos] + "</span>"
+        + '<div class="spend-track" style="flex:1"><div class="spend-bar" data-testid="spend-bar" style="width:' + pct + '%"></div></div>'
+        + '<span class="num small muted" style="width:52px;text-align:right">£' + v.toFixed(1) + "m</span></div>";
+    }).join("");
+
+    var exposureRows = Object.keys(byClub).filter(function (t) { return byClub[t] > 3; });
+    var exposureHTML = exposureRows.length
+      ? exposureRows.map(function (t) {
+          return '<p class="small warn" style="color:#fde68a;margin:4px 0">⚠️ Club exposure: ' + byClub[t]
+            + ' players from team #' + FPLApp.esc(t) + " — a blank gameweek or bad run hits hard.</p>";
+        }).join("")
+      : '<p class="faint small" style="margin:6px 0">No club exceeds 3 players — exposure risk is fine.</p>';
+
+    var benchValue = (squad.player_ids || []).slice(11)
+      .reduce(function (sum, pid) { return sum + Number(prices[pid] || 0); }, 0);
+
+    $("squadPanel").innerHTML =
+      '<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">'
+      + '<div><div class="stat-label" style="margin-bottom:6px">SPEND PER POSITION</div>' + posRows
+      + '<div class="faint small" style="margin-top:6px">Total £' + total.toFixed(1) + "m</div></div>"
+      + "<div>" + exposureHTML
+      + '<div class="row"><strong>Bench value</strong><span class="num" style="margin-left:auto">£' + benchValue.toFixed(1) + "m</span></div>"
+      + "</div></div>";
+  }
+
+  function renderFixtureTable(scan) {
+    if (!scan || !scan.players || !scan.players.length) {
+      $("fixtureTableBox").innerHTML = '<p class="faint small">Fixture scan unavailable right now.</p>';
+      return;
+    }
+    $("fixtureTableBox").innerHTML =
+      '<p class="muted small" style="margin-top:0">Per-player next-5 difficulty (opponent · H/A · FDR colour). '
+      + 'Squad swing score: <strong class="num">' + (scan.squad_swing_score > 0 ? "+" : "")
+      + Number(scan.squad_swing_score).toFixed(1) + '</strong> <span class="faint">(positive = easy patch)</span></p>'
+      + '<table class="data"><thead><tr><th>Player</th>'
+      + (scan.horizon_gws || []).map(function (gw) { return '<th class="num">GW' + gw + "</th>"; }).join("")
+      + '<th class="num">Avg FDR</th><th class="num">Swing</th></tr></thead><tbody>'
+      + scan.players.map(function (p) {
+          return "<tr><td><strong>" + FPLApp.esc(p.web_name) + "</strong>"
+            + (p.is_starter ? "" : ' <span class="pill">bench</span>') + "</td>"
+            + p.runs.map(function (r) {
+                return '<td class="num"><span class="fdr-chip" title="' + r.opponent + (r.is_home ? " (H)" : " (A)") + ' · FDR ' + r.difficulty + '"'
+                  + ' style="background:' + FPLApp.fdrColor(r.difficulty) + '">' + r.opponent + " " + r.difficulty + "</span></td>";
+              }).join("")
+            + '<td class="num">' + Number(p.avg_fdr).toFixed(1) + "</td>"
+            + '<td class="num" style="color:' + (p.swing > 0 ? "#6ee7b7" : p.swing < 0 ? "#fca5a5" : "#94a3b8") + '">'
+            + (p.swing > 0 ? "+" : "") + p.swing.toFixed(1) + "</td></tr>";
+        }).join("")
+      + "</tbody></table>"
+      + (scan.easiest_runs && scan.easiest_runs.length
+        ? '<div class="section-h" style="margin-top:18px">TRANSFER TARGETS — EASIEST TEAM RUNS (NEXT 4 GW)</div>'
+          + '<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(190px,1fr))">'
+          + scan.easiest_runs.map(function (t) {
+              return '<div class="card"><strong>' + FPLApp.esc(t.short_name) + '</strong> <span class="faint small num">avg FDR ' + t.avg_fdr.toFixed(1) + "</span>"
+                + '<div style="margin-top:6px">' + FPLApp.fixtureStripHTML(t.runs) + "</div></div>";
+            }).join("") + "</div>"
+        : "");
+  }
+
+  function load(sessionKey) {
+    $("statusLine").textContent = "";
+    fetch("/api/v1/squad?session_id=" + encodeURIComponent(sessionKey))
       .then(function (res) { return res.ok ? res.json() : res.json().then(function (b) { throw new Error(b.detail || res.status); }); })
       .then(function (squad) {
+        CURRENT_SQUAD = squad;
         fetch("/api/v1/players").then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (players) {
           var byElement = {};
           players.forEach(function (p) {
@@ -74,14 +157,27 @@ document.addEventListener("DOMContentLoaded", function () {
           });
           render(squad, byElement);
         });
+        renderSquadPanel(squad);
+        fetch("/api/v1/fixtures/scan?session_id=" + encodeURIComponent(sessionKey))
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (scan) {
+            if (!scan) { $("fixtureTableBox").innerHTML = '<p class="faint small">Fixture scan unavailable right now.</p>'; return; }
+            window.__MT_FIXTURE_RUNS = {};
+            (scan.players || []).forEach(function (p) { window.__MT_FIXTURE_RUNS[p.player_id] = p.runs; });
+            /* Re-render tiles so strips appear inside them too. */
+            if (window.__MT_NAMES) render(squad, window.__MT_NAMES);
+            renderFixtureTable(scan);
+          })
+          .catch(function () { $("fixtureTableBox").innerHTML = '<p class="faint small">Fixture scan unavailable right now.</p>'; });
       })
       .catch(function (err) {
-        $("metaLine").textContent = err.message || "Load failed.";
+        $("statusLine").innerHTML = '<span class="pill bad">' + FPLApp.esc(err.message || "Load failed.") + "</span>";
         $("squadGrid").innerHTML = "";
       });
   }
 
   function render(squad, names) {
+    window.__MT_NAMES = names;
     $("metaLine").innerHTML = "Gameweek <strong>" + squad.gameweek + "</strong> · bank £" +
       Number(squad.bank).toFixed(1) + "m · " + squad.free_transfers + " free transfer(s)" +
       " · last updated " + (squad.updated_at ? new Date(squad.updated_at).toLocaleString() : "–");
@@ -91,9 +187,22 @@ document.addEventListener("DOMContentLoaded", function () {
     FPLApp.hydrateCrests(document);
   }
 
-  $("loadBtn").addEventListener("click", load);
-  $("entryInput").addEventListener("keydown", function (ev) { if (ev.key === "Enter") load(); });
-  if ($("entryInput").value) load();
+  /* Phase 20.0 — zero-typing bootstrap: no entry input on this page at all.
+     The shared session drives what renders; Start Over on Decisions clears it. */
+  FPLApp.session.bootstrap({
+    onReady: function (session) { load(session.key); },
+    onNoSession: function () {
+      $("statusLine").innerHTML =
+        '<span class="pill warn">No saved session</span> <span class="muted small">— open '
+        + '<a href="/dashboard">Decisions</a>, enter your FPL ID once, and every page restores it automatically.</span>';
+      $("squadGrid").innerHTML = "";
+      $("fixtureTableBox").innerHTML = "";
+      $("squadPanel").innerHTML = "";
+    },
+    onError: function (msg) {
+      $("statusLine").innerHTML = '<span class="pill bad">' + FPLApp.esc(msg || "Load failed.") + "</span>";
+    }
+  });
 });
 </script>
 </body>

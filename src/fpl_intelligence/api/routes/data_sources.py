@@ -142,9 +142,45 @@ async def data_sources(db: deps.GetDB) -> dict[str, Any]:
         llm_status = "template-fallback"
         llm_detail = "no LLM keys configured"
 
+    # --- Phase 20.0: fixtures scan + BBC news radar cache states -------------
+    from fpl_intelligence.api.routes.fixtures import (  # noqa: PLC0415
+        _fixtures_cache as fx_cache,
+    )
+    from fpl_intelligence.api.routes.news import (  # noqa: PLC0415
+        NEWS_TTL_SECONDS,
+    )
+    from fpl_intelligence.api.routes.news import (
+        _feed_cache as news_cache,
+    )
+
+    if fx_cache is not None and time.time() - fx_cache[0] < settings.egress_cache_ttl:
+        fixtures_status = "ok"
+        fixtures_detail = (
+            f"{len(fx_cache[1])} fixtures · scanned {int(time.time() - fx_cache[0])}s ago"
+        )
+    else:
+        fixtures_status = "pending"
+        fixtures_detail = "first scan runs on demand from My Team / Decisions"
+
+    if news_cache is not None and time.time() - news_cache[0] < NEWS_TTL_SECONDS:
+        age_min = int((time.time() - news_cache[0]) / 60)
+        bbc_status = "ok"
+        bbc_detail = f"{len(news_cache[1])} headlines cached {age_min} min ago"
+    else:
+        bbc_status = "pending"
+        bbc_detail = "no fresh scan yet — runs on squad pages"
+
     return {
         "as_of": now,
         "sources": {
+            "fixtures": {
+                "status": fixtures_status,
+                "detail": fixtures_detail,
+            },
+            "bbc_news": {
+                "status": bbc_status,
+                "detail": bbc_detail,
+            },
             "fpl_import": {
                 "status": fpl_status,
                 "detail": fpl_detail + (f" · via {fpl_strategy}" if fpl_strategy else ""),

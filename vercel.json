@@ -19,6 +19,10 @@
     {
       "path": "/api/v1/admin/run-scheduler",
       "schedule": "30 6 * * *"
+    },
+    {
+      "path": "/api/v1/admin/friday-brief",
+      "schedule": "0 18 * * 5"
     }
   ],
   "rewrites": [

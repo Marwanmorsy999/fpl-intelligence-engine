@@ -26,7 +26,7 @@ router = APIRouter()
 
 _STATIC_DIR = Path(__file__).parent / "static"
 
-#: Phase 19.0 page registry: route path -> static filename.
+#: Phase 19.0/20.0 page registry: route path -> static filename.
 _PAGES: dict[str, str] = {
     "/dashboard": "dashboard.html",
     "/decisions": "dashboard.html",  # alias keeps the nav label honest
@@ -35,6 +35,7 @@ _PAGES: dict[str, str] = {
     "/live": "live.html",
     "/sources": "sources.html",
     "/connect": "connect.html",
+    "/assistant": "assistant.html",  # Phase 20.0 weekly brief
 }
 
 #: Whitelisted shared assets servable under /static (no directory traversal).

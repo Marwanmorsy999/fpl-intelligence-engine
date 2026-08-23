@@ -10,6 +10,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="/static/app.css">
+<!-- Phase 20.0 — shared chrome + persistent session module -->
+<script src="/static/app.js"></script>
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #0a1120; }
   .fg-card { background: #111c31; border: 1px solid #253348; }
@@ -81,17 +83,10 @@
 </head>
 <body class="text-slate-200 min-h-screen antialiased">
 
-<!-- Phase 19.0 — shared multi-page navigation (Decisions active) -->
-<div id="topnav"><div class="topnav"><div class="topnav-inner">
-  <a class="brand" href="/dashboard"><span class="brand-dot">⚽</span>FPL Intelligence</a>
-  <a class="navlink active" href="/dashboard" aria-current="page">Decisions</a>
-  <a class="navlink" href="/my-team">My Team</a>
-  <a class="navlink" href="/track-record">Track Record</a>
-  <a class="navlink" href="/live">Live</a>
-  <a class="navlink" href="/sources">Sources</a>
-  <a class="navlink" href="/connect">Connect</a>
-  <span id="healthPillNav" style="display:none"></span>
-</div></div></div>
+<!-- Phase 19.0/20.0 — shared multi-page navigation (Decisions active).
+     The server-rendered markup below is replaced by FPLApp.renderNav at boot,
+     which also mounts the persistent session chip. -->
+<div id="topnav"></div>
 
 <div class="max-w-4xl mx-auto px-4 py-8">
 
@@ -110,7 +105,7 @@
   </header>
 
   <!-- ======= Input ======= -->
-  <section class="fg-card rounded-2xl p-6 shadow-xl mb-8 anim-in">
+  <section id="inputSection" class="fg-card rounded-2xl p-6 shadow-xl mb-8 anim-in">
     <label for="teamId" class="block text-sm font-semibold text-slate-200 mb-1">Enter your FPL Team ID</label>
     <p class="text-xs text-slate-500 mb-4">The number in your FPL page URL, e.g. <code class="text-sky-400">fantasy.premierleague.com/entry/1234567/event</code></p>
     <div class="flex flex-col sm:flex-row gap-3">
@@ -195,10 +190,23 @@
     <h2 class="text-lg font-bold text-sky-400 mb-3">AI Analyst</h2>
     <div id="analystBox" class="fg-card rounded-2xl p-5 shadow-xl mb-8"></div>
 
+    <!-- Phase 20.0 — BBC News Radar flags -->
+    <h2 class="text-lg font-bold text-sky-400 mb-3">News Radar <span class="text-slate-500 text-sm font-medium">(BBC Sport)</span></h2>
+    <div id="newsRadarBox" class="fg-card rounded-2xl p-5 shadow-xl mb-8"><p class="text-slate-500 text-sm">Checking headlines…</p></div>
+
     <!-- Data Sources -->
     <h2 class="text-lg font-bold text-sky-400 mb-3">Data Sources</h2>
     <div id="dataSourcesBox" class="fg-card rounded-2xl p-5 shadow-xl mb-8"></div>
   </section>
+
+  <!-- ======= Phase 20.0 player drawer (deep analysis) ======= -->
+  <div id="drawerBackdrop" class="drawer-backdrop" onclick="closeDrawer()"></div>
+  <aside id="drawer" class="drawer" aria-label="Player deep analysis">
+    <button class="drawer-close" onclick="closeDrawer()" type="button" aria-label="Close">×</button>
+    <h3 id="drawerTitle">Player</h3>
+    <p class="faint small" style="margin:0 0 10px">Deep analysis · click any card on the pitch to open</p>
+    <div id="drawerBody"></div>
+  </aside>
 
   <footer class="mt-8 text-slate-600 text-xs text-center">Powered by the FPL Intelligence Engine · Photos &amp; badges © Premier League · Data from the official Fantasy Premier League API · <a class="text-sky-500" href="/track-record">Track record</a> · <a class="text-sky-500" href="/connect">Connect</a></footer>
 </div>
@@ -280,31 +288,18 @@ function setStatus(msg) { var el = $("status"); el.textContent = msg; el.style.d
 function showError(msg) { var el = $("error"); el.textContent = msg; el.style.display = "block"; }
 function hideMessages() { $("status").style.display = "none"; $("error").style.display = "none"; }
 
-/* ---------- Session persistence ---------- */
+/* ---------- Session: Phase 20.0 shared module ---------- */
 function saveSessionToStorage(sessionId, source, label) {
-  try {
-    localStorage.setItem(LS_SESSION_KEY, sessionId);
-    localStorage.setItem(LS_SOURCE_KEY, source);
-    localStorage.setItem(LS_SOURCE_LABEL_KEY, label);
-  } catch (e) { /* storage may be unavailable */ }
+  /* Kept for call-site compatibility; persists via FPLApp.session so every
+     page shares one storage shape {key, source, entry_name, synced_at}. */
+  FPLApp.session.save(sessionId, source, label);
 }
 function clearSessionFromStorage() {
-  try {
-    localStorage.removeItem(LS_SESSION_KEY);
-    localStorage.removeItem(LS_SOURCE_KEY);
-    localStorage.removeItem(LS_SOURCE_LABEL_KEY);
-  } catch (e) { /* ignore */ }
+  FPLApp.session.clear();
 }
 function getSessionFromStorage() {
-  try {
-    var sid = localStorage.getItem(LS_SESSION_KEY);
-    if (!sid) return null;
-    return {
-      session_id: sid,
-      source: localStorage.getItem(LS_SOURCE_KEY),
-      label: localStorage.getItem(LS_SOURCE_LABEL_KEY) || ""
-    };
-  } catch (e) { return null; }
+  var s = FPLApp.session.read();
+  return s ? { session_id: s.key, source: s.source, label: s.entry_name || s.source } : null;
 }
 
 function updateSourceChip() {
@@ -325,6 +320,7 @@ function updateSourceChip() {
     demoChip.style.display = "none";
     startOver.style.display = "none";
   }
+  FPLApp.session.updateChip();
 }
 
 function startOver() {
@@ -339,6 +335,8 @@ function startOver() {
   $("demoBanner").style.display = "none";
   $("demoChip").style.display = "none";
   updateSourceChip();
+  /* Start Over is the only clear path back to the entry screen. */
+  $("inputSection").style.display = "block";
 }
 
 async function checkHealth() {
@@ -428,6 +426,11 @@ async function analyze() {
     }
     var data = await res.json();
     if (data.player_names) { PLAYER_NAMES = data.player_names; }
+    /* Phase 20: persist with the real entry name so the chip reads
+       "{entry_name} · {entry_id} · synced {time}" on every page. */
+    FPLApp.session.save(String(entryId), "fpl_id", data.entry_name || "");
+    CURRENT_SOURCE_LABEL = data.entry_name ? data.entry_name + " · FPL ID " + entryId : "FPL ID " + entryId;
+    updateSourceChip();
     var syncNote = data.sync_status ? '<div class="mt-2 text-xs text-slate-500">📋 ' + esc(data.sync_status) + "</div>" : "";
     $("teamName").textContent = (data.entry_name ? data.entry_name + " · " : "") + "Gameweek " + data.gameweek;
     $("status").innerHTML = "Squad imported — running the numbers…" + syncNote;
@@ -501,11 +504,22 @@ async function renderFromApi() {
 }
 
 /* ---------- Rendering: player cards, pitch, bench ---------- */
+var FIXTURE_RUNS = {};   /* pid -> next-5 runs (from /fixtures/scan) */
+var NEWS_FLAGS = {};     /* pid -> {headline,time,url} (from /news/radar) */
+var LAST_REPORT = null;
+
+function newsFlagHTML(pid) {
+  var f = NEWS_FLAGS[pid];
+  if (!f) return "";
+  return '<a class="news-flag" data-testid="news-flag" href="' + esc(f.url || "#") + '" target="_blank" rel="noopener"'
+    + ' title="BBC: ' + esc(f.headline) + '">📰 ' + esc((f.headline || "").slice(0, 42)) + "</a>";
+}
+
 function playerCard(pid, report) {
   var p = (report.players && report.players[String(pid)]) || { id: pid, web_name: nameOf(pid, report) };
   var isC = !!(report.captain && report.captain.player_id === pid);
   var isVC = !!(!isC && report.vice_captain === pid);
-  var cls = "player-card" + (isC ? " is-c" : "") + (isVC ? " is-vc" : "");
+  var cls = "player-card clickable" + (isC ? " is-c" : "") + (isVC ? " is-vc" : "");
   var posStr = POS_NAMES[p.position] || "?";
   var tip = esc((p.web_name || "") + " · " + posStr + " · " + fmtPrice(p.price));
   /* xPTS tooltip: disclose source + minutes/start estimate (honest UI). */
@@ -519,6 +533,12 @@ function playerCard(pid, report) {
     if (b.xg_xa_term) { xpTip += " + xG/xA " + Number(b.xg_xa_term).toFixed(2); }
     if (b.market_term) { xpTip += " + market " + Number(b.market_term).toFixed(2); }
     if (b.weather_term) { xpTip += " + weather " + Number(b.weather_term).toFixed(2); }
+  }
+  var runs = FIXTURE_RUNS[pid];
+  if (runs && runs.length) {
+    tip += " · Next 5: " + runs.map(function (r) {
+      return r.opponent + (r.is_home ? "(H)" : "(A)") + r.difficulty;
+    }).join(" ");
   }
   /* xG/xA lines ONLY for Understat-matched players (never fabricated). */
   var xaStr = (p.xg != null && p.xa != null)
@@ -535,7 +555,7 @@ function playerCard(pid, report) {
     if (bb.weather_term && bb.weather_term !== 0) { parts.push("weather " + Number(bb.weather_term).toFixed(2)); }
     if (parts.length) { bdStr = '<div class="price-tag" style="color:#7dd3fc">' + parts.join(" · ") + "</div>"; }
   }
-  return '<div class="' + cls + '" title="' + tip + '">'
+  return '<div class="' + cls + '" title="' + tip + '" data-player-id="' + pid + '" role="button" tabindex="0">'
     + badgeHTML(p.team)
     + (isC ? '<span class="role-badge c" title="Captain">C</span>' : "")
     + (isVC ? '<span class="role-badge vc" title="Vice-Captain">VC</span>' : "")
@@ -545,6 +565,8 @@ function playerCard(pid, report) {
     + '<span class="xpts-tag" title="' + esc(xpTip) + '">xPTS ' + fmtXp(p.expected_points) + "</span>"
     + xaStr
     + bdStr
+    + FPLApp.fixtureStripHTML(runs)
+    + newsFlagHTML(pid)
     + "</div>";
 }
 
@@ -747,6 +769,7 @@ function renderChainBanner(report) {
 }
 
 function renderReport(report) {
+  LAST_REPORT = report;
   renderSummary(report);
   renderChip(report);
   renderChainBanner(report);
@@ -756,6 +779,160 @@ function renderReport(report) {
   renderTransfers(report);
   renderAnalyst(report);
   renderDataSources();
+  loadPhase20Overlays();
+}
+
+/* ---------- Phase 20.0 overlays: fixture strips + news flags ---------- */
+function loadPhase20Overlays() {
+  if (!CURRENT_SESSION_ID) return;
+  fetch(API + "/api/v1/fixtures/scan?session_id=" + encodeURIComponent(CURRENT_SESSION_ID))
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (scan) {
+      if (!scan || !scan.players) return;
+      FIXTURE_RUNS = {};
+      scan.players.forEach(function (p) { FIXTURE_RUNS[p.player_id] = p.runs; });
+      repaintStrips();
+    })
+    .catch(function () { /* strips are enhancement-only */ });
+  fetch(API + "/api/v1/news/radar?session_id=" + encodeURIComponent(CURRENT_SESSION_ID))
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (radar) {
+      if (!radar) return;
+      NEWS_FLAGS = {};
+      (radar.news_flags || []).forEach(function (f) {
+        NEWS_FLAGS[f.player_id] = { headline: f.headline, time: f.time, url: f.url };
+      });
+      repaintStrips();
+      var box = $("newsRadarBox");
+      if (box) {
+        if (!(radar.news_flags || []).length) {
+          box.innerHTML = '<p class="text-slate-500 text-sm">No BBC headlines match your squad right now.</p>';
+        } else {
+          box.innerHTML = (radar.news_flags || []).map(function (f) {
+            return '<div class="row"><div><a class="news-flag" style="max-width:none;white-space:normal" href="' + esc(f.url || "#") + '" target="_blank" rel="noopener">📰 ' + esc(f.headline) + "</a>"
+              + '<div class="text-xs text-slate-500 mt-1">' + esc(f.web_name) + " · " + esc((f.time || "").slice(0, 16).replace("T", " ")) + "</div></div></div>";
+          }).join("");
+        }
+      }
+    })
+    .catch(function () { /* flags are enhancement-only */ });
+}
+
+function repaintStrips() {
+  document.querySelectorAll(".player-card[data-player-id]").forEach(function (el) {
+    var pid = parseInt(el.getAttribute("data-player-id"), 10);
+    var old = el.querySelector(".fixture-strip");
+    if (old) old.remove();
+    var oldFlag = el.querySelector(".news-flag");
+    if (oldFlag) oldFlag.remove();
+    el.insertAdjacentHTML("beforeend", FPLApp.fixtureStripHTML(FIXTURE_RUNS[pid]));
+    el.insertAdjacentHTML("beforeend", newsFlagHTML(pid));
+  });
+}
+
+/* ---------- Phase 20.0 — player drawer (deep analysis) ---------- */
+async function openDrawer(pid) {
+  var drawer = $("drawer");
+  var backdrop = $("drawerBackdrop");
+  var body = $("drawerBody");
+  var title = $("drawerTitle");
+  if (!drawer || !CURRENT_SESSION_ID) return;
+  title.textContent = "Loading…";
+  body.innerHTML = '<p class="text-slate-400 text-sm">Crunching the numbers…</p>';
+  drawer.classList.add("open");
+  backdrop.classList.add("open");
+  try {
+    var res = await fetch(API + "/api/v1/player/" + encodeURIComponent(pid)
+      + "/drawer?session_id=" + encodeURIComponent(CURRENT_SESSION_ID));
+    if (!res.ok) throw new Error("Drawer data unavailable (" + res.status + ")");
+    var d = await res.json();
+    title.textContent = d.player.web_name;
+    body.innerHTML = renderDrawerBody(d);
+  } catch (e) {
+    body.innerHTML = '<p class="text-red-300 text-sm">' + esc(e.message) + "</p>";
+  }
+}
+
+function renderDrawerBody(d) {
+  var p = d.player;
+  var html = "";
+  /* Identity line */
+  html += '<div class="text-xs text-slate-400 mb-3">' + esc(p.full_name || "")
+    + " · " + esc(POS_NAMES[p.position] || "?")
+    + (p.price != null ? " · " + fmtPrice(p.price) : "");
+  if (p.cost_change_event != null && p.cost_change_event !== 0) {
+    var cc = p.cost_change_event > 0 ? "+" : "";
+    html += ' · <span class="' + (p.cost_change_event > 0 ? "text-emerald-400" : "text-red-400") + '">' + cc + "£" + Math.abs(p.cost_change_event) / 10 + "m this GW</span>";
+  }
+  html += "</div>";
+
+  /* Last-5 form bars */
+  html += '<div class="section-h">Last 5 gameweeks</div>';
+  if (d.form_bars && d.form_bars.length) {
+    var maxPts = Math.max.apply(null, d.form_bars.map(function (b) { return b.points || 0; }).concat([2]));
+    html += '<div class="form-bars">' + d.form_bars.map(function (b) {
+      var hPct = Math.max(((b.points || 0) / maxPts) * 100, 8);
+      return '<div style="flex:1;display:flex;flex-direction:column;align-items:center">'
+        + '<div class="form-bar" style="height:' + hPct + '%" data-testid="form-bar"><span>' + (b.points != null ? b.points : "-") + "</span></div>"
+        + "</div>";
+    }).join("") + "</div>";
+    html += '<div style="display:flex">' + d.form_bars.map(function (b) {
+      return '<div class="form-bar-label">GW' + (b.gw != null ? b.gw : "?") + "</div>";
+    }).join("") + "</div>";
+  } else {
+    html += '<p class="faint small">No finished-gameweek history available yet.</p>';
+  }
+
+  /* Key stats grid */
+  html += '<div class="section-h">Profile</div><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(110px,1fr))">';
+  function stat(label, value, sub) {
+    return '<div class="stat"><div class="stat-label">' + label + '</div><div class="stat-value num">' + value + "</div>" + (sub ? '<div class="stat-sub">' + sub + "</div>" : "") + "</div>";
+  }
+  html += stat("xPTS", fmtXp(d.expected_points), esc(d.prediction_source || ""));
+  html += stat("xG/90", d.xg_per_90 != null ? Number(d.xg_per_90).toFixed(2) : "–", "Understat");
+  html += stat("xA/90", d.xa_per_90 != null ? Number(d.xa_per_90).toFixed(2) : "–", "Understat");
+  html += stat("Selected by", p.selected_by_percent != null ? p.selected_by_percent + "%" : "–", "of managers");
+  html += stat("Minutes", p.minutes_played != null ? String(p.minutes_played) : "–", "season total");
+  html += stat("Start prob.", d.start_prob != null ? Math.round(d.start_prob * 100) + "%" : "–",
+    d.minutes_estimate != null ? "~" + Number(d.minutes_estimate).toFixed(0) + " min est." : "");
+  html += "</div>";
+
+  /* xPTS breakdown */
+  if (d.xpts_breakdown) {
+    html += '<div class="section-h">xPTS breakdown</div><p class="muted small" style="margin-top:0">';
+    var bd = d.xpts_breakdown; var parts = [];
+    if (bd.base != null) parts.push("base " + Number(bd.base).toFixed(2));
+    if (bd.xg_xa_term) parts.push("xG/xA +" + Number(bd.xg_xa_term).toFixed(2));
+    if (bd.market_term) parts.push("market +" + Number(bd.market_term).toFixed(2));
+    if (bd.weather_term) parts.push("weather " + Number(bd.weather_term).toFixed(2));
+    html += esc(parts.join(" · ") || "no components disclosed") + "</p>";
+  }
+
+  /* Next-5 fixture strip */
+  html += '<div class="section-h">Next 5 fixtures</div>';
+  if (d.fixture_runs && d.fixture_runs.length) {
+    html += FPLApp.fixtureStripHTML(d.fixture_runs)
+      + '<span class="faint small" style="margin-left:8px">avg FDR ' + Number(d.avg_fdr).toFixed(1) + "</span>";
+  } else {
+    html += '<p class="faint small">Fixture list unavailable.</p>';
+  }
+
+  /* News flag */
+  if (d.news_flags) {
+    html += '<div class="section-h">BBC news</div>'
+      + '<a class="news-flag" style="max-width:none;white-space:normal" href="' + esc(d.news_flags.url || "#") + '" target="_blank" rel="noopener">📰 '
+      + esc(d.news_flags.headline) + "</a>";
+  } else {
+    html += '<div class="section-h">BBC news</div><p class="faint small">No matching headlines.</p>';
+  }
+  return html;
+}
+
+function closeDrawer() {
+  var drawer = $("drawer");
+  var backdrop = $("drawerBackdrop");
+  if (drawer) drawer.classList.remove("open");
+  if (backdrop) backdrop.classList.remove("open");
 }
 
 /* ---------- AI Analyst + Data Sources ---------- */
@@ -829,6 +1006,7 @@ async function demoTeam() {
     }
     var data = await res.json();
     if (data.player_names) { PLAYER_NAMES = data.player_names; }
+    FPLApp.session.save(CURRENT_SESSION_ID, "demo", "Demo Squad");
     $("demoBanner").style.display = "block";
     $("teamName").textContent = (data.entry_name ? data.entry_name + " · " : "") + "Gameweek " + data.gameweek;
     setStatus("Demo ready — running the numbers…");
@@ -1168,6 +1346,7 @@ async function saveManual() {
       var body = await res.json().catch(function () { return {}; });
       throw new Error(body.detail || ("Failed to save squad (" + res.status + ")."));
     }
+    FPLApp.session.save(manualSessionId, "manual", "Manual Squad");
     $("teamName").textContent = "Manual Squad · Gameweek 1";
     setStatus("Saved — running the numbers…");
     await renderFromApi();
@@ -1180,27 +1359,37 @@ async function saveManual() {
   }
 }
 
-/* ---------- Boot: restore session from localStorage ---------- */
+/* ---------- Boot: Phase 20.0 shared session bootstrap ---------- */
+function showEntryScreen(message) {
+  if (message) { showError(message); }
+  $("inputSection").style.display = "block";
+}
+
+function restoreSession(session, report) {
+  CURRENT_SESSION_ID = session.key;
+  CURRENT_SOURCE = session.source;
+  var labelMap = {
+    fpl_id: session.entry_name ? session.entry_name + " · FPL ID " + session.key : "FPL ID " + session.key,
+    manual: "Manual Squad",
+    demo: "Demo Squad"
+  };
+  CURRENT_SOURCE_LABEL = labelMap[session.source] || ("Squad #" + session.key);
+  updateSourceChip();
+  /* ID input + manual entry render ONLY when no saved session. */
+  $("inputSection").style.display = "none";
+  if (session.source === "demo") {
+    $("demoBanner").style.display = "block";
+  }
+  var gwLabel = report && report.gameweek != null ? " · Gameweek " + report.gameweek : "";
+  var nameBit = session.entry_name ? session.entry_name + " · " : "";
+  $("teamName").textContent = nameBit + "Restored from your saved session" + gwLabel;
+  renderReport(report);
+  $("results").style.display = "block";
+}
+
 function boot() {
   checkHealth();
-  var stored = getSessionFromStorage();
-  if (stored && stored.session_id) {
-    /* Restore the session state but don't auto-load a squad.
-       The user sees the source chip and can continue. */
-    CURRENT_SESSION_ID = stored.session_id;
-    CURRENT_SOURCE = stored.source;
-    CURRENT_SOURCE_LABEL = stored.label || "";
-    updateSourceChip();
-    /* If it's a demo session, show the demo banner context */
-    if (CURRENT_SOURCE === "demo") {
-      $("demoBanner").style.display = "block";
-      $("teamName").textContent = "Demo Squad";
-    } else if (CURRENT_SOURCE === "fpl_id") {
-      $("teamName").textContent = "Saved squad — source: " + CURRENT_SOURCE_LABEL;
-    } else if (CURRENT_SOURCE === "manual") {
-      $("teamName").textContent = "Saved squad — source: Manual Squad";
-    }
-  }
+  FPLApp.renderNav("/dashboard");
   /* Wire up event listeners */
   $("analyzeBtn").addEventListener("click", analyze);
   $("teamId").addEventListener("keydown", function (e) {
@@ -1211,6 +1400,25 @@ function boot() {
   $("saveManualBtn").addEventListener("click", saveManual);
   $("retrySyncBtn").addEventListener("click", retrySync);
   $("startOverBtn").addEventListener("click", startOver);
+  /* Drawer: one delegated listener covers pitch, bench and future cards. */
+  document.addEventListener("click", function (e) {
+    var card = e.target.closest(".player-card[data-player-id]");
+    if (card) { openDrawer(parseInt(card.getAttribute("data-player-id"), 10)); }
+  });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeDrawer(); });
+  /* Auto-restore: a saved session renders the squad with ZERO typing.
+     The entry form appears only when nothing is saved (or the row is gone). */
+  FPLApp.session.bootstrap({
+    onReady: restoreSession,
+    onNoSession: function (msg) { showEntryScreen(msg); },
+    onError: function (msg) {
+      /* Network/5xx: keep the chip but surface the error honestly. */
+      showError(msg || "Could not load your saved squad.");
+      $("inputSection").style.display = "none";
+      var s = FPLApp.session.read();
+      if (!s) { $("inputSection").style.display = "block"; }
+    }
+  });
 }
 
 boot();

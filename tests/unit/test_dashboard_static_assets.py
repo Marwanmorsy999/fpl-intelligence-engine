@@ -148,16 +148,30 @@ def test_chain_banner_renders_per_source() -> None:
 
     # Minimal DOM stub: the inline script defines its own ``function $`` that
     # calls ``document.getElementById``, and registers ``window.__photoFail`` /
-    # ``window.__badgeFail`` at load. We provide ``document`` + ``window`` stubs
-    # so the script loads cleanly, then exercise renderChainBanner and read back
-    # the banner element's innerHTML from our per-id state map.
+    # ``window.__badgeFail`` at load. We provide ``document`` + ``window`` +
+    # Phase 20.0's shared ``FPLApp`` stubs so the script loads cleanly, then
+    # exercise renderChainBanner and read back the banner element's innerHTML.
     harness = (
         "var $state = {}; "
         "globalThis.window = globalThis.window || {}; "
         "globalThis.document = { getElementById: function(id){ "
         "  if(!$state[id]){ $state[id] = { innerHTML:'', textContent:'' , "
-        "    addEventListener: function(){}, style:{}, value:'' }; } "
-        "  return $state[id]; } }; "
+        "    addEventListener: function(){}, classList:{add:function(){},"
+        "    remove:function(){}}, style:{}, value:'', insertAdjacentHTML:"
+        "    function(){}, querySelectorAll: function(){ return []; } }; } "
+        "  return $state[id]; }, "
+        "addEventListener: function(){}, querySelectorAll: function(){ return []; } }; "
+        # Phase 20.0: the inline script now boots through the shared session
+        # module, so provide a minimal FPLApp stand-in.
+        "globalThis.FPLApp = { esc: function(s){ return String(s); }, "
+        "renderNav: function(){}, fixtureStripHTML: function(){ return ''; }, "
+        "fdrColor: function(){ return '#000'; }, hydrateCrests: function(){}, "
+        "crestHTML: function(){ return ''; }, fmtPrice: function(){ return '£—'; }, "
+        "fmtPts: function(){ return '–'; }, "
+        "session: { read: function(){ return null; }, save: function(){}, "
+        "clear: function(){}, updateChip: function(){}, "
+        "bootstrap: function(h){ if (h && h.onNoSession) h.onNoSession(); "
+        "return Promise.resolve({ session: null, report: null }); } } }; "
         + script
         + "; "
         # Proxy-level report (the offline default).

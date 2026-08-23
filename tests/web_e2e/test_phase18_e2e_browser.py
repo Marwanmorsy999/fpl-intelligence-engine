@@ -282,6 +282,16 @@ def browser_page(page: Page) -> Iterator[Page]:
     page.route("**/api/v1/decisions*", _mock_decisions_factory(captured_squads))
     page.route("**/api/v1/analyst/summary*", _mock_analyst)
     page.route("**/api/v1/data-sources*", lambda r: r.fulfill(status=200, body="{}"))
+    # Phase 20.0 overlay endpoints (fixture strips + news radar) — empty but
+    # valid payloads keep the strict zero->=400 console audit green.
+    page.route(
+        "**/api/v1/fixtures/scan*",
+        lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({})),
+    )
+    page.route(
+        "**/api/v1/news/radar*",
+        lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({})),
+    )
 
     yield page
 

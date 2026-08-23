@@ -6,9 +6,13 @@ from fpl_intelligence import __version__
 from fpl_intelligence.api.deps import GetDB, assert_no_static_stub_in_production
 from fpl_intelligence.api.routes.admin import router as admin_router
 from fpl_intelligence.api.routes.analyst import router as analyst_router
+from fpl_intelligence.api.routes.assistant import router as assistant_router
 from fpl_intelligence.api.routes.crests import router as crests_router
 from fpl_intelligence.api.routes.data_sources import router as data_sources_router
+from fpl_intelligence.api.routes.drawer import router as drawer_router
+from fpl_intelligence.api.routes.fixtures import router as fixtures_router
 from fpl_intelligence.api.routes.intelligence import router as intelligence_router
+from fpl_intelligence.api.routes.news import router as news_router
 from fpl_intelligence.api.routes.players import router as players_router
 from fpl_intelligence.api.routes.squad import router as squad_router
 from fpl_intelligence.api.routes.sync import BookmarkletCorsMiddleware
@@ -62,6 +66,10 @@ app.include_router(analyst_router, prefix="/api/v1")
 app.include_router(data_sources_router, prefix="/api/v1")
 app.include_router(sync_router, prefix="/api/v1")
 app.include_router(crests_router, prefix="/api/v1")
+app.include_router(fixtures_router, prefix="/api/v1")
+app.include_router(news_router, prefix="/api/v1")
+app.include_router(drawer_router, prefix="/api/v1")
+app.include_router(assistant_router, prefix="/api/v1")
 
 
 @app.get("/", include_in_schema=False)

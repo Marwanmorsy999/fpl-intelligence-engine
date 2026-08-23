@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, select, text
@@ -1206,5 +1206,104 @@ async def migrate_sync_tables_endpoint() -> dict:
         return JSONResponse(
             status_code=500, content={"ok": False, "error": f"{type(exc).__name__}: {exc}"}
         )
+    finally:
+        db.close()
+
+
+# --------------------------------------------------------------------------- #
+# Phase 20.0 � Friday 18:00 UTC assistant-brief push (Vercel Cron)
+# --------------------------------------------------------------------------- #
+
+_FRIDAY_BRIEF_MAX_SQUADS = 20
+
+
+def _format_brief_message(brief: dict, entry_name: str | None) -> str:
+    """Plain-text Telegram rendering of the six brief sections."""
+    sections = brief.get("sections") or {}
+    titles = [
+        "SQUAD STATUS", "CAPTAIN", "TRANSFERS",
+        "FIXTURE SWINGS", "NEWS FLAGS", "LAST WEEK GRADE",
+    ]
+    lines = [f"?? Weekly brief � GW{brief.get('gameweek', '?')}"
+             + (f" � {entry_name}" if entry_name else ""), ""]
+    for t in titles:
+        body = sections.get(t)
+        if isinstance(body, str) and body.strip():
+            lines.append(f"<b>{t}</b>")
+            lines.append(body.strip())
+            lines.append("")
+    model = brief.get("model") or "template-fallback"
+    lines.append(f"� {model}")
+    return "\n".join(lines)
+
+
+@router.get("/admin/friday-brief")
+@router.post("/admin/friday-brief")
+async def friday_brief_endpoint(
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict:
+    """Push the weekly assistant brief to Telegram every Friday 18:00 UTC.
+
+    Builds a brief per saved squad (capped), then sends it to every allowed
+    chat when TELEGRAM_BOT_TOKEN is configured. Without the token the endpoint
+    still returns 200 with ``pushed: false`` so cron runs stay green.
+    """
+    _require_cron_auth(authorization)
+
+    from fpl_intelligence.api.routes.assistant import assistant_brief
+    from fpl_intelligence.db.models import SquadStateDB
+    from fpl_intelligence.notifications.telegram_bot import get_allowed_user_ids
+
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_ids = get_allowed_user_ids()
+
+    db = SessionLocal()
+    try:
+        rows = db.execute(
+            select(SquadStateDB.session_id).order_by(SquadStateDB.updated_at.desc())
+        ).scalars().all()[:_FRIDAY_BRIEF_MAX_SQUADS]
+
+        built = 0
+        pushed = 0
+        errors: list[str] = []
+        client: httpx.AsyncClient | None = None
+        try:
+            if token and chat_ids and rows:
+                client = httpx.AsyncClient(timeout=10.0)
+            for session_id in rows:
+                try:
+                    brief = await assistant_brief(
+                        response=Response(), db=db, session_id=session_id, gw=None
+                    )
+                    built += 1
+                except Exception as exc:  # noqa: BLE001 — one bad squad never stops the run
+                    errors.append(f"{session_id}: {type(exc).__name__}")
+                    continue
+                if client is None:
+                    continue
+                entry_name = ((brief.get("facts_digest") or {}).get("captain")) or "squad"
+                text = _format_brief_message(brief, str(entry_name))
+                for chat_id in chat_ids:
+                    try:
+                        r = await client.post(
+                            f"https://api.telegram.org/bot{token}/sendMessage",
+                            json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
+                        )
+                        r.raise_for_status()
+                        pushed += 1
+                    except Exception as exc:  # noqa: BLE001
+                        logger.warning("Friday brief push failed chat %s: %s", chat_id, exc)
+        finally:
+            if client is not None:
+                await client.aclose()
+
+        return {
+            "ok": True,
+            "squads": len(rows),
+            "briefs_built": built,
+            "telegram_configured": bool(token and chat_ids),
+            "pushed": pushed,
+            "errors": errors[:5],
+        }
     finally:
         db.close()

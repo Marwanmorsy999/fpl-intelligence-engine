@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weekly Assistant — FPL Intelligence</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/app.js"></script>
+</head>
+<body>
+<div id="topnav"></div>
+<div class="wrap">
+
+  <h1 style="font-size:22px;font-weight:800;color:#fff;margin:0 0 4px">Weekly assistant</h1>
+  <p class="muted small" style="margin-top:0">A structured pre-deadline brief built from your squad, the fixture scan, the BBC news radar and your track record. Pushed to Telegram on Fridays at 18:00 UTC when configured.</p>
+
+  <div style="display:flex;gap:10px;align-items:center;margin:18px 0">
+    <button id="refreshBtn" class="btn" type="button">Build this week's brief</button>
+    <span id="briefMeta" class="faint small"></span>
+  </div>
+
+  <div id="briefBox"><p class="faint">No brief loaded yet.</p></div>
+
+  <div class="section-h">Brief history</div>
+  <div id="historyBox"><p class="faint small">Briefs you build are kept here, one card per gameweek.</p></div>
+
+</div>
+<script>
+"use strict";
+document.addEventListener("DOMContentLoaded", function () {
+  FPLApp.renderNav("/assistant");
+  var $ = function (id) { return document.getElementById(id); };
+  var SECTION_ORDER = ["SQUAD STATUS", "CAPTAIN", "TRANSFERS", "FIXTURE SWINGS", "NEWS FLAGS", "LAST WEEK GRADE"];
+  var HISTORY_KEY = "fpl_brief_history_v20";
+
+  function history() {
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || "{}"); }
+    catch (e) { return {}; }
+  }
+  function saveHistory(h) {
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(h)); } catch (e) {}
+  }
+
+  function briefCard(brief) {
+    var sections = brief.sections || {};
+    return (
+      '<div class="card" data-testid="brief-card" style="margin-bottom:14px">' +
+        '<div class="row" style="border-bottom:1px solid var(--line);padding-bottom:8px">' +
+          '<strong>Brief · Gameweek ' + FPLApp.esc(brief.gameweek) + "</strong>" +
+          '<span class="pill ' + (String(brief.model).indexOf("template") === -1 ? "ok" : "") + '" style="margin-left:auto">' +
+            FPLApp.esc(brief.model || "template-fallback") + "</span>" +
+          '<span data-testid="cached-pill" class="' + (brief.cached ? "pill" : "pill ok") + '">' +
+            (brief.cached ? "cached" : "fresh") + "</span>" +
+        "</div>" +
+        SECTION_ORDER.map(function (key) {
+          var body = sections[key];
+          if (!body) return "";
+          return '<div class="brief-section"><div class="brief-h">' + key + "</div>" +
+            '<div class="small muted" data-brief-section="' + key + '">' + FPLApp.esc(body) + "</div></div>";
+        }).join("") +
+      "</div>"
+    );
+  }
+
+  function renderHistory(sessionKey) {
+    var h = history();
+    var entries = Object.keys(h)
+      .filter(function (gwKey) { return !sessionKey || gwKey.indexOf(sessionKey + "|") === 0; })
+      .sort(function (a, b) { return Number(b.split("|")[1]) - Number(a.split("|")[1]); });
+    if (!entries.length) {
+      $("historyBox").innerHTML = '<p class="faint small">No stored briefs yet for this session.</p>';
+      return;
+    }
+    $("historyBox").innerHTML = entries.map(function (k) { return briefCard(h[k]); }).join("");
+  }
+
+  function store(sessionKey, brief) {
+    var h = history();
+    h[sessionKey + "|" + brief.gameweek] = brief;
+    /* Keep the last 12 gameweeks per session. */
+    var keys = Object.keys(h).filter(function (k) { return k.indexOf(sessionKey + "|") === 0; });
+    keys.sort(function (a, b) { return Number(b.split("|")[1]) - Number(a.split("|")[1]); });
+    keys.slice(12).forEach(function (k) { delete h[k]; });
+    saveHistory(h);
+  }
+
+  function build(session) {
+    $("refreshBtn").disabled = true;
+    $("briefMeta").textContent = "Gathering squad, fixtures, news and track record…";
+    fetch("/api/v1/assistant/brief?session_id=" + encodeURIComponent(session.key))
+      .then(function (r) { return r.ok ? r.json() : r.json().then(function (b) { throw new Error(b.detail || r.status); }); })
+      .then(function (brief) {
+        store(session.key, brief);
+        $("briefBox").innerHTML = briefCard(brief);
+        $("briefMeta").textContent = "Built " + new Date().toLocaleTimeString() + " · captain " +
+          ((brief.facts_digest && brief.facts_digest.captain) || "—");
+        renderHistory(session.key);
+      })
+      .catch(function (err) {
+        $("briefBox").innerHTML = '<p class="faint">' + FPLApp.esc(err.message || "Brief unavailable.") + "</p>";
+      })
+      .finally(function () { $("refreshBtn").disabled = false; });
+  }
+
+  FPLApp.session.bootstrap({
+    onReady: function (session) {
+      /* Today's brief renders immediately; stored ones appear under history. */
+      renderHistory(session.key);
+      build(session);
+    },
+    onNoSession: function () {
+      $("refreshBtn").style.display = "none";
+      $("briefBox").innerHTML =
+        '<span class="pill warn">No saved session</span> <span class="muted small">— open ' +
+        '<a href="/dashboard">Decisions</a>, enter your FPL ID once, then come back for your weekly brief.</span>';
+      $("historyBox").innerHTML = "";
+    },
+    onError: function (msg) {
+      $("briefBox").innerHTML = '<p class="faint">' + FPLApp.esc(msg || "Could not load.") + "</p>";
+    }
+  });
+
+  $("refreshBtn").addEventListener("click", function () {
+    var s = FPLApp.session.read();
+    if (!s) return;
+    build(s);
+  });
+});
+</script>
+</body>
+</html>

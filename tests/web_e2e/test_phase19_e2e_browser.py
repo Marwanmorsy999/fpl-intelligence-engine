@@ -25,6 +25,7 @@ BASE_URL = "http://localhost:8000"
 PAGES = [
     ("/dashboard", ["Decisions", "My Team", "Track Record", "Live", "Sources", "Connect"]),
     ("/my-team", ["My team"]),
+    ("/assistant", ["Weekly assistant"]),
     ("/track-record", ["Track record"]),
     ("/live", ["Matchday board"]),
     ("/sources", ["Data sources"]),
@@ -89,16 +90,19 @@ def instrumented(page: Page) -> Iterator[Page]:
 
 class TestNav:
     @pytest.mark.parametrize("path,expectations", PAGES)
-    def test_page_renders_nav_with_six_entries(
+    def test_page_renders_nav_with_seven_entries(
         self, instrumented: Page, path: str, expectations: list[str]
     ) -> None:
         page = instrumented
         page.goto(BASE_URL + path, wait_until="domcontentloaded")
 
         nav = page.locator(".topnav .navlink")
-        expect(nav).to_have_count(6)
+        expect(nav).to_have_count(7)  # Phase 20.0 adds Assistant
         labels = [t.strip() for t in nav.all_inner_texts()]
-        assert labels == ["Decisions", "My Team", "Track Record", "Live", "Sources", "Connect"]
+        assert labels == [
+            "Decisions", "My Team", "Assistant",
+            "Track Record", "Live", "Sources", "Connect",
+        ]
 
         for text in expectations:
             expect(page.locator("body")).to_contain_text(text)
