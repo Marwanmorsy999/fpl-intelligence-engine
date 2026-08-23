@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Connect — FPL Intelligence</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/app.js"></script>
+</head>
+<body>
+<div id="topnav"></div>
+<div class="wrap">
+
+  <h1 style="font-size:22px;font-weight:800;color:#fff;margin:0 0 4px">Connect your data</h1>
+  <p class="muted small" style="margin-top:0">Three independent ways keep this engine fed. All pushes authenticate with your personal <strong>SYNC_PUSH_TOKEN</strong> (Bearer header). The token is shown once in your deployment report — paste it below and into Apps Script / GitHub secrets.</p>
+
+  <!-- ======= Sync status ======= -->
+  <div class="section-h">Sync status</div>
+  <div class="card" id="statusCard"><span class="faint">Checking…</span></div>
+
+  <!-- ======= Token ======= -->
+  <div class="section-h">1 · Your token</div>
+  <div class="card">
+    <label class="small muted" for="tokenInput">SYNC_PUSH_TOKEN</label>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <input id="tokenInput" type="password" class="input" placeholder="paste the 64-hex-char token from your deployment report" autocomplete="off">
+      <button id="saveTokenBtn" class="btn" type="button">Save</button>
+    </div>
+    <p class="faint small" style="margin-bottom:0">Stored in this browser only (localStorage) so the bookmarklet can use it. Never sent anywhere except your own engine's push endpoint.</p>
+  </div>
+
+  <!-- ======= Method A: bookmarklet ======= -->
+  <div class="section-h">2 · Bookmarklet — instant one-click sync (recommended)</div>
+  <div class="card">
+    <ol class="muted small" style="padding-left:18px;margin:6px 0 12px">
+      <li>Paste + save your token above.</li>
+      <li>Drag this link to your bookmarks bar:</li>
+    </ol>
+    <a id="bookmarkletLink" class="btn" href="#" onclick="return false" title="Drag me to your bookmarks bar" style="display:inline-block;text-decoration:none">⚽ Sync FPL Squad → Engine</a>
+    <button id="copyBmBtn" class="btn-ghost" type="button" style="margin-left:10px">Copy link URL</button>
+    <ol class="muted small" start="3" style="padding-left:18px;margin:12px 0 0">
+      <li>Open <code>fantasy.premierleague.com/entry/&lt;your-id&gt;/event</code>.</li>
+      <li>Click the bookmark. You'll see a success or failure alert — nothing else needed.</li>
+    </ol>
+    <p class="faint small" id="bmStatus" style="margin-bottom:0"></p>
+  </div>
+
+  <!-- ======= Method B: Apps Script ======= -->
+  <div class="section-h">3 · Google Apps Script fetcher — automatic daily + matchday</div>
+  <div class="card">
+    <p class="muted small" style="margin-top:0">Runs on Google's infrastructure (no Cloudflare, no Vercel egress problems). Two time-triggers:</p>
+    <ul class="muted small" style="margin-top:4px">
+      <li><strong>Daily 05:00 UTC</strong> (+ manual menu item): pulls your entry + picks → <code>squad-push</code></li>
+      <li><strong>Sat &amp; Sun hourly 14:00–18:00 UTC</strong>: pulls live points → <code>live-push</code></li>
+    </ul>
+    <ol class="muted small" style="padding-left:18px">
+      <li>Go to <a href="https://script.google.com" target="_blank" rel="noopener">script.google.com</a> → New project.</li>
+      <li>Paste the script below. Set <code>ENGINE_BASE</code> and <code>TOKEN</code> at the top.</li>
+      <li>Add triggers: clock icon → <em>syncSquadDaily</em>, Time-driven, Day timer 5–6am. Add a second trigger for <em>syncLiveMatchday</em>, Week timer Sat+Sun 2–6pm.</li>
+    </ol>
+<pre class="code" id="appsScriptSrc">// ==== CONFIG ====
+var ENGINE_BASE = "PASTE_ENGINE_URL"; // e.g. https://your-app.vercel.app
+var TOKEN = "PASTE_SYNC_PUSH_TOKEN";
+var ENTRY_ID = 1234567;               // your FPL entry id
+
+// ==== Daily squad sync (time-trigger ~05:00) ====
+function syncSquadDaily() { syncSquad(); }
+
+// ==== Matchday live points (Sat/Sun hourly 14:00-18:00) ====
+function syncLiveMatchday() {
+  var now = new Date();
+  var day = now.getUTCDay();          // 6=Sat 0=Sun
+  if (day !== 6 && day !== 0) return;
+  var gw = currentGw();
+  if (!gw) return;
+  var live = jget("/api/event/" + gw + "/live/");
+  var els = (live.elements || []).map(function (e) {
+    return {
+      element_id: e.id,
+      points: e.stats && e.stats.total_points || 0,
+      minutes: e.stats && e.stats.minutes || 0
+    };
+  });
+  post("/api/v1/sync/live-push", { gameweek: gw, elements: els });
+}
+
+// ==== Shared helpers ====
+function syncSquad() {
+  var entry = jget("/api/entry/" + ENTRY_ID + "/");
+  var gw = (entry.entry && entry.entry.current_event) || 1;
+  var picks = jget("/api/entry/" + ENTRY_ID + "/event/" + gw + "/picks/");
+  post("/api/v1/sync/squad-push", {
+    entry_id: ENTRY_ID,
+    entry_name: (entry.entry && entry.entry.name) || null,
+    gameweek: gw,
+    bank: (picks.entry_history && picks.entry_history.bank) || 0,
+    transfers: {
+      made: (picks.entry_history && picks.entry_history.event_transfers) || 0,
+      cost: (picks.entry_history && picks.entry_history.event_transfers_cost) || 0
+    },
+    picks: (picks.picks || []).map(function (p) {
+      return {
+        element_id: p.element, position: p.position,
+        element_type: p.element_type,
+        is_captain: !!p.is_captain, is_vice: !!p.is_vice
+      };
+    })
+  });
+}
+
+function bootstrap() {
+  var r = UrlFetchApp.fetch("https://fantasy.premierleague.com/api/bootstrap-static/", {
+    headers: { "User-Agent": "Mozilla/5.0" }, muteHttpExceptions: true });
+  return JSON.parse(r.getContentText());
+}
+function currentGw() {
+  var events = bootstrap().events || [];
+  var live = events.filter(function (e) { return e.is_current; })[0];
+  if (!live) live = events.filter(function (e) { return e.is_next; })[0];
+  return live ? live.id : null;
+}
+function jget(path) {
+  var r = UrlFetchApp.fetch("https://fantasy.premierleague.com" + path, {
+    headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" },
+    muteHttpExceptions: true });
+  if (r.getResponseCode() !== 200) throw new Error(path + " -> " + r.getResponseCode());
+  return JSON.parse(r.getContentText());
+}
+function post(path, body) {
+  var r = UrlFetchApp.fetch(ENGINE_BASE + path, {
+    method: "post", contentType: "application/json",
+    headers: { "Authorization": "Bearer " + TOKEN },
+    payload: JSON.stringify(body), muteHttpExceptions: true });
+  Logger.log(path + " -> " + r.getResponseCode() + " " + r.getContentText());
+}
+
+// ==== Manual menu (Extensions > FPL Sync > Run all) ====
+function onOpen() {
+  try {
+    SpreadsheetApp.getUi().createMenu("FPL Sync")
+      .addItem("Sync squad now", "syncSquad")
+      .addItem("Push live points now", "syncLiveMatchday")
+      .addToUi();
+  } catch (e) { /* standalone script has no UI */ }
+}</pre>
+    <p class="faint small" style="margin-bottom:0">The matchday trigger reads the official <code>/api/event/{gw}/live/</code> feed from Google's IPs — which are never rate-limited like datacenter proxies.</p>
+  </div>
+
+  <!-- ======= Method C: GitHub Actions ======= -->
+  <div class="section-h">4 · GitHub Actions — vaastav dataset + Understat refresh (daily 06:00 UTC)</div>
+  <div class="card">
+    <ol class="muted small" style="padding-left:18px;margin:6px 0">
+      <li>In your GitHub repo: <em>Settings → Secrets and variables → Actions</em>.</li>
+      <li>Add repository secret <code>SYNC_PUSH_TOKEN</code> = your token.</li>
+      <li>The committed <code>.github/workflows/data-refresh.yml</code> runs daily at 06:00 UTC, downloads the current-season vaastav GW files + an Understat snapshot, and POSTs them to <code>/api/v1/sync/history-push</code>. Each ingestion auto-rebuilds form features and re-scores your track record.</li>
+    </ol>
+    <p class="faint small" style="margin-bottom:0">Also supports <em>workflow_dispatch</em> for manual runs from the Actions tab.</p>
+  </div>
+
+</div>
+<script>
+"use strict";
+document.addEventListener("DOMContentLoaded", function () {
+  FPLApp.renderNav("/connect");
+  var $ = function (id) { return document.getElementById(id); };
+
+  // --- token persistence ---------------------------------------------------
+  try { $("tokenInput").value = localStorage.getItem("fpl_sync_push_token") || ""; } catch (e) {}
+  $("saveTokenBtn").addEventListener("click", function () {
+    var t = $("tokenInput").value.trim();
+    if (!t) { $("bmStatus").textContent = "Paste a token first."; return; }
+    try { localStorage.setItem("fpl_sync_push_token", t); } catch (e2) {}
+    buildBookmarklet();
+    $("bmStatus").textContent = "Token saved in this browser.";
+  });
+
+  // --- bookmarklet builder --------------------------------------------------
+  function buildBookmarklet() {
+    var token = "";
+    try { token = localStorage.getItem("fpl_sync_push_token") || ""; } catch (e) {}
+    fetch("/static/bookmarklet.js")
+      .then(function (r) { return r.text(); })
+      .then(function (src) {
+        src = 'window.__FPL_ENGINE_BASE__="' + window.location.origin + '";\n' + src;
+        var url = "javascript:" + encodeURIComponent(src);
+        $("bookmarkletLink").href = url;
+        $("bookmarkletLink").removeAttribute("onclick");
+        $("bmStatus").textContent = token
+          ? "Bookmarklet ready (" + src.length + " chars). Drag the button to your bookmarks bar."
+          : "Bookmarklet ready, but no token saved yet — you'll be prompted on first use.";
+      })
+      .catch(function () {
+        $("bmStatus").textContent = "Could not load bookmarklet source (/static/bookmarklet.js).";
+      });
+  }
+  buildBookmarklet();
+
+  $("copyBmBtn").addEventListener("click", function () {
+    var link = $("bookmarkletLink");
+    if (!link.href || link.href === "#") return;
+    navigator.clipboard.writeText(link.href).then(
+      function () { $("copyBmBtn").textContent = "Copied ✓"; },
+      function () { $("copyBmBtn").textContent = "Copy failed"; }
+    );
+  });
+
+  // --- sync status -----------------------------------------------------------
+  fetch("/api/v1/sync/status")
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (data) {
+      if (!data) { $("statusCard").innerHTML = '<span class="faint">Status unavailable.</span>'; return; }
+      var latest = data.latest || {};
+      var rows = [];
+      ["squad", "live", "history"].forEach(function (kind) {
+        var l = latest[kind];
+        rows.push('<tr><td><strong>' + kind + '-push</strong></td>' +
+          '<td>' + (l ? new Date(l.at).toLocaleString() : '<span class="faint">never</span>') + '</td>' +
+          '<td class="num">' + (l && l.gameweek ? "GW" + l.gameweek : "–") + '</td>' +
+          '<td class="num">' + ((data.counts || {})[kind] || 0) + '</td></tr>');
+      });
+      $("statusCard").innerHTML =
+        '<table class="data"><thead><tr><th>Channel</th><th>Last successful push</th><th class="num">Gameweek</th><th class="num">Total</th></tr></thead><tbody>' +
+        rows.join("") + "</tbody></table>" +
+        '<p class="faint small" style="margin:10px 0 0">Server token configured: ' +
+        (data.token_configured ? '<span class="pill ok">yes</span>' : '<span class="pill bad">NO — set SYNC_PUSH_TOKEN env var</span>') + "</p>";
+    })
+    .catch(function () {
+      $("statusCard").innerHTML = '<span class="faint">Status unavailable.</span>';
+    });
+});
+</script>
+</body>
+</html>

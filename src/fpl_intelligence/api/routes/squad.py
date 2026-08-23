@@ -383,6 +383,18 @@ async def get_decisions(
     report.players = _build_player_details(
         db, report, squad, effective_provider, understat_index=understat_index
     )
+
+    # Phase 19.0 — persist this gameweek's calls so /track-record can grade
+    # them once real results are ingested. Best-effort: tracking must never
+    # break the decisions response.
+    try:
+        from fpl_intelligence.sync.service import record_recommendations
+
+        record_recommendations(db, session_key=session_id, report=report)
+        db.commit()
+    except Exception as exc:  # noqa: BLE001 - observability, not correctness
+        logger.warning("recommendation recording failed for %s: %s", session_id, exc)
+        db.rollback()
     return report
 
 

@@ -1,0 +1,36 @@
+# Phase 19.0 — daily data refresh: vaastav FPL dataset + Understat snapshot.
+# Pulls current-season per-gameweek results from the vaastav GitHub dataset and
+# pushes them to /api/v1/sync/history-push so form features, track record and
+# calibration stay live. Runs on schedule (06:00 UTC) or manually.
+name: data-refresh
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Push gameweek history to engine
+        env:
+          ENGINE_BASE: ${{ secrets.ENGINE_BASE }}
+          SYNC_PUSH_TOKEN: ${{ secrets.SYNC_PUSH_TOKEN }}
+          VAASTAV_SEASON: ${{ vars.VAASTAV_SEASON }}
+        run: |
+          if [ -z "$ENGINE_BASE" ]; then
+            echo "ENGINE_BASE secret is not set (e.g. https://your-app.vercel.app)"; exit 2
+          fi
+          python scripts/data_refresh.py

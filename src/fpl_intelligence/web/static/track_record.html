@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Track Record — FPL Intelligence</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/app.js"></script>
+</head>
+<body>
+<div id="topnav"></div>
+<div class="wrap">
+
+  <h1 style="font-size:22px;font-weight:800;color:#fff;margin:0 0 4px">Track record</h1>
+  <p class="muted small" style="margin-top:0">Every recommendation the engine made, graded against what actually happened. Cards appear as you use Decisions; verdicts land automatically once GitHub Actions pushes the gameweek's real results.</p>
+
+  <div style="display:flex;gap:8px;margin:16px 0 20px">
+    <input id="entryInput" class="input" style="max-width:260px" placeholder="Your FPL entry id (e.g. 794561)" inputmode="numeric">
+    <button id="loadBtn" class="btn" type="button">Load track record</button>
+  </div>
+
+  <!-- rolling summary -->
+  <div id="summaryGrid" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));display:none">
+    <div class="stat"><div class="stat-label">Graded calls</div><div class="stat-value num" id="stGraded">–</div><div class="stat-sub" id="stGradedSub">&nbsp;</div></div>
+    <div class="stat"><div class="stat-label">Hit rate</div><div class="stat-value num" id="stHit">–</div><div class="stat-sub">right or neutral</div></div>
+    <div class="stat"><div class="stat-label">Net points</div><div class="stat-value num" id="stNet">–</div><div class="stat-sub">model vs alternatives</div></div>
+    <div class="stat"><div class="stat-label">Calibration MAE</div><div class="stat-value num" id="stMae">–</div><div class="stat-sub" id="stMaeSub">predicted vs actual</div></div>
+  </div>
+
+  <div class="section-h">Last 5 graded cards</div>
+  <div id="last5" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))"></div>
+
+  <div class="section-h">All recommendations</div>
+  <div class="card" style="padding:4px 16px" id="allCards"></div>
+
+</div>
+<script>
+"use strict";
+document.addEventListener("DOMContentLoaded", function () {
+  FPLApp.renderNav("/track-record");
+  var $ = function (id) { return document.getElementById(id); };
+  var POS_NAMES = { 1: "GK", 2: "DEF", 3: "MID", 4: "FWD" };
+
+  try {
+    var saved = localStorage.getItem("fpl_session_id");
+    if (saved && /^\d+$/.test(saved)) $("entryInput").value = saved;
+  } catch (e) {}
+
+  function esc(s) { return FPLApp.esc(s); }
+
+  function verdictPill(score) {
+    if (!score) return '<span class="pill">pending results</span>';
+    var v = score.verdict || "neutral";
+    var d = Number(score.delta || 0);
+    var cls = v === "right" ? "ok" : (v === "wrong" ? "bad" : "");
+    var sign = d > 0 ? "+" : "";
+    return '<span class="pill ' + cls + '">' + esc(v.toUpperCase()) + " · " + sign + d + " pts</span>";
+  }
+
+  function cardText(c) {
+    var s = c.score;
+    if (!s) return null;
+    if (c.rec_type === "captain") {
+      return "Model was " + (s.verdict === "wrong" ? "wrong" : "right") + " by " +
+        Math.abs(Number(s.delta || 0)) + " pts — captain " + s.captain + " (" + s.captain_points +
+        " doubled pts) vs best alternative " + s.best_alternative + " (" + s.alternative_points + ")";
+    }
+    if (c.rec_type === "transfer") {
+      return "Model was " + (s.verdict === "wrong" ? "wrong" : "right") + " by " +
+        Math.abs(Number(s.delta || 0)) + " pts — in [" + (s.transfers_in || []).join(", ") +
+        "] gained " + s.gained + ", out [" + (s.transfers_out || []).join(", ") + "] lost " + s.lost +
+        (s.hit_cost ? " (-" + s.hit_cost + " hit)" : "");
+    }
+    if (c.rec_type === "chip") return "Chip call logged (neutral until per-chip replay exists).";
+    return null;
+  }
+
+  function renderCard(c) {
+    var typeLabels = { captain: "Captaincy", transfer: "Transfer", xi: "Starting XI", chip: "Chip" };
+    var subject = c.subject || {};
+    var line = "";
+    if (c.rec_type === "captain") line = "Captain #" + subject.captain_id;
+    else if (c.rec_type === "transfer")
+      line = "IN [" + (subject.transfers_in || []).join(", ") + "] OUT [" + (subject.transfers_out || []).join(", ") + "]";
+    else if (c.rec_type === "xi") line = "XI of " + ((subject.xi || []).length) + " players";
+    else line = subject.chip || "—";
+
+    var scoreLine = cardText(c);
+    return (
+      '<div class="card" data-testid="tr-card">' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+          '<span class="stat-label">' + esc(typeLabels[c.rec_type] || c.rec_type) + '</span>' +
+          '<span class="pill">GW' + c.gameweek + "</span>" +
+          '<span style="margin-left:auto">' + verdictPill(c.score) + "</span></div>" +
+        '<div class="num" style="font-weight:700;color:#fff">' + esc(line) + "</div>" +
+        (scoreLine ? '<p class="small muted" style="margin:8px 0 0">' + esc(scoreLine) + "</p>" :
+          '<p class="small faint" style="margin:8px 0 0">Awaiting real GW' + c.gameweek + " results to grade.</p>") +
+      "</div>"
+    );
+  }
+
+  function load() {
+    var entry = ($("entryInput").value || "").trim();
+    if (!/^\d+$/.test(entry)) { alert("Enter your numeric FPL entry id."); return; }
+    try { localStorage.setItem("fpl_session_id", entry); } catch (e) {}
+    fetch("/api/v1/sync/track-record?entry_id=" + encodeURIComponent(entry))
+      .then(function (r) { return r.ok ? r.json() : r.json().then(function (b) { throw new Error(b.detail || r.status); }); })
+      .then(function (data) { render(data); loadCalibration(); })
+      .catch(function (err) { $("allCards").innerHTML = '<p class="muted small">' + esc(err.message || "Load failed.") + "</p>"; });
+  }
+
+  function loadCalibration() {
+    fetch("/api/v1/sync/calibration").then(function (r) { return r.ok ? r.json() : null; }).then(function (cal) {
+      if (!cal) return;
+      $("stMae").textContent = cal.mae === null || cal.mae === undefined ? "–" : Number(cal.mae).toFixed(2);
+      $("stMaeSub").textContent = cal.count ? cal.count + " player-GW pairs · bias " + (cal.bias > 0 ? "+" : "") + Number(cal.bias).toFixed(2) : "no reconciled predictions yet";
+    }).catch(function () {});
+  }
+
+  function render(data) {
+    var rolling = data.rolling || {};
+    $("summaryGrid").style.display = "grid";
+    $("stGraded").textContent = String(rolling.graded || 0);
+    $("stGradedSub").textContent = (data.cards || []).length + " recommendations saved";
+    $("stHit").textContent = rolling.hit_rate === null || rolling.hit_rate === undefined
+      ? "–" : Math.round(rolling.hit_rate * 100) + "%";
+    var net = rolling.net_points || 0;
+    $("stNet").textContent = (net > 0 ? "+" : "") + net;
+
+    var last5 = rolling.last_5 || [];
+    $("last5").innerHTML = last5.length
+      ? last5.map(renderCard).join("")
+      : '<p class="muted small">No graded cards yet — they appear automatically after a gameweek\'s results are ingested via history-push.</p>';
+
+    var cards = data.cards || [];
+    $("allCards").innerHTML = cards.length
+      ? cards.map(renderCard).join("")
+      : '<p class="muted small">Nothing yet. Open the <a href="/dashboard">Decisions</a> page with your squad to start recording calls.</p>';
+  }
+
+  $("loadBtn").addEventListener("click", load);
+  $("entryInput").addEventListener("keydown", function (ev) {
+    if (ev.key === "Enter") load();
+  });
+  if ($("entryInput").value) load();
+});
+</script>
+</body>
+</html>

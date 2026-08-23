@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live — FPL Intelligence</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/app.js"></script>
+</head>
+<body>
+<div id="topnav"></div>
+<div class="wrap">
+
+  <h1 style="font-size:22px;font-weight:800;color:#fff;margin:0 0 4px">Matchday board</h1>
+  <p class="muted small" style="margin-top:0">Your players with live points pushed by the Apps Script matchday trigger (hourly 14:00–18:00 UTC Sat/Sun). ESPN's open scoreboard is the independent cross-check.</p>
+
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 20px;align-items:center">
+    <input id="entryInput" class="input" style="max-width:220px" placeholder="FPL entry id" inputmode="numeric">
+    <button id="loadBtn" class="btn" type="button">Load board</button>
+    <a id="espnLink" class="btn-ghost" href="https://www.espn.com/soccer/scoreboard/_/league/eng.1" target="_blank" rel="noopener" style="text-decoration:none">ESPN scoreboard ↗</a>
+  </div>
+
+  <div id="summaryGrid" style="display:none;margin-bottom:20px" class="grid">
+    <div class="stat"><div class="stat-label">Effective total</div><div class="stat-value num" id="stTotal">–</div><div class="stat-sub" id="stTotalSub">&nbsp;</div></div>
+    <div class="stat"><div class="stat-label">Players with live data</div><div class="stat-value num" id="stCovered">–</div><div class="stat-sub">of your 15</div></div>
+    <div class="stat"><div class="stat-label">Gameweek</div><div class="stat-value num" id="stGw">–</div><div class="stat-sub" id="stUpdated">–</div></div>
+  </div>
+
+  <div id="note" style="display:none;margin-bottom:16px" class="card"><span class="small warn" style="color:#fde68a"></span></div>
+
+  <div class="section-h">Starting XI</div>
+  <div class="card" style="padding:4px 16px" id="xiBox"></div>
+  <div class="section-h">Bench</div>
+  <div class="card" style="padding:4px 16px" id="benchBox"></div>
+
+</div>
+<script>
+"use strict";
+document.addEventListener("DOMContentLoaded", function () {
+  FPLApp.renderNav("/live");
+  var $ = function (id) { return document.getElementById(id); };
+  try {
+    var saved = localStorage.getItem("fpl_session_id");
+    if (saved && /^\d+$/.test(saved)) $("entryInput").value = saved;
+  } catch (e) {}
+
+  function row(r) {
+    var pts = r.live_points;
+    var ptsHtml = pts === null || pts === undefined
+      ? '<span class="faint">no data</span>'
+      : '<strong class="num">' + r.live_points + "</strong>";
+    var capBadge = r.is_captain ? ' <span class="pill warn" title="Captain — points doubled">C×2</span>' : "";
+    return (
+      '<div class="row">' +
+        FPLApp.crestHTML(null) + // placeholder replaced below
+        '<span class="crest" data-team="' + (r.team_id || 0) + '" style="' + "background:linear-gradient(135deg,#334155,#1e293b)" + '">' +
+          FPLApp.esc((r.name || "?").slice(0, 3).toUpperCase()) + "</span>" +
+        '<div style="min-width:0"><strong>' + FPLApp.esc(r.name || ("Player " + r.element_id)) + "</strong>" + capBadge +
+          '<div class="faint small">' + FPLApp.esc(r.fixture || "") + (r.opponent ? " · vs " + FPLApp.esc(r.opponent) : "") +
+          (r.minutes !== null && r.minutes !== undefined ? " · " + r.minutes + "'" : "") + "</div></div>" +
+        '<span style="margin-left:auto">' + (r.on_bench ? '<span class="pill">bench</span> ' : "") + ptsHtml + "</span>" +
+      "</div>"
+    );
+  }
+
+  function load() {
+    var entry = ($("entryInput").value || "").trim();
+    if (!/^\d+$/.test(entry)) { alert("Enter your numeric FPL entry id."); return; }
+    try { localStorage.setItem("fpl_session_id", entry); } catch (e) {}
+    fetch("/api/v1/sync/live-board?session_id=" + encodeURIComponent(entry))
+      .then(function (res) { return res.ok ? res.json() : res.json().then(function (b) { throw new Error(b.detail || res.status); }); })
+      .then(function (data) { render(data); })
+      .catch(function (err) {
+        $("xiBox").innerHTML = '<p class="muted small">' + FPLApp.esc(err.message || "Load failed.") + "</p>";
+        $("benchBox").innerHTML = "";
+      });
+  }
+
+  function render(data) {
+    $("summaryGrid").style.display = "grid";
+    $("stTotal").textContent = String(data.effective_total);
+    $("stTotalSub").textContent = "raw XI points " + data.total_live_points + " (captain doubled)";
+    $("stCovered").textContent = String(data.players_with_data);
+    $("stGw").textContent = String(data.gameweek);
+    var updated = data.rows.filter(function (r) { return r.updated_at; })
+      .map(function (r) { return r.updated_at; }).sort().pop();
+    $("stUpdated").textContent = updated ? new Date(updated).toLocaleTimeString() : "–";
+
+    if (data.note) {
+      $("note").style.display = "block";
+      $("note").querySelector("span").textContent = data.note;
+    } else { $("note").style.display = "none"; }
+
+    var starters = data.rows.filter(function (r) { return !r.on_bench; });
+    var bench = data.rows.filter(function (r) { return r.on_bench; });
+    $("xiBox").innerHTML = starters.length ? starters.map(row).join("") : '<p class="muted small">No squad found.</p>';
+    $("benchBox").innerHTML = bench.length ? bench.map(row).join("") : '<p class="muted small">—</p>';
+    FPLApp.hydrateCrests(document);
+  }
+
+  $("loadBtn").addEventListener("click", load);
+  $("entryInput").addEventListener("keydown", function (ev) { if (ev.key === "Enter") load(); });
+  if ($("entryInput").value) load();
+});
+</script>
+</body>
+</html>

@@ -424,6 +424,10 @@ def _baseline_points_for_gameweek(db: Session, gameweek: int) -> ChainLevel | No
             "players_with_history": len(per_player),
             "universe_players": universe,
             "coverage": round(coverage, 3),
+            #: Phase 19.0 — the newest ingested gameweek feeding the form
+            #: window; surfaced as "through GW{n}" in the chain label so users
+            #: can see predictions refresh after every history-push.
+            "through_gw": latest_gw_seen,
         },
     )
 
@@ -778,6 +782,16 @@ def _score_proxy_universe(
 # ---------------------------------------------------------------------------
 
 
+def _source_label(source: str, notes: dict[str, Any] | None = None) -> str:
+    """Human label for a chain level; baseline appends its form cutoff."""
+    label = SOURCE_LABELS.get(source, source)
+    if source == SOURCE_BASELINE and notes:
+        through = notes.get("through_gw")
+        if through:
+            label += f" · through GW{through}"
+    return label
+
+
 class PredictionUnavailableError(RuntimeError):
     """Raised when no chain level can serve predictions for a gameweek.
 
@@ -809,7 +823,7 @@ class PredictionChainResult:
         """Serialisable provenance payload for the API/dashboard."""
         return {
             "source": self.resolved.source,
-            "source_label": SOURCE_LABELS.get(self.resolved.source, self.resolved.source),
+            "source_label": _source_label(self.resolved.source, self.resolved.notes),
             "data_quality": self.resolved.data_quality,
             "covered_players": self.resolved.covered,
             "levels_considered": len(self.levels),

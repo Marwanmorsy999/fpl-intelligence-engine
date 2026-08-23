@@ -49,6 +49,14 @@ class Settings(BaseSettings):
     # TTL for cached FPL responses (seconds).
     egress_cache_ttl: float = 60
 
+    # --- Phase 19.0 — real-system sync trio ---------------------------------
+    # Shared secret for machine-to-machine pushes (bookmarklet, Google Apps
+    # Script fetcher, GitHub Actions data refresh). Callers authenticate with
+    # ``Authorization: Bearer <SYNC_PUSH_TOKEN>``. Empty means "not configured":
+    # every push endpoint then answers 503 so an unconfigured deployment can
+    # never accept unauthenticated writes.
+    sync_push_token: str = ""
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 

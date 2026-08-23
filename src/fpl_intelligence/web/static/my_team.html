@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Team — FPL Intelligence</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/app.js"></script>
+</head>
+<body>
+<div id="topnav"></div>
+<div class="wrap">
+
+  <h1 style="font-size:22px;font-weight:800;color:#fff;margin:0 0 4px">My team</h1>
+  <p class="muted small" style="margin-top:0">The squad currently synced to the engine (via bookmarklet or Apps Script), with prices and captaincy.</p>
+
+  <div style="display:flex;gap:8px;margin:16px 0 20px">
+    <input id="entryInput" class="input" style="max-width:220px" placeholder="FPL entry id" inputmode="numeric">
+    <button id="loadBtn" class="btn" type="button">Load squad</button>
+    <a class="btn-ghost" href="/connect" style="text-decoration:none">How to sync →</a>
+  </div>
+
+  <div id="metaLine" class="muted small" style="margin-bottom:14px"></div>
+
+  <div id="squadGrid" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(210px,1fr))"></div>
+
+</div>
+<script>
+"use strict";
+document.addEventListener("DOMContentLoaded", function () {
+  FPLApp.renderNav("/my-team");
+  var $ = function (id) { return document.getElementById(id); };
+  var POS_NAMES = { 1: "GK", 2: "DEF", 3: "MID", 4: "FWD" };
+  try {
+    var saved = localStorage.getItem("fpl_session_id");
+    if (saved && /^\d+$/.test(saved)) $("entryInput").value = saved;
+  } catch (e) {}
+
+  function tile(pid, squad, slotIdx, names) {
+    var isC = pid === squad.captain_id;
+    var isV = !isC && pid === squad.vice_captain_id;
+    var name = (names && names[pid]) || "Player " + pid;
+    var pos = ((squad.player_positions || {})[pid]);
+    var price = ((squad.player_prices || {})[pid]);
+    return (
+      '<div class="card" data-testid="squad-tile">' +
+        '<div style="display:flex;align-items:center;gap:8px">' +
+          '<span class="crest" data-team="' + (((squad.player_teams || {})[pid]) || 0) + '" style="' + "background:linear-gradient(135deg,#334155,#1e293b)" + '">' +
+            FPLApp.esc(name.slice(0, 3).toUpperCase()) + "</span>" +
+          "<div><strong>" + FPLApp.esc(name) + "</strong>" +
+            '<div class="faint small">' + (pos ? POS_NAMES[pos] + " · " : "") + (price != null ? "£" + Number(price).toFixed(1) + "m" : "") + "</div></div>" +
+          '<span style="margin-left:auto">' +
+            (isC ? '<span class="pill warn">C×2</span>' : isV ? '<span class="pill">VC</span>' : "") +
+            '<span class="faint small" style="margin-left:6px">#' + slotIdx + "</span></span>" +
+        "</div></div>"
+    );
+  }
+
+  function load() {
+    var entry = ($("entryInput").value || "").trim();
+    if (!/^\d+$/.test(entry)) { alert("Enter your numeric FPL entry id."); return; }
+    try { localStorage.setItem("fpl_session_id", entry); } catch (e) {}
+    fetch("/api/v1/squad?session_id=" + encodeURIComponent(entry))
+      .then(function (res) { return res.ok ? res.json() : res.json().then(function (b) { throw new Error(b.detail || res.status); }); })
+      .then(function (squad) {
+        fetch("/api/v1/players").then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (players) {
+          var byElement = {};
+          players.forEach(function (p) {
+            byElement[p.fpl_element_id != null ? p.fpl_element_id : p.id] = p.web_name;
+          });
+          render(squad, byElement);
+        });
+      })
+      .catch(function (err) {
+        $("metaLine").textContent = err.message || "Load failed.";
+        $("squadGrid").innerHTML = "";
+      });
+  }
+
+  function render(squad, names) {
+    $("metaLine").innerHTML = "Gameweek <strong>" + squad.gameweek + "</strong> · bank £" +
+      Number(squad.bank).toFixed(1) + "m · " + squad.free_transfers + " free transfer(s)" +
+      " · last updated " + (squad.updated_at ? new Date(squad.updated_at).toLocaleString() : "–");
+    $("squadGrid").innerHTML = (squad.player_ids || [])
+      .map(function (pid, i) { return tile(pid, squad, i + 1, names); })
+      .join("");
+    FPLApp.hydrateCrests(document);
+  }
+
+  $("loadBtn").addEventListener("click", load);
+  $("entryInput").addEventListener("keydown", function (ev) { if (ev.key === "Enter") load(); });
+  if ($("entryInput").value) load();
+});
+</script>
+</body>
+</html>

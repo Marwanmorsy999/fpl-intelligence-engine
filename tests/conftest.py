@@ -24,6 +24,18 @@ from fpl_intelligence.db.models import (
     TeamExternalId,
 )
 from fpl_intelligence.squad.models_db import SquadStateDB  # noqa: F401
+from fpl_intelligence.sync import models as _sync_models  # noqa: F401
+
+# Phase 19.0: register every sync-layer table on the shared metadata before
+# create_all runs (importing the module is enough for Base.metadata).
+_SYNC_TABLES = (
+    _sync_models.IngestedGameweekDB,
+    _sync_models.PredictionLedgerDB,
+    _sync_models.RecommendationDB,
+    _sync_models.SyncLivePointDB,
+    _sync_models.SyncLogDB,
+)
+assert all(_SYNC_TABLES), "sync models must be importable for metadata registration"
 
 
 @pytest.fixture

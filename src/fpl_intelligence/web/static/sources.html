@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sources — FPL Intelligence</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/app.js"></script>
+</head>
+<body>
+<div id="topnav"></div>
+<div class="wrap">
+
+  <h1 style="font-size:22px;font-weight:800;color:#fff;margin:0 0 4px">Data sources</h1>
+  <p class="muted small" style="margin-top:0">Live status of every external dependency — what is feeding the math right now, and what is off.</p>
+
+  <div class="section-h">External providers</div>
+  <div class="card" style="padding:4px 16px" id="sourcesBox"><span class="faint">Checking…</span></div>
+
+  <div class="section-h">Sync pipeline (Phase 19)</div>
+  <div class="card" style="padding:4px 16px" id="syncBox"><span class="faint">Checking…</span></div>
+
+  <div class="section-h">Prediction calibration</div>
+  <div class="card" id="calBox"><span class="faint">Checking…</span></div>
+
+</div>
+<script>
+"use strict";
+document.addEventListener("DOMContentLoaded", function () {
+  FPLApp.renderNav("/sources");
+  var $ = function (id) { return document.getElementById(id); };
+  var LABELS = {
+    fpl_import: "FPL Import", odds_api: "Odds API (market check)", understat: "Understat (xG/xA)",
+    weather: "Weather (Open-Meteo)", pl_photos: "PL Photos & Badges", llm: "AI Analyst (LLM)"
+  };
+
+  function pill(status) {
+    var cls = (status === "ok" || status === "live" || status === "enabled") ? "ok"
+      : (status === "blocked" || status === "outage" || status === "off") ? "bad"
+      : (status === "stale" || status === "degraded") ? "warn" : "";
+    return '<span class="pill ' + cls + '">' + FPLApp.esc(status) + "</span>";
+  }
+
+  fetch("/api/v1/data-sources").then(function (r) { return r.ok ? r.json() : null; }).then(function (data) {
+    if (!data || !data.sources) { $("sourcesBox").innerHTML = '<p class="faint">unavailable</p>'; return; }
+    var rows = Object.keys(LABELS).map(function (key) {
+      var s = data.sources[key] || {};
+      return '<div class="row"><div><strong>' + LABELS[key] + "</strong>" +
+        (s.detail ? '<div class="faint small">' + FPLApp.esc(s.detail) + "</div>" : "") + "</div>" +
+        '<span style="margin-left:auto">' + pill(s.status || "unknown") + "</span></div>";
+    }).join("");
+    $("sourcesBox").innerHTML = rows +
+      (data.as_of ? '<p class="faint small" style="margin:10px 0 0">Checked: ' + FPLApp.esc(data.as_of) + "</p>" : "");
+  }).catch(function () { $("sourcesBox").innerHTML = '<p class="faint">unavailable</p>'; });
+
+  fetch("/api/v1/sync/status").then(function (r) { return r.ok ? r.json() : null; }).then(function (data) {
+    if (!data) { $("syncBox").innerHTML = '<p class="faint">unavailable</p>'; return; }
+    var kinds = ["squad", "live", "history"];
+    var rows = kinds.map(function (k) {
+      var l = (data.latest || {})[k];
+      return '<div class="row"><div><strong>' + k + "-push</strong>" +
+        '<div class="faint small">' + (l ? new Date(l.at).toLocaleString() : "never pushed") + "</div></div>" +
+        '<span style="margin-left:auto">' + (l ? pill("ok") : pill("pending")) + "</span></div>";
+    }).join("");
+    $("syncBox").innerHTML = rows +
+      '<p class="faint small" style="margin:10px 0 0">Token configured server-side: ' +
+      (data.token_configured ? "yes" : "<strong>NO</strong> — set SYNC_PUSH_TOKEN env var") + ". Setup guide on the <a href='/connect'>Connect</a> page.</p>";
+  }).catch(function () { $("syncBox").innerHTML = '<p class="faint">unavailable</p>'; });
+
+  fetch("/api/v1/sync/calibration").then(function (r) { return r.ok ? r.json() : null; }).then(function (cal) {
+    if (!cal) { $("calBox").innerHTML = '<p class="faint">unavailable</p>'; return; }
+    if (!cal.count) {
+      $("calBox").innerHTML = '<p class="muted small">No reconciled predictions yet. Calibration fills in automatically once GitHub Actions ingests a gameweek after the engine has published forecasts.</p>';
+      return;
+    }
+    var buckets = cal.buckets || {};
+    var bucketRows = Object.keys(buckets).map(function (label) {
+      var b = buckets[label] || {};
+      return '<tr><td>|error| ' + label + '</td><td class="num">' + b.count + '</td><td class="num">' +
+        Math.round((b.share || 0) * 100) + "%</td></tr>";
+    }).join("");
+    $("calBox").innerHTML =
+      '<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-bottom:12px">' +
+        '<div class="stat"><div class="stat-label">Pairs graded</div><div class="stat-value num">' + cal.count + "</div></div>" +
+        '<div class="stat"><div class="stat-label">MAE</div><div class="stat-value num">' + Number(cal.mae).toFixed(2) + "</div></div>" +
+        '<div class="stat"><div class="stat-label">Bias</div><div class="stat-value num">' + (cal.bias > 0 ? "+" : "") + Number(cal.bias).toFixed(2) + "</div>" +
+        '<div class="stat-sub">+ means over-predicting</div></div>' +
+      "</div>" +
+      '<table class="data"><thead><tr><th>Error band</th><th class="num">Players</th><th class="num">Share</th></tr></thead><tbody>' +
+      bucketRows + "</tbody></table>";
+  }).catch(function () { $("calBox").innerHTML = '<p class="faint">unavailable</p>'; });
+});
+</script>
+</body>
+</html>

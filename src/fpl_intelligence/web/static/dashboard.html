@@ -3,9 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FPL Intelligence — Professional Dashboard</title>
+<title>FPL Intelligence — Decisions</title>
 <link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="/static/app.css">
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #0a1120; }
   .fg-card { background: #111c31; border: 1px solid #253348; }
@@ -76,6 +80,19 @@
 </style>
 </head>
 <body class="text-slate-200 min-h-screen antialiased">
+
+<!-- Phase 19.0 — shared multi-page navigation (Decisions active) -->
+<div id="topnav"><div class="topnav"><div class="topnav-inner">
+  <a class="brand" href="/dashboard"><span class="brand-dot">⚽</span>FPL Intelligence</a>
+  <a class="navlink active" href="/dashboard" aria-current="page">Decisions</a>
+  <a class="navlink" href="/my-team">My Team</a>
+  <a class="navlink" href="/track-record">Track Record</a>
+  <a class="navlink" href="/live">Live</a>
+  <a class="navlink" href="/sources">Sources</a>
+  <a class="navlink" href="/connect">Connect</a>
+  <span id="healthPillNav" style="display:none"></span>
+</div></div></div>
+
 <div class="max-w-4xl mx-auto px-4 py-8">
 
   <!-- ======= Header ======= -->
@@ -183,7 +200,7 @@
     <div id="dataSourcesBox" class="fg-card rounded-2xl p-5 shadow-xl mb-8"></div>
   </section>
 
-  <footer class="mt-8 text-slate-600 text-xs text-center">Powered by the FPL Intelligence Engine · Photos &amp; badges © Premier League · Data from the official Fantasy Premier League API</footer>
+  <footer class="mt-8 text-slate-600 text-xs text-center">Powered by the FPL Intelligence Engine · Photos &amp; badges © Premier League · Data from the official Fantasy Premier League API · <a class="text-sky-500" href="/track-record">Track record</a> · <a class="text-sky-500" href="/connect">Connect</a></footer>
 </div>
 <script>
 "use strict";
@@ -697,9 +714,13 @@ function renderChainBanner(report) {
     + (quality ? '<div><div class="chain-label">Data quality</div><div class="chain-quality">' + quality + "</div></div>" : "")
     + (chain.covered_players != null ? '<div><div class="chain-label">Players covered</div><div class="chain-quality">' + chain.covered_players + "</div></div>" : "")
     + "</div>";
-  /* Notes row: market check + weather, ONLY when the data actually exists. */
+  /* Notes row: market check + weather, ONLY when the data actually exists.
+     Phase 19.0: baseline form cutoff ("through GW{n}") when present. */
   var notes = chain.notes || {};
   var noteLines = [];
+  if (notes.through_gw != null && typeof notes.through_gw === "number") {
+    noteLines.push('<span class="chain-note ok">Form through GW' + notes.through_gw + "</span>");
+  }
   if (typeof notes.understat_matched === "number") {
     noteLines.push('<span class="chain-note">Understat matched: ' + notes.understat_matched + " players</span>");
   }

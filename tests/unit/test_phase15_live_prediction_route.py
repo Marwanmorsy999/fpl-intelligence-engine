@@ -221,7 +221,10 @@ class TestDecisionsLiveChain:
         # Phase 17.0: the baseline model now resolves (25% coverage gate passed)
         # because the seed catalog + ingested history cover the full universe.
         assert chain["source"] == "baseline-model"
-        assert chain["source_label"] == "Baseline model (2025/26 features)"
+        # Phase 19.0: the label discloses the form cutoff ("through GW{n}").
+        assert chain["source_label"].startswith("Baseline model")
+        assert "through GW2" in chain["source_label"]
+        assert chain["notes"].get("through_gw") == 2
         assert chain["data_quality"] == "ingested-gameweek-history"
         assert isinstance(chain["covered_players"], int)
         assert chain["covered_players"] >= 11
