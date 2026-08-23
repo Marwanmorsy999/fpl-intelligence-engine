@@ -1578,20 +1578,38 @@ _LIVE_SNAPSHOTS_DDL = (
         fetched_at TIMESTAMP WITH TIME ZONE NOT NULL
     )
     """,
+    # Phase 13.5 legacy table some prod DBs never received.
+    """
+    CREATE TABLE IF NOT EXISTS pending_sync (
+        id SERIAL PRIMARY KEY,
+        entry_id INTEGER NOT NULL,
+        auto_sync BOOLEAN NOT NULL DEFAULT TRUE,
+        status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+        created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    )
+    """,
 )
+
+# Tables ensured lazily by _ensure_daily_tables (idempotent DDL).
+_ENSURE_TABLES = ("live_snapshots", "pending_sync")
 
 
 def _ensure_daily_tables(db: Session) -> list[str]:
     created: list[str] = []
     insp = sa_inspect(db.get_bind())
-    if not insp.has_table("live_snapshots"):
+    existing = {name for name in _ENSURE_TABLES if insp.has_table(name)}
+    if len(existing) == len(_ENSURE_TABLES):
+        return []
+    for ddl in _LIVE_SNAPSHOTS_DDL:
         try:
-            db.execute(text(_LIVE_SNAPSHOTS_DDL))
+            db.execute(text(ddl))
             db.commit()
-            created.append("live_snapshots")
-        except Exception as exc:  # noqa: BLE001 - sqlite tests pre-create it
+        except Exception as exc:  # noqa: BLE001 - sqlite tests pre-create them
             db.rollback()
-            logger.debug("live_snapshots DDL skipped: %s", exc)
+            logger.debug("daily DDL skipped: %s", exc)
+    insp2 = sa_inspect(db.get_bind())
+    created = [n for n in _ENSURE_TABLES if n not in existing and insp2.has_table(n)]
     return created
 
 
@@ -1624,6 +1642,7 @@ async def daily_endpoint(
     run (every stage is idempotent).
     """
     import asyncio
+    import contextlib
     import time as _time
 
     from fpl_intelligence.api.routes.assistant import assistant_brief
@@ -1686,39 +1705,7 @@ async def daily_endpoint(
             db.rollback()
             steps["sync"] = {"ok": False, "detail": f"{type(exc).__name__}: {exc}"}
 
-        # -- 3. pre-generate current-GW briefs (per-brief cap 14 s) -------------------
-        built = 0
-        skipped = 0
-        timed_out = 0
-        brief_errors: list[str] = []
-        session_rows = db.execute(
-            select(SquadStateDB.session_id).order_by(SquadStateDB.updated_at.desc())
-        ).scalars().all()[:_DAILY_MAX_SQUADS]
-        for sid in session_rows:
-            if _time.monotonic() - started_at.timestamp() > 34.0:
-                skipped += 1
-                continue
-            try:
-                await asyncio.wait_for(
-                    assistant_brief(response=Response(), db=db, session_id=str(sid), gw=None),
-                    timeout=14.0,
-                )
-                built += 1
-            except TimeoutError:
-                timed_out += 1
-            except Exception as exc:  # noqa: BLE001 - per-squad isolation
-                brief_errors.append(f"{sid}: {type(exc).__name__}")
-        steps["briefs"] = {
-            "ok": True,
-            "detail": {
-                "built": built,
-                "squads": len(session_rows),
-                "deferred": skipped + timed_out,
-                "errors": brief_errors[:5],
-            },
-        }
-
-        # -- 4. grade any finished ungraded gameweek ----------------------------------
+        # -- 3. grade any finished ungraded gameweek ----------------------------------
         graded_note = "nothing to grade"
         newly_scored_local = 0
         try:
@@ -1736,6 +1723,51 @@ async def daily_endpoint(
             db.rollback()
             graded_note = f"{type(exc).__name__}: {exc}"
         steps["grading"] = {"ok": True, "detail": graded_note}
+
+        # -- 4. pre-generate current-GW briefs (runs LAST, hard 12 s stage cap) --------
+        # Cheap stages always complete first; deferred squads lazily generate on
+        # first page load instead (identical code path).
+        built = 0
+        skipped = 0
+        timed_out = 0
+        brief_errors: list[str] = []
+
+        async def _build_briefs():
+            nonlocal built, skipped, timed_out
+            rows = db.execute(
+                select(SquadStateDB.session_id).order_by(SquadStateDB.updated_at.desc())
+            ).scalars().all()[:_DAILY_MAX_SQUADS]
+            for sid in rows:
+                if _time.monotonic() - started_at.timestamp() > 34.0:
+                    skipped += 1
+                    continue
+                try:
+                    await asyncio.wait_for(
+                        assistant_brief(response=Response(), db=db, session_id=str(sid), gw=None),
+                        timeout=10.0,
+                    )
+                    built += 1
+                except TimeoutError:
+                    timed_out += 1
+                except Exception as exc:  # noqa: BLE001 - per-squad isolation
+                    brief_errors.append(f"{sid}: {type(exc).__name__}")
+
+        t0 = _time.monotonic()
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(_build_briefs(), timeout=12.0)
+        session_count = len(
+            db.execute(select(SquadStateDB.session_id)).scalars().all()[:_DAILY_MAX_SQUADS]
+        )
+        steps["briefs"] = {
+            "ok": True,
+            "ms": int((_time.monotonic() - t0) * 1000),
+            "detail": {
+                "built": built,
+                "squads": min(session_count, _DAILY_MAX_SQUADS),
+                "deferred": skipped + timed_out,
+                "errors": brief_errors[:5],
+            },
+        }
         return newly_scored_local
 
     ok_count = 0
