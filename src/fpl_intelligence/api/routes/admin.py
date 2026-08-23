@@ -1628,6 +1628,8 @@ async def daily_endpoint(
     started_at = datetime.now(UTC)
     steps: dict[str, dict] = {}
 
+    import asyncio
+
     db = SessionLocal()
     ok_count = 0
     total_steps = 4
@@ -1638,8 +1640,25 @@ async def daily_endpoint(
         created_tables = _ensure_daily_tables(db)
         steps["tables"] = {"ok": True, "detail": created_tables or "up to date"}
 
+        # Every network-bound stage gets a hard deadline so the whole job
+        # always finishes inside the 60 s serverless budget; deferred stages
+        # are reported honestly and simply complete on the next run.
+        async def _bounded(stage: str, coro, seconds: float):
+            try:
+                return await asyncio.wait_for(coro, timeout=seconds)
+            except TimeoutError:
+                steps[stage] = {
+                    "ok": False,
+                    "detail": f"deferred — exceeded {seconds:.0f}s stage budget",
+                }
+                return None
+            except Exception as exc:  # noqa: BLE001 - per-stage isolation
+                db.rollback()
+                steps[stage] = {"ok": False, "detail": f"{type(exc).__name__}: {exc}"}
+                return None
+
         # -- 1. materialize ------------------------------------------------------
-        try:
+        async def _do_materialize():
             report = await materialize_all(db, season_code=SEASON_CODE)
             mat_ok = bool(report.get("predictions", {}).get("ok")) or bool(
                 report.get("fixtures", {}).get("ok")
@@ -1650,19 +1669,22 @@ async def daily_endpoint(
                     k: (v or {}).get("ok") for k, v in report.items() if isinstance(v, dict)
                 },
             }
-        except Exception as exc:  # noqa: BLE001 - one step never stops the rest
-            db.rollback()
-            steps["materialize"] = {"ok": False, "detail": f"{type(exc).__name__}: {exc}"}
+
+        await _bounded("materialize", _do_materialize(), 30.0)
 
         # -- 2. pending squad syncs ------------------------------------------------
-        try:
-            result = await run_pending_sync(db)
-            steps["sync"] = {"ok": True, "detail": f"entry {result.entry_id} synced"}
-        except NoPendingSync:
-            steps["sync"] = {"ok": True, "detail": "no pending sync"}
-        except Exception as exc:  # noqa: BLE001
-            db.rollback()
-            steps["sync"] = {"ok": False, "detail": f"{type(exc).__name__}: {exc}"}
+
+        async def _do_sync():
+            try:
+                result = await run_pending_sync(db)
+                steps["sync"] = {"ok": True, "detail": f"entry {result.entry_id} synced"}
+            except NoPendingSync:
+                steps["sync"] = {"ok": True, "detail": "no pending sync"}
+            except Exception:  # noqa: BLE001
+                db.rollback()
+                raise
+
+        await _bounded("sync", _do_sync(), 15.0)
 
         # -- 3. pre-generate current-GW briefs -------------------------------------
         # Budget-aware: keep building only while the shared 60 s function
