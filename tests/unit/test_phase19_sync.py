@@ -391,6 +391,63 @@ class TestHistoryPushMathUpdates:
         assert payload["rolling"]["hit_rate"] is None
 
 
+class TestSyncMigrationEndpoint:
+    def test_migrate_sync_tables_applies_then_seals(self, monkeypatch):
+        """One-shot DDL hotfix: creates missing tables, then answers 410."""
+        from sqlalchemy import create_engine, event
+        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy.pool import StaticPool
+
+        from fpl_intelligence.api import routes
+        from fpl_intelligence.api.main import app
+        from fpl_intelligence.db.base import Base
+        from fpl_intelligence.db.models import (
+            IngestionRun,  # noqa: F401
+            Season,  # noqa: F401
+        )
+
+        # Register the core metadata (players/seasons/ingestion_runs) but NOT
+        # the sync models, so the endpoint has real work to do.
+        from fpl_intelligence.squad import models_db as _squad_models  # noqa: F401
+
+        engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+
+        @event.listens_for(engine, "connect")
+        def _fk(dbapi_connection, connection_record):
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.close()
+
+        Base.metadata.create_all(
+            engine,
+            tables=[
+                t
+                for t in Base.metadata.sorted_tables
+                if t.name not in ("sync_live_points", "ingested_history",
+                                  "recommendation", "prediction_ledger", "sync_log")
+            ],
+        )
+        session = sessionmaker(bind=engine)()
+        # The hotfix opens its own production session; point it at sqlite.
+        monkeypatch.setattr(routes.admin, "SessionLocal", lambda: session)
+        client = TestClient(app)
+        try:
+            first = client.post("/api/v1/admin/migrate-sync-tables")
+            assert first.status_code == 200, first.text
+            assert set(first.json()["tables_created"]) == {
+                "sync_live_points", "ingested_history", "recommendation",
+                "prediction_ledger", "sync_log",
+            }
+            second = client.post("/api/v1/admin/migrate-sync-tables")
+            assert second.status_code == 410
+        finally:
+            session.close()
+
+
 class TestLiveBoard:
     def test_live_board_honest_without_data(self, api):
         client, db, token = api

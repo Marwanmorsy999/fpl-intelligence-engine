@@ -1033,3 +1033,178 @@ async def reseed_fpl_codes_endpoint() -> dict:
         )
     finally:
         db.close()
+
+
+# --------------------------------------------------------------------------- #
+# Phase 19.0 hotfix — create the sync-layer tables on the deployed database.
+# Vercel's build never runs migrations, so the five new Phase 19 tables must be
+# applied out-of-band exactly like the 0016 element-id hotfix above. All DDL is
+# idempotent (IF NOT EXISTS). Seals itself after the first success (410).
+# --------------------------------------------------------------------------- #
+
+_MIGRATE_SYNC_JOB_NAME = "migrate-sync-tables"
+
+_SYNC_DDL: tuple[str, ...] = (
+    """
+    CREATE TABLE IF NOT EXISTS sync_live_points (
+        id SERIAL PRIMARY KEY,
+        gameweek INTEGER NOT NULL,
+        element_id INTEGER NOT NULL,
+        points INTEGER NOT NULL DEFAULT 0,
+        minutes INTEGER,
+        fixture_text VARCHAR(120),
+        opponent VARCHAR(60),
+        updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+        CONSTRAINT uq_sync_live_gw_element UNIQUE (gameweek, element_id)
+    )""",
+    "CREATE INDEX IF NOT EXISTS ix_sync_live_points_gameweek ON sync_live_points (gameweek)",
+    "CREATE INDEX IF NOT EXISTS ix_sync_live_points_element_id ON sync_live_points (element_id)",
+    """
+    CREATE TABLE IF NOT EXISTS ingested_history (
+        id SERIAL PRIMARY KEY,
+        gameweek INTEGER NOT NULL,
+        element_id INTEGER NOT NULL,
+        source VARCHAR(60) NOT NULL DEFAULT 'github-actions',
+        total_points INTEGER NOT NULL DEFAULT 0,
+        minutes INTEGER,
+        bonus INTEGER,
+        goals_scored INTEGER,
+        assists INTEGER,
+        xgi DOUBLE PRECISION,
+        payload JSON NOT NULL DEFAULT '{}',
+        ingested_at TIMESTAMP WITH TIME ZONE NOT NULL,
+        CONSTRAINT uq_ingested_gw_element UNIQUE (gameweek, element_id)
+    )""",
+    "CREATE INDEX IF NOT EXISTS ix_ingested_history_gameweek ON ingested_history (gameweek)",
+    "CREATE INDEX IF NOT EXISTS ix_ingested_history_element_id ON ingested_history (element_id)",
+    """
+    CREATE TABLE IF NOT EXISTS recommendation (
+        id SERIAL PRIMARY KEY,
+        session_key VARCHAR(255) NOT NULL,
+        gameweek INTEGER NOT NULL,
+        rec_type VARCHAR(30) NOT NULL,
+        subject JSON NOT NULL,
+        detail JSON NOT NULL DEFAULT '{}',
+        created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+        scored_at TIMESTAMP WITH TIME ZONE,
+        score JSON
+    )""",
+    "CREATE INDEX IF NOT EXISTS ix_recommendation_session_key ON recommendation (session_key)",
+    "CREATE INDEX IF NOT EXISTS ix_recommendation_gameweek ON recommendation (gameweek)",
+    """
+    CREATE TABLE IF NOT EXISTS prediction_ledger (
+        id SERIAL PRIMARY KEY,
+        gameweek INTEGER NOT NULL,
+        element_id INTEGER NOT NULL,
+        predicted DOUBLE PRECISION NOT NULL,
+        actual INTEGER,
+        source VARCHAR(60) NOT NULL DEFAULT 'baseline-model',
+        reconciled_at TIMESTAMP WITH TIME ZONE,
+        created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+        CONSTRAINT uq_pred_ledger_gw_element UNIQUE (gameweek, element_id)
+    )""",
+    "CREATE INDEX IF NOT EXISTS ix_prediction_ledger_gameweek ON prediction_ledger (gameweek)",
+    "CREATE INDEX IF NOT EXISTS ix_prediction_ledger_element_id ON prediction_ledger (element_id)",
+    """
+    CREATE TABLE IF NOT EXISTS sync_log (
+        id SERIAL PRIMARY KEY,
+        kind VARCHAR(40) NOT NULL,
+        entry_id VARCHAR(255),
+        gameweek INTEGER,
+        ok BOOLEAN NOT NULL DEFAULT TRUE,
+        detail JSON NOT NULL DEFAULT '{}',
+        created_at TIMESTAMP WITH TIME ZONE NOT NULL
+    )""",
+)
+
+
+def _sync_migration_applied(db: Session) -> bool:
+    return (
+        db.scalar(
+            select(IngestionRun).where(
+                IngestionRun.job_name == _MIGRATE_SYNC_JOB_NAME,
+                IngestionRun.source == _INIT_SOURCE,
+                IngestionRun.status == "SUCCESS",
+            )
+        )
+        is not None
+    )
+
+
+@router.post("/admin/migrate-sync-tables")
+async def migrate_sync_tables_endpoint() -> dict:
+    """Create the five Phase 19 sync tables; idempotent DDL.
+
+    Returns 410 after the first successful run. Unauthenticated by design:
+    temporary, self-disabling one-shot migration for the deployment.
+    """
+    db = SessionLocal()
+    try:
+        if _sync_migration_applied(db):
+            return JSONResponse(
+                status_code=410,
+                content={
+                    "ok": False,
+                    "error": "Sync-table migration already applied. This endpoint "
+                    "is disabled after its first successful run.",
+                },
+            )
+
+        insp = sa_inspect(db.get_bind())
+        existing_before = {
+            name
+            for name in (
+                "sync_live_points",
+                "ingested_history",
+                "recommendation",
+                "prediction_ledger",
+                "sync_log",
+            )
+            if insp.has_table(name)
+        }
+        created_now: list[str] = []
+        for ddl in _SYNC_DDL:
+            db.execute(text(ddl))
+        db.commit()
+
+        # Re-inspect to report what actually appeared.
+        insp2 = sa_inspect(db.get_bind())
+        for name in (
+            "sync_live_points",
+            "ingested_history",
+            "recommendation",
+            "prediction_ledger",
+            "sync_log",
+        ):
+            if name not in existing_before and insp2.has_table(name):
+                created_now.append(name)
+
+        if insp2.has_table("alembic_version"):
+            row = db.execute(text("SELECT version_num FROM alembic_version")).first()
+            current = row[0] if row else None
+            if current and current < "0017":
+                db.execute(text("DELETE FROM alembic_version"))
+                db.execute(text("INSERT INTO alembic_version (version_num) VALUES ('0017')"))
+                db.commit()
+
+        db.add(
+            IngestionRun(
+                source=_INIT_SOURCE,
+                job_name=_MIGRATE_SYNC_JOB_NAME,
+                season_code=SEASON_CODE,
+                status="SUCCESS",
+                started_at=datetime.now(UTC),
+                finished_at=datetime.now(UTC),
+                records_processed=len(created_now),
+            )
+        )
+        db.commit()
+        return {"ok": True, "tables_created": created_now}
+    except Exception as exc:  # noqa: BLE001 - surface for visibility
+        db.rollback()
+        logger.exception("migrate-sync-tables failed")
+        return JSONResponse(
+            status_code=500, content={"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        )
+    finally:
+        db.close()
