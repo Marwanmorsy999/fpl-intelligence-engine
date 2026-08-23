@@ -1616,7 +1616,16 @@ def _finished_gameweek_from_cache(payload: list) -> int | None:
 async def daily_endpoint(
     _: None = Depends(_require_cron_auth),
 ) -> dict:
-    """Phase 20.4 — run the whole day's work in one authenticated request."""
+    """Phase 20.4 — run the whole day's work in one authenticated request.
+
+    A global watchdog bounds the entire pipeline to ~48 s so the endpoint
+    ALWAYS answers inside the 60 s serverless budget. Stages that do not
+    finish are reported honestly as deferred and simply complete on the next
+    run (every stage is idempotent).
+    """
+    import asyncio
+    import time as _time
+
     from fpl_intelligence.api.routes.assistant import assistant_brief
     from fpl_intelligence.materialize import materialize_all
     from fpl_intelligence.notifications.telegram_bot import get_allowed_user_ids
@@ -1627,94 +1636,76 @@ async def daily_endpoint(
 
     started_at = datetime.now(UTC)
     steps: dict[str, dict] = {}
-
-    import asyncio
-
     db = SessionLocal()
-    ok_count = 0
     total_steps = 4
-    newly_scored = 0
-    finished_at = started_at
-    try:
-        # -- 0. self-sealing DDL -----------------------------------------------
+
+    async def _run_stages() -> int:
+        """All four stages. Returns newly_scored count."""
+        # -- 0. self-sealing DDL -------------------------------------------------
         created_tables = _ensure_daily_tables(db)
         steps["tables"] = {"ok": True, "detail": created_tables or "up to date"}
 
-        # Every network-bound stage gets a hard deadline so the whole job
-        # always finishes inside the 60 s serverless budget; deferred stages
-        # are reported honestly and simply complete on the next run.
-        async def _bounded(stage: str, coro, seconds: float):
-            try:
-                return await asyncio.wait_for(coro, timeout=seconds)
-            except TimeoutError:
-                steps[stage] = {
-                    "ok": False,
-                    "detail": f"deferred — exceeded {seconds:.0f}s stage budget",
-                }
-                return None
-            except Exception as exc:  # noqa: BLE001 - per-stage isolation
-                db.rollback()
-                steps[stage] = {"ok": False, "detail": f"{type(exc).__name__}: {exc}"}
-                return None
-
-        # -- 1. materialize ------------------------------------------------------
-        async def _do_materialize():
-            report = await materialize_all(db, season_code=SEASON_CODE)
+        # -- 1. materialize (cap 25 s) --------------------------------------------
+        t0 = _time.monotonic()
+        try:
+            report = await asyncio.wait_for(
+                materialize_all(db, season_code=SEASON_CODE), timeout=25.0
+            )
             mat_ok = bool(report.get("predictions", {}).get("ok")) or bool(
                 report.get("fixtures", {}).get("ok")
             )
             steps["materialize"] = {
                 "ok": mat_ok,
+                "ms": int((_time.monotonic() - t0) * 1000),
                 "detail": {
                     k: (v or {}).get("ok") for k, v in report.items() if isinstance(v, dict)
                 },
             }
+        except TimeoutError:
+            db.rollback()
+            steps["materialize"] = {"ok": False, "detail": "deferred — 25s stage budget"}
+        except Exception as exc:  # noqa: BLE001 - one step never stops the rest
+            db.rollback()
+            steps["materialize"] = {"ok": False, "detail": f"{type(exc).__name__}: {exc}"}
 
-        await _bounded("materialize", _do_materialize(), 30.0)
-
-        # -- 2. pending squad syncs ------------------------------------------------
-
-        async def _do_sync():
+        # -- 2. pending squad syncs (cap 12 s) --------------------------------------
+        t0 = _time.monotonic()
+        try:
             try:
-                result = await run_pending_sync(db)
-                steps["sync"] = {"ok": True, "detail": f"entry {result.entry_id} synced"}
+                result = await asyncio.wait_for(run_pending_sync(db), timeout=12.0)
+                steps["sync"] = {
+                    "ok": True,
+                    "ms": int((_time.monotonic() - t0) * 1000),
+                    "detail": f"entry {result.entry_id} synced",
+                }
             except NoPendingSync:
                 steps["sync"] = {"ok": True, "detail": "no pending sync"}
-            except Exception:  # noqa: BLE001
-                db.rollback()
-                raise
+        except TimeoutError:
+            steps["sync"] = {"ok": False, "detail": "deferred — 12s stage budget"}
+        except Exception as exc:  # noqa: BLE001
+            db.rollback()
+            steps["sync"] = {"ok": False, "detail": f"{type(exc).__name__}: {exc}"}
 
-        await _bounded("sync", _do_sync(), 15.0)
-
-        # -- 3. pre-generate current-GW briefs -------------------------------------
-        # Budget-aware: keep building only while the shared 60 s function
-        # budget allows, and cap EACH brief so one slow multi-provider LLM
-        # fallback chain can never consume the whole request. Deferred squads
-        # lazily generate on first page load instead (same code path).
-        import asyncio
-        import time as _time
-
-        _BRIEF_BUDGET_SECONDS = 32.0
-        _PER_BRIEF_TIMEOUT = 14.0
+        # -- 3. pre-generate current-GW briefs (per-brief cap 14 s) -------------------
         built = 0
-        skipped_for_budget = 0
-        deferred_timeout = 0
+        skipped = 0
+        timed_out = 0
         brief_errors: list[str] = []
         session_rows = db.execute(
             select(SquadStateDB.session_id).order_by(SquadStateDB.updated_at.desc())
         ).scalars().all()[:_DAILY_MAX_SQUADS]
         for sid in session_rows:
-            if _time.monotonic() - started_at.timestamp() > _BRIEF_BUDGET_SECONDS:
-                skipped_for_budget += 1
+            if _time.monotonic() - started_at.timestamp() > 34.0:
+                skipped += 1
                 continue
             try:
                 await asyncio.wait_for(
                     assistant_brief(response=Response(), db=db, session_id=str(sid), gw=None),
-                    timeout=_PER_BRIEF_TIMEOUT,
+                    timeout=14.0,
                 )
                 built += 1
             except TimeoutError:
-                deferred_timeout += 1
+                timed_out += 1
             except Exception as exc:  # noqa: BLE001 - per-squad isolation
                 brief_errors.append(f"{sid}: {type(exc).__name__}")
         steps["briefs"] = {
@@ -1722,37 +1713,49 @@ async def daily_endpoint(
             "detail": {
                 "built": built,
                 "squads": len(session_rows),
-                "deferred": skipped_for_budget + deferred_timeout,
+                "deferred": skipped + timed_out,
                 "errors": brief_errors[:5],
             },
         }
 
-        # -- 4. grade any finished ungraded gameweek -------------------------------
+        # -- 4. grade any finished ungraded gameweek ----------------------------------
         graded_note = "nothing to grade"
+        newly_scored_local = 0
         try:
             fx_row = db.scalar(
                 select(FixturesCacheDB).order_by(FixturesCacheDB.id.desc()).limit(1)
             )
             fin_gw = _finished_gameweek_from_cache((fx_row.payload or []) if fx_row else [])
             if fin_gw is not None:
-                newly_scored = score_pending_recommendations(db, up_to_gameweek=fin_gw)
+                newly_scored_local = score_pending_recommendations(db, up_to_gameweek=fin_gw)
                 db.commit()
-                graded_note = f"GW{fin_gw}: {newly_scored} recommendation(s) scored"
+                graded_note = f"GW{fin_gw}: {newly_scored_local} recommendation(s) scored"
             else:
                 graded_note = "no fully-finished gameweek in fixtures cache yet"
         except Exception as exc:  # noqa: BLE001
             db.rollback()
             graded_note = f"{type(exc).__name__}: {exc}"
         steps["grading"] = {"ok": True, "detail": graded_note}
+        return newly_scored_local
 
-        ok_count = sum(
-            1
-            for name in ("materialize", "sync", "briefs", "grading")
-            if steps.get(name, {}).get("ok")
-        )
+    ok_count = 0
+    newly_scored = 0
+    finished_at = started_at
+    watchdog_hit = False
+    try:
+        try:
+            newly_scored = await asyncio.wait_for(_run_stages(), timeout=48.0)
+        except TimeoutError:
+            watchdog_hit = True
+            for name in ("tables", "materialize", "sync", "briefs", "grading"):
+                steps.setdefault(name, {"ok": False, "detail": "deferred — global watchdog"})
+            logger.warning("daily job hit the 48s global watchdog")
+        finally:
+            finished_at = datetime.now(UTC)
 
+        names = ("materialize", "sync", "briefs", "grading")
+        ok_count = sum(1 for name in names if steps.get(name, {}).get("ok"))
         status = "SUCCESS" if ok_count == total_steps else ("PARTIAL" if ok_count else "FAILED")
-        finished_at = datetime.now(UTC)
         db.add(
             IngestionRun(
                 source=_INIT_SOURCE,
@@ -1766,7 +1769,7 @@ async def daily_endpoint(
         )
         db.commit()
 
-        # -- optional final-whistle Telegram summary after grading ------------------
+        # -- optional final-whistle Telegram summary after grading --------------------
         telegram_summary: dict = {}
         token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
         chat_ids = get_allowed_user_ids()
@@ -1797,6 +1800,7 @@ async def daily_endpoint(
                 "ok": ok_count == total_steps,
                 "job": DAILY_JOB_NAME,
                 "steps_ok": f"{ok_count}/{total_steps}",
+                "watchdog": watchdog_hit,
                 "steps": steps,
                 "graded_now": newly_scored,
                 "telegram_summary": telegram_summary,
