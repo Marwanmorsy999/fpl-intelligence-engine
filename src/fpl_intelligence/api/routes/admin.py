@@ -1665,12 +1665,22 @@ async def daily_endpoint(
             steps["sync"] = {"ok": False, "detail": f"{type(exc).__name__}: {exc}"}
 
         # -- 3. pre-generate current-GW briefs -------------------------------------
+        # Budget-aware: one cold LLM brief can take ~15 s, so keep building
+        # only while the shared 60 s function budget allows; remaining squads
+        # lazily generate on first page load instead (same code path).
+        import time as _time
+
+        _BRIEF_BUDGET_SECONDS = 32.0
         built = 0
+        skipped_for_budget = 0
         brief_errors: list[str] = []
         session_rows = db.execute(
             select(SquadStateDB.session_id).order_by(SquadStateDB.updated_at.desc())
         ).scalars().all()[:_DAILY_MAX_SQUADS]
         for sid in session_rows:
+            if _time.monotonic() - started_at.timestamp() > _BRIEF_BUDGET_SECONDS:
+                skipped_for_budget += 1
+                continue
             try:
                 await assistant_brief(response=Response(), db=db, session_id=str(sid), gw=None)
                 built += 1
@@ -1681,6 +1691,7 @@ async def daily_endpoint(
             "detail": {
                 "built": built,
                 "squads": len(session_rows),
+                "deferred": skipped_for_budget,
                 "errors": brief_errors[:5],
             },
         }
