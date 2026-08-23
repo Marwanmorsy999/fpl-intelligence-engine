@@ -13,20 +13,8 @@
   },
   "crons": [
     {
-      "path": "/api/v1/admin/ingest-fpl",
-      "schedule": "0 6 * * *"
-    },
-    {
-      "path": "/api/v1/admin/materialize",
+      "path": "/api/v1/admin/daily",
       "schedule": "10 6 * * *"
-    },
-    {
-      "path": "/api/v1/admin/run-scheduler",
-      "schedule": "30 6 * * *"
-    },
-    {
-      "path": "/api/v1/admin/friday-brief",
-      "schedule": "0 18 * * 5"
     }
   ],
   "rewrites": [

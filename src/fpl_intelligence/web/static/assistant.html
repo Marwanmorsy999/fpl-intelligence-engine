@@ -16,7 +16,7 @@
 <div class="wrap">
 
   <h1 style="font-size:22px;font-weight:800;color:#fff;margin:0 0 4px">Weekly assistant</h1>
-  <p class="muted small" style="margin-top:0">A structured pre-deadline brief built from your squad, the fixture scan, the BBC news radar and your track record. Pushed to Telegram on Fridays at 18:00 UTC when configured.</p>
+  <p class="muted small" style="margin-top:0">A structured pre-deadline brief built from your squad, the fixture scan, the BBC news radar and your track record. Generated lazily on load when this week's brief is missing, and pushed to Telegram once per GW from Friday 18:00 UTC onward.</p>
 
   <div style="display:flex;gap:10px;align-items:center;margin:18px 0">
     <button id="refreshBtn" class="btn" type="button">Build this week's brief</button>
@@ -45,8 +45,36 @@ document.addEventListener("DOMContentLoaded", function () {
     try { localStorage.setItem(HISTORY_KEY, JSON.stringify(h)); } catch (e) {}
   }
 
+  function tldrCard(brief) {
+    var acts = brief.tldr || [];
+    if (!acts.length) return "";
+    return (
+      '<div class="card" data-testid="tldr-card" style="margin-bottom:14px;padding:14px 18px;border-left:3px solid #22c55e">' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+          '<strong style="color:#fff">TL;DR — three actions</strong>' +
+          '<span class="faint small" style="margin-left:auto">confidence = transparent heuristic on xPTS margins + fixture swing</span>' +
+        "</div>" +
+        acts.map(function (a) {
+          return '<div class="row" data-tldr-kind="' + FPLApp.esc(a.kind) + '">' +
+            "<div><strong>" + FPLApp.esc(a.text) + "</strong>" +
+            '<div class="faint small">' + FPLApp.esc(a.reason || "") + "</div></div>" +
+            '<span style="margin-left:auto"><span class="pill ok num" title="confidence">' +
+              Number(a.confidence) + "%</span></span></div>";
+        }).join("") +
+      "</div>"
+    );
+  }
+
   function briefCard(brief) {
     var sections = brief.sections || {};
+    var audit = brief.llm_audit || [];
+    var auditLine = audit.length
+      ? '<div class="faint small" style="margin-top:8px">model audit: ' + audit.map(function (r) {
+          return FPLApp.esc(r.provider) + " " + (r.status === "ok"
+            ? "(" + r.models_found + " models, valid: " + (r.valid ? "yes" : "chose " + r.chosen_model) + ")"
+            : "(" + FPLApp.esc(String(r.error || r.status).slice(0, 80)) + ")");
+        }).join(" · ") + "</div>"
+      : "";
     return (
       '<div class="card" data-testid="brief-card" style="margin-bottom:14px">' +
         '<div class="row" style="border-bottom:1px solid var(--line);padding-bottom:8px">' +
@@ -56,14 +84,26 @@ document.addEventListener("DOMContentLoaded", function () {
           '<span data-testid="cached-pill" class="' + (brief.cached ? "pill" : "pill ok") + '">' +
             (brief.cached ? "cached" : "fresh") + "</span>" +
         "</div>" +
+        tldrCard({ tldr: brief.tldr }) +
         SECTION_ORDER.map(function (key) {
           var body = sections[key];
           if (!body) return "";
           return '<div class="brief-section"><div class="brief-h">' + key + "</div>" +
             '<div class="small muted" data-brief-section="' + key + '">' + FPLApp.esc(body) + "</div></div>";
         }).join("") +
+        auditLine +
+        telegramNote(brief) +
       "</div>"
     );
+  }
+
+  function telegramNote(brief) {
+    var t = brief.telegram;
+    if (!t) return "";
+    if (t.pushed) return '<div class="faint small" style="margin-top:6px">✓ pushed to Telegram</div>';
+    if (t.attempted && !t.pushed) return '<div class="faint small" style="margin-top:6px">Telegram push attempted but failed.</div>';
+    if (!t.configured) return '<div class="faint small" style="margin-top:6px">Telegram not configured — set TELEGRAM_BOT_TOKEN to get briefs pushed.</div>';
+    return "";
   }
 
   function renderHistory(sessionKey) {

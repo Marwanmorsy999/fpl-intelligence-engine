@@ -34,6 +34,7 @@ document.addEventListener("DOMContentLoaded", function () {
   FPLApp.renderNav("/sources");
   var $ = function (id) { return document.getElementById(id); };
   var LABELS = {
+    daily_job: "Daily job (single 06:10 UTC cron)",
     fpl_import: "FPL Import", fixtures: "Fixtures (FDR scan)", bbc_news: "BBC Sport news radar",
     vaastav_results: "Vaastav GW results (ingested history)", predictions_materialized: "Precomputed xPTS (predictions_current)",
     odds_api: "Odds API (market check)", understat: "Understat (xG/xA)",
@@ -57,6 +58,23 @@ document.addEventListener("DOMContentLoaded", function () {
     }).join("");
     $("sourcesBox").innerHTML = rows +
       (data.as_of ? '<p class="faint small" style="margin:10px 0 0">Checked: ' + FPLApp.esc(data.as_of) + "</p>" : "");
+
+    /* Phase 20.4 — per-mask egress health (last status per strategy). */
+    var mh = data.mask_health || [];
+    if (mh.length) {
+      var maskRows = mh.map(function (m) {
+        return '<div class="row"><div><strong>' + FPLApp.esc(m.strategy) + "</strong>" +
+          '<div class="faint small">last ' + FPLApp.esc(String(m.last_at || "—").slice(0, 19).replace("T", " ")) +
+          " · ok " + m.success_count + " / fail " + m.fail_count +
+          (m.last_error ? " · " + FPLApp.esc(String(m.last_error).slice(0, 90)) : "") + "</div></div>" +
+          '<span style="margin-left:auto">' + pill(m.last_status || "unknown") + "</span></div>";
+      }).join("");
+      var host = document.createElement("div");
+      host.innerHTML =
+        '<div class="section-h" style="margin-top:18px">FPL egress masks</div>' +
+        '<div class="card" style="padding:4px 16px">' + maskRows + "</div>";
+      document.querySelector(".wrap").appendChild(host);
+    }
   }).catch(function () { $("sourcesBox").innerHTML = '<p class="faint">unavailable</p>'; });
 
   fetch("/api/v1/sync/status").then(function (r) { return r.ok ? r.json() : null; }).then(function (data) {

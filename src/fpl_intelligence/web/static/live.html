@@ -10,32 +10,55 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/app.css">
 <script src="/static/app.js"></script>
+<style>
+  @keyframes pulse-live { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
+  .live-badge { background:#dc2626;color:#fff;font-weight:800;letter-spacing:.08em;
+    padding:2px 10px;border-radius:999px;display:inline-block;animation:pulse-live 1.6s infinite }
+  .live-badge.cold { animation:none;background:#475569 }
+  @keyframes flash-up { from { background:rgba(34,197,94,.35) } to { background:transparent } }
+  @keyframes flash-down { from { background:rgba(239,68,68,.30) } to { background:transparent } }
+  .flash-up { animation: flash-up 1.8s ease-out }
+  .flash-down { animation: flash-down 1.8s ease-out }
+  .pts-col { min-width:64px;text-align:right }
+  .stat-mini { font-size:11px;color:#94a3b8 }
+</style>
 </head>
 <body>
 <div id="topnav"></div>
 <div class="wrap">
 
-  <h1 style="font-size:22px;font-weight:800;color:#fff;margin:0 0 4px">Matchday board</h1>
-  <p class="muted small" style="margin-top:0">Your players with live points pushed by the Apps Script matchday trigger (hourly 14:00–18:00 UTC Sat/Sun). ESPN's open scoreboard is the independent cross-check.</p>
+  <h1 style="font-size:22px;font-weight:800;color:#fff;margin:0 0 4px">Live matchday</h1>
+  <p class="muted small" style="margin-top:0">Your XI with official FPL live points, captain-vs-vice math and an ESPN cross-check. Polls every 90s while any Premier League match is inside its kickoff window.</p>
 
-  <div style="display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 20px;align-items:center">
-    <input id="entryInput" class="input" style="max-width:220px" placeholder="FPL entry id" inputmode="numeric">
-    <button id="loadBtn" class="btn" type="button">Load board</button>
-    <a id="espnLink" class="btn-ghost" href="https://www.espn.com/soccer/scoreboard/_/league/eng.1" target="_blank" rel="noopener" style="text-decoration:none">ESPN scoreboard ↗</a>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;margin:16px 0 12px;align-items:center">
+    <span id="liveBadge" class="live-badge cold" style="display:none">LIVE</span>
+    <span id="ageChip" class="pill" data-testid="data-age-chip" title="Age of the live data">–</span>
+    <button id="refreshBtn" class="btn" type="button">Refresh now</button>
+    <a id="trLink" href="/track-record" style="display:none" class="btn-ghost" >Track Record ↗</a>
+    <span id="gwFinishedNote" data-testid="gw-finished-note" class="small" style="color:#fde68a"></span>
   </div>
 
-  <div id="summaryGrid" style="display:none;margin-bottom:20px" class="grid">
-    <div class="stat"><div class="stat-label">Effective total</div><div class="stat-value num" id="stTotal">–</div><div class="stat-sub" id="stTotalSub">&nbsp;</div></div>
-    <div class="stat"><div class="stat-label">Players with live data</div><div class="stat-value num" id="stCovered">–</div><div class="stat-sub">of your 15</div></div>
-    <div class="stat"><div class="stat-label">Gameweek</div><div class="stat-value num" id="stGw">–</div><div class="stat-sub" id="stUpdated">–</div></div>
+  <div id="headlineCard" class="card" style="display:none;margin-bottom:14px;padding:14px 18px" data-testid="headline-card">
+    <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
+      <span style="font-size:26px;font-weight:800;color:#fff" id="teamTotal" class="num">–</span>
+      <span style="font-size:13px;color:#94a3b8">team total (live)</span>
+      <span style="margin-left:auto;font-size:14px;color:#e2e8f0" id="capVsVice" data-testid="captain-vs-vice">–</span>
+    </div>
+    <div class="stat-mini" id="headlineSub">&nbsp;</div>
   </div>
 
   <div id="note" style="display:none;margin-bottom:16px" class="card"><span class="small warn" style="color:#fde68a"></span></div>
 
   <div class="section-h">Starting XI</div>
-  <div class="card" style="padding:4px 16px" id="xiBox"></div>
+  <div class="card" style="padding:4px 16px" id="xiBox"><span class="faint small">Loading…</span></div>
   <div class="section-h">Bench</div>
-  <div class="card" style="padding:4px 16px" id="benchBox"></div>
+  <div class="card" style="padding:4px 16px" id="benchBox"><span class="faint small">—</span></div>
+
+  <div class="section-h">ESPN scoreboard (cross-check)</div>
+  <div class="card" style="padding:4px 16px" id="espnBox"><span class="faint small">—</span></div>
+
+  <div class="section-h">Source health</div>
+  <div class="card" style="padding:4px 16px" id="maskBox"><span class="faint small">—</span></div>
 
 </div>
 <script>
@@ -43,74 +66,156 @@
 document.addEventListener("DOMContentLoaded", function () {
   FPLApp.renderNav("/live");
   var $ = function (id) { return document.getElementById(id); };
-  try {
-    /* Phase 20.1: restore from the v20 persistent session (legacy key fallback). */
-    var sess = FPLApp.session.read();
-    if (!sess) {
-      var legacy = null;
-      try { legacy = localStorage.getItem("fpl_session_id"); } catch (e2) {}
-      sess = legacy ? { key: String(legacy) } : null;
-    }
-    if (sess && sess.key && /^\d+$/.test(String(sess.key))) $("entryInput").value = String(sess.key);
-  } catch (e) {}
+  var REFRESH_MS = 90000;
+  var timer = null;
+  var prevPoints = {};   /* element_id -> last seen points */
+  var firstLoad = true;
 
-  function row(r) {
-    var pts = r.live_points;
+  function ageChip(data) {
+    var chip = $("ageChip");
+    var secs = data.data_age_seconds || 0;
+    if (data.stale_snapshot) {
+      var mins = Math.round(secs / 60);
+      chip.className = "pill warn";
+      chip.textContent = "snapshot · " + mins + " min old";
+      return;
+    }
+    if (secs < 180) { chip.className = "pill ok"; } else { chip.className = "pill"; }
+    chip.textContent = secs < 90 ? "just now" : Math.round(secs / 60) + " min old";
+  }
+
+  function maskRow(label, m) {
+    var cls = m.status === "ok" ? "ok" : (m.status === "fail" ? "bad" : "");
+    return '<div class="row"><div><strong>' + label + "</strong>" +
+      (m.strategy ? '<div class="faint small">via ' + FPLApp.esc(m.strategy) + "</div>" : "") +
+      (m.error ? '<div class="faint small">' + FPLApp.esc(String(m.error).slice(0, 120)) + "</div>" : "") +
+      "</div>" + '<span style="margin-left:auto"><span class="pill ' + cls + '">' + FPLApp.esc(m.status) + "</span></span></div>";
+  }
+
+  function row(r, isBench) {
+    var pts = r.points;
     var ptsHtml = pts === null || pts === undefined
       ? '<span class="faint">no data</span>'
-      : '<strong class="num">' + r.live_points + "</strong>";
-    var capBadge = r.is_captain ? ' <span class="pill warn" title="Captain — points doubled">C×2</span>' : "";
+      : '<strong class="num">' + Number(pts).toFixed(pts % 1 ? 1 : 0) + "</strong>";
+    var badges = "";
+    if (r.is_captain) badges += ' <span class="pill warn" title="Captain — points doubled">C×2</span>';
+    else if (r.is_vice) badges += ' <span class="pill" title="Vice-captain">VC</span>';
+    var eid = r.element_id;
+    var prev = prevPoints[eid];
+    var flash = "";
+    if (!firstLoad && typeof pts === "number" && typeof prev === "number" && pts !== prev) {
+      flash = pts > prev ? " flash-up" : " flash-down";
+    }
+    var stats = [];
+    if (r.goals) stats.push("⚽ " + r.goals);
+    if (r.assists) stats.push("🅰 " + r.assists);
+    if (r.bonus) stats.push("+" + r.bonus + " bps");
+    var mins = (r.minutes !== null && r.minutes !== undefined)
+      ? r.minutes + "'" : (r.raw_points === null ? "?" : "0'");
     return (
-      '<div class="row">' +
-        FPLApp.crestHTML(null) + // placeholder replaced below
-        '<span class="crest" data-team="' + (r.team_id || 0) + '" style="' + "background:linear-gradient(135deg,#334155,#1e293b)" + '">' +
-          FPLApp.esc((r.name || "?").slice(0, 3).toUpperCase()) + "</span>" +
-        '<div style="min-width:0"><strong>' + FPLApp.esc(r.name || ("Player " + r.element_id)) + "</strong>" + capBadge +
-          '<div class="faint small">' + FPLApp.esc(r.fixture || "") + (r.opponent ? " · vs " + FPLApp.esc(r.opponent) : "") +
-          (r.minutes !== null && r.minutes !== undefined ? " · " + r.minutes + "'" : "") + "</div></div>" +
-        '<span style="margin-left:auto">' + (r.on_bench ? '<span class="pill">bench</span> ' : "") + ptsHtml + "</span>" +
+      '<div class="row' + flash + '" data-element="' + eid + '">' +
+        FPLApp.crestHTML(null) +
+        '<span class="crest" data-team="' + escAttr(teamIdFor(r)) + '">' + FPLApp.esc((r.team || "?").slice(0, 3).toUpperCase()) + "</span>" +
+        '<div style="min-width:0"><strong>' + FPLApp.esc(r.name) + "</strong>" + badges +
+          '<div class="faint small">' + FPLApp.esc(r.pos) + " · " + FPLApp.esc(mins) +
+            (stats.length ? " · " + stats.join(" · ") : "") + "</div></div>" +
+        '<span style="margin-left:auto" class="pts-col">' +
+          (isBench ? '<span class="pill" title="On the bench">bench</span> ' : "") + ptsHtml + "</span>" +
       "</div>"
     );
   }
 
+  var TEAM_IDS = {};
+  function teamIdFor(r) { return TEAM_IDS[r.element_id] || 0; }
+  function escAttr(v) { return String(v === undefined ? 0 : v); }
+
+  function render(data) {
+    $("note").style.display = data.note ? "block" : "none";
+    if (data.note) $("note").querySelector("span").textContent = data.note;
+
+    $("liveBadge").style.display = "inline-block";
+    var badgeHot = data.live_mode && !data.gw_finished;
+    $("liveBadge").className = "live-badge" + (badgeHot ? "" : " cold");
+    $("liveBadge").textContent = data.gw_finished ? "FT" : (data.live_mode ? "LIVE" : "IDLE");
+
+    ageChip(data);
+
+    $("gwFinishedNote").textContent = data.gw_finished
+      ? ("GW" + data.gameweek + " complete — final points; Track Record graded")
+      : "";
+    $("trLink").style.display = data.gw_finished ? "inline-flex" : "none";
+
+    if (data.headline) {
+      $("headlineCard").style.display = "block";
+      $("teamTotal").textContent = String(data.headline.team_total);
+      var capName = data.headline.captain_name || "—";
+      var viceName = data.headline.vice_name || "—";
+      $("capVsVice").textContent =
+        "Captain vs Vice: " + (data.headline.captain_vs_vice_delta >= 0 ? "+" : "") +
+        data.headline.captain_vs_vice_delta +
+        "  (" + capName + " ×2 vs " + viceName + " ×2)";
+      $("headlineSub").textContent =
+        "pick source: " + (data.picks_source === "fpl-picks" ? "official FPL picks" :
+          (data.picks_source === "saved-squad" ? "locally saved squad" : "unknown")) +
+        " · GW" + data.gameweek;
+    }
+
+    var rows = data.rows || [];
+    var bench = data.bench || [];
+    rows.forEach(function (r) { TEAM_IDS[r.element_id] = r.team_id || 0; });
+    bench.forEach(function (r) { TEAM_IDS[r.element_id] = r.team_id || 0; });
+
+    $("xiBox").innerHTML = rows.length ? rows.map(function (r) { return row(r, false); }).join("")
+      : '<p class="muted small">No squad data right now.</p>';
+    $("benchBox").innerHTML = bench.length ? bench.map(function (r) { return row(r, true); }).join("")
+      : '<p class="faint small">—</p>';
+
+    /* remember for next poll's delta flash */
+    rows.concat(bench).forEach(function (r) {
+      if (typeof r.points === "number") prevPoints[r.element_id] = r.points;
+    });
+    firstLoad = false;
+
+    var espn = data.espn_matches || [];
+    $("espnBox").innerHTML = espn.length ? espn.slice(0, 10).map(function (m) {
+      var live = m.state === "in";
+      return '<div class="row"><div><strong>' + FPLApp.esc(m.short) + "</strong>" +
+        '<div class="faint small">' + FPLApp.esc(m.detail || m.clock || "") + "</div></div>" +
+        '<span style="margin-left:auto" class="num">' + FPLApp.esc(String(m.home_score ?? "-")) + " – " +
+        FPLApp.esc(String(m.away_score ?? "-")) + (live ? ' <span class="pill bad">in play</span>' : "") + "</span></div>";
+    }).join("") : '<p class="faint small">ESPN scoreboard unavailable right now.</p>';
+
+    var mk = data.masks || {};
+    var labels = { bootstrap: "FPL bootstrap (current GW)", picks: "Your picks (XI/captain)", live: "Live event feed", espn: "ESPN scoreboard" };
+    $("maskBox").innerHTML = Object.keys(labels).map(function (k) {
+      return maskRow(labels[k], mk[k] || { status: "skipped" });
+    }).join("");
+
+    FPLApp.hydrateCrests(document);
+
+    /* Auto-refresh ONLY while LIVE MODE is active and the GW isn't done. */
+    if (timer) { clearInterval(timer); timer = null; }
+    if (badgeHot) timer = setInterval(function () { load(); }, REFRESH_MS);
+  }
+
   function load() {
-    var entry = ($("entryInput").value || "").trim();
-    if (!/^\d+$/.test(entry)) { alert("Enter your numeric FPL entry id."); return; }
-    try { localStorage.setItem("fpl_session_id", entry); } catch (e) {}
-    fetch("/api/v1/sync/live-board?session_id=" + encodeURIComponent(entry))
+    var sess = FPLApp.session.read();
+    if (!sess || !sess.key) {
+      $("xiBox").innerHTML = '<span class="pill warn">No saved session</span> <span class="muted small">— open <a href="/dashboard">Decisions</a> and enter your FPL ID once.</span>';
+      $("benchBox").innerHTML = "";
+      return;
+    }
+    fetch("/api/v1/live?session_id=" + encodeURIComponent(sess.key), { cache: "no-store" })
       .then(function (res) { return res.ok ? res.json() : res.json().then(function (b) { throw new Error(b.detail || res.status); }); })
-      .then(function (data) { render(data); })
+      .then(render)
       .catch(function (err) {
-        $("xiBox").innerHTML = '<p class="muted small">' + FPLApp.esc(err.message || "Load failed.") + "</p>";
+        $("xiBox").innerHTML = '<p class="muted small">' + FPLApp.esc(err.message || "Load failed.") + '</p>';
         $("benchBox").innerHTML = "";
       });
   }
 
-  function render(data) {
-    $("summaryGrid").style.display = "grid";
-    $("stTotal").textContent = String(data.effective_total);
-    $("stTotalSub").textContent = "raw XI points " + data.total_live_points + " (captain doubled)";
-    $("stCovered").textContent = String(data.players_with_data);
-    $("stGw").textContent = String(data.gameweek);
-    var updated = data.rows.filter(function (r) { return r.updated_at; })
-      .map(function (r) { return r.updated_at; }).sort().pop();
-    $("stUpdated").textContent = updated ? new Date(updated).toLocaleTimeString() : "–";
-
-    if (data.note) {
-      $("note").style.display = "block";
-      $("note").querySelector("span").textContent = data.note;
-    } else { $("note").style.display = "none"; }
-
-    var starters = data.rows.filter(function (r) { return !r.on_bench; });
-    var bench = data.rows.filter(function (r) { return r.on_bench; });
-    $("xiBox").innerHTML = starters.length ? starters.map(row).join("") : '<p class="muted small">No squad found.</p>';
-    $("benchBox").innerHTML = bench.length ? bench.map(row).join("") : '<p class="muted small">—</p>';
-    FPLApp.hydrateCrests(document);
-  }
-
-  $("loadBtn").addEventListener("click", load);
-  $("entryInput").addEventListener("keydown", function (ev) { if (ev.key === "Enter") load(); });
-  if ($("entryInput").value) load();
+  $("refreshBtn").addEventListener("click", load);
+  load();
 });
 </script>
 </body>

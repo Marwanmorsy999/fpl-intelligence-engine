@@ -24,14 +24,87 @@ from __future__ import annotations
 import json
 import logging
 import os
+import threading
 import time
 from collections.abc import Callable
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import quote
 
 import httpx
 
 logger = logging.getLogger(__name__)
+
+# --------------------------------------------------------------------------- #
+# Phase 20.4 — per-mask health ledger.
+#
+# Every direct/mask attempt through the chain records its outcome here so the
+# Sources page can show an honest "last status per strategy" table. The
+# registry is process-local: Vercel instances are ephemeral, so rows describe
+# what THIS instance saw most recently, never a fabricated history.
+# --------------------------------------------------------------------------- #
+
+_MASK_HEALTH_LOCK = threading.Lock()
+_MASK_HEALTH: dict[str, dict[str, Any]] = {}
+
+_HEALTH_FIELDS = (
+    "last_status",
+    "last_at",
+    "last_error",
+    "success_count",
+    "fail_count",
+)
+
+
+def record_strategy_result(name: str, *, ok: bool, detail: str = "") -> None:
+    """Record one attempt outcome for a strategy name (thread-safe)."""
+    now_iso = datetime.now(UTC).isoformat()
+    with _MASK_HEALTH_LOCK:
+        row = _MASK_HEALTH.setdefault(
+            name,
+            {
+                "last_status": "",
+                "last_at": None,
+                "last_error": "",
+                "success_count": 0,
+                "fail_count": 0,
+            },
+        )
+        if ok:
+            row["success_count"] += 1
+            row["last_status"] = "ok"
+            row["last_error"] = ""
+        else:
+            row["fail_count"] += 1
+            # A later success clears the error; a failure overwrites it.
+            row["last_status"] = "fail"
+            row["last_error"] = detail[:300]
+        row["last_at"] = now_iso
+
+
+def reset_mask_health() -> None:
+    """Clear the ledger (tests only)."""
+    with _MASK_HEALTH_LOCK:
+        _MASK_HEALTH.clear()
+
+
+def mask_health_payload() -> list[dict[str, Any]]:
+    """Per-strategy health rows ordered by chain priority."""
+    order = ["direct", "allorigins", "corsproxy", "env_proxy"]
+    with _MASK_HEALTH_LOCK:
+        snapshot = {k: dict(v) for k, v in _MASK_HEALTH.items()}
+    known = [name for name in order if name in snapshot]
+    extra = sorted(set(snapshot) - set(order))
+    rows = []
+    for name in known + extra:
+        row = snapshot[name]
+        rows.append(
+            {
+                "strategy": name,
+                **{f: row.get(f) for f in _HEALTH_FIELDS},
+            }
+        )
+    return rows
 
 #: Browser-like headers for the direct strategy — the official FPL API rejects
 #: requests that look like bots.
@@ -151,6 +224,9 @@ class FplEgressChain:
                 data = await fn(url)
             except Exception as exc:  # noqa: BLE001 — record and fall through
                 attempts.append((name, f"{type(exc).__name__}: {exc}"))
+                record_strategy_result(
+                    name, ok=False, detail=f"{type(exc).__name__}: {exc}"
+                )
                 logger.debug("fpl_egress: %s -> %s failed: %s", full_path, name, exc)
                 continue
 
@@ -159,10 +235,12 @@ class FplEgressChain:
                     validator(data)
                 except Exception as exc:  # noqa: BLE001 — shape rejected
                     attempts.append((name, f"shape rejected: {exc}"))
+                    record_strategy_result(name, ok=False, detail=f"shape rejected: {exc}")
                     logger.debug("fpl_egress: %s -> %s shape rejected: %s", full_path, name, exc)
                     continue
 
             self._winning_strategy = name
+            record_strategy_result(name, ok=True)
             self._cache[cache_key] = (self._now(), data)
             logger.info("fpl_egress: %s -> strategy=%s OK", full_path, name)
             return data
@@ -203,6 +281,9 @@ class FplEgressChain:
                 data = await fn()
             except Exception as exc:  # noqa: BLE001
                 attempts.append((name, f"{type(exc).__name__}: {exc}"))
+                record_strategy_result(
+                    name, ok=False, detail=f"{type(exc).__name__}: {exc}"
+                )
                 continue
 
             if validator is not None:
@@ -210,9 +291,11 @@ class FplEgressChain:
                     validator(data)
                 except Exception as exc:  # noqa: BLE001
                     attempts.append((name, f"shape rejected: {exc}"))
+                    record_strategy_result(name, ok=False, detail=f"shape rejected: {exc}")
                     continue
 
             self._winning_strategy = name
+            record_strategy_result(name, ok=True)
             logger.info("fpl_egress: %s -> strategy=%s OK", full_path, name)
             return data
 

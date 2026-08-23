@@ -53,9 +53,10 @@ REQUIRED_INCLUDE_GLOBS = [
     "alembic.ini",
 ]
 
+# Phase 20.4 — cron consolidation: vercel.json carries EXACTLY ONE cron and
+# it targets the consolidated daily job (materialize + syncs + briefs + grade).
 REQUIRED_CRON_PATHS = [
-    "/api/v1/admin/ingest-fpl",
-    "/api/v1/admin/run-scheduler",
+    "/api/v1/admin/daily",
 ]
 
 #: Credential shapes that must never be committed in deployment artifacts.

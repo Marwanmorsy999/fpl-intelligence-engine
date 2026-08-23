@@ -12,6 +12,7 @@ from fpl_intelligence.api.routes.data_sources import router as data_sources_rout
 from fpl_intelligence.api.routes.drawer import router as drawer_router
 from fpl_intelligence.api.routes.fixtures import router as fixtures_router
 from fpl_intelligence.api.routes.intelligence import router as intelligence_router
+from fpl_intelligence.api.routes.live import router as live_router
 from fpl_intelligence.api.routes.news import router as news_router
 from fpl_intelligence.api.routes.players import router as players_router
 from fpl_intelligence.api.routes.squad import router as squad_router
@@ -70,6 +71,7 @@ app.include_router(fixtures_router, prefix="/api/v1")
 app.include_router(news_router, prefix="/api/v1")
 app.include_router(drawer_router, prefix="/api/v1")
 app.include_router(assistant_router, prefix="/api/v1")
+app.include_router(live_router, prefix="/api/v1")
 
 
 @app.get("/", include_in_schema=False)

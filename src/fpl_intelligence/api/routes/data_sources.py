@@ -257,11 +257,45 @@ async def data_sources(db: deps.GetDB, response: Response) -> dict[str, Any]:
         predictions_detail = f"xPTS for {gw_txt} — computed {pred_age_h:.1f}h ago"
     else:
         predictions_status = "pending"
-        predictions_detail = "no precomputed xPTS yet — daily 06:10 UTC cron"
+        predictions_detail = "no precomputed xPTS yet — daily job runs at 06:10 UTC"
+
+    # --- Phase 20.4: consolidated daily-job heartbeat --------------------------
+    from fpl_intelligence.api.routes.admin import DAILY_JOB_NAME  # noqa: PLC0415
+    from fpl_intelligence.db.models import IngestionRun  # noqa: PLC0415
+
+    daily_row = db.scalar(
+        select(IngestionRun)
+        .where(IngestionRun.job_name == DAILY_JOB_NAME)
+        .order_by(IngestionRun.started_at.desc())
+        .limit(1)
+    )
+    if daily_row is not None:
+        daily_age_h = _age_seconds_since(daily_row.started_at) / 3600
+        daily_ok = daily_row.status == "SUCCESS"
+        daily_status = ("ok" if daily_ok else "degraded") if daily_age_h <= 30 else "stale"
+        ran_txt = f"{int(daily_age_h)}h ago" if daily_age_h >= 1 else "recently"
+        daily_detail = (
+            f"last run {ran_txt} ({daily_row.status}) · "
+            f"{daily_row.records_processed}/4 steps ok · schedule 06:10 UTC"
+        )
+    else:
+        daily_status = "pending"
+        daily_detail = "daily job has never run — schedule 06:10 UTC"
+
+    # --- Phase 20.4: per-mask egress health (last status per strategy) ----------
+    from fpl_intelligence.data_providers.fpl_egress import (  # noqa: PLC0415
+        mask_health_payload,
+    )
+
+    mask_rows = mask_health_payload()
 
     payload = {
         "as_of": now,
         "sources": {
+            "daily_job": {
+                "status": daily_status,
+                "detail": daily_detail,
+            },
             "fixtures": {
                 "status": fixtures_status,
                 "detail": fixtures_detail,
@@ -305,6 +339,7 @@ async def data_sources(db: deps.GetDB, response: Response) -> dict[str, Any]:
                 "detail": llm_detail,
             },
         },
+        "mask_health": mask_rows,
     }
     with _response_lock:
         globals()["_response_cache"] = (time.monotonic(), payload)

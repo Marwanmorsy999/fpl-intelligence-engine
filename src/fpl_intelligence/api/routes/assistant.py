@@ -16,12 +16,15 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import threading
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.concurrency import run_in_threadpool
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from fpl_intelligence.api import deps
@@ -41,9 +44,12 @@ from fpl_intelligence.fixtures.scanner import (
     parse_fixtures,
     player_run,
 )
+from fpl_intelligence.live_intelligence.llm_audit import audit_providers
 from fpl_intelligence.live_intelligence.mock_llm import MockLLMProvider
+from fpl_intelligence.notifications.telegram_bot import get_allowed_user_ids
 from fpl_intelligence.squad.bridge import DecisionOptimizerBridge
 from fpl_intelligence.squad.service import SquadService
+from fpl_intelligence.sync.models import SyncLogDB
 from fpl_intelligence.sync.service import track_record_payload
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
@@ -196,9 +202,11 @@ async def _gather_facts(db: Session, session_id: str) -> dict[str, Any]:
 
     # --- track record ---------------------------------------------------------
     grade_line = "No graded weeks yet — the ledger fills after your first gameweek."
+    track_rolling: dict[str, Any] = {}
     try:
         tr = track_record_payload(db, session_key=session_id)
         rolling = tr.get("rolling") or {}
+        track_rolling = rolling
         if rolling.get("graded"):
             hit_rate = rolling.get("hit_rate")
             net = rolling.get("net_points")
@@ -220,6 +228,7 @@ async def _gather_facts(db: Session, session_id: str) -> dict[str, Any]:
     captain = report_dict.get("captain") or {}
     transfers = report_dict.get("transfer_plan") or {}
     chain = (report_dict.get("meta") or {}).get("chain") or {}
+    chip = report_dict.get("chip") or {}
 
     return {
         "gameweek": report.gameweek,
@@ -228,6 +237,11 @@ async def _gather_facts(db: Session, session_id: str) -> dict[str, Any]:
         "entry_size": len(squad.player_ids),
         "bank": float(squad.bank),
         "free_transfers": squad.free_transfers,
+        "entry_label": _resolve_entry_label(db, session_id),
+        "squad_names": _squad_names(db, list(squad.player_ids)),
+        "chip_name": chip.get("chip_name"),
+        "chip_reason": chip.get("main_reason", ""),
+        "track_rolling": track_rolling,
         "captain": {
             "name": _name_of(report_dict, captain.get("player_id")),
             "xpts": captain.get("expected_points"),
@@ -281,11 +295,19 @@ def _template_sections(facts: dict[str, Any]) -> dict[str, str]:
         else ("hard" if facts["squad_swing"] < -0.5 else "neutral")
     )
 
+    # Phase 20.4 — the fallback must be personal: real entry label, real squad
+    # names and real numbers, never a generic wall of text.
+    label = facts.get("entry_label") or f"Entry #{facts.get('session_id', '?')}"
+    squad_names = [n for n in (facts.get("squad_names") or []) if n]
+    xi_names = ", ".join(squad_names[:11]) if squad_names else ""
+    last_call = _last_call_line(facts)
+
     return {
         "squad_status": (
-            f"{facts['entry_size']} players loaded · bank £{facts['bank']:.1f}m · "
+            f"{label}: {facts['entry_size']} players loaded · bank £{facts['bank']:.1f}m · "
             f"{facts['free_transfers']} free transfer(s). "
-            f"Predictions from {facts['prediction_source']}."
+            + (f"Squad: {xi_names}. " if xi_names else "")
+            + f"Predictions from {facts['prediction_source']}."
         ),
         "captain": (
             f"{cap['name']} captains with xPTS {cap_xpts}"
@@ -298,7 +320,9 @@ def _template_sections(facts: dict[str, Any]) -> dict[str, str]:
                if facts["targets"] else "")
         ).strip(),
         "news_flags": " ".join(facts["news_lines"]) or "No news matches.",
-        "last_week_grade": facts["grade_line"],
+        "last_week_grade": (
+            f"{last_call} {facts['grade_line']}" if last_call else facts["grade_line"]
+        ),
     }
 
 
@@ -341,6 +365,161 @@ def _count_real_news(lines: list[str]) -> int:
     )
 
 
+# --------------------------------------------------------------------------- #
+# Phase 20.4 — personalization + TL;DR action card
+# --------------------------------------------------------------------------- #
+
+
+def _resolve_entry_label(db: Session, session_id: str) -> str:
+    """The manager's team name when a bookmarklet push recorded one, else an
+    honest 'Entry #id' label. Never invented."""
+    try:
+        row = db.execute(
+            select(SyncLogDB)
+            .where(
+                SyncLogDB.kind == "squad",
+                SyncLogDB.entry_id == str(session_id),
+            )
+            .order_by(SyncLogDB.created_at.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+    except Exception:  # noqa: BLE001 — cosmetic lookup only
+        return f"Entry #{session_id}"
+    name = ((row.detail or {}).get("entry_name") if row is not None else None) or ""
+    return str(name).strip() or f"Entry #{session_id}"
+
+
+def _squad_names(db: Session, pids: list[int]) -> list[str]:
+    """Real web names for squad ids, in squad order (unknown ids skipped)."""
+    names: list[str] = []
+    for pid in pids:
+        prow: Player | None = db.scalar(select(Player).where(Player.fpl_element_id == int(pid)))
+        if prow is not None and prow.web_name:
+            names.append(prow.web_name)
+    return names
+
+
+def _last_call_line(facts: dict[str, Any]) -> str | None:
+    """'We said X, result Y — right/wrong' from the newest graded card."""
+    rolling = facts.get("track_rolling") or {}
+    cards = [c for c in rolling.get("last_5", []) if c.get("score")]
+    if not cards:
+        return None
+    newest = max(cards, key=lambda c: (c.get("gameweek") or 0))
+    said = str((newest.get("detail") or {}).get("reason") or "").strip()
+    score = newest.get("score") or {}
+    verdict = str(score.get("verdict") or "?")
+    delta = int(score.get("delta") or 0)
+    gw = newest.get("gameweek")
+    kind = str(newest.get("rec_type") or "call")
+    said_txt = said if said else f"our GW{gw} {kind} call"
+    right = verdict in ("right", "neutral")
+    return (
+        f"We said: {said_txt}. Result: {verdict} by {delta:+d} pts — "
+        f"the GW{gw} {kind} call was {'right' if right else 'wrong'}."
+    )
+
+
+def _confidence_captain(cap_xpts: Any, alt_xpts: Any) -> int:
+    if isinstance(cap_xpts, (int, float)) and isinstance(alt_xpts, (int, float)):
+        margin = abs(float(cap_xpts) - float(alt_xpts))
+        return min(92, 55 + int(margin * 10))
+    return 70
+
+
+def _tldr_actions(facts: dict[str, Any]) -> list[dict[str, Any]]:
+    """Exactly three actions: CAPTAIN / TRANSFERS / CHIP, each with confidence %.
+
+    Confidence is a transparent heuristic over the same numbers shown in the
+    sections (xPTS margins and fixture-swing size) — never a black box.
+    """
+    cap = facts["captain"]
+    alts = cap.get("alternatives") or []
+
+    # --- Action 1: captain -----------------------------------------------------
+    if alts and alts[0].get("name"):
+        margin_raw = None
+        if isinstance(cap.get("xpts"), (int, float)) and isinstance(
+            alts[0].get("xpts"), (int, float)
+        ):
+            margin_raw = round(float(cap["xpts"]) - float(alts[0]["xpts"]), 1)
+        reason_bits = ["highest projected return in your XI"]
+        if facts.get("fixture_lines"):
+            reason_bits.append(f"fixtures: {facts['fixture_lines'][0]}")
+        first_flag = next((ln for ln in facts["news_lines"] if ": " in ln), None)
+        if first_flag:
+            reason_bits.append(f"news: {first_flag}")
+        action1 = {
+            "kind": "CAPTAIN",
+            "text": (
+                f"CAPTAIN {cap['name']} over {alts[0]['name']} "
+                + (f"by +{margin_raw} xPTS" if margin_raw is not None else "(projection gap)")
+            ),
+            "reason": "; ".join(reason_bits),
+            "confidence": _confidence_captain(cap.get("xpts"), alts[0].get("xpts")),
+        }
+    else:
+        action1 = {
+            "kind": "CAPTAIN",
+            "text": f"CAPTAIN {cap['name']}",
+            "reason": "no viable alternative projected higher",
+            "confidence": 70,
+        }
+
+    # --- Action 2: transfers ---------------------------------------------------
+    swing = float(facts.get("squad_swing") or 0.0)
+    swing_word = (
+        "easy fixture patch ahead"
+        if swing > 0.5
+        else ("hard fixture patch ahead" if swing < -0.5 else "neutral fixtures")
+    )
+    if facts["transfer_action"] == "roll":
+        action2 = {
+            "kind": "TRANSFERS",
+            "text": f"TRANSFERS: roll ({facts['free_transfers']} FT banked)",
+            "reason": facts.get("transfer_reason") or f"{swing_word}; no upgrade clears the bar",
+            "confidence": min(88, 60 + int(abs(swing) * 8)),
+        }
+    elif facts.get("transfer_ins"):
+        ins = ", ".join(facts["transfer_ins"])
+        outs = ", ".join(facts["transfer_outs"]) or "bench cover"
+        action2 = {
+            "kind": "TRANSFERS",
+            "text": f"TRANSFERS: IN {ins} · OUT {outs}",
+            "reason": facts.get("transfer_reason") or swing_word,
+            "confidence": min(90, 62 + int(abs(swing) * 6)),
+        }
+    else:
+        action2 = {
+            "kind": "TRANSFERS",
+            "text": "TRANSFERS: hold squad",
+            "reason": facts.get("transfer_reason") or swing_word,
+            "confidence": 65,
+        }
+
+    # --- Action 3: chips ---------------------------------------------------------
+    chip_name = facts.get("chip_name")
+    chip_reason = facts.get("chip_reason") or ""
+    if chip_name:
+        action3 = {
+            "kind": "CHIP",
+            "text": f"CHIP: use {chip_name.upper()} this week",
+            "reason": chip_reason or "engine flags this week as the best chip window",
+            "confidence": 68,
+        }
+    else:
+        action3 = {
+            "kind": "CHIP",
+            "text": "CHIP: save all chips this week",
+            "reason": chip_reason
+            or "no double gameweek or blank week detected within the horizon",
+            "confidence": 72,
+        }
+
+    return [action1, action2, action3]
+
+
+
 def _parse_sections(raw_text: str) -> dict[str, str] | None:
     """Strict-JSON section parse; tolerant of fenced envelopes."""
     stripped = raw_text.strip()
@@ -368,7 +547,12 @@ async def assistant_brief(
     session_id: str | None = Query(None),
     gw: int | None = Query(None, description="Optional gameweek override."),
 ) -> dict[str, Any]:
-    """Six-section weekly brief: LLM-written when possible, template otherwise."""
+    """Six-section weekly brief: LLM-written when possible, template otherwise.
+
+    Phase 20.4 — adds the exactly-three-action TL;DR card, a live provider
+    model audit, and a Friday-onward one-shot Telegram push for every first
+    generation of the current GW's brief.
+    """
     if not session_id:
         raise HTTPException(status_code=404, detail="No squad saved for this session")
     response.headers["Cache-Control"] = "no-store"
@@ -388,6 +572,15 @@ async def assistant_brief(
     template_sections = _template_sections({**facts, "gameweek": gameweek})
     sections = template_sections
     model_label = "template-fallback"
+
+    # Phase 20.4 — prod LLM audit: ask each keyed provider which models it
+    # serves RIGHT NOW (8s timeout each), pick currently-valid ids, log exact
+    # errors. Cached 10 min in-process.
+    llm_audit_rows: list[dict[str, Any]] = []
+    try:
+        llm_audit_rows = await audit_providers()
+    except Exception as exc:  # noqa: BLE001 — audit never blocks the brief
+        logger.warning("llm audit failed: %s", exc)
 
     llm = _build_real_provider()
     if not isinstance(llm, MockLLMProvider):
@@ -425,12 +618,122 @@ async def assistant_brief(
         "model": model_label,
         "cached": False,
         "generated_at": datetime.now(UTC).isoformat(),
+        "tldr": _tldr_actions({**facts, "gameweek": gameweek}),
+        "llm_audit": llm_audit_rows,
         "facts_digest": {
             "captain": facts["captain"]["name"],
             "squad_swing": facts["squad_swing"],
             "news_matches": _count_real_news(facts["news_lines"]),
+            "entry_label": facts.get("entry_label"),
+            "squad_names_count": len(facts.get("squad_names") or []),
         },
     }
     with _brief_lock:
         _brief_cache[key] = payload
+
+    payload["telegram"] = await maybe_push_brief(db, session_id, gameweek, payload)
     return payload
+
+
+# --------------------------------------------------------------------------- #
+# Phase 20.4 — one-shot Telegram push for fresh briefs from Friday onward
+# --------------------------------------------------------------------------- #
+
+_PUSH_MARKER_PREFIX = "assistant-push"
+
+
+def _push_marker_name(session_id: str, gameweek: int) -> str:
+    return f"{_PUSH_MARKER_PREFIX}-{session_id}-{gameweek}"
+
+
+def _already_pushed(db: Session, session_id: str, gameweek: int) -> bool:
+    from fpl_intelligence.db.models import IngestionRun
+
+    row = db.scalar(
+        select(IngestionRun).where(
+            IngestionRun.job_name == _push_marker_name(session_id, gameweek),
+            IngestionRun.status == "SUCCESS",
+        )
+    )
+    return row is not None
+
+
+def _record_push(db: Session, session_id: str, gameweek: int, ok: bool) -> None:
+    from fpl_intelligence.db.models import IngestionRun
+
+    now = datetime.now(UTC)
+    db.add(
+        IngestionRun(
+            source="assistant-push",
+            job_name=_push_marker_name(session_id, gameweek),
+            season_code="2026-27",
+            status="SUCCESS" if ok else "FAILED",
+            started_at=now,
+            finished_at=now,
+            records_processed=0,
+        )
+    )
+    db.commit()
+
+
+async def maybe_push_brief(
+    db: Session, session_id: str, gameweek: int, brief: dict[str, Any]
+) -> dict[str, Any]:
+    """First generation on/after Friday attempts a Telegram push (once per GW).
+
+    Returns an honest {configured, attempted, pushed} block either way so the
+    UI can say exactly what happened with notifications.
+    """
+    info = {"configured": False, "attempted": False, "pushed": False}
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_ids = get_allowed_user_ids()
+    info["configured"] = bool(token and chat_ids)
+
+    # Friday=4 .. Sunday=6 (UTC): the deadline weekend window.
+    if date.today().weekday() < 4:
+        return info
+    if not info["configured"]:
+        info["attempted"] = False
+        return info
+    if _already_pushed(db, session_id, gameweek):
+        info["attempted"] = False
+        return info
+
+    entry_name = ((brief.get("facts_digest") or {}).get("captain")) or "squad"
+    text = format_brief_message(brief, str(entry_name))
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            pushed_any = False
+            for chat_id in chat_ids:
+                r = await client.post(
+                    f"https://api.telegram.org/bot{token}/sendMessage",
+                    json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
+                )
+                r.raise_for_status()
+                pushed_any = True
+    except Exception as exc:  # noqa: BLE001 — push failure must not fail the brief
+        logger.warning("assistant brief push failed: %s", exc)
+        info["attempted"] = True
+        _record_push(db, session_id, gameweek, ok=False)
+        return info
+    info["attempted"] = True
+    info["pushed"] = pushed_any
+    if pushed_any:
+        _record_push(db, session_id, gameweek, ok=True)
+    return info
+
+
+def format_brief_message(brief: dict[str, Any], entry_name: str | None) -> str:
+    """Telegram HTML rendering of the brief incl. the TL;DR card."""
+    sections = brief.get("sections") or {}
+    lines = [f"<b>Weekly Brief · GW{brief.get('gameweek', '?')}</b>"]
+    if entry_name:
+        lines[0] += f" — {entry_name}"
+    for act in brief.get("tldr") or []:
+        lines.append(
+            f"• <b>{act['kind']}</b>: {act['text']} ({act.get('confidence', '?')}%)"
+        )
+    for title, body in sections.items():
+        lines.append(f"\n<b>{title}</b>\n{body}")
+    lines.append(f"\n<i>answering model: {brief.get('model', 'unknown')}</i>")
+    return "\n".join(lines)

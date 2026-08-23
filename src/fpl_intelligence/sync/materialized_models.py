@@ -87,3 +87,19 @@ class PredictionCurrentDB(Base):
     __table_args__ = (
         UniqueConstraint("gameweek", "element_id", name="uq_pred_current_gw_element"),
     )
+
+
+class LiveSnapshotDB(Base):
+    """Phase 20.4 — last good live-matchday snapshot for one gameweek.
+
+    Written whenever the live engine assembles a full payload; read back when
+    every egress mask fails so the /live page shows honest stale data (with an
+    age) instead of a blank screen.
+    """
+
+    __tablename__ = "live_snapshots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    gameweek: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

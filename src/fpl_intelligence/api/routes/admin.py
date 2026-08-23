@@ -1552,3 +1552,236 @@ async def bootstrap_materialized_endpoint() -> dict:
         )
     finally:
         db.close()
+
+
+# --------------------------------------------------------------------------- #
+# Phase 20.4 — THE daily job (single consolidated cron, 06:10 UTC).
+#
+# vercel.json carries EXACTLY ONE cron entry pointing here. It runs, in order:
+#   1. materialize        — vaastav GW results + fixtures + BBC RSS + xPTS
+#   2. pending squad syncs— retry any queued auto-sync
+#   3. pre-generate brief — current-GW assistant brief for every saved squad
+#   4. grade              — score recommendations for finished gameweeks
+# The run itself is recorded as an IngestionRun(job_name="daily") so the
+# Sources page can show "daily job last run {time}" honestly.
+# --------------------------------------------------------------------------- #
+
+DAILY_JOB_NAME = "daily"
+_DAILY_MAX_SQUADS = _FRIDAY_BRIEF_MAX_SQUADS
+
+_LIVE_SNAPSHOTS_DDL = (
+    """
+    CREATE TABLE IF NOT EXISTS live_snapshots (
+        id SERIAL PRIMARY KEY,
+        gameweek INTEGER NOT NULL,
+        payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+        fetched_at TIMESTAMP WITH TIME ZONE NOT NULL
+    )
+    """,
+)
+
+
+def _ensure_daily_tables(db: Session) -> list[str]:
+    created: list[str] = []
+    insp = sa_inspect(db.get_bind())
+    if not insp.has_table("live_snapshots"):
+        try:
+            db.execute(text(_LIVE_SNAPSHOTS_DDL))
+            db.commit()
+            created.append("live_snapshots")
+        except Exception as exc:  # noqa: BLE001 - sqlite tests pre-create it
+            db.rollback()
+            logger.debug("live_snapshots DDL skipped: %s", exc)
+    return created
+
+
+def _finished_gameweek_from_cache(payload: list) -> int | None:
+    """Highest gameweek whose fixtures are ALL marked finished (pure)."""
+    by_gw: dict[int, dict[str, int]] = {}
+    for item in payload or []:
+        try:
+            gwi = int(item.get("event"))
+        except (TypeError, ValueError):
+            continue
+        bucket = by_gw.setdefault(gwi, {"total": 0, "finished": 0})
+        bucket["total"] += 1
+        if item.get("finished"):
+            bucket["finished"] += 1
+    complete = [gw for gw, b in by_gw.items() if b["finished"] == b["total"]]
+    return max(complete) if complete else None
+
+
+@router.get("/admin/daily")
+@router.post("/admin/daily")
+async def daily_endpoint(
+    _: None = Depends(_require_cron_auth),
+) -> dict:
+    """Phase 20.4 — run the whole day's work in one authenticated request."""
+    from fpl_intelligence.api.routes.assistant import assistant_brief
+    from fpl_intelligence.materialize import materialize_all
+    from fpl_intelligence.notifications.telegram_bot import get_allowed_user_ids
+    from fpl_intelligence.squad.models_db import SquadStateDB
+    from fpl_intelligence.squad.sync import NoPendingSync, run_pending_sync
+    from fpl_intelligence.sync.materialized_models import FixturesCacheDB
+    from fpl_intelligence.sync.service import score_pending_recommendations
+
+    started_at = datetime.now(UTC)
+    steps: dict[str, dict] = {}
+
+    db = SessionLocal()
+    ok_count = 0
+    total_steps = 4
+    newly_scored = 0
+    finished_at = started_at
+    try:
+        # -- 0. self-sealing DDL -----------------------------------------------
+        created_tables = _ensure_daily_tables(db)
+        steps["tables"] = {"ok": True, "detail": created_tables or "up to date"}
+
+        # -- 1. materialize ------------------------------------------------------
+        try:
+            report = await materialize_all(db, season_code=SEASON_CODE)
+            mat_ok = bool(report.get("predictions", {}).get("ok")) or bool(
+                report.get("fixtures", {}).get("ok")
+            )
+            steps["materialize"] = {
+                "ok": mat_ok,
+                "detail": {
+                    k: (v or {}).get("ok") for k, v in report.items() if isinstance(v, dict)
+                },
+            }
+        except Exception as exc:  # noqa: BLE001 - one step never stops the rest
+            db.rollback()
+            steps["materialize"] = {"ok": False, "detail": f"{type(exc).__name__}: {exc}"}
+
+        # -- 2. pending squad syncs ------------------------------------------------
+        try:
+            result = await run_pending_sync(db)
+            steps["sync"] = {"ok": True, "detail": f"entry {result.entry_id} synced"}
+        except NoPendingSync:
+            steps["sync"] = {"ok": True, "detail": "no pending sync"}
+        except Exception as exc:  # noqa: BLE001
+            db.rollback()
+            steps["sync"] = {"ok": False, "detail": f"{type(exc).__name__}: {exc}"}
+
+        # -- 3. pre-generate current-GW briefs -------------------------------------
+        built = 0
+        brief_errors: list[str] = []
+        session_rows = db.execute(
+            select(SquadStateDB.session_id).order_by(SquadStateDB.updated_at.desc())
+        ).scalars().all()[:_DAILY_MAX_SQUADS]
+        for sid in session_rows:
+            try:
+                await assistant_brief(response=Response(), db=db, session_id=str(sid), gw=None)
+                built += 1
+            except Exception as exc:  # noqa: BLE001 - per-squad isolation
+                brief_errors.append(f"{sid}: {type(exc).__name__}")
+        steps["briefs"] = {
+            "ok": True,
+            "detail": {
+                "built": built,
+                "squads": len(session_rows),
+                "errors": brief_errors[:5],
+            },
+        }
+
+        # -- 4. grade any finished ungraded gameweek -------------------------------
+        graded_note = "nothing to grade"
+        try:
+            fx_row = db.scalar(
+                select(FixturesCacheDB).order_by(FixturesCacheDB.id.desc()).limit(1)
+            )
+            fin_gw = _finished_gameweek_from_cache((fx_row.payload or []) if fx_row else [])
+            if fin_gw is not None:
+                newly_scored = score_pending_recommendations(db, up_to_gameweek=fin_gw)
+                db.commit()
+                graded_note = f"GW{fin_gw}: {newly_scored} recommendation(s) scored"
+            else:
+                graded_note = "no fully-finished gameweek in fixtures cache yet"
+        except Exception as exc:  # noqa: BLE001
+            db.rollback()
+            graded_note = f"{type(exc).__name__}: {exc}"
+        steps["grading"] = {"ok": True, "detail": graded_note}
+
+        ok_count = sum(
+            1
+            for name in ("materialize", "sync", "briefs", "grading")
+            if steps.get(name, {}).get("ok")
+        )
+
+        status = "SUCCESS" if ok_count == total_steps else ("PARTIAL" if ok_count else "FAILED")
+        finished_at = datetime.now(UTC)
+        db.add(
+            IngestionRun(
+                source=_INIT_SOURCE,
+                job_name=DAILY_JOB_NAME,
+                season_code=SEASON_CODE,
+                status=status,
+                started_at=started_at,
+                finished_at=finished_at,
+                records_processed=ok_count,
+            )
+        )
+        db.commit()
+
+        # -- optional final-whistle Telegram summary after grading ------------------
+        telegram_summary: dict = {}
+        token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+        chat_ids = get_allowed_user_ids()
+        if newly_scored and token and chat_ids:
+            text = (
+                f"Final whistle: {newly_scored} recommendation(s) just graded. "
+                "Open Track Record for the verdicts."
+            )
+            pushed = 0
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    for chat_id in chat_ids:
+                        r = await client.post(
+                            f"https://api.telegram.org/bot{token}/sendMessage",
+                            json={"chat_id": chat_id, "text": text},
+                        )
+                        r.raise_for_status()
+                        pushed += 1
+            except Exception as exc:  # noqa: BLE001 - summary is best-effort
+                logger.warning("final-whistle push failed: %s", exc)
+            telegram_summary = {"attempted": True, "pushed": pushed}
+        else:
+            telegram_summary = {"attempted": False, "pushed": 0}
+
+        return JSONResponse(
+            status_code=200 if ok_count == total_steps else 207,
+            content={
+                "ok": ok_count == total_steps,
+                "job": DAILY_JOB_NAME,
+                "steps_ok": f"{ok_count}/{total_steps}",
+                "steps": steps,
+                "graded_now": newly_scored,
+                "telegram_summary": telegram_summary,
+                "duration_ms": int((finished_at - started_at).total_seconds() * 1000),
+            },
+        )
+    except Exception as exc:  # noqa: BLE001 - surface for cron visibility
+        db.rollback()
+        logger.exception("daily job failed")
+        finished_at = datetime.now(UTC)
+        try:
+            db.add(
+                IngestionRun(
+                    source=_INIT_SOURCE,
+                    job_name=DAILY_JOB_NAME,
+                    season_code=SEASON_CODE,
+                    status="FAILED",
+                    started_at=started_at,
+                    finished_at=finished_at,
+                    records_processed=0,
+                )
+            )
+            db.commit()
+        except Exception:  # noqa: BLE001
+            db.rollback()
+        return JSONResponse(
+            status_code=500, content={"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        )
+    finally:
+        db.close()
