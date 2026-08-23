@@ -286,6 +286,24 @@ ANALYST_SUMMARY = PromptTemplate(
 )
 
 
+#: Phase 20.4 — weekly assistant brief (six strict-JSON sections). Registered
+#: so the provider router can resolve the brief's template_id.
+ASSISTANT_BRIEF = PromptTemplate(
+    template_id="assistant.brief",
+    version="1.0.0",
+    system=(
+        "You are an FPL weekly assistant. Using ONLY the facts given, write a "
+        "short pre-deadline brief for the manager's squad. Reply with STRICT "
+        "JSON, no code fences, exactly these six keys: squad_status, captain, "
+        "transfers, fixture_swings, news_flags, last_week_grade. Each value is "
+        "one short paragraph. Never invent players, prices or statistics absent "
+        "from the facts."
+    ),
+    user="{raw_text}",
+    schema_version="1.0.0",
+)
+
+
 #: Registry so a persisted ``prompt_template_id`` can be resolved back to the
 #: template that produced it.
 EXTRACTION_TEMPLATES: dict[str, PromptTemplate] = {
@@ -293,6 +311,7 @@ EXTRACTION_TEMPLATES: dict[str, PromptTemplate] = {
     TACTICAL_EXTRACTION.template_id: TACTICAL_EXTRACTION,
     COMBINED_EXTRACTION.template_id: COMBINED_EXTRACTION,
     ANALYST_SUMMARY.template_id: ANALYST_SUMMARY,
+    ASSISTANT_BRIEF.template_id: ASSISTANT_BRIEF,
 }
 
 

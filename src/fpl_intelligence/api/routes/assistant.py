@@ -585,18 +585,16 @@ async def assistant_brief(
     llm = _build_real_provider()
     if not isinstance(llm, MockLLMProvider):
         try:
-            from fpl_intelligence.live_intelligence.prompts import LLMPrompt  # noqa: PLC0415
+            from fpl_intelligence.live_intelligence.prompts import (  # noqa: PLC0415
+                ASSISTANT_BRIEF,
+                LLMPrompt,
+            )
 
             prompt = LLMPrompt(
-                template_id="assistant.brief",
-                version="1",
-                schema_version="1",
-                system=(
-                    "You are an FPL weekly assistant. Using ONLY the facts given, "
-                    "write a short brief. Reply with STRICT JSON, no code fences, "
-                    "exactly the six requested keys. Never invent players, prices "
-                    "or statistics absent from the facts."
-                ),
+                template_id=ASSISTANT_BRIEF.template_id,
+                version=ASSISTANT_BRIEF.version,
+                schema_version=ASSISTANT_BRIEF.schema_version,
+                system=ASSISTANT_BRIEF.system,
                 user=_render_facts_text(facts),
             )
             raw = await run_in_threadpool(llm.complete, prompt)
@@ -606,6 +604,10 @@ async def assistant_brief(
                 resp_provider = getattr(raw, "provider_name", None) or ""
                 resp_model = getattr(raw, "model_name", None) or ""
                 model_label = "/".join(x for x in (resp_provider, resp_model) if x) or "llm"
+            else:
+                logger.warning(
+                    "Brief LLM reply not parseable as six-section JSON; template used."
+                )
         except Exception as exc:  # noqa: BLE001 — never fail the brief on LLM errors
             logger.warning("Brief LLM failed (%s); template used.", exc)
             model_label = "template-fallback"
