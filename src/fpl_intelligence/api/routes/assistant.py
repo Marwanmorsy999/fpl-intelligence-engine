@@ -82,7 +82,9 @@ def _cache_key(session_id: str, gameweek: int, player_ids: list[int]) -> str:
 def _name_of(report: dict[str, Any], pid: int | None) -> str:
     players = report.get("players") or {}
     if pid is not None:
-        p = players.get(str(pid)) or {}
+        # model_dump() keeps dict[int, ...] keys as ints while the JSON wire
+        # format uses strings — accept both.
+        p = players.get(str(pid)) or players.get(int(pid)) or {}
         if p.get("web_name"):
             return str(p["web_name"])
     return f"Player {pid}"
