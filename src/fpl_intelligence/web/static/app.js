@@ -232,6 +232,8 @@ window.FPLApp = (function () {
     var needed = [];
     Array.prototype.forEach.call(nodes, function (el) {
       var id = el.getAttribute("data-team");
+      /* Skip placeholder chips without a real team id — /crests/0 is 404. */
+      if (!id || id === "0") return;
       var hit = cache[id];
       if (hit && hit.url) attachBadge(el, hit.url);
       else needed.push(id);

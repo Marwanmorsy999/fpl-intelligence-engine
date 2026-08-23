@@ -16,7 +16,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import httpx
-from fastapi import APIRouter
+from fastapi import APIRouter, Response
 from sqlalchemy import func
 
 from fpl_intelligence.api import deps
@@ -103,8 +103,11 @@ async def _probe_photos() -> tuple[str, str]:
 
 
 @router.get("/data-sources", summary="Live status of every data source")
-async def data_sources(db: deps.GetDB) -> dict[str, Any]:
+async def data_sources(db: deps.GetDB, response: Response) -> dict[str, Any]:
     """Return the live status of each external data source."""
+    # Status payloads must never be cached by browsers — the Sources page
+    # otherwise shows a stale snapshot from an earlier navigation (Phase 20.1).
+    response.headers["Cache-Control"] = "no-store"
     now_mono = time.monotonic()
     with _response_lock:
         cached = _response_cache
