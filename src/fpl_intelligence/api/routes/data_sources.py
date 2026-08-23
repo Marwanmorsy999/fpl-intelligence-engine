@@ -7,12 +7,15 @@ answer to "where is the AI / where is the math / why is X off".
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
+import threading
 import time
 from datetime import UTC, datetime
 from typing import Any
 
+import httpx
 from fastapi import APIRouter
 from sqlalchemy import func
 
@@ -38,21 +41,19 @@ def _age_seconds_since(when: datetime) -> float:
     return max(0.0, (datetime.now(UTC) - when).total_seconds())
 
 
-@router.get("/data-sources", summary="Live status of every data source")
-async def data_sources(db: deps.GetDB) -> dict[str, Any]:
-    """Return the live status of each external data source."""
-    settings = get_settings()
-    now = datetime.now(UTC).isoformat()
+#: Phase 20.1 — the two live reachability probes (FPL, PL photos CDN) used to
+#: run sequentially with 8s timeouts each, which made the Sources page take
+#: ~6s+ on Vercel where FPL is blocked. They now run concurrently with tight
+#: budgets and the assembled payload is cached briefly in-process.
+_PROBE_BUDGET_SECONDS = 3.0
+_RESPONSE_CACHE_SECONDS = 60.0
+_response_cache: tuple[float, dict[str, Any] | None] = (0.0, None)
+_response_lock = threading.Lock()
 
-    # --- FPL import: test reachability of the entry endpoint -----------------
-    fpl_status = "unknown"
-    fpl_detail = ""
-    fpl_strategy = ""
+
+async def _probe_fpl(settings: Any) -> tuple[str, str, str]:
+    """FPL import reachability -> (status, detail, strategy)."""
     try:
-        import httpx  # noqa: PLC0415
-
-        # Use the egress chain so the status reflects the path the importer
-        # actually uses — including which mask won (Phase 18.0).
         from fpl_intelligence.data_providers.fpl_egress import (  # noqa: PLC0415
             FplEgressChain,
             validate_entry_payload,
@@ -60,37 +61,65 @@ async def data_sources(db: deps.GetDB) -> dict[str, Any]:
 
         egress = FplEgressChain(
             settings.fpl_base_url,
-            timeout=min(8.0, settings.egress_strategy_timeout),
+            timeout=min(_PROBE_BUDGET_SECONDS, settings.egress_strategy_timeout),
             cache_ttl=0,  # never cache a health probe
         )
         await egress.fetch("/api/entry/1/", validator=validate_entry_payload)
-        fpl_status = "ok"
-        fpl_detail = "reachable"
-        fpl_strategy = egress.winning_strategy or "direct"
+        return "ok", "reachable", egress.winning_strategy or "direct"
     except Exception:  # noqa: BLE001
-        # Fall back to a plain direct probe if the chain probe fails.
-        try:
-            async with httpx.AsyncClient(timeout=8, follow_redirects=True) as client:
-                r = await client.get(
-                    f"{settings.fpl_base_url.rstrip('/')}/api/entry/1/",
-                    headers={
-                        "User-Agent": "FPL-Intelligence-Engine/1.0",
-                        "Accept": "application/json",
-                    },
-                )
-                if r.status_code == 200:
-                    fpl_status = "ok"
-                    fpl_detail = "reachable"
-                    fpl_strategy = "direct"
-                elif r.status_code == 403:
-                    fpl_status = "blocked"
-                    fpl_detail = "rate-limited by FPL"
-                else:
-                    fpl_status = "degraded"
-                    fpl_detail = f"HTTP {r.status_code}"
-        except Exception as inner:  # noqa: BLE001
-            fpl_status = "blocked"
-            fpl_detail = f"unreachable ({type(inner).__name__})"
+        pass
+    try:
+        async with httpx.AsyncClient(
+            timeout=_PROBE_BUDGET_SECONDS, follow_redirects=True
+        ) as client:
+            r = await client.get(
+                f"{settings.fpl_base_url.rstrip('/')}/api/entry/1/",
+                headers={
+                    "User-Agent": "FPL-Intelligence-Engine/1.0",
+                    "Accept": "application/json",
+                },
+            )
+        if r.status_code == 200:
+            return "ok", "reachable", "direct"
+        if r.status_code == 403:
+            return "blocked", "rate-limited by FPL", ""
+        return "degraded", f"HTTP {r.status_code}", ""
+    except Exception as inner:  # noqa: BLE001
+        return "blocked", f"unreachable ({type(inner).__name__})", ""
+
+
+async def _probe_photos() -> tuple[str, str]:
+    """Premier League CDN reachability -> (status, detail)."""
+    try:
+        async with httpx.AsyncClient(
+            timeout=_PROBE_BUDGET_SECONDS, follow_redirects=True
+        ) as client:
+            r = await client.head("https://resources.premierleague.com/badges/70/t1.png")
+        if r.status_code < 400:
+            return "ok", "Premier League CDN"
+        return "outage", f"HTTP {r.status_code}"
+    except Exception:  # noqa: BLE001
+        return "outage", "unreachable — avatars fallback active"
+
+
+@router.get("/data-sources", summary="Live status of every data source")
+async def data_sources(db: deps.GetDB) -> dict[str, Any]:
+    """Return the live status of each external data source."""
+    now_mono = time.monotonic()
+    with _response_lock:
+        cached = _response_cache
+    if cached[1] is not None and now_mono - cached[0] < _RESPONSE_CACHE_SECONDS:
+        return cached[1]
+
+    settings = get_settings()
+
+    # Live probes run concurrently so the worst case is one probe budget.
+    fpl_task = asyncio.create_task(_probe_fpl(settings))
+    photos_task = asyncio.create_task(_probe_photos())
+    fpl_status, fpl_detail, fpl_strategy = await fpl_task
+    photos_status, photos_detail = await photos_task
+
+    now = datetime.now(UTC).isoformat()
 
     # --- Odds API: enabled only when key is present ---------------------------
     odds_key_present = bool(os.getenv("THE_ODDS_API_KEY", "").strip())
@@ -113,21 +142,6 @@ async def data_sources(db: deps.GetDB) -> dict[str, Any]:
     # --- Weather: always live (Open-Meteo, no key) ----------------------------
     weather_status = "live"
     weather_detail = "Open-Meteo (no key required)"
-
-    # --- PL photos: CDN reachable --------------------------------------------
-    photos_status = "ok"
-    photos_detail = "Premier League CDN"
-    try:
-        import httpx  # noqa: PLC0415
-
-        async with httpx.AsyncClient(timeout=8, follow_redirects=True) as client:
-            r = await client.head("https://resources.premierleague.com/badges/70/t1.png")
-            if r.status_code >= 400:
-                photos_status = "outage"
-                photos_detail = f"HTTP {r.status_code}"
-    except Exception:  # noqa: BLE001
-        photos_status = "outage"
-        photos_detail = "unreachable — avatars fallback active"
 
     # --- LLM: which provider/model the analyst will actually use -------------
     # Mirrors analyst._build_real_provider(): any real key engages the live
@@ -242,7 +256,7 @@ async def data_sources(db: deps.GetDB) -> dict[str, Any]:
         predictions_status = "pending"
         predictions_detail = "no precomputed xPTS yet — daily 06:10 UTC cron"
 
-    return {
+    payload = {
         "as_of": now,
         "sources": {
             "fixtures": {
@@ -289,3 +303,6 @@ async def data_sources(db: deps.GetDB) -> dict[str, Any]:
             },
         },
     }
+    with _response_lock:
+        globals()["_response_cache"] = (time.monotonic(), payload)
+    return payload
