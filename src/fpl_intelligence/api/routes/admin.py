@@ -1744,7 +1744,7 @@ async def daily_endpoint(
                 try:
                     await asyncio.wait_for(
                         assistant_brief(response=Response(), db=db, session_id=str(sid), gw=None),
-                        timeout=10.0,
+                        timeout=14.0,
                     )
                     built += 1
                 except TimeoutError:
@@ -1754,7 +1754,7 @@ async def daily_endpoint(
 
         t0 = _time.monotonic()
         with contextlib.suppress(TimeoutError):
-            await asyncio.wait_for(_build_briefs(), timeout=12.0)
+            await asyncio.wait_for(_build_briefs(), timeout=17.0)
         session_count = len(
             db.execute(select(SquadStateDB.session_id)).scalars().all()[:_DAILY_MAX_SQUADS]
         )
