@@ -121,26 +121,26 @@ async def data_sources(db: deps.GetDB) -> dict[str, Any]:
         photos_status = "outage"
         photos_detail = "unreachable — avatars fallback active"
 
-    # --- LLM: which provider/model is configured -----------------------------
-    llm_provider = os.getenv("LLM_PROVIDER", "mock").strip() or "mock"
+    # --- LLM: which provider/model the analyst will actually use -------------
+    # Mirrors analyst._build_real_provider(): any real key engages the live
+    # router (GROQ -> OPENROUTER -> GEMINI), independent of LLM_PROVIDER.
     groq_present = bool(os.getenv("GROQ_API_KEY", "").strip())
     openrouter_present = bool(os.getenv("OPENROUTER_API_KEY", "").strip())
     gemini_present = bool(os.getenv("GOOGLE_API_KEY", "").strip())
-    real_keys = []
+    configured_order = []
     if groq_present:
-        real_keys.append("GROQ")
+        configured_order.append("groq")
     if openrouter_present:
-        real_keys.append("OPENROUTER")
+        configured_order.append("openrouter")
     if gemini_present:
-        real_keys.append("GEMINI")
+        configured_order.append("gemini")
 
-    if llm_provider == "mock":
-        llm_status = "template-fallback"
-        keys_note = f" (keys available: {', '.join(real_keys)})" if real_keys else ""
-        llm_detail = f"mock provider{keys_note}"
-    else:
+    if configured_order:
         llm_status = "enabled"
-        llm_detail = f"{llm_provider}" + (f" + {', '.join(real_keys)} keys" if real_keys else "")
+        llm_detail = "live LLM (" + " -> ".join(configured_order) + ")"
+    else:
+        llm_status = "template-fallback"
+        llm_detail = "no LLM keys configured"
 
     return {
         "as_of": now,
