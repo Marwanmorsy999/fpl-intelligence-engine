@@ -120,6 +120,22 @@ async def _gather_facts(db: Session, session_id: str) -> dict[str, Any]:
     report = bridge.generate_decisions(squad)
     report_dict = report.model_dump()
 
+    # The /decisions route enriches report.players with web names via
+    # _build_player_details; the brief calls the bridge directly, so fill
+    # minimal name entries straight from the ingested player table.
+    if not report_dict.get("players"):
+        from sqlalchemy import select  # noqa: PLC0415
+
+        from fpl_intelligence.db.models import Player  # noqa: PLC0415
+
+        name_map: dict[str, dict[str, Any]] = {}
+        for pid in squad.player_ids:
+            prow: Player | None = db.scalar(
+                select(Player).where(Player.fpl_element_id == int(pid))
+            )
+            name_map[str(pid)] = {"web_name": prow.web_name if prow else f"Player {pid}"}
+        report_dict["players"] = name_map
+
     # --- fixture context ------------------------------------------------------
     fixture_lines: list[str] = []
     squad_swing = 0.0
