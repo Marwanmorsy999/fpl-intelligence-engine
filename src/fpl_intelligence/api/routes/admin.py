@@ -1665,14 +1665,19 @@ async def daily_endpoint(
             steps["sync"] = {"ok": False, "detail": f"{type(exc).__name__}: {exc}"}
 
         # -- 3. pre-generate current-GW briefs -------------------------------------
-        # Budget-aware: one cold LLM brief can take ~15 s, so keep building
-        # only while the shared 60 s function budget allows; remaining squads
+        # Budget-aware: keep building only while the shared 60 s function
+        # budget allows, and cap EACH brief so one slow multi-provider LLM
+        # fallback chain can never consume the whole request. Deferred squads
         # lazily generate on first page load instead (same code path).
+        import asyncio
+
         import time as _time
 
         _BRIEF_BUDGET_SECONDS = 32.0
+        _PER_BRIEF_TIMEOUT = 14.0
         built = 0
         skipped_for_budget = 0
+        deferred_timeout = 0
         brief_errors: list[str] = []
         session_rows = db.execute(
             select(SquadStateDB.session_id).order_by(SquadStateDB.updated_at.desc())
@@ -1682,8 +1687,13 @@ async def daily_endpoint(
                 skipped_for_budget += 1
                 continue
             try:
-                await assistant_brief(response=Response(), db=db, session_id=str(sid), gw=None)
+                await asyncio.wait_for(
+                    assistant_brief(response=Response(), db=db, session_id=str(sid), gw=None),
+                    timeout=_PER_BRIEF_TIMEOUT,
+                )
                 built += 1
+            except asyncio.TimeoutError:
+                deferred_timeout += 1
             except Exception as exc:  # noqa: BLE001 - per-squad isolation
                 brief_errors.append(f"{sid}: {type(exc).__name__}")
         steps["briefs"] = {
@@ -1691,7 +1701,7 @@ async def daily_endpoint(
             "detail": {
                 "built": built,
                 "squads": len(session_rows),
-                "deferred": skipped_for_budget,
+                "deferred": skipped_for_budget + deferred_timeout,
                 "errors": brief_errors[:5],
             },
         }
