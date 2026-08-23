@@ -1670,7 +1670,6 @@ async def daily_endpoint(
         # fallback chain can never consume the whole request. Deferred squads
         # lazily generate on first page load instead (same code path).
         import asyncio
-
         import time as _time
 
         _BRIEF_BUDGET_SECONDS = 32.0
@@ -1692,7 +1691,7 @@ async def daily_endpoint(
                     timeout=_PER_BRIEF_TIMEOUT,
                 )
                 built += 1
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 deferred_timeout += 1
             except Exception as exc:  # noqa: BLE001 - per-squad isolation
                 brief_errors.append(f"{sid}: {type(exc).__name__}")
