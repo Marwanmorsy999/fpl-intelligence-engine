@@ -372,10 +372,41 @@ async def player_drawer(
             if isinstance(raw_breakdown, dict) and raw_breakdown:
                 breakdown = {k: round(float(v), 2) for k, v in raw_breakdown.items()}
             else:
-                # Breakdown honest "unavailable" chip — degraded but not 500
-                degraded = True
-                if "xpts_breakdown" not in missing:
-                    missing.append("xpts_breakdown")
+                # Breakdown null in materialized row (pre-v2.3.2 rows) — try inline
+                # proxy as honest fallback (still zero-network when odds/weather
+                # unavailable, degrades gracefully). This keeps the chip populated
+                # even before the next daily cron repopulates the table.
+                try:
+                    provider_fb = deps.get_prediction_provider(db)
+
+                    def _predict_fb() -> Any:
+                        return provider_fb.get_squad_predictions([player_id], [target_gw])
+
+                    preds_fb = await run_in_threadpool(_predict_fb)
+                    pred_fb = (preds_fb.get(target_gw) or {}).get(player_id)
+                    if pred_fb is not None:
+                        raw_bd = getattr(pred_fb, "breakdown", None)
+                        if isinstance(raw_bd, dict) and raw_bd:
+                            breakdown = {k: round(float(v), 2) for k, v in raw_bd.items()}
+                            # Keep materialized expected_points etc, only breakdown fallback
+                            if expected_points is None:
+                                expected_points = round(float(pred_fb.expected_points), 2)
+                            if prediction_source is None:
+                                prediction_source = getattr(pred_fb, "source", None)
+                            if data_quality is None:
+                                data_quality = getattr(pred_fb, "data_quality", None)
+                        else:
+                            degraded = True
+                            if "xpts_breakdown" not in missing:
+                                missing.append("xpts_breakdown")
+                    else:
+                        degraded = True
+                        if "xpts_breakdown" not in missing:
+                            missing.append("xpts_breakdown")
+                except Exception:
+                    degraded = True
+                    if "xpts_breakdown" not in missing:
+                        missing.append("xpts_breakdown")
         except Exception as exc:
             logger.warning("drawer materialized prediction parse failed for %s: %s", player_id, exc)
             degraded = True
