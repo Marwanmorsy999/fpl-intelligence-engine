@@ -56,11 +56,18 @@ from fpl_intelligence.notifications.webpush import (  # noqa: E402,F401
 )
 from fpl_intelligence.prices.models import PriceMoveDB as _PriceMoveDB  # noqa: E402,F401
 from fpl_intelligence.prices.models import PriceSnapshotDB as _PriceSnapshotDB  # noqa: E402,F401
+from fpl_intelligence.transfers import models as _transfer_models  # noqa: E402,F401
 
 _LEAGUE_TABLES = (
     _league_models.EntryLeagueDB,  # noqa: F401
     _league_models.LeagueCacheDB,  # noqa: F401
     _league_models.LeagueSelectionDB,  # noqa: F401
+)
+
+# Phase 25 Gate 0: transfer ledger + squad snapshots.
+_TRANSFER_TABLES = (
+    _transfer_models.SquadSnapshotDB,  # noqa: F401
+    _transfer_models.TransferLogDB,  # noqa: F401
 )
 assert all(_SYNC_TABLES), "sync models must be importable for metadata registration"
 assert all(_MATERIALIZED_TABLES), "materialized models must be importable"

@@ -288,7 +288,7 @@ async def player_drawer(
             # Prefer squad team, fallback to element_fact team_id, then Player DB
             team = (squad.player_teams or {}).get(player_id)
             if team is None and row is not None and getattr(row, "team_id", None) is not None:
-                team = getattr(row, "team_id")
+                team = row.team_id
             # Fallback: try to resolve team via PlayerTeamMembership if still none (for arbitrary ids)
             if team is None:
                 try:
@@ -525,7 +525,7 @@ async def player_drawer(
         price = (squad.player_prices or {}).get(player_id)
         if price is None and row is not None and getattr(row, "now_cost", None) is not None:
             try:
-                price = float(getattr(row, "now_cost")) / 10.0
+                price = float(row.now_cost) / 10.0
             except Exception:
                 price = None
         if price is None:
@@ -552,7 +552,9 @@ async def player_drawer(
         team_val = getattr(row, "team_id", None)
     if team_val is None:
         try:
-            from fpl_intelligence.prediction.live_provider import load_player_catalog  # noqa: PLC0415
+            from fpl_intelligence.prediction.live_provider import (
+                load_player_catalog,  # noqa: PLC0415
+            )
 
             _cat = load_player_catalog().get(int(player_id))
             if _cat and _cat.get("team"):
@@ -564,7 +566,7 @@ async def player_drawer(
     if position_val is None and row is None and prow is None:
         # try membership position_code
         if prow and getattr(prow, "position_code", None) is not None:
-            position_val = getattr(prow, "position_code")
+            position_val = prow.position_code
 
     form_bars: list[dict[str, Any]] = []
     try:
@@ -634,7 +636,9 @@ async def player_drawer(
 
     # Phase 24 C2 — set-piece taker flags (manual curation)
     try:
-        from fpl_intelligence.set_pieces.service import set_piece_flags as _set_flags  # noqa: PLC0415
+        from fpl_intelligence.set_pieces.service import (
+            set_piece_flags as _set_flags,  # noqa: PLC0415
+        )
 
         set_pieces = _set_flags(int(player_id), team_val)
     except Exception:

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planner — FPL Intelligence</title>
+<link rel="icon" href="data:,">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#0B0F19">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/app.js"></script>
+</head>
+<body>
+<div id="topnav"></div>
+<div class="wrap">
+
+  <h1 class="page-title">Horizon planner
+    <span id="gwHeader" class="pill" style="margin-left:8px">Gameweek –</span>
+  </h1>
+  <p class="muted small" style="margin-top:0">A two-gameweek lookahead: the best Alpha buy now, then hold or upgrade. Every assumption is listed and every EV is traceable to stored predictions.</p>
+
+  <div id="statusLine"></div>
+
+  <div class="card plan-card" data-testid="plan-card">
+    <div class="section-h" style="margin-top:0">Plan</div>
+    <div id="planSteps"><p class="faint small">Loading…</p></div>
+
+    <div class="section-h">Assumptions</div>
+    <ul id="assumptions" class="assumptions small muted"><li>loading…</li></ul>
+
+    <div class="section-h">Price movement</div>
+    <div id="pressureBox"></div>
+  </div>
+
+  <details class="card" style="margin-top:20px">
+    <summary style="cursor:pointer;font-weight:700;color:#fff;min-height:48px;display:flex;align-items:center">How this is computed</summary>
+    <p class="muted small" style="margin-bottom:0" id="howComputed">
+      GW{n}: best Alpha buy vs your cheapest sale (xPTS difference); GW{n+1}:
+      hold unless a higher-Alpha buy exists. Chip simulator context from the
+      optimizer; rise pressure from official net-transfer counters + cost
+      changes — never percentages.
+    </p>
+  </details>
+
+  <div style="display:flex;gap:10px;margin-top:18px">
+    <button id="exportBtn" class="btn" type="button" data-testid="export-plan-btn">⬇ Export plan (.txt)</button>
+    <span id="exportStatus" class="faint small" style="align-self:center"></span>
+  </div>
+
+</div>
+<script>
+"use strict";
+document.addEventListener("DOMContentLoaded", function () {
+  FPLApp.renderNav("/planner");
+  var $ = function (id) { return document.getElementById(id); };
+  var LAST_PAYLOAD = null;
+
+  function render(data) {
+    if (data.status === "no-squad") {
+      $("statusLine").innerHTML = '<span class="pill warn">No saved session</span> <span class="muted small">— open <a href="/dashboard">Decisions</a> first.</span>';
+      $("planSteps").innerHTML = "";
+      return;
+    }
+    LAST_PAYLOAD = data;
+    if (data.gameweek) $("gwHeader").textContent = "Gameweek " + data.gameweek;
+
+    $("planSteps").innerHTML = (data.plan_steps || []).map(function (s) {
+      var ev = s.ev === null || s.ev === undefined ? "EV unavailable" : "EV " + (s.ev > 0 ? "+" : "") + Number(s.ev).toFixed(1);
+      return '<div class="plan-step" data-testid="plan-step">' +
+        '<strong>GW' + s.gameweek + "</strong> · " + FPLApp.esc(s.action) +
+        ' <span class="num ' + (s.ev > 0 ? "pos" : "") + '">' + ev + "</span></div>";
+    }).join("");
+
+    $("assumptions").innerHTML = (data.assumptions || []).map(function (a) {
+      return "<li>" + FPLApp.esc(a) + "</li>";
+    }).join("");
+
+    var pp = data.price_pressure || {};
+    var cls = pp.pressure === "high" ? "bad" : (pp.pressure === "low" ? "ok" : "");
+    $("pressureBox").innerHTML =
+      '<span class="pill ' + cls + '" data-testid="rise-pressure-chip">rise pressure: ' + FPLApp.esc(pp.pressure || "unavailable") + "</span>" +
+      '<p class="how-computed faint small" style="margin:6px 0 0">inputs: ' + FPLApp.esc(pp.inputs || "n/a") + "</p>";
+
+    if (data.how_computed) $("howComputed").textContent = data.how_computed;
+  }
+
+  function load(sessionKey) {
+    fetch("/api/v1/planner?session_id=" + encodeURIComponent(sessionKey))
+      .then(function (r) { return r.ok ? r.json() : r.json().then(function (b) { throw new Error(b.detail || r.status); }); })
+      .then(render)
+      .catch(function (err) {
+        $("statusLine").innerHTML = '<span class="pill bad">' + FPLApp.esc(err.message || "Load failed.") + "</span>";
+      });
+  }
+
+  $("exportBtn").addEventListener("click", function () {
+    if (!LAST_PAYLOAD) { $("exportStatus").textContent = "Nothing to export yet"; return; }
+    FPLApp.exportTxt("fpl_plan.txt", LAST_PAYLOAD.plan_text || "");
+    $("exportStatus").textContent = "fpl_plan.txt downloaded";
+    setTimeout(function () { $("exportStatus").textContent = ""; }, 1500);
+  });
+
+  var session = FPLApp.session.read();
+  if (session && session.key) load(session.key);
+  else $("statusLine").innerHTML = '<span class="pill warn">No saved session</span> <span class="muted small">— open <a href="/dashboard">Decisions</a> first.</span>';
+});
+</script>
+</body>
+</html>

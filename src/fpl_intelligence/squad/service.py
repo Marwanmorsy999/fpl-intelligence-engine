@@ -9,6 +9,8 @@ resolved by an idempotent upsert on the unique ``session_id`` key.
 
 from __future__ import annotations
 
+import contextlib
+import logging
 from collections.abc import Callable
 from datetime import UTC, datetime
 from threading import Lock
@@ -19,6 +21,8 @@ from sqlalchemy.orm import Session
 
 from fpl_intelligence.squad.models import SquadStateCreate, SquadStateResponse
 from fpl_intelligence.squad.models_db import SquadStateDB
+
+logger = logging.getLogger(__name__)
 
 #: A callable that returns a fresh SQLAlchemy ``Session``.
 SessionFactory = Callable[[], Session]
@@ -108,6 +112,23 @@ class SquadService:
             db, own = self._acquire()
             try:
                 self._upsert(db, session_id, state)
+                # Phase 25 (T1): capture a roster snapshot so the transfer
+                # ledger can fall back to snapshot-diff when official history
+                # is blocked. Best-effort — must never break a squad save.
+                try:
+                    from fpl_intelligence.transfers.service import capture_snapshot
+
+                    capture_snapshot(
+                        db,
+                        session_id,
+                        list(payload.player_ids),
+                        int(payload.gameweek),
+                        float(payload.bank or 0.0),
+                    )
+                except Exception as exc:  # noqa: BLE001 — observability only
+                    logger.warning("squad snapshot capture failed: %s", exc)
+                    with contextlib.suppress(Exception):
+                        db.rollback()
             finally:
                 if own:
                     db.close()

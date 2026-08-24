@@ -1,17 +1,20 @@
 """Phase 24 — compare + chips + set pieces smoke."""
+from unittest.mock import MagicMock
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-from unittest.mock import MagicMock
+
 from fpl_intelligence.api import deps
 from fpl_intelligence.live_intelligence.bridge import StaticPredictionProvider
-from fpl_intelligence.squad.models import SquadStateCreate
+
 
 @pytest.fixture
 def client(db_session: Session):
+    from sqlalchemy import delete
+
     from fpl_intelligence.api.main import app
     from fpl_intelligence.squad.models_db import SquadStateDB
-    from sqlalchemy import delete
     def _override():
         yield db_session
     app.dependency_overrides[deps._get_db_session] = _override
@@ -138,7 +141,7 @@ def test_drawer_shows_set_piece_chips(client):
         flags = data["set_pieces"]
         assert any(flags.get(k) is True for k in ("penalty","corners","free_kicks")), f"{pid} should be taker"
     # also test unknown handling for unmapped? our json covers all 20, but unknown path still exists
-    r2 = client.get(f"/api/v1/player/1/drawer", params={"session_id": "drawer_sp"})
+    r2 = client.get("/api/v1/player/1/drawer", params={"session_id": "drawer_sp"})
     assert r2.status_code == 200
     assert "set_pieces" in r2.json()
 

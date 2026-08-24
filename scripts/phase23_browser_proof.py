@@ -103,7 +103,7 @@ def run() -> int:
         print("sources odds line:", m.group(0) if m else "NOT FOUND")
         if not m:
             failures.append("Sources odds row missing canonical detail")
-        elif mc_count and not m.group(0).split("·")[0] in mc_texts[0]:
+        elif mc_count and m.group(0).split("·")[0] not in mc_texts[0]:
             pass  # same prefix already asserted above
         page.screenshot(path=str(OUT / "p23_sources.png"))
 

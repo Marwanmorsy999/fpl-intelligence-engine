@@ -40,6 +40,8 @@ _PAGES: dict[str, str] = {
     "/compare": "compare.html",  # Phase 24 Gate 0 — M3 head-to-head
     "/chips": "chips.html",  # Phase 24 Gate 1 — C1 chip planner
     "/crunch": "crunch.html",  # Phase 24 Gate 0 — M1 deadline crunch view
+    "/targets": "targets.html",  # Phase 25 Gate 0 — T2 alpha engine
+    "/planner": "planner.html",  # Phase 25 Gate 0 — T3 horizon planner
 }
 
 #: Whitelisted shared assets servable under /static (no directory traversal).

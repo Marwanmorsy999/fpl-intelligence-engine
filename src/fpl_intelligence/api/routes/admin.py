@@ -1952,7 +1952,7 @@ async def daily_endpoint(
     started_at = datetime.now(UTC)
     steps: dict[str, dict] = {}
     db = SessionLocal()
-    total_steps = 4
+    total_steps = 5  # materialize, sync, transfers, briefs, grading
 
     async def _run_stages() -> int:
         """All four stages. Returns newly_scored count."""
@@ -2246,6 +2246,39 @@ async def daily_endpoint(
             graded_note = f"{type(exc).__name__}: {exc}"
         steps["grading"] = {"ok": True, "detail": graded_note}
 
+        # -- 3b. transfer ledgers (Phase 25 T1; hard 8 s stage cap) ---------------
+        # Refreshes the official-history transfer ledger for the newest saved
+        # squads only — the request-path endpoint does the same work on demand.
+        t0 = _time.monotonic()
+        ledgers_ok = 0
+        ledger_errors: list[str] = []
+        try:
+            from fpl_intelligence.transfers.service import build_ledger
+
+            recent = db.execute(
+                select(SquadStateDB.session_id).order_by(SquadStateDB.updated_at.desc())
+            ).scalars().all()[:3]
+            for sid in recent:
+                if _time.monotonic() - t0 > 6.0:
+                    break
+                try:
+                    await asyncio.wait_for(build_ledger(db, str(sid)), timeout=5.0)
+                    ledgers_ok += 1
+                except Exception as exc:  # noqa: BLE001 — per-squad isolation
+                    db.rollback()
+                    ledger_errors.append(f"{sid}: {type(exc).__name__}")
+            steps["transfers"] = {
+                "ok": True,
+                "ms": int((_time.monotonic() - t0) * 1000),
+                "detail": {"ledgers": ledgers_ok, "errors": ledger_errors[:3]},
+            }
+        except Exception as exc:  # noqa: BLE001 — never block later stages
+            db.rollback()
+            steps["transfers"] = {
+                "ok": False,
+                "detail": f"{type(exc).__name__}: {exc}",
+            }
+
         # -- 4. pre-generate current-GW briefs (runs LAST, hard 12 s stage cap) --------
         # Cheap stages always complete first; deferred squads lazily generate on
         # first page load instead (identical code path).
@@ -2307,13 +2340,13 @@ async def daily_endpoint(
             newly_scored = await asyncio.wait_for(_run_stages(), timeout=48.0)
         except TimeoutError:
             watchdog_hit = True
-            for name in ("tables", "materialize", "sync", "briefs", "grading"):
+            for name in ("tables", "materialize", "sync", "transfers", "briefs", "grading"):
                 steps.setdefault(name, {"ok": False, "detail": "deferred — global watchdog"})
             logger.warning("daily job hit the 48s global watchdog")
         finally:
             finished_at = datetime.now(UTC)
 
-        names = ("materialize", "sync", "briefs", "grading")
+        names = ("materialize", "sync", "transfers", "briefs", "grading")
         ok_count = sum(1 for name in names if steps.get(name, {}).get("ok"))
         status = "SUCCESS" if ok_count == total_steps else ("PARTIAL" if ok_count else "FAILED")
         db.add(

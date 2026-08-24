@@ -17,7 +17,7 @@
 <div id="topnav"></div>
 <div class="wrap">
 
-  <h1 style="font-size:22px;font-weight:800;color:#fff;margin:0 0 4px">Track record</h1>
+  <h1 class="page-title" style="margin:0 0 4px">Track record</h1>
   <p class="muted small" style="margin-top:0">Every recommendation the engine made, graded against what actually happened. Cards appear as you use Decisions; verdicts land automatically once the daily 06:10 cron ingests the gameweek's real results.</p>
 
   <div style="display:flex;gap:8px;margin:16px 0 20px">
@@ -37,6 +37,10 @@
 
   <div class="section-h">Last 5 graded cards</div>
   <div id="last5" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))"></div>
+
+  <div class="section-h">Transfer ledger</div>
+  <p id="ledgerNote" class="faint small" style="margin:0 0 8px">Every transfer we could verify for this entry — official FPL history first, snapshot-diff fallback (labelled). Horizon EV = Σ(xPTS_in − xPTS_out) over materialized prediction weeks − hit cost.</p>
+  <div id="transferLedger" class="card"><span class="faint small">Loads with your track record…</span></div>
 
   <div class="section-h">All recommendations</div>
   <div class="card" style="padding:4px 16px" id="allCards"></div>
@@ -137,7 +141,7 @@ document.addEventListener("DOMContentLoaded", function () {
     try { localStorage.setItem("fpl_session_id", entry); } catch (e) {}
     fetch("/api/v1/sync/track-record?entry_id=" + encodeURIComponent(entry))
       .then(function (r) { return r.ok ? r.json() : r.json().then(function (b) { throw new Error(b.detail || r.status); }); })
-      .then(function (data) { render(data); loadCalibration(); })
+      .then(function (data) { render(data); loadCalibration(); loadLedger(entry); })
       .catch(function (err) { $("allCards").innerHTML = '<p class="muted small">' + esc(err.message || "Load failed.") + "</p>"; });
   }
 
@@ -147,6 +151,49 @@ document.addEventListener("DOMContentLoaded", function () {
       $("stMae").textContent = cal.mae === null || cal.mae === undefined ? "–" : Number(cal.mae).toFixed(2);
       $("stMaeSub").textContent = cal.count ? cal.count + " player-GW pairs · bias " + (cal.bias > 0 ? "+" : "") + Number(cal.bias).toFixed(2) : "no reconciled predictions yet";
     }).catch(function () {});
+  }
+
+  /* Phase 25 Gate 0 (T1) — transfer ledger with horizon EV. */
+  function renderLedger(data) {
+    var box = $("transferLedger");
+    if (!data || data.status === "unavailable") {
+      box.innerHTML = '<span class="pill faint-chip" data-testid="ledger-unavailable">transfer history: unavailable</span>' +
+        (data && data.note ? ' <span class="faint small">' + FPLApp.esc(data.note) + "</span>" : "");
+      return;
+    }
+    var srcChip = data.source === "official-history"
+      ? '<span class="pill ok">source: official history</span>'
+      : '<span class="pill warn">source: snapshot-diff (unofficial)</span>';
+    var rows = data.transfers || [];
+    if (!rows.length) {
+      box.innerHTML = srcChip + ' <span class="faint small">No transfers recorded yet.</span>';
+      return;
+    }
+    var body = rows.slice(0, 20).map(function (t) {
+      var evTxt = (t.horizon_ev === null || t.horizon_ev === undefined)
+        ? "EV unavailable"
+        : "horizon EV " + (t.horizon_ev > 0 ? "+" : "") + Number(t.horizon_ev).toFixed(1);
+      return (
+        '<div class="row ledger-row" data-testid="transfer-row">' +
+          "<div><strong>IN " + FPLApp.esc(t.name_in || ("#" + t.element_in)) +
+          " OUT " + FPLApp.esc(t.name_out || ("#" + t.element_out)) + "</strong>" +
+          ' <span class="faint small">GW' + t.gameweek + "</span></div>" +
+          '<div style="margin-left:auto;text-align:right"><span class="num">' + evTxt + "</span>" +
+          ' <span class="pill' + (t.cost > 0 ? " bad" : "") + '">hit ' + Number(t.cost || 0) + "</span></div>" +
+        "</div>"
+      );
+    }).join("");
+    box.innerHTML =
+      srcChip +
+      '<p class="how-computed faint small" style="margin:8px 0 4px">how computed: horizon EV = Σ(xPTS_in − xPTS_out) over materialized prediction GWs − hit cost</p>' +
+      body;
+  }
+
+  function loadLedger(entry) {
+    fetch("/api/v1/transfers/ledger?entry_id=" + encodeURIComponent(entry))
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; })
+      .then(renderLedger);
   }
 
   function render(data) {

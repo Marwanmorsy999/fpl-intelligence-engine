@@ -17,13 +17,16 @@ from fpl_intelligence.api.routes.intelligence import router as intelligence_rout
 from fpl_intelligence.api.routes.league import router as league_router
 from fpl_intelligence.api.routes.live import router as live_router
 from fpl_intelligence.api.routes.news import router as news_router
+from fpl_intelligence.api.routes.planner import router as planner_router
 from fpl_intelligence.api.routes.players import router as players_router
 from fpl_intelligence.api.routes.prices import router as prices_router
 from fpl_intelligence.api.routes.push import router as push_router
 from fpl_intelligence.api.routes.squad import router as squad_router
 from fpl_intelligence.api.routes.sync import BookmarkletCorsMiddleware
 from fpl_intelligence.api.routes.sync import router as sync_router
+from fpl_intelligence.api.routes.targets import router as targets_router
 from fpl_intelligence.api.routes.telegram import router as telegram_router
+from fpl_intelligence.api.routes.transfers import router as transfers_router
 from fpl_intelligence.common.logging import silence_credential_leaking_loggers
 from fpl_intelligence.config import get_settings
 from fpl_intelligence.web.dashboard import router as dashboard_router
@@ -82,6 +85,10 @@ app.include_router(push_router, prefix="/api/v1")
 app.include_router(prices_router, prefix="/api/v1")
 app.include_router(compare_router, prefix="/api/v1")
 app.include_router(chips_router, prefix="/api/v1")
+# Phase 25 Gate 0 — transfer ledger + alpha engine + horizon planner.
+app.include_router(transfers_router, prefix="/api/v1")
+app.include_router(targets_router, prefix="/api/v1")
+app.include_router(planner_router, prefix="/api/v1")
 
 
 @app.get("/", include_in_schema=False)

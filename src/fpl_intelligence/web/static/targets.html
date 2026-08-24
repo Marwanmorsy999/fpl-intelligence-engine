@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Targets — FPL Intelligence</title>
+<link rel="icon" href="data:,">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#0B0F19">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/app.js"></script>
+</head>
+<body>
+<div id="topnav"></div>
+<div class="wrap">
+
+  <h1 class="page-title">Transfer targets
+    <span id="gwHeader" class="pill" style="margin-left:8px">Gameweek –</span>
+  </h1>
+  <p class="muted small" style="margin-top:0">Alpha engine: value above position peers, weighted down by how much of your league already owns the player. Every input is shown — nothing hidden, nothing invented.</p>
+
+  <div id="statusLine"></div>
+
+  <div class="section-h">Next-GW focus</div>
+  <div id="focusBox"><p class="faint small">Loading…</p></div>
+
+  <div style="display:flex;gap:10px;align-items:center;margin:16px 0 4px">
+    <div class="section-h" style="margin:0">Top targets by Alpha</div>
+    <label class="small muted" style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;min-height:48px">
+      <input type="checkbox" id="showAllChk" data-testid="show-all-toggle"> show all (incl. unaffordable)
+    </label>
+  </div>
+  <div id="targetsList" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))"><p class="faint small">Loading…</p></div>
+
+  <details class="card" style="margin-top:20px">
+    <summary style="cursor:pointer;font-weight:700;color:#fff;min-height:48px;display:flex;align-items:center">How this is computed</summary>
+    <p class="muted small" style="margin-bottom:0">
+      <strong>Alpha = (xPTS − position-average xPTS) × (1 − ownership)</strong>.
+      Ownership uses your league's cached rival picks when at least 3 rivals are cached,
+      otherwise the global selected-by % (labelled). Volatility = standard deviation of the
+      player's last-5 actual points ("recent volatility"). Ranking boosts your thinnest
+      rostered position by up to +20%. Unaffordable targets are hidden unless you tick
+      "show all". Any missing input renders as an honest "unavailable" chip.
+    </p>
+  </details>
+
+</div>
+<script>
+"use strict";
+document.addEventListener("DOMContentLoaded", function () {
+  FPLApp.renderNav("/targets");
+  var $ = function (id) { return document.getElementById(id); };
+
+  function chip(label, cls) {
+    return '<span class="pill ' + (cls || "") + '">' + label + "</span>";
+  }
+  function unavailableChip() { return '<span class="pill faint-chip">unavailable</span>'; }
+
+  function fdrStrip(runs) {
+    if (!runs || !runs.length) return unavailableChip();
+    return '<span class="fixture-strip">' + runs.map(function (r) {
+      if (!r || !r.opponent || r.opponent === "—") return '<span class="fdr-chip" style="background:#334155">–</span>';
+      return '<span class="fdr-chip" title="GW' + r.gw + ": " + r.opponent +
+        (r.is_home ? " (H)" : " (A)") + ' · FDR ' + r.difficulty + '"' +
+        ' style="background:' + FPLApp.fdrColor(r.difficulty) + '">' + r.opponent.slice(0, 3) + "</span>";
+    }).join("") + "</span>";
+  }
+
+  function targetCard(t) {
+    var alpha = t.alpha === null || t.alpha === undefined
+      ? unavailableChip()
+      : '<span class="num alpha-chip ' + (t.alpha >= 0 ? "pos" : "neg") + '" title="Alpha = (xPTS − pos avg) × (1 − ownership)">' + (t.alpha > 0 ? "+" : "") + Number(t.alpha).toFixed(2) + "</span>";
+    var own = t.own_p === null || t.own_p === undefined
+      ? unavailableChip()
+      : '<span class="num">' + Math.round(t.own_p * 100) + "%</span>";
+    var vol = t.volatility === null || t.volatility === undefined
+      ? unavailableChip()
+      : '<span class="num" title="recent volatility: std-dev of last-5 actual points">' + Number(t.volatility).toFixed(1) + "</span>";
+    var aff = t.affordability === "bank"
+      ? chip("affordable", "ok")
+      : t.affordability === "needs-sale" ? chip("needs sale") : chip("unaffordable", "bad");
+    var ownedByYou = t.user_owns ? ' <span class="pill warn" title="Already in your squad">owned</span>' : "";
+    return (
+      '<div class="card target-card" data-testid="target-card">' +
+        '<button class="card-link" type="button" data-open-drawer="' + t.player_id + '"' +
+          ' aria-label="Open details for ' + FPLApp.esc(t.web_name) + '">' +
+          '<div class="target-head">' +
+            '<strong class="card-title">' + FPLApp.esc(t.web_name) + "</strong>" +
+            '<span class="crest" data-team="' + (t.team_code || 0) + '">' + FPLApp.esc((t.team || "").slice(0, 3)) + "</span>" +
+            '<span class="num price">£' + Number(t.price).toFixed(1) + "</span>" +
+            alpha +
+          "</div>" +
+          '<div class="target-terms small muted">' +
+            "<span>xPTS <span class=\"num\">" + Number(t.xpts).toFixed(1) + "</span></span>" +
+            "<span>pos avg <span class=\"num\">" + Number(t.pos_avg).toFixed(1) + "</span></span>" +
+            "<span>own " + own + "</span>" +
+            "<span>vol " + vol + "</span>" +
+          "</div>" +
+          '<div class="target-foot">' +
+            '<span title="' + FPLApp.esc(t.reason || "") + '" class="reason small">' + FPLApp.esc(t.reason || "") + "</span>" +
+            fdrStrip(t.fixture_strip) +
+            aff + ownedByYou +
+          "</div>" +
+        "</button>" +
+      "</div>"
+    );
+  }
+
+  function renderFocus(focus) {
+    if (!focus || !focus.buys || !focus.buys.length) {
+      $("focusBox").innerHTML = '<p class="faint small">No prediction data for the next gameweek yet.</p>';
+      return;
+    }
+    $("focusBox").innerHTML =
+      '<p class="faint small" style="margin:0 0 8px">Top buys for GW' + focus.gameweek + ":</p>" +
+      '<div class="focus-row">' +
+      focus.buys.map(function (b, i) {
+        var evTxt = b.alpha != null ? ((b.alpha > 0 ? "+" : "") + Number(b.alpha).toFixed(2) + " alpha") : "alpha n/a";
+        return '<span class="pill ok" data-testid="focus-buy">' + (i + 1) + ". " + FPLApp.esc(b.web_name) +
+          " · " + evTxt + (b.user_owns ? " · already yours" : "") + "</span>";
+      }).join("") +
+      "</div>" +
+      '<p class="how-computed faint small">how computed: top-3 Alpha buys for the first unplayed gameweek per the official clock</p>';
+  }
+
+  function load(sessionKey, showAll) {
+    var qs = [];
+    if (sessionKey) qs.push("session_id=" + encodeURIComponent(sessionKey));
+    if (showAll) qs.push("show_all=true");
+    fetch("/api/v1/targets?" + qs.join("&"))
+      .then(function (r) { return r.ok ? r.json() : r.json().then(function (b) { throw new Error(b.detail || r.status); }); })
+      .then(function (data) {
+        if (data.gameweek) $("gwHeader").textContent = "Gameweek " + data.gameweek;
+        renderFocus(data.next_gw_focus);
+        var list = data.targets || [];
+        $("targetsList").innerHTML = list.length
+          ? list.map(targetCard).join("")
+          : '<p class="faint small">No materialized predictions yet — the daily 06:10 cron fills them.</p>';
+        bindDrawers();
+      })
+      .catch(function (err) {
+        $("statusLine").innerHTML = '<span class="pill bad">' + FPLApp.esc(err.message || "Load failed.") + "</span>";
+        $("targetsList").innerHTML = "";
+      });
+  }
+
+  /* Progressive disclosure: card shows the five essentials only; everything
+     else lives in the existing deep-analysis drawer. */
+  function bindDrawers() {
+    document.querySelectorAll("[data-open-drawer]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var pid = btn.getAttribute("data-open-drawer");
+        var sess = FPLApp.session.read();
+        if (!sess || !sess.key) return;
+        if (window.FPLDrawer && window.FPLDrawer.open) {
+          window.FPLDrawer.open(pid, sess.key);
+        } else if (typeof window.openPlayerDrawer === "function") {
+          window.openPlayerDrawer(pid, sess.key);
+        }
+      });
+    });
+  }
+
+  $("showAllChk").addEventListener("change", function () {
+    var sess = FPLApp.session.read();
+    load(sess && sess.key, $("showAllChk").checked);
+  });
+
+  var session = FPLApp.session.read();
+  load(session && session.key, false);
+});
+</script>
+</body>
+</html>

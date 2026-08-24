@@ -210,3 +210,13 @@ class FromFplResponse(BaseModel):
         default=None,
         description="Human-readable sync status when the import was queued.",
     )
+    #: Phase 25 (T1) — transfer inferred by diffing squad snapshots on sync.
+    #: ``None`` when nothing changed or no prior snapshot exists.
+    detected_transfer: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Snapshot-diffed transfer banner payload: {element_in, element_out,"
+            " name_in, name_out, gameweek}. Populated when this sync changed "
+            "the roster."
+        ),
+    )
