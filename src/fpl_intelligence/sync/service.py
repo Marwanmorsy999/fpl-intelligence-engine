@@ -22,7 +22,7 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from fpl_intelligence.db.models import (
@@ -38,7 +38,13 @@ from fpl_intelligence.sync.models import (
     RecommendationDB,
     SyncLivePointDB,
 )
-from fpl_intelligence.sync.scoring import compute_calibration, score_captain, score_transfer
+from fpl_intelligence.sync.scoring import (
+    NEUTRAL,
+    compute_calibration,
+    score_captain,
+    score_transfer,
+    score_xi,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -434,8 +440,45 @@ def record_recommendations(
     return created
 
 
-def score_pending_recommendations(db: Session, *, up_to_gameweek: int) -> int:
-    """Auto-score unscored recommendations whose gameweek has actuals."""
+def _user_xi_for_gameweek(db: Session, session_key: str, gameweek: int) -> list[int]:
+    """The user's actually-fielded XI for one gameweek (first 11 synced picks).
+
+    The squad-push bookmarklet/Apps-Script trigger preserves FPL pick-slot
+    order, so slots 1-11 of the squad snapshot whose ``gameweek`` matches the
+    recommendation ARE the fielded XI. Returns ``[]`` when no matching
+    snapshot exists — callers then grade NEUTRAL with an honest reason rather
+    than leaving the row pending.
+    """
+    from fpl_intelligence.squad.models_db import SquadStateDB
+
+    try:
+        row = db.scalar(
+            select(SquadStateDB).where(SquadStateDB.session_id == str(session_key))
+        )
+    except Exception:  # noqa: BLE001 - grading never crashes on read errors
+        return []
+    if row is None or not isinstance(row.squad_json, dict):
+        return []
+    squad = row.squad_json
+    if int(squad.get("gameweek") or 0) != int(gameweek):
+        return []
+    ids = [int(p) for p in (squad.get("player_ids") or [])]
+    return ids[:11]
+
+
+def score_pending_recommendations(
+    db: Session,
+    *,
+    up_to_gameweek: int,
+    user_xi_resolver: Any | None = None,
+) -> int:
+    """Auto-score unscored recommendations whose gameweek has actuals.
+
+    Phase 23 (C2): a row is NEVER left pending once its gameweek's results
+    are ingested. When the math cannot produce a signed delta (missing
+    actuals for a referenced player, unknown user XI) the row is graded
+    NEUTRAL with an explicit reason instead.
+    """
     pending = db.execute(
         select(RecommendationDB).where(
             RecommendationDB.scored_at.is_(None),
@@ -455,6 +498,13 @@ def score_pending_recommendations(db: Session, *, up_to_gameweek: int) -> int:
     for gw, element_id, pts in rows:
         actuals_by_gw.setdefault(int(gw), {})[int(element_id)] = int(pts or 0)
 
+    resolve_xi = user_xi_resolver or (
+        lambda key, gw: _user_xi_for_gameweek(db, key, gw)
+    )
+
+    def _unscoreable(reason: str) -> dict[str, Any]:
+        return {"verdict": NEUTRAL, "delta": 0, "reason": reason}
+
     scored_count = 0
     now = _now()
     for rec in pending:
@@ -466,6 +516,10 @@ def score_pending_recommendations(db: Session, *, up_to_gameweek: int) -> int:
                 [int(p) for p in rec.detail.get("alternatives", [])],
                 actual,
             )
+            if result is None:
+                result = _unscoreable(
+                    "unscoreable: captain or alternative results missing"
+                )
         elif rec.rec_type == "transfer":
             hit = int(rec.detail.get("hit_cost", 0) or 0)
             result = score_transfer(
@@ -474,14 +528,32 @@ def score_pending_recommendations(db: Session, *, up_to_gameweek: int) -> int:
                 actual,
                 hit_cost=hit,
             )
+            if result is None:
+                result = _unscoreable(
+                    "unscoreable: transfer-in/out results missing"
+                )
         elif rec.rec_type == "chip":
             # Chips are graded qualitatively until per-chip replay exists;
             # mark scored without inventing a delta.
-            result = {"verdict": "neutral", "delta": 0}
+            result = {
+                "verdict": NEUTRAL,
+                "delta": 0,
+                "reason": "chip graded qualitatively — no per-chip replay yet",
+            }
         elif rec.rec_type == "xi":
-            # XI scoring needs the user's actually-fielded XI; skip silently
-            # unless picks were synced for that exact gameweek (future work).
-            continue
+            user_xi = list(resolve_xi(rec.session_key, rec.gameweek)) or []
+            result = score_xi(
+                [int(p) for p in rec.subject.get("xi", [])], user_xi, actual
+            )
+            if result is None:
+                result = _unscoreable(
+                    "unscoreable: "
+                    + (
+                        "no synced squad snapshot for this gameweek"
+                        if not user_xi
+                        else "some XI players have no ingested results"
+                    )
+                )
         if result is None:
             continue
         rec.score = result
@@ -601,10 +673,31 @@ def track_record_payload(db: Session, session_key: str) -> dict[str, Any]:
 
 
 def calibration_snapshot(db: Session) -> dict[str, Any]:
-    """Aggregate predicted-vs-actual pairs across the whole ledger."""
+    """Aggregate predicted-vs-actual pairs plus the open forecast arms.
+
+    Phase 23 (C3): "arms" are gameweeks whose per-player forecasts are
+    already stored in the ledger but whose results have not been ingested yet
+    (``actual IS NULL``). The Sources page renders them as
+    "calibration arms: GW{n} forecasts stored" with a hint until graded.
+    """
     rows = db.execute(
         select(PredictionLedgerDB.predicted, PredictionLedgerDB.actual).where(
             PredictionLedgerDB.actual.is_not(None)
         )
     ).all()
-    return compute_calibration([(float(p), int(a)) for p, a in rows])
+    payload = compute_calibration([(float(p), int(a)) for p, a in rows])
+    arm_rows = db.execute(
+        select(
+            PredictionLedgerDB.gameweek,
+            func.count(),
+        )
+        .where(PredictionLedgerDB.actual.is_(None))
+        .group_by(PredictionLedgerDB.gameweek)
+        .order_by(PredictionLedgerDB.gameweek)
+    ).all()
+    payload["forecast_arms"] = [
+        {"gameweek": int(gw), "rows": int(n), "graded": False}
+        for gw, n in arm_rows
+        if n
+    ]
+    return payload

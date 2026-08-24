@@ -101,6 +101,12 @@ async def _probe_odds(db: Any) -> dict[str, Any]:
 
 
 async def _probe_odds_uncached(db: Any) -> dict[str, Any]:
+    """Phase 23 (C1): thin wrapper around the SHARED market-check computation.
+
+    All matching/detail formatting lives in
+    :mod:`fpl_intelligence.prediction.market_check` so this page renders the
+    exact same sentence as the Decisions banner and Captain Spotlight.
+    """
     api_key = os.getenv("THE_ODDS_API_KEY", "").strip()
     if not api_key:
         return {"status": "off", "detail": "THE_ODDS_API_KEY not set"}
@@ -121,76 +127,11 @@ async def _probe_odds_uncached(db: Any) -> dict[str, Any]:
     if snapshot is None or not getattr(snapshot, "matches", []):
         return {"status": "degraded", "detail": "no h2h markets returned"}
 
-    covered = snapshot.matched_event_names()
-
-    # Next unplayed gameweek's clubs straight from the materialized cache.
     try:
-        from sqlalchemy import select
-
-        from fpl_intelligence.data_providers.team_aliases import canonical_team_name
-        from fpl_intelligence.db.models import Team, TeamExternalId
-        from fpl_intelligence.fixtures.scanner import (
-            parse_fixtures,
-        )
-        from fpl_intelligence.materialize.service import load_cached_fixtures
-        from fpl_intelligence.sync.gameweek_clock import resolve_target_gameweek
-
-        fixtures_raw = load_cached_fixtures(db)
-        if not fixtures_raw:
-            return {
-                "status": "ok",
-                "detail": f"{len(snapshot.matches)} EPL events cached — no fixtures yet",
-            }
-        target_gw = await resolve_target_gameweek(db)
-        rows = parse_fixtures(fixtures_raw)
-        gw_rows = [r for r in rows if r.event == target_gw and not r.finished]
-        if not gw_rows:
-            upcoming = sorted({r.event for r in rows if not r.finished})
-            if not upcoming:
-                return {
-                    "status": "ok",
-                    "detail": f"{len(snapshot.matches)} EPL events cached — season done",
-                }
-            gw_rows = [r for r in rows if r.event == upcoming[0]]
-
-        id_to_names: dict[int, set[str]] = {}
-        for provider_id, short_name, full_name in db.execute(
-            select(TeamExternalId.provider_team_id, Team.short_name, Team.name).join(
-                Team, Team.id == TeamExternalId.team_id
-            ).where(TeamExternalId.provider == "official_fpl")
-        ).all():
-            if provider_id is None:
-                continue
-            names = id_to_names.setdefault(int(provider_id), set())
-            for candidate in (short_name, full_name):
-                if candidate:
-                    names.add(str(candidate))
-
-        matched = unmatched = 0
-        unmatched_names: set[str] = set()
-        for row in gw_rows:
-            row_ok = False
-            for team_id in (row.home_team, row.away_team):
-                names = id_to_names.get(int(team_id), set())
-                hit = any(
-                    canonical_team_name(n) and canonical_team_name(n) in covered
-                    for n in names
-                )
-                if hit:
-                    row_ok = True
-                elif names:
-                    unmatched_names.add(sorted(names)[0])
-            if row_ok:
-                matched += 1
-            else:
-                unmatched += 1
-        total = len(gw_rows)
-        detail = f"matched {matched}/{total} GW{gw_rows[0].event} fixtures"
-        if unmatched_names:
-            detail += " · unmatched: " + ", ".join(sorted(unmatched_names)[:4])
-            logger.info("odds mapping unmatched teams: %s", sorted(unmatched_names))
-        status = "ok" if matched == total else ("degraded" if matched else "blocked")
-        return {"status": status, "detail": detail}
+        block = await odds_probe_payload(db, snapshot)
+        if block.get("unmatched"):
+            logger.info("odds mapping unmatched teams: %s", block["unmatched"])
+        return {"status": block["status"], "detail": block["detail"]}
     except Exception as exc:  # noqa: BLE001 — audit must never fail the page
         db.rollback()  # keep the shared request session usable afterwards
         return {
@@ -200,6 +141,63 @@ async def _probe_odds_uncached(db: Any) -> dict[str, Any]:
                 f"(mapping audit skipped: {type(exc).__name__})"
             ),
         }
+
+
+async def odds_probe_payload(db: Any, snapshot: Any) -> dict[str, Any]:
+    """Assembly of the Sources odds row through the shared module.
+
+    Exposed for tests so the Sources surface can be asserted byte-identical to
+    the Decisions/Captain payloads without network access.
+    """
+    from sqlalchemy import select
+
+    from fpl_intelligence.db.models import Team, TeamExternalId
+    from fpl_intelligence.fixtures.scanner import parse_fixtures
+    from fpl_intelligence.materialize.service import load_cached_fixtures
+    from fpl_intelligence.prediction.market_check import compute_market_status
+    from fpl_intelligence.sync.gameweek_clock import resolve_target_gameweek
+
+    covered = snapshot.matched_event_names()
+    fixtures_raw = load_cached_fixtures(db)
+    if not fixtures_raw:
+        return {
+            "status": "ok",
+            "detail": f"{len(snapshot.matches)} EPL events cached — no fixtures yet",
+            "unmatched": [],
+            "enabled": False,
+        }
+
+    target_gw = await resolve_target_gameweek(db)
+    parsed = parse_fixtures(fixtures_raw)
+    gw_rows = [r for r in parsed if r.event == target_gw and not r.finished]
+    if not gw_rows:
+        upcoming = sorted({r.event for r in parsed if not r.finished})
+        if upcoming:
+            gw_rows = [r for r in parsed if r.event == upcoming[0]]
+
+    id_to_names: dict[int, list[str]] = {}
+    for provider_id, short_name, full_name in db.execute(
+        select(TeamExternalId.provider_team_id, Team.short_name, Team.name).join(
+            Team, Team.id == TeamExternalId.team_id
+        ).where(TeamExternalId.provider == "official_fpl")
+    ).all():
+        if provider_id is None:
+            continue
+        id_to_names[int(provider_id)] = [
+            str(c) for c in (short_name, full_name) if c
+        ]
+
+    rows = [(r.event, r.home_team, r.away_team) for r in gw_rows]
+    status_block = compute_market_status(rows, id_to_names, covered)
+    return {
+        "status": status_block["status"],
+        "detail": status_block["detail"],
+        "unmatched": status_block["unmatched"],
+        "fixtures_matched": status_block["fixtures_matched"],
+        "fixtures_total": status_block["fixtures_total"],
+        "gameweek": status_block["gameweek"],
+        "enabled": status_block["fixtures_matched"] > 0,
+    }
 
 
 _UNDERSTAT_REFRESH_TTL_SECONDS = 900.0

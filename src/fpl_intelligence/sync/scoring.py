@@ -106,26 +106,33 @@ def score_xi(
 ) -> dict[str, Any] | None:
     """Recommended XI points vs the user's actually-fielded XI.
 
-    When both XIs are identical there is no recommendation to grade — returns
-    None (the UI shows "XI matched your own" instead of inventing a score).
+    Phase 23 (C2): when both XIs are identical there is still an honest
+    verdict — NEUTRAL with a stated reason ("XI matched your fielded XI"),
+    never a silent None, so the row can never sit "pending" once its
+    gameweek's results are ingested. ``None`` is reserved for genuinely
+    unscoreable inputs (empty XIs or missing actuals).
     """
     rec_set, act_set = set(recommended_xi), set(actual_xi)
     if not recommended_xi or not actual_xi:
         return None
     if any(pid not in actual for pid in rec_set | act_set):
         return None
-    if rec_set == act_set:
-        return None
     rec_pts = sum(actual[pid] for pid in rec_set)
     user_pts = sum(actual[pid] for pid in act_set)
     delta = rec_pts - user_pts
+    identical = rec_set == act_set
     return {
         "recommended_xi": sorted(rec_set),
         "user_xi": sorted(act_set),
         "recommended_points": rec_pts,
         "user_points": user_pts,
-        "delta": delta,
-        "verdict": _verdict(delta),
+        "delta": 0 if identical else delta,
+        "verdict": NEUTRAL if identical else _verdict(delta),
+        "reason": (
+            "XI matched your fielded XI — nothing to grade"
+            if identical
+            else ""
+        ),
     }
 
 

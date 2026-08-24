@@ -106,10 +106,17 @@ document.addEventListener("DOMContentLoaded", function () {
     return "";
   }
 
+  /* Phase 23 (C5): the gameweek currently shown in the main card is excluded
+     from the history list — history means PAST briefs only. */
+  var CURRENT_GW = null;
+
   function renderHistory(sessionKey) {
     var h = history();
     var entries = Object.keys(h)
       .filter(function (gwKey) { return !sessionKey || gwKey.indexOf(sessionKey + "|") === 0; })
+      .filter(function (gwKey) {
+        return CURRENT_GW === null || Number(gwKey.split("|")[1]) !== Number(CURRENT_GW);
+      })
       .sort(function (a, b) { return Number(b.split("|")[1]) - Number(a.split("|")[1]); });
     if (!entries.length) {
       $("historyBox").innerHTML = '<p class="faint small">No stored briefs yet for this session.</p>';
@@ -137,6 +144,7 @@ document.addEventListener("DOMContentLoaded", function () {
       .then(function (r) { return r.ok ? r.json() : r.json().then(function (b) { throw new Error(b.detail || r.status); }); })
       .then(function (brief) {
         store(session.key, brief);
+        CURRENT_GW = Number(brief.gameweek);
         $("briefBox").innerHTML = briefCard(brief);
         $("briefMeta").textContent = "Built " + new Date().toLocaleTimeString() + " · captain " +
           ((brief.facts_digest && brief.facts_digest.captain) || "—");

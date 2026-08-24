@@ -752,16 +752,18 @@ function renderCaptainCompare(report) {
     var own = c.ownership_pct != null ? Number(c.ownership_pct).toFixed(1) + "% owned" : "";
     var fx = c.next_fixture ? esc(c.next_fixture) : "";
     var badge = c.is_captain ? '<span class="pill ok" style="margin-left:6px">ARM</span>' : "";
+    /* Phase 23 (C4): every number is labelled — "xPTS 6.6", "gap +0.6". */
+    var xptsLabel = c.xpts_label || ("xPTS " + Number(c.xpts).toFixed(1));
     return '<div class="rounded-xl border p-3 ' + (c.is_captain ? "border-yellow-500/50 bg-yellow-950/20" : "border-slate-600/40 bg-slate-900/40") + '" data-testid="captain-card">'
       + '<div class="flex items-center justify-between"><span class="font-bold text-white text-sm">' + esc(c.web_name) + badge + "</span>"
-      + '<span class="num font-extrabold ' + (c.is_captain ? "text-yellow-400" : "text-sky-300") + '">' + fmtXp(c.xpts) + "</span></div>"
+      + '<span class="num font-extrabold ' + (c.is_captain ? "text-yellow-400" : "text-sky-300") + '" data-xpts-label>' + esc(xptsLabel) + "</span></div>"
       + '<div class="text-xs text-slate-400 mt-1">' + [own, fx].filter(Boolean).join(" · ") + "</div>"
       + (c.blank_note ? '<div class="text-xs text-slate-500 mt-1">' + esc(c.blank_note) + "</div>" : "")
       + "</div>";
   }).join("");
   box.innerHTML =
     '<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">' + cardsHtml + "</div>"
-    + (cc.vice ? '<p class="mt-3 text-sm text-sky-300/90" data-testid="vice-ev-line">🛡 ' + esc(cc.vice.line) + " pts.</p>" : "");
+    + (cc.vice ? '<p class="mt-3 text-sm text-sky-300/90" data-testid="vice-ev-line">🛡 ' + esc(cc.vice.line) + "</p>" : "");
 }
 
 function renderWatchlist(report) {
@@ -789,6 +791,21 @@ function renderWatchlist(report) {
 }
 
 /* ---------- Rendering: captain spotlight + transfer cards ---------- */
+/* Phase 23 (C1): ONE market-check renderer for the whole app — the shared
+   backend payload (chain.market_check.detail) is rendered verbatim so the
+   Decisions banner, Captain Spotlight and Sources page can never drift. */
+function marketCheckHTML(chain) {
+  if (!chain || !chain.market_check) return "";
+  var mc = chain.market_check;
+  var mcOn = mc.enabled === true && Number(mc.fixtures_matched || 0) > 0;
+  if (mcOn) {
+    var txt = mc.detail || ("matched " + mc.fixtures_matched + "/" + mc.fixtures_matched + " fixtures");
+    return '<p class="mt-2 text-sm text-emerald-300/90" data-market-check>📈 Market check agrees · ' + esc(txt) + "</p>";
+  }
+  var body = mc.reason || mc.detail || "no fixtures matched yet";
+  return '<p class="mt-2 text-sm text-slate-500" data-market-check>' + esc("📈 Market check: " + body) + "</p>";
+}
+
 function renderCaptain(report) {
   var box = $("captainHero");
   var c = report.captain;
@@ -812,17 +829,8 @@ function renderCaptain(report) {
   /* Chain-note context for the captain: market check + weather ONLY when present. */
   var chain = report.meta && report.meta.chain;
   if (chain) {
+    html += marketCheckHTML(chain);
     var notes = chain.notes || {};
-    var mcOn = chain.market_check && chain.market_check.enabled === true
-      && Number(chain.market_check.fixtures_matched || 0) > 0;
-    if (mcOn) {
-      html += '<p class="mt-2 text-sm text-emerald-300/90">📈 Market check agrees (' + chain.market_check.fixtures_matched + " fixtures)</p>";
-    } else if (chain.market_check) {
-      /* Off, or matched zero fixtures — never claim agreement without data. */
-      var reason = chain.market_check.reason
-        || (Number(chain.market_check.fixtures_matched || 0) === 0 ? "no fixtures matched yet" : "unavailable");
-      html += '<p class="mt-2 text-sm text-slate-500">📈 Market check: ' + esc(reason) + "</p>";
-    }
     if (notes.weather_severe_fixtures != null && notes.weather_severe_fixtures !== 0) {
       html += '<p class="mt-2 text-sm text-amber-300/90">🌧 Severe-weather fixtures: ' + notes.weather_severe_fixtures + "</p>";
     }
@@ -918,7 +926,8 @@ function renderChainBanner(report) {
     + (chain.covered_players != null ? '<div><div class="chain-label">Players covered</div><div class="chain-quality">' + chain.covered_players + "</div></div>" : "")
     + "</div>";
   /* Notes row: market check + weather, ONLY when the data actually exists.
-     Phase 19.0: baseline form cutoff ("through GW{n}") when present. */
+     Phase 19.0: baseline form cutoff ("through GW{n}") when present.
+     Phase 23 (C1): market check text comes from the shared renderer. */
   var notes = chain.notes || {};
   var noteLines = [];
   if (notes.through_gw != null && typeof notes.through_gw === "number") {
@@ -930,14 +939,18 @@ function renderChainBanner(report) {
   if (notes.understat_players_matched != null) {
     noteLines.push('<span class="chain-note">Understat matched: ' + notes.understat_players_matched + " players</span>");
   }
-  var mcOn = chain.market_check && chain.market_check.enabled === true
-    && Number(chain.market_check.fixtures_matched || 0) > 0;
-  if (!chain.market_check || !mcOn) {
-    var mcReason = (chain.market_check && chain.market_check.reason)
-      || "no fixtures matched yet";
-    noteLines.push('<span class="chain-note no">📈 Market check: ' + esc(mcReason) + "</span>");
-  } else {
-    noteLines.push('<span class="chain-note ok">📈 Market check: agrees · ' + chain.market_check.fixtures_matched + " fixtures</span>");
+  var mcHTML = marketCheckHTML(chain);
+  if (mcHTML) {
+    var mcOn = chain.market_check && chain.market_check.enabled === true
+      && Number(chain.market_check.fixtures_matched || 0) > 0;
+    noteLines.push(
+      '<span class="chain-note ' + (mcOn ? "ok" : "no") + '">'
+      + esc("📈 Market check: "
+        + (mcOn
+          ? "agrees · " + (chain.market_check.detail || (chain.market_check.fixtures_matched + " fixtures"))
+          : (chain.market_check.reason || "no fixtures matched yet")))
+      + "</span>"
+    );
   }
   if (notes.weather_severe_fixtures != null && notes.weather_severe_fixtures !== 0
       && !(Array.isArray(notes.weather_severe_fixtures) && notes.weather_severe_fixtures.length === 0)) {

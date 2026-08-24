@@ -56,6 +56,7 @@ from fpl_intelligence.data_providers.understat import (
     build_stats_from_row,
 )
 from fpl_intelligence.optimization.provider import PlayerPrediction
+from fpl_intelligence.prediction.market_check import format_market_detail
 
 logger = logging.getLogger(__name__)
 
@@ -503,6 +504,49 @@ def _team_names(db: Session) -> dict[int, str]:
     return {int(tid): str(name) for tid, name in rows}
 
 
+def _shared_market_off(reason: str) -> dict[str, Any]:
+    """Honest off-state for the shared market-check payload."""
+    from fpl_intelligence.prediction.market_check import disabled_market_status
+
+    return disabled_market_status(reason)
+
+
+def _shared_market_payload(
+    db: Session,
+    gameweek: int,
+    fixtures: list[dict[str, int]],
+    snapshot: Any,
+) -> dict[str, Any]:
+    """Phase 23 (C1): compute the canonical market check for the chain notes.
+
+    Uses the SAME :func:`compute_market_status` the Sources probe runs, with
+    the same short+full team-name resolution, so Decisions, Captain Spotlight
+    and Sources render one identical sentence.
+    """
+    from fpl_intelligence.prediction.market_check import (
+        compute_market_status,
+        official_id_names_map,
+    )
+
+    try:
+        id_to_names = official_id_names_map(db)
+    except Exception:  # noqa: BLE001 — status reporting never breaks scoring
+        id_to_names = {}
+    rows = [
+        (gameweek, fx["home_team_id"], fx["away_team_id"]) for fx in fixtures
+    ]
+    status = compute_market_status(rows, id_to_names, snapshot.matched_event_names())
+    payload: dict[str, Any] = {
+        "enabled": bool(status["fixtures_matched"] > 0),
+        "fixtures_matched": status["fixtures_matched"],
+        "detail": status["detail"],
+        "unmatched": status["unmatched"],
+    }
+    if not payload["enabled"]:
+        payload["reason"] = "no fixtures matched yet"
+    return payload
+
+
 def _market_probs_for_fixtures(
     fixtures: list[dict[str, int]],
     team_names: dict[int, str],
@@ -656,19 +700,22 @@ def _proxy_points_for_gameweek(
 
     team_names = _team_names(db)
 
-    def _fetch_market() -> tuple[dict[int, float], list[dict[str, Any]]]:
-        if odds is None or not odds.enabled or not fixtures:
-            return {}, []
+    def _fetch_market() -> tuple[dict[int, float], list[dict[str, Any]], dict[str, Any]]:
+        """(favourite probs, bump detail, shared market-check payload)."""
+        if odds is None or not odds.enabled:
+            return {}, [], _shared_market_off("THE_ODDS_API_KEY not set")
+        if not fixtures:
+            return {}, [], _shared_market_off("no fixtures matched yet")
         _t0 = time.perf_counter()
         try:
             snapshot = odds.fetch_epl_odds()
             if snapshot is not None:
                 probs, detail = _market_probs_for_fixtures(fixtures, team_names, snapshot.matches)
-                return probs, detail
+                return probs, detail, _shared_market_payload(db, gameweek, fixtures, snapshot)
         except Exception:  # noqa: BLE001 - graceful degradation contract
             pass
         logger.warning("proxy market fetch %.3fs (degraded)", time.perf_counter() - _t0)
-        return {}, []
+        return {}, [], _shared_market_off("odds fetch failed")
 
     def _fetch_weather() -> tuple[dict[int, float], list[str]]:
         if not fixtures:
@@ -682,10 +729,16 @@ def _proxy_points_for_gameweek(
     with ThreadPoolExecutor(max_workers=2) as executor:
         market_future = executor.submit(_fetch_market)
         weather_future = executor.submit(_fetch_weather)
-        market_probs, market_detail = market_future.result()
+        market_probs, market_detail, market_status = market_future.result()
         weather_adj, weather_reasons = weather_future.result()
     logger.info("proxy enrichment total %.3fs", time.perf_counter() - _t0)
     notes["market_fixtures_matched"] = len(market_detail)
+    # Phase 23 (C1): the canonical shared payload — byte-identical to Sources.
+    # _fetch_market always returns either a computed status or an honest off
+    # state, so the banner/spotlight/sources can never drift apart.
+    notes["market_check"] = (
+        market_status if isinstance(market_status, dict) else _shared_market_off("")
+    )
     notes["weather_severe_fixtures"] = weather_reasons
 
     # --- Understat per-90 context (offline snapshot; latest season wins) --------
@@ -1324,31 +1377,46 @@ class LivePredictionProvider:
             self.resolve_chain(gameweek)
         assert self.last_result is not None  # narrow for type-checkers
         meta = self.last_result.meta()
+        # Phase 23 (C1): the proxy level now stores the SHARED market-check
+        # payload (same compute_market_status the Sources probe runs), so the
+        # Decisions banner and Captain Spotlight render byte-identical text.
         if self._odds_error:
-            meta["market_check"] = {"enabled": False, "reason": self._odds_error}
+            from fpl_intelligence.prediction.market_check import (
+                disabled_market_status,
+            )
+
+            meta["market_check"] = disabled_market_status(self._odds_error)
         else:
-            # Find the proxy level in the chain to report market_check status.
             proxy_level = next(
                 (lvl for lvl in self.last_result.levels if lvl.source == SOURCE_PROXY),
                 None,
             )
-            if proxy_level is not None:
-                matched = proxy_level.notes.get("market_fixtures_matched")
+            shared = (proxy_level.notes.get("market_check") if proxy_level else None)
+            if isinstance(shared, dict) and shared.get("detail"):
+                meta["market_check"] = dict(shared)
+            else:
+                matched = (
+                    proxy_level.notes.get("market_fixtures_matched")
+                    if proxy_level
+                    else None
+                )
                 if matched:
                     meta["market_check"] = {
                         "enabled": True,
                         "fixtures_matched": matched,
+                        "detail": format_market_detail(
+                            matched=matched,
+                            total=matched,
+                            gameweek=gameweek,
+                            unmatched=[],
+                        ),
                     }
                 else:
-                    # Proxy ran but matched zero fixtures — report honestly
-                    # instead of "agrees (0 fixtures)" (E4).
-                    meta["market_check"] = {
-                        "enabled": False,
-                        "reason": "no fixtures matched yet",
-                    }
-            else:
-                meta["market_check"] = {
-                    "enabled": False,
-                    "reason": "no fixtures matched yet",
-                }
+                    from fpl_intelligence.prediction.market_check import (
+                        disabled_market_status,
+                    )
+
+                    meta["market_check"] = disabled_market_status(
+                        "no fixtures matched yet"
+                    )
         return meta

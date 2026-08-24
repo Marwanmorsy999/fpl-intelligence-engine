@@ -94,8 +94,18 @@ document.addEventListener("DOMContentLoaded", function () {
 
   fetch("/api/v1/sync/calibration").then(function (r) { return r.ok ? r.json() : null; }).then(function (cal) {
     if (!cal) { $("calBox").innerHTML = '<p class="faint">unavailable</p>'; return; }
+    /* Phase 23 (C3): calibration arms — gameweeks whose per-player forecasts
+       are stored but not yet graded. Shown with an honest hint until then. */
+    var arms = cal.forecast_arms || [];
+    var armsHTML = "";
+    if (arms.length) {
+      var armTxt = arms.map(function (a) { return "GW" + a.gameweek + " (" + a.rows + " players)"; }).join(", ");
+      armsHTML = '<p class="small" style="color:#93c5fd;margin:0 0 10px">🎯 calibration arms: ' +
+        FPLApp.esc(armTxt) + " forecasts stored — grades automatically once results are ingested.</p>";
+    }
     if (!cal.count) {
-      $("calBox").innerHTML = '<p class="muted small">No reconciled predictions yet. Calibration fills in automatically once the daily 06:10 cron ingests a gameweek after the engine has published forecasts.</p>';
+      $("calBox").innerHTML = armsHTML +
+        '<p class="muted small">No reconciled predictions yet. Calibration fills in automatically once the daily 06:10 cron ingests a gameweek after the engine has published forecasts.</p>';
       return;
     }
     var buckets = cal.buckets || {};
@@ -104,7 +114,7 @@ document.addEventListener("DOMContentLoaded", function () {
       return '<tr><td>|error| ' + label + '</td><td class="num">' + b.count + '</td><td class="num">' +
         Math.round((b.share || 0) * 100) + "%</td></tr>";
     }).join("");
-    $("calBox").innerHTML =
+    $("calBox").innerHTML = armsHTML +
       '<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-bottom:12px">' +
         '<div class="stat"><div class="stat-label">Pairs graded</div><div class="stat-value num">' + cal.count + "</div></div>" +
         '<div class="stat"><div class="stat-label">MAE</div><div class="stat-value num">' + Number(cal.mae).toFixed(2) + "</div></div>" +

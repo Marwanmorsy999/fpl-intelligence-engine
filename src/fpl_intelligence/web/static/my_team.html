@@ -15,8 +15,11 @@
 <div id="topnav"></div>
 <div class="wrap">
 
-  <h1 style="font-size:22px;font-weight:800;color:#fff;margin:0 0 4px">My team</h1>
+  <h1 style="font-size:22px;font-weight:800;color:#fff;margin:0 0 4px">My team
+    <span id="gwHeader" class="pill" style="margin-left:8px;vertical-align:middle">Gameweek –</span>
+  </h1>
   <p class="muted small" style="margin-top:0">Your synced squad with prices, captaincy, fixture difficulty and squad analysis — restored automatically from your saved session.</p>
+  <p id="syncSubLine" class="faint small" style="margin:-2px 0 10px"></p>
 
   <div id="metaLine" class="muted small" style="margin:14px 0"></div>
   <div id="statusLine" class="muted small"></div>
@@ -144,6 +147,31 @@ document.addEventListener("DOMContentLoaded", function () {
         : "");
   }
 
+  /* Phase 23 (C6): header states the gameweek decisions apply to plus an
+     honest sub-line about when the squad snapshot was taken. */
+  function renderHeader(sessionKey, squadGameweek) {
+    fetch("/api/v1/sync/target-gameweek?fallback=" + encodeURIComponent(squadGameweek || 1))
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; })
+      .then(function (data) {
+        var target = data && data.gameweek ? Number(data.gameweek) : (squadGameweek || null);
+        $("gwHeader").textContent = target ? "Gameweek " + target : "Gameweek –";
+      });
+    fetch("/api/v1/sync/status")
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; })
+      .then(function (status) {
+        var push = status && status.latest && status.latest.squad;
+        if (push && push.gameweek) {
+          $("syncSubLine").textContent = "squad synced during GW" + push.gameweek;
+        } else if (squadGameweek) {
+          $("syncSubLine").textContent = "squad synced during GW" + squadGameweek;
+        } else {
+          $("syncSubLine").textContent = "";
+        }
+      });
+  }
+
   function load(sessionKey) {
     $("statusLine").textContent = "";
     fetch("/api/v1/squad?session_id=" + encodeURIComponent(sessionKey))
@@ -181,6 +209,7 @@ document.addEventListener("DOMContentLoaded", function () {
     $("metaLine").innerHTML = "Gameweek <strong>" + squad.gameweek + "</strong> · bank £" +
       Number(squad.bank).toFixed(1) + "m · " + squad.free_transfers + " free transfer(s)" +
       " · last updated " + (squad.updated_at ? new Date(squad.updated_at).toLocaleString() : "–");
+    renderHeader(null, squad.gameweek);
     $("squadGrid").innerHTML = (squad.player_ids || [])
       .map(function (pid, i) { return tile(pid, squad, i + 1, names); })
       .join("");

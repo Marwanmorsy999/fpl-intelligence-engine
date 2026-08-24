@@ -240,10 +240,16 @@ class TestTrackRecordScoringMath:
         s_free = score_transfer([21], [22], {21: 7, 22: 5}, hit_cost=0)
         assert s_free["verdict"] == RIGHT
 
-    def test_xi_identical_returns_none_not_zero(self):
+    def test_xi_identical_is_neutral_with_reason(self):
+        # Phase 23 (C2): identical XIs grade NEUTRAL with a stated reason —
+        # never None, so the row cannot sit pending once results exist.
         xi = list(range(1, 12))
         actual = {pid: 3 for pid in range(1, 16)}
-        assert score_xi(xi, xi, actual) is None
+        s = score_xi(xi, xi, actual)
+        assert s is not None
+        assert s["verdict"] == "neutral"
+        assert s["delta"] == 0
+        assert "matched your fielded XI" in s["reason"]
 
     def test_xi_delta_positive(self):
         rec = [1, 2] + list(range(3, 12))

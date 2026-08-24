@@ -333,6 +333,22 @@ async def calibration(db: GetDB) -> dict[str, Any]:
     return calibration_snapshot(db)
 
 
+@router.get("/target-gameweek")
+async def target_gameweek(
+    db: GetDB,
+    fallback: int = Query(1, description="Fallback when bootstrap and cache both fail."),
+) -> dict[str, Any]:
+    """Phase 23 (C6): the official-FPL next-deadline gameweek.
+
+    Bootstrap-derived (10-min in-process cache) with the fixtures-cache
+    fallback; used by page headers ("Gameweek 2") to state which gameweek
+    decisions currently apply to.
+    """
+    from fpl_intelligence.sync.gameweek_clock import resolve_target_gameweek
+
+    return {"gameweek": await resolve_target_gameweek(db, fallback=int(fallback))}
+
+
 @router.get("/live-board")
 async def live_board(
     db: GetDB,

@@ -186,15 +186,20 @@ def captain_comparison(
         gap = None
         if next_best is not None:
             gap = round(float(player["xpts"]) - float(next_best["xpts"]), 2)
+            # Phase 23 (C4): EVERY number carries its label — "xPTS 4.8",
+            # "gap +1.8" — never a bare figure.
             blank_note = (
                 f"If he blanks: {next_best['web_name']} "
-                f"({float(next_best['xpts']):.1f}) · gap {gap:+.1f}"
+                f"(xPTS {float(next_best['xpts']):.1f}) · gap {gap:+.1f}"
             )
         cards.append(
             {
                 "player_id": int(player["player_id"]),
                 "web_name": player.get("web_name") or f"Player {player['player_id']}",
                 "xpts": round(float(player["xpts"]), 2),
+                # Phase 23 (C4): pre-labelled display strings for the UI.
+                "xpts_label": f"xPTS {float(player['xpts']):.1f}",
+                "gap_label": f"gap {gap:+.1f}" if gap is not None else None,
                 "ownership_pct": player.get("ownership_pct"),
                 "next_fixture": player.get("next_fixture"),
                 "is_captain": bool(
@@ -221,7 +226,7 @@ def captain_comparison(
             "captain_name": captain_card["web_name"],
             "line": (
                 f"Vice {vice_player.get('web_name')} covers "
-                f"{float(vice_player['xpts']):.1f} pts if {captain_card['web_name']} blanks"
+                f"xPTS {float(vice_player['xpts']):.1f} if {captain_card['web_name']} blanks"
             ),
         }
     return {"cards": cards, "vice": vice_line}

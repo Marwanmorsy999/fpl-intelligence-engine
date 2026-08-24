@@ -271,6 +271,79 @@ async def purge_history_endpoint(
         )
 
 
+@router.get("/admin/grade-now")
+@router.post("/admin/grade-now")
+async def grade_now_endpoint(
+    db: deps.GetDB,
+    _: None = Depends(_require_cron_auth),
+) -> dict:
+    """Phase 23 (C2) one-shot — sweep EVERY pending recommendation now.
+
+    The daily job runs the same sweeper, but rows that went pending before
+    the sweeper existed (e.g. GW1 XI cards) stay stuck until this is called.
+    ``up_to`` defaults to the highest ingested gameweek so any recommendation
+    whose results exist gets a verdict (or an honest neutral-with-reason)
+    immediately. Idempotent: already-scored rows are untouched.
+    """
+    from sqlalchemy import func
+
+    from fpl_intelligence.sync.materialized_models import FixturesCacheDB
+    from fpl_intelligence.sync.models import IngestedGameweekDB, RecommendationDB
+    from fpl_intelligence.sync.service import score_pending_recommendations
+
+    try:
+        max_ingested = db.scalar(
+            select(func.max(IngestedGameweekDB.gameweek))
+        )
+        up_to = int(max_ingested or 0)
+        if not up_to:
+            fx_row = db.scalar(
+                select(FixturesCacheDB).order_by(FixturesCacheDB.id.desc()).limit(1)
+            )
+            up_to = _finished_gameweek_from_cache((fx_row.payload or []) if fx_row else []) or 0
+        graded = score_pending_recommendations(db, up_to_gameweek=up_to)
+        by_type: dict[str, int] = {}
+        for rec_type, n in db.execute(
+            select(RecommendationDB.rec_type, func.count())
+            .where(RecommendationDB.scored_at.is_not(None))
+            .group_by(RecommendationDB.rec_type)
+        ).all():
+            by_type[str(rec_type)] = int(n)
+        still_pending = int(
+            db.scalar(
+                select(func.count())
+                .select_from(RecommendationDB)
+                .where(
+                    RecommendationDB.scored_at.is_(None),
+                    RecommendationDB.gameweek <= up_to,
+                )
+            ) or 0
+        )
+        db.commit()
+        return JSONResponse(
+            content={
+                "ok": True,
+                "graded_now": graded,
+                "up_to_gameweek": up_to,
+                "scored_by_type": by_type,
+                "still_pending_within_up_to": still_pending,
+                "note": (
+                    "sweep complete — nothing stays pending once its gameweek "
+                    "results are ingested"
+                    if still_pending == 0
+                    else f"{still_pending} row(s) remain pending for gameweeks "
+                    "whose results are NOT yet ingested (expected)"
+                ),
+            }
+        )
+    except Exception as exc:  # noqa: BLE001 - surfaced for cron visibility
+        db.rollback()
+        logger.exception("grade-now failed")
+        return JSONResponse(
+            status_code=500, content={"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        )
+
+
 @router.get("/admin/db-probe")
 async def db_probe_endpoint(
     db: deps.GetDB,
@@ -1906,12 +1979,35 @@ async def daily_endpoint(
                 materialize_all(db, season_code=SEASON_CODE, base_gameweek=base_gw),
                 timeout=25.0,
             )
+            # Phase 23 (C3): store the per-player forecast rows for the TARGET
+            # gameweek BEFORE its results exist, so the calibration ledger has
+            # a genuine pre-match arm (GW2 forecasts stored while GW1 is the
+            # newest ingested week). First write wins; re-runs are no-ops.
+            forecast_note = "skipped"
+            if base_gw is not None:
+                try:
+                    from fpl_intelligence.sync.service import (
+                        capture_pre_ingest_predictions,
+                    )
+
+                    stored_rows = await asyncio.wait_for(
+                        run_in_threadpool(
+                            capture_pre_ingest_predictions, db, int(base_gw)
+                        ),
+                        timeout=6.0,
+                    )
+                    db.commit()
+                    forecast_note = f"GW{base_gw}: {stored_rows} forecast rows"
+                except Exception as exc:  # noqa: BLE001 — best-effort capture
+                    db.rollback()
+                    forecast_note = f"{type(exc).__name__}: {exc}"
             mat_ok = bool(report.get("predictions", {}).get("ok")) or bool(
                 report.get("fixtures", {}).get("ok")
             )
             steps["materialize"] = {
                 "ok": mat_ok,
                 "ms": int((_time.monotonic() - t0) * 1000),
+                "forecast_capture": forecast_note,
                 "detail": {
                     k: (v or {}).get("ok") for k, v in report.items() if isinstance(v, dict)
                 },

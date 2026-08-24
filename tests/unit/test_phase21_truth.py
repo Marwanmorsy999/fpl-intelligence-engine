@@ -167,7 +167,10 @@ class TestResultsIngestionFlow:
         assert card["score"]["captain_name"] == "Haaland"
         alt = card["score"]
         assert alt["alternative_name"] == "Saka" or alt["best_alternative"] == 12
-        assert tr["rolling"]["graded"] == 1
+        # Phase 23 (C2): the sweeper grades EVERY recommendation once its GW
+        # results exist — captain AND xi (the XI's user snapshot has no
+        # matching-GW squad here, so it grades neutral-with-reason).
+        assert tr["rolling"]["graded"] == 2
         assert tr["rolling"]["hit_rate"] is not None
 
         # Sources-style read: history exists.
