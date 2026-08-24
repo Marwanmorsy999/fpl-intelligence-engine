@@ -78,12 +78,6 @@ app.include_router(live_router, prefix="/api/v1")
 app.include_router(league_router, prefix="/api/v1")
 app.include_router(push_router, prefix="/api/v1")
 app.include_router(prices_router, prefix="/api/v1")
-# TEMP debug for v2.3.2 breakdown — remove after verification
-try:
-    from fpl_intelligence.api.routes.debug_breakdown import router as debug_router
-    app.include_router(debug_router, prefix="/api/v1")
-except Exception:
-    pass
 
 
 @app.get("/", include_in_schema=False)
