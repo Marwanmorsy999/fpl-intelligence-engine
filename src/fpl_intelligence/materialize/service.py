@@ -269,7 +269,12 @@ async def precompute_predictions(
     now = _now()
 
     def _resolve_and_store(gw: int) -> int:
-        preds = provider.get_all_predictions(gw)
+        # Phase 21.1: skip the materialized fast-path while precomputing —
+        # otherwise a bad run's zeros get re-served and re-written forever.
+        try:
+            preds = provider.get_all_predictions(gw, skip_materialized=True)
+        except TypeError:
+            preds = provider.get_all_predictions(gw)
         if not preds:
             raise RuntimeError("chain produced no predictions")
         db.execute(

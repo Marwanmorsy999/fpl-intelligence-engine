@@ -1052,7 +1052,9 @@ class LivePredictionProvider:
             per_player=per_player,
         )
 
-    def resolve_chain(self, gameweek: int) -> PredictionChainResult:
+    def resolve_chain(
+        self, gameweek: int, *, skip_materialized: bool = False
+    ) -> PredictionChainResult:
         """Run every level best-first and return the full chain outcome.
 
         Raises :class:`PredictionUnavailableError` when no level can
@@ -1072,7 +1074,9 @@ class LivePredictionProvider:
         # Phase 20.1 — materialized fast path: the daily cron already ran the
         # full chain; serve it from one indexed query with zero network I/O.
         # This is what keeps every prod data call under 2s.
-        materialized = self._materialized_level(gameweek)
+        materialized = (
+            None if skip_materialized else self._materialized_level(gameweek)
+        )
         if materialized is not None and materialized.points:
             result = PredictionChainResult(
                 gameweek=gameweek, levels=[materialized], resolved=materialized
@@ -1235,13 +1239,19 @@ class LivePredictionProvider:
             result[gw] = self._label_predictions(chain_result, wanted_ids)
         return result
 
-    def get_all_predictions(self, gameweek: int) -> dict[int, PlayerPrediction]:
+    def get_all_predictions(
+        self, gameweek: int, *, skip_materialized: bool = False
+    ) -> dict[int, PlayerPrediction]:
         """Serve every player the chain can speak for in ``gameweek``.
 
         Used by the chip simulator (Free Hit / Wildcard) to rank the full pool.
         The universe is the seed catalog extended with any players known to the
         database — the same set the proxy level scores. Players no level covers
         are absent rather than invented.
+
+        ``skip_materialized`` lets the daily precompute recompute the inline
+        chain instead of re-serving (and thereby immortalising) its own
+        previous output.
         """
         catalog = self.player_catalog()
         try:
@@ -1255,7 +1265,9 @@ class LivePredictionProvider:
         universe = sorted(set(catalog.keys()) | db_ids)
         if not universe:
             return {}
-        chain_result = self.resolve_chain(int(gameweek))
+        chain_result = self.resolve_chain(
+            int(gameweek), skip_materialized=skip_materialized
+        )
         return self._label_predictions(chain_result, universe)
 
     def get_fixture_count(self, player_id: int, gameweek: int) -> int:
