@@ -287,7 +287,14 @@ async def league_overview(
                     )
                     payload["cache_age_seconds"] = round(age, 1)
                     payload["status"] = "ok"
-                    payload.update(_build_view(db, cache_row, session_id))
+                    payload.update(
+                        _build_view(
+                            db,
+                            cache_row,
+                            session_id,
+                            gameweek=int(target_gw),
+                        )
+                    )
                     return payload
                 diag = "refresh finished without standings"
             except TimeoutError:
