@@ -266,9 +266,8 @@ async def league_overview(
             cooling = now_mono - last < REFRESH_COOLDOWN_SECONDS
             if not cooling:
                 _refresh_marks[lid] = now_mono
+        diag = ""
         if not cooling:
-            # Serverless note: the refresh runs INSIDE this request (bounded),
-            # because background tasks are frozen once the response returns.
             target_gw = await _target_gameweek(db, 1)
             try:
                 await asyncio.wait_for(
@@ -287,13 +286,18 @@ async def league_overview(
                     payload["status"] = "ok"
                     payload.update(_build_view(db, cache_row, session_id))
                     return payload
+                diag = "refresh finished without standings"
             except TimeoutError:
-                pass
+                diag = "inline budget exceeded"
+            except Exception as exc:  # noqa: BLE001 — surfaced honestly below
+                db.rollback()
+                diag = f"{type(exc).__name__}: {exc}"
         payload["status"] = "refreshing"
         payload["note"] = (
             "refreshing… (the standings pull is still warming — reload in a "
             "few seconds)"
         )
+        payload["diag"] = diag or "cooldown active — retry shortly"
         return payload
 
     if cache_row is None or not (cache_row.standings or []):
