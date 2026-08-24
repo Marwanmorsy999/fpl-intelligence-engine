@@ -20,6 +20,7 @@ clubs whose names are absent from coverage are listed as ``unmatched``
 
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
@@ -143,3 +144,81 @@ def official_id_names_map(db: Any) -> dict[int, list[str]]:
             if name not in existing:
                 existing.append(name)
     return mapping
+
+
+# --------------------------------------------------------------------------- #
+# Persistence: one shared payload row so surfaces that cannot afford a live
+# odds fetch (the materialized fast path) still render THE SAME sentence.
+# --------------------------------------------------------------------------- #
+
+_MARKET_CHECK_SOURCE = "market_check"
+
+_CACHE_DDL = (
+    "CREATE TABLE IF NOT EXISTS provider_refresh ("
+    " source VARCHAR(60) PRIMARY KEY,"
+    " season_label VARCHAR(40),"
+    " player_count INTEGER NOT NULL DEFAULT 0,"
+    " payload JSONB NOT NULL DEFAULT '[]'::jsonb,"
+    " fetched_at TIMESTAMP WITH TIME ZONE NOT NULL)"
+)
+
+
+def store_shared_payload(
+    db: Any,
+    payload: Mapping[str, Any],
+    *,
+    gameweek: int | None = None,
+) -> None:
+    """Persist the canonical market-check payload (best-effort, never raises)."""
+    try:
+        from datetime import UTC, datetime
+
+        from sqlalchemy import select, text
+
+        from fpl_intelligence.sync.materialized_models import ProviderRefreshDB
+
+        db.execute(text(_CACHE_DDL))
+        row = db.scalar(
+            select(ProviderRefreshDB).where(ProviderRefreshDB.source == _MARKET_CHECK_SOURCE)
+        )
+        now = datetime.now(UTC)
+        merged = dict(payload)
+        merged.pop("_gameweek", None)
+        if row is None:
+            row = ProviderRefreshDB(
+                source=_MARKET_CHECK_SOURCE,
+                season_label=(f"GW{gameweek}" if gameweek else None),
+                player_count=int(payload.get("fixtures_total") or 0),
+                payload=merged,
+                fetched_at=now,
+            )
+            db.add(row)
+        else:
+            row.season_label = f"GW{gameweek}" if gameweek else row.season_label
+            row.player_count = int(payload.get("fixtures_total") or 0)
+            row.payload = merged
+            row.fetched_at = now
+        db.commit()
+    except Exception:  # noqa: BLE001 — persistence must never break a page
+        with contextlib.suppress(Exception):
+            db.rollback()
+
+
+def load_cached_payload(db: Any) -> dict[str, Any] | None:
+    """The last stored canonical payload, or ``None``."""
+    try:
+        from sqlalchemy import select, text
+
+        from fpl_intelligence.sync.materialized_models import ProviderRefreshDB
+
+        db.execute(text(_CACHE_DDL))
+        row = db.scalar(
+            select(ProviderRefreshDB).where(ProviderRefreshDB.source == _MARKET_CHECK_SOURCE)
+        )
+    except Exception:  # noqa: BLE001 — status reporting never breaks scoring
+        with contextlib.suppress(Exception):
+            db.rollback()
+        return None
+    if row is None or not isinstance(row.payload, dict):
+        return None
+    return dict(row.payload)

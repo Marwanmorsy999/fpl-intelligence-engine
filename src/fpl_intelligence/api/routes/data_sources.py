@@ -131,6 +131,18 @@ async def _probe_odds_uncached(db: Any) -> dict[str, Any]:
         block = await odds_probe_payload(db, snapshot)
         if block.get("unmatched"):
             logger.info("odds mapping unmatched teams: %s", block["unmatched"])
+        # Phase 23 (C1): persist the canonical payload so Decisions/Captain
+        # (materialized fast path) render the exact same sentence.
+        try:
+            from fpl_intelligence.prediction.market_check import store_shared_payload
+
+            store_shared_payload(
+                db,
+                block,
+                gameweek=block.get("gameweek"),
+            )
+        except Exception:  # noqa: BLE001 — best-effort persistence
+            pass
         return {"status": block["status"], "detail": block["detail"]}
     except Exception as exc:  # noqa: BLE001 — audit must never fail the page
         db.rollback()  # keep the shared request session usable afterwards

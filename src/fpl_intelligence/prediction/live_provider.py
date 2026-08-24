@@ -1093,15 +1093,35 @@ class LivePredictionProvider:
                 extras["start"] = float(row.start_prob)
             per_player[pid] = extras
 
+        notes: dict[str, Any] = {
+            "computed_at": max(r.computed_at for r in rows).isoformat(),
+            "origin": "daily materialize cron (06:10 UTC)",
+        }
+        # Phase 23 (C1): the materialized fast path never fetches odds, so it
+        # serves the PERSISTED canonical market-check payload — the exact
+        # object the Sources probe computed via compute_market_status.
+        try:
+            from fpl_intelligence.prediction.market_check import load_cached_payload
+
+            stored = load_cached_payload(self.session)
+            if isinstance(stored, dict) and stored.get("detail"):
+                notes["market_check"] = {
+                    "enabled": bool(stored.get("enabled")),
+                    "fixtures_matched": int(stored.get("fixtures_matched") or 0),
+                    "detail": str(stored.get("detail") or ""),
+                    "unmatched": list(stored.get("unmatched") or []),
+                }
+                if not stored.get("enabled"):
+                    notes["market_check"]["reason"] = "no fixtures matched yet"
+        except Exception:  # noqa: BLE001 — status is enrichment, never required
+            pass
+
         return ChainLevel(
             source=SOURCE_MATERIALIZED,
             data_quality=QUALITY_MATERIALIZED,
             points=points,
             covered=len(points),
-            notes={
-                "computed_at": max(r.computed_at for r in rows).isoformat(),
-                "origin": "daily materialize cron (06:10 UTC)",
-            },
+            notes=notes,
             per_player=per_player,
         )
 
@@ -1387,14 +1407,22 @@ class LivePredictionProvider:
 
             meta["market_check"] = disabled_market_status(self._odds_error)
         else:
-            proxy_level = next(
-                (lvl for lvl in self.last_result.levels if lvl.source == SOURCE_PROXY),
-                None,
-            )
-            shared = (proxy_level.notes.get("market_check") if proxy_level else None)
-            if isinstance(shared, dict) and shared.get("detail"):
+            # Phase 23 (C1): BOTH the live proxy level and the materialized
+            # fast path carry the shared payload (the latter reads the one
+            # persisted by the Sources probe), so every surface agrees.
+            shared = None
+            for lvl in self.last_result.levels:
+                candidate = lvl.notes.get("market_check")
+                if isinstance(candidate, dict) and candidate.get("detail"):
+                    shared = candidate
+                    break
+            if shared is not None:
                 meta["market_check"] = dict(shared)
             else:
+                proxy_level = next(
+                    (lvl for lvl in self.last_result.levels if lvl.source == SOURCE_PROXY),
+                    None,
+                )
                 matched = (
                     proxy_level.notes.get("market_fixtures_matched")
                     if proxy_level
