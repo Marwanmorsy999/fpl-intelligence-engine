@@ -98,11 +98,15 @@ def parse_history_transfers(payload: dict[str, Any]) -> list[dict[str, Any]]:
     return out
 
 
-async def fetch_official_transfers(entry_id: int) -> tuple[list[dict[str, Any]], str]:
+async def fetch_official_transfers(
+    entry_id: int, *, with_raw: bool = False
+) -> tuple[list[dict[str, Any]], str, list[dict[str, Any]]]:
     """Fetch + parse the official history through the masks.
 
-    Returns ``(rows, strategy_or_error)``; raises on total mask failure so
-    callers can fall through to the snapshot diff honestly.
+    Returns ``(rows, strategy_or_error, raw_excerpt)``; raises on total mask
+    failure so callers can fall through to the snapshot diff honestly. The
+    raw excerpt preserves the first non-empty transfers array verbatim for
+    provenance display.
     """
     from fpl_intelligence.config import get_settings
     from fpl_intelligence.data_providers.fpl_egress import FplEgressChain
@@ -115,7 +119,14 @@ async def fetch_official_transfers(entry_id: int) -> tuple[list[dict[str, Any]],
     )
     payload = await chain.fetch(f"/api/entry/{int(entry_id)}/history/")
     rows = parse_history_transfers(payload)
-    return rows, (chain.winning_strategy or "direct")
+    excerpt: list[dict[str, Any]] = []
+    if with_raw:
+        for block in (payload or {}).get("history") or []:
+            trs = block.get("transfers") or [] if isinstance(block, dict) else []
+            if trs:
+                excerpt.append({"event": block.get("event"), "transfers": trs[:5]})
+                break
+    return rows, (chain.winning_strategy or "direct"), excerpt
 
 
 def snapshot_diff_rows(db: Session, entry_id: str) -> list[dict[str, Any]]:
@@ -294,8 +305,11 @@ async def build_ledger(db: Session, entry_id: str | int) -> dict[str, Any]:
     rows: list[dict[str, Any]] = []
     source = SOURCE_OFFICIAL
     strategy: str | None = None
+    raw_excerpt: list[dict[str, Any]] = []
     try:
-        rows, strategy = await fetch_official_transfers(int(entry_id))
+        rows, strategy, raw_excerpt = await fetch_official_transfers(
+            int(entry_id), with_raw=True
+        )
     except Exception as exc:  # noqa: BLE001 — honest fallback below
         logger.info("official history unavailable for %s: %s", eid, type(exc).__name__)
         rows = snapshot_diff_rows(db, eid)
@@ -379,6 +393,7 @@ async def build_ledger(db: Session, entry_id: str | int) -> dict[str, Any]:
         "note": note,
         "source": source if rows else None,
         "strategy": strategy,
+        "history_excerpt": raw_excerpt,
         "transfers": ledger,
         "count": len(ledger),
         "generated_at": datetime.now(UTC).isoformat(),

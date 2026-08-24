@@ -162,7 +162,7 @@ async def targets_overview(
     db: deps.GetDB,
     session_id: str | None = Query(None, description="Session key (saved squad)."),
     show_all: bool = Query(False, description="Include unaffordable targets."),
-    limit: int = Query(10, ge=1, le=50),
+    limit: int = Query(10, ge=1, le=600),
 ) -> dict[str, Any]:
     """Top transfer targets ranked by Alpha with full provenance."""
     response.headers["Cache-Control"] = "no-store"
