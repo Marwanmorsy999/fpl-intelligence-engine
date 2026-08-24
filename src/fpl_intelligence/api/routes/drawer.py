@@ -550,6 +550,15 @@ async def player_drawer(
     team_val = (squad.player_teams or {}).get(player_id)
     if team_val is None and row is not None:
         team_val = getattr(row, "team_id", None)
+    if team_val is None:
+        try:
+            from fpl_intelligence.prediction.live_provider import load_player_catalog  # noqa: PLC0415
+
+            _cat = load_player_catalog().get(int(player_id))
+            if _cat and _cat.get("team"):
+                team_val = int(_cat["team"])
+        except Exception:
+            pass
     # If still None for arbitrary ids, keep missing but don't 500
     position_val = (squad.player_positions or {}).get(player_id)
     if position_val is None and row is None and prow is None:

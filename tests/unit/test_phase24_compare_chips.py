@@ -128,22 +128,19 @@ def test_chips_respects_used_chips(client):
 
 def test_drawer_shows_set_piece_chips(client):
     sid = _make_squad(client, "drawer_sp")
-    # player 12 Saka is penalty taker for ARS team 1 per our json; but our squad uses ids 1-15 arbitrary teams,
-    # so to test set-piece visible we need a player that is actually a taker per set_piece_takers.json
-    # Our set_piece_takers uses catalog ids: 12 for ARS, 411 for MCI etc.
-    # Let's test drawer for player 12 with session that has team mapping fallback? The squad payload maps player 1..15 to team 1/2, not to real ARS team ids.
-    # But drawer fallback also checks catalog team, so Saka 12 team 1 will match entry 1 -> penalty True.
-    r = client.get(f"/api/v1/player/12/drawer", params={"session_id": "drawer_sp"})
-    assert r.status_code == 200, r.text
-    data = r.json()
-    assert "set_pieces" in data
-    # Saka should be penalty taker per our seed (team 1 penalty 12)
-    assert data["set_pieces"]["penalty"] is True or data["set_pieces"]["unknown"] is True
-    # also test Haaland 411 team 15 penalty True
-    r2 = client.get(f"/api/v1/player/411/drawer", params={"session_id": "drawer_sp"})
+    # 5 known takers from set_piece_takers.json: Saka 12 (ARS), Haaland 411 (MCI), Palmer 154 (CHE), Watkins 55 (AVL), Isak 379 (LIV)
+    for pid, should_have in [(12, "penalty"), (411, "penalty"), (154, "penalty"), (55, "penalty"), (379, "penalty")]:
+        r = client.get(f"/api/v1/player/{pid}/drawer", params={"session_id": "drawer_sp"})
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert "set_pieces" in data, f"missing set_pieces for {pid}"
+        # each of these 5 is a designated taker, so at least one flag true
+        flags = data["set_pieces"]
+        assert any(flags.get(k) is True for k in ("penalty","corners","free_kicks")), f"{pid} should be taker"
+    # also test unknown handling for unmapped? our json covers all 20, but unknown path still exists
+    r2 = client.get(f"/api/v1/player/1/drawer", params={"session_id": "drawer_sp"})
     assert r2.status_code == 200
-    data2 = r2.json()
-    assert "set_pieces" in data2
+    assert "set_pieces" in r2.json()
 
 def test_pwa_static_served(client):
     # manifest and sw via real file serving (no DB override needed but client still works)
