@@ -80,9 +80,43 @@ class TestLeagueKiller:
         private = next(lg for lg in leagues if lg["league_id"] == 999)
         assert private["private"] is True
 
-    def test_default_pick_is_most_members(self):
-        leagues = parse_entry_leagues(ENTRY_LEAGUES_PAYLOAD)
-        assert pick_default_league(leagues)["league_id"] == 123456
+    def test_parse_embedded_2026_entry_payload_shape(self):
+        """The retired /leagues/ route 404s; leagues ship inside the entry."""
+        payload = {
+            "id": 2295006,
+            "name": "Tricky",
+            "leagues": {
+                "classic": [
+                    {
+                        "id": 794561,
+                        "name": "Mates League",
+                        "league_type": "x",
+                        "entry_rank": 11,
+                        "entry_last_rank": 0,
+                        "active_phases": [
+                            {"phase": 1, "rank_count": 13},
+                            {"phase": 2, "rank_count": 13},
+                        ],
+                    },
+                    {
+                        "id": 314,
+                        "name": "Overall",
+                        "league_type": "s",
+                        "entry_rank": 6005998,
+                        "active_phases": [{"phase": 1, "rank_count": 8904495}],
+                    },
+                ],
+                "h2h": [{"id": 1, "name": "ignored"}],
+            },
+        }
+        leagues = parse_entry_leagues(payload)
+        assert [lg["league_id"] for lg in leagues] == [314, 794561]  # most members first
+        mates = next(lg for lg in leagues if lg["league_id"] == 794561)
+        assert mates["member_count"] == 13
+        assert mates["private"] is True
+        overall = next(lg for lg in leagues if lg["league_id"] == 314)
+        assert overall["private"] is False
+        assert pick_default_league(leagues)["league_id"] == 314
 
     def test_picker_choice_is_persisted(self, db_session):
         from fpl_intelligence.leagues.models import EntryLeagueDB, LeagueSelectionDB

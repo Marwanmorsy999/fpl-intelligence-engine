@@ -33,39 +33,59 @@ _REFRESH_BUDGET_SECONDS = 20.0
 def parse_entry_leagues(payload: dict[str, Any]) -> list[dict[str, Any]]:
     """Extract CLASSIC leagues from an entry-leagues payload (pure).
 
-    H2H and cup structures are ignored. Returns a stable list ordered by
-    member count (descending) then league id, each item:
-    ``{league_id, name, member_count, entry_rank, entry_last_rank, private}``.
+    Handles BOTH API shapes:
+
+    * the legacy ``/api/entry/{id}/leagues/`` envelope
+      (``{"classic": [...], "h2h": [...]}``), and
+    * the 2026/27 shape where the same lists ship INSIDE the entry payload
+      itself (``{"id": .., "leagues": {"classic": [...], ...}, ...}``) after
+      the standalone leagues route was retired (it now 404s).
+
+    League size comes from ``entry_count`` on the legacy shape or from the
+    ``active_phases[*].rank_count`` on the embedded one. H2H and cup
+    structures are ignored. Returns a stable list ordered by member count
+    (descending) then league id.
     """
+    leagues_block = (payload or {}).get("leagues")
+    if not isinstance(leagues_block, dict):
+        leagues_block = payload or {}
     out: list[dict[str, Any]] = []
     seen: set[int] = set()
-    for block in ("classic",):
-        for lg in (payload or {}).get(block) or []:
+    for lg in leagues_block.get("classic") or []:
+        try:
+            league_id = int(lg.get("id"))
+        except (TypeError, ValueError):
+            continue
+        if league_id in seen:
+            continue
+        seen.add(league_id)
+
+        def _int(value: Any) -> int | None:
             try:
-                league_id = int(lg.get("id"))
+                return int(value)
             except (TypeError, ValueError):
-                continue
-            if league_id in seen:
-                continue
-            seen.add(league_id)
+                return None
 
-            def _int(value: Any) -> int | None:
-                try:
-                    return int(value)
-                except (TypeError, ValueError):
-                    return None
-
-            out.append(
-                {
-                    "league_id": league_id,
-                    "name": str(lg.get("name") or f"League {league_id}"),
-                    "member_count": _int(lg.get("entry_count")),
-                    "entry_rank": _int(lg.get("entry_rank")),
-                    "entry_last_rank": _int(lg.get("entry_last_rank")),
-                    # FPL marks private leagues with type "private".
-                    "private": str(lg.get("type") or "").lower() == "private",
-                }
-            )
+        member_count = _int(lg.get("entry_count"))
+        if member_count is None:
+            phase_counts = [
+                _int(p.get("rank_count"))
+                for p in (lg.get("active_phases") or [])
+                if isinstance(p, dict)
+            ]
+            member_count = next((c for c in phase_counts if c), None)
+        league_type = str(lg.get("type") or lg.get("league_type") or "").lower()
+        out.append(
+            {
+                "league_id": league_id,
+                "name": str(lg.get("name") or f"League {league_id}"),
+                "member_count": member_count,
+                "entry_rank": _int(lg.get("entry_rank")),
+                "entry_last_rank": _int(lg.get("entry_last_rank")),
+                # "x" = user-created (private); "s" = system/public.
+                "private": league_type == "private" or league_type == "x",
+            }
+        )
     out.sort(key=lambda x: (-(x["member_count"] or 0), x["league_id"]))
     return out
 
@@ -170,9 +190,13 @@ def _chain(cache_ttl: float = 300.0) -> Any:
 
 
 async def fetch_entry_leagues(entry_id: int) -> list[dict[str, Any]]:
-    """Live classic-league discovery for one entry via the masks."""
+    """Live classic-league discovery for one entry via the masks.
+
+    Reads ``leagues.classic`` from the entry payload itself — the 2026/27
+    API retired the standalone ``/api/entry/{id}/leagues/`` route (it 404s).
+    """
     chain = _chain(cache_ttl=600.0)
-    payload = await chain.fetch(f"/api/entry/{int(entry_id)}/leagues/")
+    payload = await chain.fetch(f"/api/entry/{int(entry_id)}/")
     return parse_entry_leagues(payload)
 
 
