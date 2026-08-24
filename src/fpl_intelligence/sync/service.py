@@ -204,7 +204,16 @@ def ingest_history_gameweek(
             )
             stored += 1
         else:
+            # Phase 21.1 fix: the update path previously refreshed only
+            # total_points/payload — minutes/bonus/goals/assists kept whatever
+            # a prior (possibly cross-season) writer had stored, silently
+            # zeroing the form features built from this table.
             existing.total_points = total_points
+            existing.minutes = _opt_int(el.get("minutes"))
+            existing.bonus = _opt_int(el.get("bonus"))
+            existing.goals_scored = _opt_int(el.get("goals_scored"))
+            existing.assists = _opt_int(el.get("assists"))
+            existing.xgi = _opt_float(el.get("xgi") or el.get("expected_goal_involvements"))
             existing.payload = payload
             existing.source = source
             existing.ingested_at = _now()
@@ -237,7 +246,13 @@ def ingest_history_gameweek(
                     )
                     mirrored += 1
                 else:
+                    # Phase 21.1 fix: refresh the full stat set, not just
+                    # points/bonus — stale cross-season minutes otherwise
+                    # poison the minutes_share in the baseline model.
+                    perf.minutes = _opt_int(el.get("minutes")) or perf.minutes
                     perf.total_points = total_points
+                    perf.goals_scored = _opt_int(el.get("goals_scored")) or perf.goals_scored
+                    perf.assists = _opt_int(el.get("assists")) or perf.assists
                     if el.get("bonus") is not None:
                         perf.bonus = int(el["bonus"])
                     mirrored += 1

@@ -176,6 +176,90 @@ async def ingest_results_endpoint(
         )
 
 
+@router.get("/admin/purge-history")
+@router.post("/admin/purge-history")
+async def purge_history_endpoint(
+    db: deps.GetDB,
+    _: None = Depends(_require_cron_auth),
+    source_prefix: str = Query(
+        "github-actions", description="Delete rows whose source starts with this."
+    ),
+) -> dict:
+    """Phase 21.1 one-shot — remove cross-season ingested history.
+
+    The GitHub Actions data_refresh used to fall back to the whole previous
+    season when the current one was unpublished, writing gw1..gw38 rows keyed
+    by LAST season's element ids into ``ingested_history`` (and their mirrors).
+    Those rows poison form features and baselines. vaastav is a cross-check
+    source by design, so stale pushes are deletable without losing truth:
+    official-FPL ingestion rewrites everything it needs.
+
+    Also deletes mirrored ``PlayerGameweekPerformance`` rows whose gameweek no
+    longer has any ingested history afterwards.
+    """
+    from sqlalchemy import delete, func, select
+
+    from fpl_intelligence.db.models import Gameweek, PlayerGameweekPerformance
+    from fpl_intelligence.sync.models import IngestedGameweekDB
+
+    like = f"{(source_prefix or 'github-actions').rstrip('%')}%"
+    try:
+        doomed_gws = sorted(
+            {
+                int(gw)
+                for (gw,) in db.execute(
+                    select(IngestedGameweekDB.gameweek).where(
+                        IngestedGameweekDB.source.like(like)
+                    )
+                ).all()
+            }
+        )
+        deleted_history = int(
+            db.execute(
+                delete(IngestedGameweekDB).where(IngestedGameweekDB.source.like(like))
+            ).rowcount or 0
+        )
+
+        # Mirror rows tied to gameweeks that no longer have ANY history row.
+        remaining_gws = {
+            int(gw)
+            for (gw,) in db.execute(select(IngestedGameweekDB.gameweek).distinct()).all()
+        }
+        stale_gw_ids = [
+            int(gid)
+            for gid, prov in db.execute(
+                select(Gameweek.id, Gameweek.provider_event_id)
+            ).all()
+            if prov is not None and int(prov) not in remaining_gws
+        ]
+        deleted_mirror = 0
+        if stale_gw_ids:
+            deleted_mirror = int(
+                db.execute(
+                    delete(PlayerGameweekPerformance).where(
+                        PlayerGameweekPerformance.gameweek_id.in_(stale_gw_ids)
+                    )
+                ).rowcount or 0
+            )
+        # Baseline window must never look at purged gameweeks again.
+        _ = func.count  # keep import shape stable for future aggregates
+        db.commit()
+        return JSONResponse(
+            content={
+                "ok": True,
+                "deleted_history_rows": deleted_history,
+                "purged_gameweeks": doomed_gws,
+                "deleted_mirror_rows": deleted_mirror,
+            }
+        )
+    except Exception as exc:  # noqa: BLE001 - surfaced for cron visibility
+        db.rollback()
+        logger.exception("purge-history failed")
+        return JSONResponse(
+            status_code=500, content={"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        )
+
+
 @router.get("/admin/db-probe")
 async def db_probe_endpoint(
     db: deps.GetDB,

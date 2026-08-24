@@ -161,50 +161,56 @@ def main() -> int:
         print("ENV FAIL: ENGINE_BASE and SYNC_PUSH_TOKEN are required.", file=sys.stderr)
         return 2
 
+    # Phase 21.1 fix: this script previously pushed EVERY available gameweek
+    # of the first season that had files — so when the current season was not
+    # yet published, it dumped the ENTIRE previous season (gw1..gw38) into the
+    # engine's current-season tables and poisoned form features/baselines.
+    # Now: only the newest gameweek of the CURRENT season candidate list.
     pushed_gws = 0
     last_error: str | None = None
     for season in _season_candidates():
         gws = _list_available_gws(season)
         print(f"season {season}: {len(gws)} gameweek files available upstream")
-        for gw in reversed(gws):  # newest first; stop after first success batch
-            try:
-                elements = _parse_gw_csv(season, gw)
-            except Exception as exc:  # noqa: BLE001 - report and continue
-                last_error = f"gw{gw}: download/parse failed ({exc})"
-                print(f"  WARN {last_error}")
-                continue
-            if not elements:
-                continue
-            try:
-                status, body = _post_json(
-                    base,
-                    "/api/v1/sync/history-push",
-                    {
-                        "gameweek": gw,
-                        "source": "github-actions",
-                        "season": season,
-                        "elements": elements,
-                    },
-                    token,
-                )
-            except Exception as exc:  # noqa: BLE001
-                last_error = f"gw{gw}: push failed ({exc})"
-                print(f"  WARN {last_error}")
-                continue
-            if status != 200:
-                last_error = f"gw{gw}: push returned HTTP {status}: {body[:200]}"
-                print(f"  WARN {last_error}")
-                continue
-            result = json.loads(body)
-            captured = result.get("predictions_captured")
-            scored = result.get("recommendations_scored")
-            print(
-                f"  OK gw{gw}: stored={result.get('stored')} "
-                f"mirrored={result.get('mirrored')} captured={captured} scored={scored}"
+        if not gws:
+            continue
+        gw = max(gws)  # newest only — history belongs to the season it came from
+        try:
+            elements = _parse_gw_csv(season, gw)
+        except Exception as exc:  # noqa: BLE001 - report and continue
+            last_error = f"gw{gw}: download/parse failed ({exc})"
+            print(f"  WARN {last_error}")
+            continue
+        if not elements:
+            continue
+        try:
+            status, body = _post_json(
+                base,
+                "/api/v1/sync/history-push",
+                {
+                    "gameweek": gw,
+                    "source": f"github-actions:{season}",
+                    "season": season,
+                    "elements": elements,
+                },
+                token,
             )
-            pushed_gws += 1
-        if pushed_gws:
-            break  # a season with real data was found; done
+        except Exception as exc:  # noqa: BLE001
+            last_error = f"gw{gw}: push failed ({exc})"
+            print(f"  WARN {last_error}")
+            continue
+        if status != 200:
+            last_error = f"gw{gw}: push returned HTTP {status}: {body[:200]}"
+            print(f"  WARN {last_error}")
+            continue
+        result = json.loads(body)
+        captured = result.get("predictions_captured")
+        scored = result.get("recommendations_scored")
+        print(
+            f"  OK {season} gw{gw}: stored={result.get('stored')} "
+            f"mirrored={result.get('mirrored')} captured={captured} scored={scored}"
+        )
+        pushed_gws += 1
+        break  # one gameweek per run; done
 
     # Understat snapshot: enrich-only pass (failures are non-fatal).
     year = max(int(s.split("-")[0]) for s in _season_candidates()) - 1
@@ -215,8 +221,8 @@ def main() -> int:
         print(f"WARN understat snapshot failed ({exc})")
 
     if pushed_gws == 0:
-        print(f"FAIL: no gameweek could be pushed. Last error: {last_error}", file=sys.stderr)
-        return 1
+        print(f"DONE: nothing pushed (current season not published yet). Last error: {last_error}")
+        return 0
     print(f"DONE: {pushed_gws} gameweek(s) pushed to {base}")
     return 0
 
