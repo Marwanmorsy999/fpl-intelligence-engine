@@ -121,11 +121,23 @@ async def fetch_official_transfers(
     rows = parse_history_transfers(payload)
     excerpt: list[dict[str, Any]] = []
     if with_raw:
-        for block in (payload or {}).get("history") or []:
-            trs = block.get("transfers") or [] if isinstance(block, dict) else []
-            if trs:
-                excerpt.append({"event": block.get("event"), "transfers": trs[:5]})
-                break
+        # Verbatim newest event block (even when its array is empty) so the
+        # UI/proof can prove official provenance, not just parsed rows.
+        blocks = [
+            b
+            for b in (payload or {}).get("history") or []
+            if isinstance(b, dict)
+        ]
+        if blocks:
+            last = max(blocks, key=lambda b: int(b.get("event") or 0))
+            excerpt.append(
+                {
+                    "event": last.get("event"),
+                    "event_transfers": last.get("event_transfers"),
+                    "event_transfers_cost": last.get("event_transfers_cost"),
+                    "transfers": (last.get("transfers") or [])[:5],
+                }
+            )
     return rows, (chain.winning_strategy or "direct"), excerpt
 
 

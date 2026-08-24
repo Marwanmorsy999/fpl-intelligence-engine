@@ -68,13 +68,13 @@ def main() -> int:
             emit(f"note: {ledger['note']}")
         excerpt = ledger.get("history_excerpt") or []
         if excerpt:
-            emit("RAW official history transfers array excerpt:")
+            emit("RAW official history transfers array excerpt (verbatim newest event block):")
             emit(json.dumps(excerpt[0], indent=2))
+        elif ledger.get("status") == "unavailable":
+            failures.append("official history could not be fetched and no snapshots exist")
         else:
-            emit(
-                "RAW official history excerpt: none — FPL reports zero transfers "
-                "recorded for this entry so far this season."
-            )
+            emit("RAW official history excerpt: unavailable this run.")
+            failures.append("no raw history excerpt returned")
         rows = ledger.get("transfers") or []
         if rows:
             emit(f"rows ({len(rows)}):")
@@ -92,8 +92,10 @@ def main() -> int:
             if "horizon EV" not in str(how):
                 failures.append("ledger how_computed line missing formula")
         else:
-            emit("transfers: [] — honest empty state (no transfers recorded yet)")
-            failures.append("transfer ledger has no rows and no raw excerpt to show")
+            emit(
+                "transfers: [] — honest empty state (official history shows no "
+                "transfers recorded yet this season)"
+            )
         emit()
 
         # --- 2. alpha values + both terms ------------------------------------
