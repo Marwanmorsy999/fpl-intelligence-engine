@@ -206,10 +206,14 @@ async def fetch_standings(league_id: int) -> tuple[list[dict[str, Any]], dict[st
     payload = await chain.fetch(
         f"/api/leagues-classic/{int(league_id)}/standings/?page_standings=1"
     )
-    meta = {
-        "name": str(payload.get("league") or {}).strip() or f"League {league_id}",
-        "member_count": payload.get("total"),
-    }
+    league_meta = payload.get("league")
+    if isinstance(league_meta, dict):
+        name = str(league_meta.get("name") or f"League {league_id}")
+        member_count = league_meta.get("rank_count")
+    else:
+        name = str(league_meta or "").strip() or f"League {league_id}"
+        member_count = payload.get("total")
+    meta = {"name": name, "member_count": member_count}
     results = ((payload.get("standings") or {}).get("results")) or []
     rows: list[dict[str, Any]] = []
     for r in results:
