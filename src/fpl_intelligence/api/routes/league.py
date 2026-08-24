@@ -45,7 +45,7 @@ _refresh_marks: dict[int, float] = {}
 _refresh_lock = threading.Lock()
 
 #: Inline refresh budget (serverless-safe; the response waits for it).
-_REFRESH_INLINE_BUDGET = 25.0
+_REFRESH_INLINE_BUDGET = 38.0
 
 
 def _ensure_tables(db: Any) -> None:

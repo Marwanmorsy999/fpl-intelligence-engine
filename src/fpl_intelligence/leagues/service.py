@@ -177,14 +177,14 @@ def projected_edge_lines(
 # --------------------------------------------------------------------------- #
 
 
-def _chain(cache_ttl: float = 300.0) -> Any:
+def _chain(cache_ttl: float = 300.0, *, timeout: float | None = None) -> Any:
     from fpl_intelligence.config import get_settings
     from fpl_intelligence.data_providers.fpl_egress import FplEgressChain
 
     settings = get_settings()
     return FplEgressChain(
         settings.fpl_base_url,
-        timeout=settings.egress_strategy_timeout,
+        timeout=timeout if timeout is not None else settings.egress_strategy_timeout,
         cache_ttl=cache_ttl,
     )
 
@@ -231,9 +231,14 @@ async def fetch_standings(league_id: int) -> tuple[list[dict[str, Any]], dict[st
     return rows, meta
 
 
+#: Per-strategy timeout for rival-picks pulls — mirrors the matchday live
+#: poll so ten parallel picks still fit inside one serverless request.
+PICKS_STRATEGY_TIMEOUT = 1.6
+
+
 async def fetch_entry_picks(entry_id: int, gameweek: int) -> dict[str, Any]:
     """Starters + captain element ids for one entry's gameweek."""
-    chain = _chain(cache_ttl=300.0)
+    chain = _chain(cache_ttl=300.0, timeout=PICKS_STRATEGY_TIMEOUT)
     payload = await chain.fetch(
         f"/api/entry/{int(entry_id)}/event/{int(gameweek)}/picks/"
     )
