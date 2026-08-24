@@ -297,18 +297,30 @@ async def refresh_league_cache(
         sem = asyncio.Semaphore(4)
 
         async def _one(eid: int) -> tuple[str, dict[str, Any]]:
+            """Picks for ``gameweek``, falling back to the previous one.
+
+            Before a deadline FPL answers 404 for the upcoming gameweek's
+            picks, so rivals are profiled on the newest COMPLETED week.
+            """
             async with sem:
-                try:
-                    return str(eid), await fetch_entry_picks(eid, gameweek)
-                except Exception:  # noqa: BLE001 — one rival failing is fine
-                    return str(eid), {}
+                for candidate_gw in (int(gameweek), int(gameweek) - 1):
+                    if candidate_gw < 1:
+                        break
+                    try:
+                        block = await fetch_entry_picks(eid, candidate_gw)
+                    except Exception:  # noqa: BLE001 — masks fail per-call
+                        continue
+                    if block.get("starters"):
+                        return str(eid), {**block, "gw": candidate_gw}
+                return str(eid), {}
 
         results = await asyncio.wait_for(
             asyncio.gather(*(_one(r["entry_id"]) for r in targets)),
-            timeout=max(2.0, _REFRESH_BUDGET_SECONDS - (time.monotonic() - started)),
+            timeout=max(4.0, _REFRESH_BUDGET_SECONDS - (time.monotonic() - started)),
         )
         picks_map: dict[str, list[int]] = {}
         captains_map: dict[str, int] = {}
+        gws_used: dict[int, int] = {}
         fetched = 0
         for key, block in results:
             if not block:
@@ -316,10 +328,16 @@ async def refresh_league_cache(
             picks_map[key] = block.get("starters") or []
             if block.get("captain"):
                 captains_map[key] = int(block["captain"])
+            gws_used[int(block.get("gw") or gameweek)] = (
+                gws_used.get(int(block.get("gw") or gameweek), 0) + 1
+            )
             fetched += 1
         rivals_picks["picks"] = picks_map
         rivals_picks["captains"] = captains_map
         rivals_picks["fetched"] = fetched
+        # The gameweek most rivals' picks actually describe.
+        if gws_used:
+            rivals_picks["gameweek"] = max(gws_used.items(), key=lambda kv: kv[1])[0]
         rivals_picks["partial"] = bool(
             meta.get("member_count")
             and int(meta["member_count"] or 0) > len(rows)

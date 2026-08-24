@@ -287,12 +287,16 @@ async def league_overview(
                     )
                     payload["cache_age_seconds"] = round(age, 1)
                     payload["status"] = "ok"
+                    picks_gw = int(
+                        (cache_row.rivals_picks or {}).get("gameweek")
+                        or target_gw
+                    )
                     payload.update(
                         _build_view(
                             db,
                             cache_row,
                             session_id,
-                            gameweek=int(target_gw),
+                            gameweek=picks_gw,
                         )
                     )
                     return payload
