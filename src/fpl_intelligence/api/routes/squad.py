@@ -149,6 +149,7 @@ def _build_player_details(
     squad: SquadStateResponse,
     provider: DecisionPredictionProvider,
     understat_index: dict[str, dict[str, Any]] | None = None,
+    ownership_map: dict[int, float] | None = None,
 ) -> dict[str, PlayerDetail]:
     """Enrich the decision report with per-player details for the dashboard.
 
@@ -170,6 +171,7 @@ def _build_player_details(
     NOT render xG/xA lines for them.
     """
     uindex = understat_index or {}
+    omap = ownership_map if ownership_map is not None else {}
 
     # --- collect every player id referenced in the report --------------------
     player_ids: set[int] = set()
@@ -282,9 +284,54 @@ def _build_player_details(
             xg=xg,
             xa=xa,
             xpts_breakdown=breakdown,
+            ownership=omap.get(int(pid)),
         )
 
     return details
+
+
+def _ownership_map(db: Session) -> dict[int, float]:
+    """Element id -> selected-by percent (float), materialized facts first.
+
+    Falls back to the committed bootstrap seed so ownership renders from the
+    very first request after a fresh deploy (vaastav players_raw lags early
+    in a season).
+    """
+    owners: dict[int, float] = {}
+    try:
+        from fpl_intelligence.sync.materialized_models import ElementFactDB
+
+        for element_id, pct in db.execute(
+            select(ElementFactDB.element_id, ElementFactDB.selected_by_percent)
+        ).all():
+            value = _parse_pct(pct)
+            if value is not None:
+                owners[int(element_id)] = value
+    except Exception as exc:  # noqa: BLE001 — enrichment only
+        logger.debug("element_facts ownership read failed: %s", exc)
+    if len(owners) >= 100:
+        return owners
+    try:
+        from fpl_intelligence.prediction.live_provider import load_player_catalog
+
+        for element_id, row in load_player_catalog().items():
+            if int(element_id) in owners:
+                continue
+            value = _parse_pct(row.get("selected_by_percent"))
+            if value is not None:
+                owners[int(element_id)] = value
+    except Exception as exc:  # noqa: BLE001 — enrichment only
+        logger.debug("seed catalog ownership fallback failed: %s", exc)
+    return owners
+
+
+def _parse_pct(raw: Any) -> float | None:
+    if raw is None or raw == "":
+        return None
+    try:
+        return round(float(raw), 1)
+    except (TypeError, ValueError):
+        return None
 
 
 @router.get(
@@ -328,13 +375,21 @@ async def get_decisions(
         )
     squad = SquadService(session=db).get_squad(session_id=session_id)
     if squad is None:
-        raise HTTPException(
-            status_code=404,
-            detail="No squad saved for this session",
-        )
+        raise HTTPException(status_code=404, detail="No squad saved for this session")
 
     # Never cache responses that are specific to a session.
     response.headers["Cache-Control"] = "no-store"
+
+    # Phase 21.1 (T2): the target gameweek follows the official FPL clock at
+    # request time — bootstrap next-deadline event, fixtures-cache fallback,
+    # then the saved squad value. The header and every downstream number use
+    # this one value.
+    try:
+        from fpl_intelligence.sync.gameweek_clock import resolve_target_gameweek
+
+        squad.gameweek = await resolve_target_gameweek(db, fallback=int(squad.gameweek))
+    except Exception as exc:  # noqa: BLE001 - metadata only, never fail decisions
+        logger.warning("target gameweek resolution failed: %s", exc)
 
     applied_overrides: list = []
     if live_facts:
@@ -380,9 +435,17 @@ async def get_decisions(
     understat_index = _resolve_understat_index(provider)
 
     # Enrich with per-player details (names, teams, prices, codes, xPTS).
+    ownership_map = _ownership_map(db)
     report.players = _build_player_details(
-        db, report, squad, effective_provider, understat_index=understat_index
+        db, report, squad, effective_provider, understat_index=understat_index,
+        ownership_map=ownership_map,
     )
+
+    # --- Phase 22 decision-depth layers ---------------------------------------
+    try:
+        await _attach_decision_depth(db, report, squad, ownership_map)
+    except Exception as exc:  # noqa: BLE001 - depth layers are enhancements
+        logger.warning("decision-depth enrichment failed: %s", exc)
 
     # Phase 19.0 — persist this gameweek's calls so /track-record can grade
     # them once real results are ingested. Best-effort: tracking must never
@@ -429,6 +492,314 @@ def _resolve_understat_index(
     except Exception as exc:  # noqa: BLE001 — enrichment is best-effort
         logger.warning("understat_index failed: %s", exc)
         return {}
+
+
+# --------------------------------------------------------------------------- #
+# Phase 22 — decision-depth layers (ownership / watchlist / captain cards)
+# --------------------------------------------------------------------------- #
+
+
+def _names_for(db: Session, pids: set[int]) -> dict[int, str]:
+    """Resolve FPL element ids to display names (player table, seed fallback)."""
+    names: dict[int, str] = {}
+    for element_id, web_name in db.execute(
+        select(Player.fpl_element_id, Player.web_name).where(
+            Player.fpl_element_id.in_(pids or {0})
+        )
+    ).all():
+        if element_id is not None and web_name:
+            names[int(element_id)] = str(web_name)
+    missing = pids - set(names)
+    if missing:
+        try:
+            from fpl_intelligence.prediction.live_provider import load_player_catalog
+
+            catalog = load_player_catalog()
+            for pid in missing:
+                row = catalog.get(int(pid))
+                if row and row.get("web_name"):
+                    names[int(pid)] = str(row["web_name"])
+        except Exception as exc:  # noqa: BLE001 - display only
+            logger.debug("seed name fallback failed: %s", exc)
+    return names
+
+
+def _prediction_rows(db: Session, gameweek: int) -> dict[int, float]:
+    """All materialized xPTS rows for one gameweek -> ``{element_id: xpts}``."""
+    from sqlalchemy import select
+
+    from fpl_intelligence.sync.materialized_models import PredictionCurrentDB
+
+    try:
+        rows = db.execute(
+            select(PredictionCurrentDB.element_id, PredictionCurrentDB.expected_points).where(
+                PredictionCurrentDB.gameweek == int(gameweek)
+            )
+        ).all()
+    except Exception as exc:  # noqa: BLE001 — table may be absent on old deploys
+        logger.debug("predictions_current read failed: %s", exc)
+        return {}
+    return {int(element_id): float(xpts) for element_id, xpts in rows if element_id is not None}
+
+
+def _fdr_next3_by_team(
+    rows_by_gw: dict[int, list[Any]], team_ids: set[int], horizon: list[int]
+) -> dict[int, float | None]:
+    """Average FDR over the next three unplayed fixtures per team id."""
+    out: dict[int, float | None] = {tid: None for tid in team_ids}
+    for tid in team_ids:
+        diffs: list[float] = []
+        for gw in horizon:
+            for row in rows_by_gw.get(gw, ()):
+                if row.finished:
+                    continue
+                if row.home_team == tid:
+                    diffs.append(float(row.home_difficulty))
+                    break
+                if row.away_team == tid:
+                    diffs.append(float(row.away_difficulty))
+                    break
+        if diffs:
+            out[tid] = round(sum(diffs[:3]) / len(diffs[:3]), 2)
+    return out
+
+
+def _next_fixture_text(
+    rows_by_gw: dict[int, list[Any]],
+    horizon: list[int],
+    team_names: Any,
+    team_id: int | None,
+) -> str | None:
+    """Short "MCI(A)3" style label for a club's next unplayed fixture."""
+    from fpl_intelligence.fixtures.scanner import team_short_name
+
+    if team_id is None:
+        return None
+    for gw in horizon:
+        for row in rows_by_gw.get(gw, ()):
+            if row.finished:
+                continue
+            if row.home_team == team_id:
+                return (
+                    team_short_name(row.away_team, team_names)
+                    + "(H)"
+                    + str(row.home_difficulty)
+                )
+            if row.away_team == team_id:
+                return (
+                    team_short_name(row.home_team, team_names)
+                    + "(A)"
+                    + str(row.away_difficulty)
+                )
+    return None
+
+
+def _team_ids_for(db: Session, pids: set[int]) -> dict[int, int]:
+    teams: dict[int, int] = {}
+    try:
+        from fpl_intelligence.sync.materialized_models import ElementFactDB
+
+        for element_id, team_id in db.execute(
+            select(ElementFactDB.element_id, ElementFactDB.team_id).where(
+                ElementFactDB.element_id.in_(pids or {0})
+            )
+        ).all():
+            if element_id is not None and team_id is not None:
+                teams[int(element_id)] = int(team_id)
+    except Exception as exc:  # noqa: BLE001 — metadata only
+        logger.debug("element_facts team read failed: %s", exc)
+    return teams
+
+
+def _seed_rows_for(pids: set[int]) -> dict[int, dict[str, Any]]:
+    """Bootstrap-seed rows (position/team/price/web_name) for arbitrary ids."""
+    try:
+        from fpl_intelligence.prediction.live_provider import load_player_catalog
+
+        catalog = load_player_catalog()
+    except Exception as exc:  # noqa: BLE001 — metadata only
+        logger.debug("seed catalog unavailable: %s", exc)
+        return {}
+    out: dict[int, dict[str, Any]] = {}
+    for pid in pids:
+        row = catalog.get(int(pid))
+        if row:
+            out[int(pid)] = row
+    return out
+
+
+async def _attach_decision_depth(
+    db: Session,
+    report: DecisionReport,
+    squad: SquadStateResponse,
+    ownership_map: dict[int, float],
+) -> None:
+    """Compute the D1/D2/D3 payloads onto ``report.meta`` (never raises upward).
+
+    Everything reads materialized tables (predictions_current, fixtures_cache)
+    plus the ownership map already resolved by the route — no live network.
+    """
+    from fpl_intelligence.api.routes.fixtures import load_fixtures
+    from fpl_intelligence.fixtures.scanner import (
+        average_fdr,
+        next_gameweeks,
+        parse_fixtures,
+        player_run,
+    )
+    from fpl_intelligence.materialize import team_names_from_db
+    from fpl_intelligence.squad.depth import (
+        build_watchlist,
+        captain_comparison,
+        rank_differentials,
+    )
+
+    gameweek = int(report.gameweek)
+
+    async def _run() -> None:
+        xpts_all = _prediction_rows(db, gameweek)
+
+        fixtures_raw: list[dict[str, Any]] = []
+        try:
+            fixtures_raw = await load_fixtures(db)
+        except Exception as exc:  # noqa: BLE001 — FDR context is optional
+            logger.warning("fixtures unavailable for depth layers: %s", exc)
+        fixture_rows = parse_fixtures(fixtures_raw)
+        rows_by_gw: dict[int, list[Any]] = {}
+        for row in fixture_rows:
+            rows_by_gw.setdefault(row.event, []).append(row)
+        horizon5 = next_gameweeks(fixture_rows, gameweek, 5)
+        team_names = team_names_from_db(db) or {}
+
+        squad_ids = {int(p) for p in squad.player_ids}
+
+        # --- D1 differential strip -------------------------------------------
+        differentials = rank_differentials(
+            xpts_all, ownership_map, exclude_ids=squad_ids
+        )
+        diff_names = _names_for(db, {d["player_id"] for d in differentials})
+        diff_seed = _seed_rows_for({d["player_id"] for d in differentials})
+        diff_teams = _team_ids_for(db, {d["player_id"] for d in differentials})
+        for d in differentials:
+            pid = d["player_id"]
+            detail = report.players.get(str(pid))
+            seed = diff_seed.get(pid)
+            d["web_name"] = (
+                (detail.web_name if detail else None)
+                or diff_names.get(pid)
+                or f"Player {pid}"
+            )
+            position = detail.position if detail else None
+            if position is None and seed is not None:
+                position = seed.get("position")
+            d["position"] = position
+            price = detail.price if detail else None
+            if price is None and seed is not None and seed.get("now_cost") is not None:
+                price = round(float(seed["now_cost"]) / 10.0, 1)
+            d["price"] = price
+            d["next_fixture"] = _next_fixture_text(
+                rows_by_gw, horizon5, team_names, diff_teams.get(pid)
+            )
+        report.meta["differential_picks"] = differentials
+
+        # --- D2 transfer watchlist --------------------------------------------
+        outs = list((report.transfer_plan.transfers_out if report.transfer_plan else []) or [])
+        needed_positions: list[int] = []
+        for pid in outs:
+            detail = report.players.get(str(pid))
+            if detail and detail.position:
+                needed_positions.append(int(detail.position))
+        if not needed_positions:
+            # Roll verdict: surface the two weakest starter positions by xPTS.
+            xi_xpts: dict[int, float] = {}
+            for pid in report.starting_xi:
+                detail = report.players.get(str(pid))
+                pos = int(detail.position) if detail and detail.position else None
+                if pos is None:
+                    continue
+                xi_xpts[pos] = xi_xpts.get(pos, 0.0) + float(detail.expected_points or 0.0)
+            outfield = [1, 2, 3, 4]
+            needed_positions = [
+                pos
+                for pos in sorted(outfield, key=lambda p: xi_xpts.get(p, 0.0))[:2]
+            ]
+        needed_positions = sorted(set(needed_positions))
+
+        candidates: list[dict[str, Any]] = []
+        if needed_positions:
+            candidate_ids = {
+                pid for pid, xpts in xpts_all.items() if pid not in squad_ids
+            }
+            seed_rows = _seed_rows_for(candidate_ids)
+            cand_teams = _team_ids_for(db, candidate_ids)
+            # Seed catalog fills team ids the facts table has not mirrored yet.
+            for pid, row in seed_rows.items():
+                if pid not in cand_teams and row.get("team") is not None:
+                    cand_teams[pid] = int(row["team"])
+            cand_names = _names_for(db, candidate_ids)
+            for pid in candidate_ids:
+                detail = report.players.get(str(pid))
+                seed = seed_rows.get(pid)
+                position = detail.position if detail else None
+                if position is None and seed is not None:
+                    position = seed.get("position")
+                if position is None or int(position) not in needed_positions:
+                    continue
+                price = detail.price if detail else None
+                if price is None and seed is not None and seed.get("now_cost") is not None:
+                    price = round(float(seed["now_cost"]) / 10.0, 1)
+                runs = player_run(cand_teams.get(pid), rows_by_gw, horizon5, team_names=team_names)
+                real_runs = [r for r in runs if r.opponent_id != 0]
+                candidates.append(
+                    {
+                        "player_id": pid,
+                        "web_name": (detail.web_name if detail else None)
+                        or cand_names.get(pid)
+                        or f"Player {pid}",
+                        "position": int(position),
+                        "price": price,
+                        "xpts": xpts_all[pid],
+                        "fdr_next3": round(average_fdr(real_runs[:3]), 2)
+                        if len(real_runs) >= 1
+                        else None,
+                        "ownership_pct": ownership_map.get(pid),
+                    }
+                )
+        watchlist = build_watchlist(candidates, needed_positions=needed_positions)
+        watchlist["verdict"] = (
+            report.transfer_plan.action_type if report.transfer_plan else "roll"
+        )
+        report.meta["transfer_watchlist"] = watchlist
+
+        # --- D3 captain comparison + vice EV line ------------------------------
+        xi_ids = {int(pid) for pid in report.starting_xi}
+        xi_teams = _team_ids_for(db, xi_ids)
+        for pid, row in _seed_rows_for(xi_ids).items():
+            if pid not in xi_teams and row.get("team") is not None:
+                xi_teams[pid] = int(row["team"])
+        xi_data: list[dict[str, Any]] = []
+        for pid in report.starting_xi:
+            detail = report.players.get(str(pid))
+            if detail is None:
+                continue
+            xi_data.append(
+                {
+                    "player_id": int(pid),
+                    "web_name": detail.web_name,
+                    "xpts": detail.expected_points,
+                    "ownership_pct": detail.ownership,
+                    "next_fixture": _next_fixture_text(
+                        rows_by_gw, horizon5, team_names, xi_teams.get(int(pid))
+                    ),
+                }
+            )
+        comparison = captain_comparison(
+            xi_data,
+            report.captain.player_id if report.captain else None,
+            report.vice_captain,
+        )
+        report.meta["captain_comparison"] = comparison
+
+    await _run()
 
 
 class FromFplRequest(BaseModel):

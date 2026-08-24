@@ -34,6 +34,290 @@ def _file_age_days(path: str) -> float | None:
         return None
 
 
+def _snapshot_age_and_seasons(path: str) -> tuple[float | None, list[str]]:
+    """Phase 21.1 (T5): snapshot age from its OWN meta.fetched_at timestamp.
+
+    The previous mtime-based age reported absurd values on Vercel (bundled
+    files carry arbitrary mtimes, e.g. "2864.8d old"). Reading the fetched_at
+    the connector itself wrote is deterministic and honest; mtime is only a
+    fallback when meta is unreadable.
+    """
+    try:
+        import json
+
+        with open(path, encoding="utf-8") as fh:
+            meta = (json.load(fh) or {}).get("meta") or {}
+        fetched_raw = str(meta.get("fetched_at") or "")
+        if fetched_raw:
+            fetched = datetime.fromisoformat(fetched_raw.replace("Z", "+00:00"))
+            if fetched.tzinfo is None:
+                fetched = fetched.replace(tzinfo=UTC)
+            age_days = max(0.0, (datetime.now(UTC) - fetched).total_seconds()) / 86400.0
+            seasons = [
+                str(s)
+                for s in (
+                    meta.get("seasons") or []
+                    if isinstance(meta.get("seasons"), list)
+                    else []
+                )
+            ]
+            return round(age_days, 1), seasons
+    except Exception:  # noqa: BLE001 - fall back to file metadata below
+        pass
+    return _file_age_days(path), []
+
+
+def _in_pytest() -> bool:
+    """True under pytest so live probes never run inside the test suite."""
+    import os
+    import sys
+
+    return "pytest" in sys.modules or os.environ.get("FPL_NO_NETWORK", "") == "1"
+
+
+_ODDS_PROBE_TTL_SECONDS = 1800.0
+_odds_probe_cache: tuple[float, dict[str, Any] | None] = (0.0, None)
+
+
+async def _probe_odds(db: Any) -> dict[str, Any]:
+    """Phase 21.1 (T4): odds coverage over the next unplayed gameweek.
+
+    Returns ``{status, detail}`` where detail reads ``matched N/M`` plus the
+    unmatched club names (also logged) so mapping gaps are visible instead of
+    silently zeroing the market check.
+    """
+    if _in_pytest():
+        return {"status": "off", "detail": "probe disabled in tests"}
+    now_mono = time.monotonic()
+    with _response_lock:
+        cached = _odds_probe_cache
+    if cached[1] is not None and now_mono - cached[0] < _ODDS_PROBE_TTL_SECONDS:
+        return cached[1]
+
+    result = await _probe_odds_uncached(db)
+    with _response_lock:
+        globals()["_odds_probe_cache"] = (time.monotonic(), result)
+    return result
+
+
+async def _probe_odds_uncached(db: Any) -> dict[str, Any]:
+    api_key = os.getenv("THE_ODDS_API_KEY", "").strip()
+    if not api_key:
+        return {"status": "off", "detail": "THE_ODDS_API_KEY not set"}
+
+    def _fetch() -> Any:
+        from fpl_intelligence.data_providers.odds_api import OddsApiConnector
+
+        connector = OddsApiConnector(api_key=api_key, timeout=4.0)
+        try:
+            return connector.fetch_epl_odds()
+        finally:
+            connector.close()
+
+    try:
+        snapshot = await asyncio.wait_for(asyncio.to_thread(_fetch), timeout=8.0)
+    except Exception as exc:  # noqa: BLE001 — graceful degradation contract
+        return {"status": "blocked", "detail": f"odds fetch failed ({type(exc).__name__})"}
+    if snapshot is None or not getattr(snapshot, "matches", []):
+        return {"status": "degraded", "detail": "no h2h markets returned"}
+
+    covered = snapshot.matched_event_names()
+
+    # Next unplayed gameweek's clubs straight from the materialized cache.
+    try:
+        from sqlalchemy import select
+
+        from fpl_intelligence.data_providers.team_aliases import canonical_team_name
+        from fpl_intelligence.db.models import Team, TeamExternalId
+        from fpl_intelligence.fixtures.scanner import (
+            parse_fixtures,
+        )
+        from fpl_intelligence.materialize.service import load_cached_fixtures
+        from fpl_intelligence.sync.gameweek_clock import resolve_target_gameweek
+
+        fixtures_raw = load_cached_fixtures(db)
+        if not fixtures_raw:
+            return {
+                "status": "ok",
+                "detail": f"{len(snapshot.matches)} EPL events cached — no fixtures yet",
+            }
+        target_gw = await resolve_target_gameweek(db)
+        rows = parse_fixtures(fixtures_raw)
+        gw_rows = [r for r in rows if r.event == target_gw and not r.finished]
+        if not gw_rows:
+            upcoming = sorted({r.event for r in rows if not r.finished})
+            if not upcoming:
+                return {
+                    "status": "ok",
+                    "detail": f"{len(snapshot.matches)} EPL events cached — season done",
+                }
+            gw_rows = [r for r in rows if r.event == upcoming[0]]
+
+        id_to_names: dict[int, set[str]] = {}
+        for provider_id, short_name, full_name in db.execute(
+            select(TeamExternalId.provider_team_id, Team.short_name, Team.name).join(
+                Team, Team.id == TeamExternalId.team_id
+            ).where(TeamExternalId.provider == "official_fpl")
+        ).all():
+            if provider_id is None:
+                continue
+            names = id_to_names.setdefault(int(provider_id), set())
+            for candidate in (short_name, full_name):
+                if candidate:
+                    names.add(str(candidate))
+
+        matched = unmatched = 0
+        unmatched_names: set[str] = set()
+        for row in gw_rows:
+            row_ok = False
+            for team_id in (row.home_team, row.away_team):
+                names = id_to_names.get(int(team_id), set())
+                hit = any(
+                    canonical_team_name(n) and canonical_team_name(n) in covered
+                    for n in names
+                )
+                if hit:
+                    row_ok = True
+                elif names:
+                    unmatched_names.add(sorted(names)[0])
+            if row_ok:
+                matched += 1
+            else:
+                unmatched += 1
+        total = len(gw_rows)
+        detail = f"matched {matched}/{total} GW{gw_rows[0].event} fixtures"
+        if unmatched_names:
+            detail += " · unmatched: " + ", ".join(sorted(unmatched_names)[:4])
+            logger.info("odds mapping unmatched teams: %s", sorted(unmatched_names))
+        status = "ok" if matched == total else ("degraded" if matched else "blocked")
+        return {"status": status, "detail": detail}
+    except Exception as exc:  # noqa: BLE001 — audit must never fail the page
+        return {
+            "status": "ok",
+            "detail": (
+                f"{len(snapshot.matches)} EPL events cached "
+                f"(mapping audit skipped: {type(exc).__name__})"
+            ),
+        }
+
+
+_UNDERSTAT_REFRESH_TTL_SECONDS = 900.0
+_understat_refresh_cache: tuple[float, dict[str, Any] | None] = (0.0, None)
+
+
+async def _probe_understat_refresh(db: Any) -> dict[str, Any]:
+    """Phase 21.1 (T5): attempt a 2026/27 Understat refresh through the masks.
+
+    On success the parsed player rows are persisted into ``provider_refresh``
+    (Vercel FS is read-only, so the committed seed cannot be rewritten) and
+    enrichment readers merge them over the offline snapshot. When blocked the
+    label honestly says which season the snapshot covers.
+    """
+    if _in_pytest():
+        from fpl_intelligence.data_providers.understat import UNDERSTAT_SNAPSHOT_PATH
+
+        age, seasons = _snapshot_age_and_seasons(str(UNDERSTAT_SNAPSHOT_PATH))
+        return {
+            "status": "degraded",
+            "detail": f"refresh probe disabled in tests (snapshot {age}d)",
+        }
+    now_mono = time.monotonic()
+    with _response_lock:
+        cached = _understat_refresh_cache
+    if cached[1] is not None and now_mono - cached[0] < _UNDERSTAT_REFRESH_TTL_SECONDS:
+        return cached[1]
+
+    result = await _probe_understat_refresh_uncached(db)
+    with _response_lock:
+        globals()["_understat_refresh_cache"] = (time.monotonic(), result)
+    return result
+
+
+async def _probe_understat_refresh_uncached(db: Any) -> dict[str, Any]:
+    from fpl_intelligence.data_providers.understat import (
+        UNDERSTAT_SNAPSHOT_PATH,
+        parse_hex_json_blocks,
+    )
+
+    snapshot_age, snapshot_seasons = _snapshot_age_and_seasons(str(UNDERSTAT_SNAPSHOT_PATH))
+    covers_2026 = any(s.startswith("2026") for s in snapshot_seasons)
+
+    def _season_label() -> str:
+        base = "2026/27" if covers_2026 else "2025/26 season snapshot"
+        age_txt = f"{snapshot_age:.1f}d old" if snapshot_age is not None else "age unknown"
+        return f"{base} ({age_txt})"
+
+    settings = get_settings()
+
+    async def _attempt() -> tuple[list[dict[str, Any]] | None, str]:
+        try:
+            from fpl_intelligence.data_providers.fpl_egress import FplEgressChain
+
+            egress = FplEgressChain(
+                "https://understat.com",
+                timeout=min(4.0, settings.egress_strategy_timeout),
+                cache_ttl=0,
+            )
+            html = await egress.fetch("/league/EPL/2026")
+            strategy = egress.winning_strategy or "direct"
+        except Exception as exc:  # noqa: BLE001 - blocked is an expected outcome
+            return None, f"{type(exc).__name__}: {exc}"
+        datasets = parse_hex_json_blocks(html if isinstance(html, str) else "")
+        players = datasets.get("playersData")
+        if not isinstance(players, list) or not players:
+            return None, "page reachable but no playersData block"
+        return [row for row in players if isinstance(row, dict)], strategy
+
+    try:
+        player_rows, note = await asyncio.wait_for(_attempt(), timeout=10.0)
+    except TimeoutError:
+        player_rows, note = None, "refresh attempt exceeded 10s budget"
+
+    if player_rows:
+        stored = False
+        try:
+            from datetime import datetime as _dt
+
+            from sqlalchemy import select
+
+            from fpl_intelligence.sync.materialized_models import ProviderRefreshDB
+
+            row = db.scalar(
+                select(ProviderRefreshDB).where(ProviderRefreshDB.source == "understat")
+            )
+            now = _dt.now(UTC)
+            if row is None:
+                row = ProviderRefreshDB(
+                    source="understat",
+                    season_label="2026/27",
+                    player_count=len(player_rows),
+                    payload=player_rows[:800],
+                    fetched_at=now,
+                )
+                db.add(row)
+            else:
+                row.season_label = "2026/27"
+                row.player_count = len(player_rows)
+                row.payload = player_rows[:800]
+                row.fetched_at = now
+            db.commit()
+            stored = True
+        except Exception as exc:  # noqa: BLE001 - persistence is best-effort
+            db.rollback()
+            logger.warning("understat refresh persistence failed: %s", exc)
+        detail = (
+            f"2026/27 live via {note} · {len(player_rows)} players"
+            + ("" if stored else " · not persisted")
+        )
+        return {"status": "ok", "detail": detail}
+
+    label = _season_label()
+    return {
+        "status": "stale" if covers_2026 is False else "degraded",
+        "detail": f"{label} — 2026/27 refresh blocked ({note})",
+    }
+
+
 def _age_seconds_since(when: datetime) -> float:
     """Age of a stored timestamp in seconds (naive values treated as UTC)."""
     if when.tzinfo is None:
@@ -119,28 +403,31 @@ async def data_sources(db: deps.GetDB, response: Response) -> dict[str, Any]:
     # Live probes run concurrently so the worst case is one probe budget.
     fpl_task = asyncio.create_task(_probe_fpl(settings))
     photos_task = asyncio.create_task(_probe_photos())
+    odds_task = asyncio.create_task(_probe_odds(db))
+    understat_task = asyncio.create_task(_probe_understat_refresh(db))
     fpl_status, fpl_detail, fpl_strategy = await fpl_task
     photos_status, photos_detail = await photos_task
+    try:
+        odds_block = await asyncio.wait_for(odds_task, timeout=10.0)
+    except TimeoutError:
+        odds_block = {"status": "degraded", "detail": "odds probe over budget"}
+    try:
+        understat_block = await asyncio.wait_for(understat_task, timeout=12.0)
+    except TimeoutError:
+        understat_block = {
+            "status": "degraded",
+            "detail": "understat refresh attempt over budget",
+        }
 
     now = datetime.now(UTC).isoformat()
 
-    # --- Odds API: enabled only when key is present ---------------------------
-    odds_key_present = bool(os.getenv("THE_ODDS_API_KEY", "").strip())
-    odds_status = "enabled" if odds_key_present else "off"
-    odds_detail = "key configured" if odds_key_present else "THE_ODDS_API_KEY not set"
+    # --- Phase 21.1 (T4): odds mapping audit ----------------------------------
+    odds_status = str(odds_block.get("status", "off"))
+    odds_detail = str(odds_block.get("detail", ""))
 
-    # --- Understat: snapshot age ---------------------------------------------
-    understat_path = "data/seed/understat_snapshot.json"
-    understat_age = _file_age_days(understat_path)
-    if understat_age is None:
-        understat_status = "off"
-        understat_detail = "no snapshot found"
-    elif understat_age > 14:
-        understat_status = "stale"
-        understat_detail = f"snapshot {understat_age}d old"
-    else:
-        understat_status = "ok"
-        understat_detail = f"snapshot {understat_age}d old"
+    # --- Understat: honest season label + refresh attempt ---------------------
+    understat_status = str(understat_block.get("status", "stale"))
+    understat_detail = str(understat_block.get("detail", "no snapshot found"))
 
     # --- Weather: always live (Open-Meteo, no key) ----------------------------
     weather_status = "live"
@@ -200,6 +487,7 @@ async def data_sources(db: deps.GetDB, response: Response) -> dict[str, Any]:
         fixtures_detail = "no cached fixtures yet — run /api/v1/admin/materialize"
 
     news_row = db.scalar(select(NewsCacheDB).order_by(NewsCacheDB.id.desc()).limit(1))
+    news_matched: int | None = None
     if news_row is not None:
         age_min = _age_seconds_since(news_row.fetched_at) / 60
         if age_min * 60 <= NEWS_MAX_AGE_SECONDS and news_row.headline_count:
@@ -208,6 +496,30 @@ async def data_sources(db: deps.GetDB, response: Response) -> dict[str, Any]:
                 f"{news_row.headline_count} headlines cached "
                 f"{int(age_min)} min ago ({news_row.source})"
             )
+            # Phase 22 (D5): how many players actually matched a headline.
+            try:
+                from fpl_intelligence.data_providers.bbc_news import (
+                    NEWS_KEYWORDS,
+                    match_headlines,
+                )
+                from fpl_intelligence.prediction.live_provider import load_player_catalog
+
+                items = [i for i in (news_row.payload or []) if isinstance(i, dict)]
+                catalog = load_player_catalog()
+                player_rows = [
+                    (
+                        int(pid),
+                        str(row.get("web_name") or ""),
+                        str(row.get("first_name") or ""),
+                        str(row.get("second_name") or ""),
+                    )
+                    for pid, row in catalog.items()
+                ]
+                flags = match_headlines(items, player_rows, NEWS_KEYWORDS)
+                news_matched = len(flags)
+                bbc_detail += f" · matched {news_matched} players"
+            except Exception as exc:  # noqa: BLE001 — audit only
+                logger.debug("news match audit failed: %s", exc)
         else:
             bbc_status = "stale"
             bbc_detail = f"last scan {int(age_min / 60)}h ago"
@@ -229,14 +541,15 @@ async def data_sources(db: deps.GetDB, response: Response) -> dict[str, Any]:
     if last_ingest is not None:
         ingest_age_h = _age_seconds_since(last_ingest) / 3600
         vaastav_status = "ok" if ingested_gws else "empty"
+        gw_list = ", ".join(f"GW{gw}" for gw in ingested_gws[-3:])
         vaastav_detail = (
-            f"GWs {ingested_gws[-3:]} ingested, last {ingest_age_h:.1f}h ago"
+            f"{gw_list} results ingested, last {ingest_age_h:.1f}h ago"
             if ingested_gws
             else f"ingest ran but no GW rows yet ({ingest_age_h:.1f}h ago)"
         )
     else:
         vaastav_status = "pending"
-        vaastav_detail = "no vaastav results ingested yet — daily 06:10 UTC cron"
+        vaastav_detail = "no gameweek results ingested yet — daily 06:10 UTC cron"
 
     pred_rows = db.execute(
         select(PredictionCurrentDB.gameweek, func.count())
@@ -303,6 +616,7 @@ async def data_sources(db: deps.GetDB, response: Response) -> dict[str, Any]:
             "bbc_news": {
                 "status": bbc_status,
                 "detail": bbc_detail,
+                "matched_players": news_matched,
             },
             "vaastav_results": {
                 "status": vaastav_status,
@@ -316,7 +630,7 @@ async def data_sources(db: deps.GetDB, response: Response) -> dict[str, Any]:
                 "status": fpl_status,
                 "detail": fpl_detail + (f" · via {fpl_strategy}" if fpl_strategy else ""),
                 "egress_strategy": fpl_strategy or "unprobed",
-                "retry_schedule": "daily 06:30 UTC",
+                "retry_schedule": "server-side fetch active — retried by the daily 06:10 cron",
             },
             "odds_api": {
                 "status": odds_status,

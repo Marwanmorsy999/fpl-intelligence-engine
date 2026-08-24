@@ -36,7 +36,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var LABELS = {
     daily_job: "Daily job (single 06:10 UTC cron)",
     fpl_import: "FPL Import", fixtures: "Fixtures (FDR scan)", bbc_news: "BBC Sport news radar",
-    vaastav_results: "Vaastav GW results (ingested history)", predictions_materialized: "Precomputed xPTS (predictions_current)",
+    vaastav_results: "GW results (ingested history)", predictions_materialized: "Precomputed xPTS (predictions_current)",
     odds_api: "Odds API (market check)", understat: "Understat (xG/xA)",
     weather: "Weather (Open-Meteo)", pl_photos: "PL Photos & Badges", llm: "AI Analyst (LLM)"
   };
@@ -83,18 +83,19 @@ document.addEventListener("DOMContentLoaded", function () {
     var rows = kinds.map(function (k) {
       var l = (data.latest || {})[k];
       return '<div class="row"><div><strong>' + k + "-push</strong>" +
-        '<div class="faint small">' + (l ? new Date(l.at).toLocaleString() : "never pushed") + "</div></div>" +
+        '<div class="faint small">' + (l ? new Date(l.at).toLocaleString() : "never pushed — server-side fetch active, push optional") + "</div></div>" +
         '<span style="margin-left:auto">' + (l ? pill("ok") : pill("pending")) + "</span></div>";
     }).join("");
     $("syncBox").innerHTML = rows +
-      '<p class="faint small" style="margin:10px 0 0">Token configured server-side: ' +
+      '<p class="faint small" style="margin:10px 0 0">Server-side fetch active — push optional. ' +
+      'Sync token configured: ' +
       (data.token_configured ? "yes" : "<strong>NO</strong> — set SYNC_PUSH_TOKEN env var") + ". Setup guide on the <a href='/connect'>Connect</a> page.</p>";
   }).catch(function () { $("syncBox").innerHTML = '<p class="faint">unavailable</p>'; });
 
   fetch("/api/v1/sync/calibration").then(function (r) { return r.ok ? r.json() : null; }).then(function (cal) {
     if (!cal) { $("calBox").innerHTML = '<p class="faint">unavailable</p>'; return; }
     if (!cal.count) {
-      $("calBox").innerHTML = '<p class="muted small">No reconciled predictions yet. Calibration fills in automatically once GitHub Actions ingests a gameweek after the engine has published forecasts.</p>';
+      $("calBox").innerHTML = '<p class="muted small">No reconciled predictions yet. Calibration fills in automatically once the daily 06:10 cron ingests a gameweek after the engine has published forecasts.</p>';
       return;
     }
     var buckets = cal.buckets || {};

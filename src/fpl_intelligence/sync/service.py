@@ -476,24 +476,94 @@ def score_pending_recommendations(db: Session, *, up_to_gameweek: int) -> int:
     return scored_count
 
 
+def _element_name_map(db: Session) -> dict[int, str]:
+    """FPL element id -> web name, DB-first with the committed seed fallback.
+
+    Track-record cards must read "Captain: Haaland", never "Captain #352" —
+    so every id referenced by a recommendation is resolved through the player
+    table and, for rows not yet mirrored, the bootstrap seed catalog.
+    """
+    names: dict[int, str] = {}
+    for element_id, web_name in db.execute(
+        select(Player.fpl_element_id, Player.web_name)
+    ).all():
+        if element_id is not None and web_name:
+            names[int(element_id)] = str(web_name)
+    if len(names) >= 100:
+        return names
+    try:
+        from fpl_intelligence.prediction.live_provider import load_player_catalog
+
+        for element_id, row in load_player_catalog().items():
+            web_name = str(row.get("web_name") or "")
+            if web_name and int(element_id) not in names:
+                names[int(element_id)] = web_name
+    except Exception as exc:  # noqa: BLE001 - display-only fallback
+        logger.debug("seed-catalog name fallback failed: %s", exc)
+    return names
+
+
 def track_record_payload(db: Session, session_key: str) -> dict[str, Any]:
-    """Full track-record read model for one entry."""
+    """Full track-record read model for one entry (with resolved names)."""
     recs = db.execute(
         select(RecommendationDB)
         .where(RecommendationDB.session_key == session_key)
         .order_by(RecommendationDB.gameweek.desc(), RecommendationDB.created_at.desc())
     ).scalars().all()
+    names = _element_name_map(db)
+
+    def _nm(pid: Any) -> str | None:
+        try:
+            return names.get(int(pid))
+        except (TypeError, ValueError):
+            return None
+
     cards: list[dict[str, Any]] = []
     for r in recs:
+        score = dict(r.score) if r.score else None
+        subject = dict(r.subject) if r.subject else {}
+        detail = dict(r.detail) if r.detail else {}
+
+        # Phase 21.1: human-readable names on every card and score line.
+        if r.rec_type == "captain":
+            cap_name = _nm(subject.get("captain_id"))
+            if cap_name:
+                subject["captain_name"] = cap_name
+            if score is not None:
+                cap_name = _nm(score.get("captain")) or cap_name
+                alt_name = _nm(score.get("best_alternative"))
+                if cap_name:
+                    score["captain_name"] = cap_name
+                if alt_name:
+                    score["alternative_name"] = alt_name
+        elif r.rec_type == "transfer":
+            in_names = [n for n in (_nm(p) for p in subject.get("transfers_in") or []) if n]
+            out_names = [n for n in (_nm(p) for p in subject.get("transfers_out") or []) if n]
+            if in_names:
+                subject["transfers_in_names"] = in_names
+            if out_names:
+                subject["transfers_out_names"] = out_names
+            if score is not None:
+                s_in = [n for n in (_nm(p) for p in score.get("transfers_in") or []) if n]
+                s_out = [n for n in (_nm(p) for p in score.get("transfers_out") or []) if n]
+                if s_in:
+                    score["transfers_in_names"] = s_in
+                if s_out:
+                    score["transfers_out_names"] = s_out
+        elif r.rec_type == "xi":
+            xi_names = [n for n in (_nm(p) for p in subject.get("xi") or []) if n]
+            if xi_names:
+                subject["xi_names"] = xi_names
+
         cards.append(
             {
                 "gameweek": r.gameweek,
                 "rec_type": r.rec_type,
-                "subject": r.subject,
-                "detail": r.detail,
+                "subject": subject,
+                "detail": detail,
                 "created_at": r.created_at.isoformat() if r.created_at else None,
                 "scored": r.scored_at is not None,
-                "score": r.score,
+                "score": score,
             }
         )
     graded = [c["score"] for c in cards if c["score"]]

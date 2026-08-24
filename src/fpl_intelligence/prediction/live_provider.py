@@ -101,31 +101,14 @@ PROXY_XPTS_MAX = 13.0
 
 #: FPL team-name variants -> canonical The-Odds-API style names. Applied to
 #: whatever name the DB gives us so h2h books match without hardcoding ids.
-_TEAM_NAME_ALIASES: dict[str, str] = {
-    "man city": "Manchester City",
-    "man utd": "Manchester United",
-    "manchester utd": "Manchester United",
-    "spurs": "Tottenham Hotspur",
-    "nott'm forest": "Nottingham Forest",
-    "nottm forest": "Nottingham Forest",
-    "wolves": "Wolverhampton Wanderers",
-    "brighton": "Brighton & Hove Albion",
-    "bournemouth": "AFC Bournemouth",
-    "west ham": "West Ham United",
-    "newcastle": "Newcastle United",
-    "leeds": "Leeds United",
-    "sunderland": "Sunderland",
-    "burnley": "Burnley",
-    "fulham": "Fulham",
-    "everton": "Everton",
-}
+#: Phase 21.1: the table lives in data_providers.team_aliases and now covers
+#: abbreviations ("MCI") too — re-exported here for backward compatibility.
+from fpl_intelligence.data_providers.team_aliases import canonical_team_name  # noqa: E402
 
 
 def _normalise_team_name(name: str | None) -> str:
     """Map an FPL display team name onto bookmaker-style naming."""
-    raw = (name or "").strip()
-    low = raw.lower()
-    return _TEAM_NAME_ALIASES.get(low, raw)
+    return canonical_team_name(name)
 
 
 def _clamp(value: float, lo: float, hi: float) -> float:
@@ -189,6 +172,8 @@ def load_player_catalog(
             "position": int(row["position"]) if row.get("position") is not None else 0,
             "team": int(row["team"]) if row.get("team") is not None else 0,
             "team_short": teams.get(int(row["team"]) if row.get("team") is not None else 0, ""),
+            # Phase 22 (D1): ownership share for the selected-by chips.
+            "selected_by_percent": row.get("selected_by_percent"),
         }
     return catalog
 
@@ -916,15 +901,41 @@ class LivePredictionProvider:
         return self._catalog
 
     def understat_index(self) -> dict[str, dict[str, Any]]:
-        """Name-indexed Understat snapshot rows (latest season wins)."""
+        """Name-indexed Understat snapshot rows (latest season wins).
+
+        Phase 21.1 (T5): rows persisted by a successful masked refresh
+        (``provider_refresh``) merge OVER the committed seed so 2026/27 xG/xA
+        reaches the chain without redeploying the bundle.
+        """
         if self._understat_index is None:
             try:
                 snapshot = UnderstatConnector.load_snapshot(self._understat_path)
                 self._understat_index = UnderstatConnector.snapshot_player_index(snapshot)
+                self._merge_understat_refresh(self._understat_index)
             except Exception as exc:  # noqa: BLE001 - xG is enrichment only
                 logger.warning("Understat index unavailable: %s", exc)
                 self._understat_index = {}
         return self._understat_index
+
+    def _merge_understat_refresh(self, index: dict[str, dict[str, Any]]) -> None:
+        """Overlay the DB-stored refresh payload (best-effort, never raises)."""
+        try:
+            from fpl_intelligence.sync.materialized_models import ProviderRefreshDB
+
+            row = self.session.scalar(
+                select(ProviderRefreshDB).where(ProviderRefreshDB.source == "understat")
+            )
+        except Exception as exc:  # noqa: BLE001 — table may be absent pre-migration
+            logger.debug("provider_refresh read skipped: %s", exc)
+            return
+        if row is None or not isinstance(row.payload, list):
+            return
+        for raw in row.payload:
+            if not isinstance(raw, dict):
+                continue
+            name = str(raw.get("player_name") or "").strip().lower()
+            if name and raw.get("xG") is not None:
+                index[name] = raw
 
     def _get_odds(self) -> OddsApiConnector | None:
         if self._odds_connector is None and self._odds_error is None:

@@ -103,3 +103,44 @@ class LiveSnapshotDB(Base):
     gameweek: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class AssistantBriefDB(Base):
+    """Phase 21.1 (T3) — persisted pre-generated assistant brief.
+
+    The daily 06:10 cron generates one brief per saved squad and stores the
+    full payload here; request paths then READ this row and never run an LLM
+    inline. In-memory caches die with serverless instances — this table is
+    what makes "cached brief" survive cold starts.
+    """
+
+    __tablename__ = "assistant_briefs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    session_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    gameweek: Mapped[int] = mapped_column(Integer, nullable=False)
+    model: Mapped[str | None] = mapped_column(String(120))
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("session_id", "gameweek", name="uq_brief_session_gw"),
+    )
+
+
+class ProviderRefreshDB(Base):
+    """Phase 21.1 (T5) — refreshed provider snapshot stored in the database.
+
+    Vercel's filesystem is read-only, so a successful Understat refresh via
+    the egress masks cannot rewrite the committed seed file. Rows land here
+    instead (latest per source wins) and enrichment readers merge them over
+    the offline snapshot.
+    """
+
+    __tablename__ = "provider_refresh"
+
+    source: Mapped[str] = mapped_column(String(60), primary_key=True)
+    season_label: Mapped[str | None] = mapped_column(String(40))
+    player_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    payload: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

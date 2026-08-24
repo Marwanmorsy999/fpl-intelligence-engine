@@ -680,7 +680,7 @@ class TestLlmAuditModule:
 
 class TestDailyJob:
     def _run_daily(self, client, monkeypatch):
-        async def fake_materialize(db, season_code="x"):
+        async def fake_materialize(db, season_code="x", **_kwargs):
             return {"fixtures": {"ok": True}, "predictions": {"ok": False}}
 
         monkeypatch.setattr(

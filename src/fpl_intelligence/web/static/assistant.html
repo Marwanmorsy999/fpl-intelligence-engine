@@ -130,7 +130,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function build(session) {
     $("refreshBtn").disabled = true;
-    $("briefMeta").textContent = "Gathering squad, fixtures, news and track record…";
+    /* Phase 21.1 (T3): the endpoint reads the cron's pre-generated brief —
+       one fast round-trip, no generation spinner. */
+    $("briefMeta").textContent = "Reading your pre-generated brief…";
     fetch("/api/v1/assistant/brief?session_id=" + encodeURIComponent(session.key))
       .then(function (r) { return r.ok ? r.json() : r.json().then(function (b) { throw new Error(b.detail || r.status); }); })
       .then(function (brief) {

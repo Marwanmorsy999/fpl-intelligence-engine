@@ -87,6 +87,13 @@ def main(argv: list[str] | None = None) -> int:
             "now_cost": int(pl["now_cost"]) if pl.get("now_cost") is not None else None,
             # FPL photo code -> Premier-League-CDN URLs.
             "code": int(pl["code"]) if pl.get("code") is not None else None,
+            # Phase 22 (D1): ownership share powers the "selected by" chips and
+            # the differential score even before vaastav publishes players_raw.
+            "selected_by_percent": (
+                str(pl["selected_by_percent"])
+                if pl.get("selected_by_percent") not in (None, "")
+                else None
+            ),
         }
         for pl in sorted(data.get("elements", []), key=lambda x: int(x["id"]))
     ]
@@ -106,7 +113,6 @@ def main(argv: list[str] | None = None) -> int:
     OUT.write_text(json.dumps(seed, indent=2, sort_keys=True), encoding="utf-8")
 
     named = {p["id"]: p["web_name"] for p in players}
-    spot = {k: named.get(k) for k in ("Haaland", "Saka") if k in set(named.values())}
     print(
         json.dumps(
             {

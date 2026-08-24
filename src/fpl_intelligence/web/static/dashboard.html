@@ -77,6 +77,12 @@
   .budget-ok { background: #22c55e; }
   .budget-warn { background: #f59e0b; }
   .budget-over { background: #ef4444; }
+  /* Phase 22 (D4) what-if toggle on starter cards */
+  .sim-toggle { position: absolute; bottom: -9px; left: 50%; transform: translateX(-50%); z-index: 3;
+    border: 1px solid #334155; background: #0b1526; color: #94a3b8; font-size: 0.58rem; font-weight: 800;
+    padding: 1px 7px; border-radius: 999px; cursor: pointer; line-height: 1.5; }
+  .sim-toggle:hover { color: #e2e8f0; border-color: #64748b; }
+  .sim-toggle.out { background: #450a0a; border-color: #b91c1c; color: #f87171; }
   @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
   .anim-in { animation: fadeUp .35s ease both; }
 </style>
@@ -176,15 +182,26 @@
 
     <!-- Bench Strip -->
     <h2 class="text-lg font-bold text-sky-400 mb-3">Bench <span class="text-slate-500 text-sm font-medium">(auto-sub order)</span></h2>
-    <div id="benchStrip" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8"></div>
+    <div id="benchStrip" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6"></div>
+
+    <!-- Phase 22 (D4) what-if simulator -->
+    <div id="simulatorBar" class="fg-card rounded-2xl p-4 shadow-xl mb-8" style="display:none"></div>
+
+    <!-- Phase 22 (D1) differential picks -->
+    <h2 class="text-lg font-bold text-sky-400 mb-3">Differential Picks <span class="text-slate-500 text-sm font-medium">(high xPTS, low ownership)</span></h2>
+    <div id="differentialStrip" class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8"><p class="text-slate-500 text-sm">Loading…</p></div>
 
     <!-- Captain Spotlight -->
     <h2 class="text-lg font-bold text-sky-400 mb-3">Captain Spotlight</h2>
-    <div id="captainHero" class="fg-card rounded-2xl p-5 shadow-xl mb-8"></div>
+    <div id="captainHero" class="fg-card rounded-2xl p-5 shadow-xl mb-6"></div>
+    <!-- Phase 22 (D3) armband comparison cards + vice EV line -->
+    <div id="captainCompare" class="mb-8"></div>
 
     <!-- Transfers -->
     <h2 class="text-lg font-bold text-sky-400 mb-3">Transfer Recommendations</h2>
-    <div id="transferBox" class="fg-card rounded-2xl p-5 shadow-xl mb-8"></div>
+    <div id="transferBox" class="fg-card rounded-2xl p-5 shadow-xl mb-6"></div>
+    <!-- Phase 22 (D2) transfer watchlist (even when the verdict is roll) -->
+    <div id="watchlistBox" class="fg-card rounded-2xl p-5 shadow-xl mb-8" style="display:none"></div>
 
     <!-- AI Analyst -->
     <h2 class="text-lg font-bold text-sky-400 mb-3">AI Analyst</h2>
@@ -401,7 +418,7 @@ async function analyze() {
         + "<div>Last attempt: " + esc(nowStr) + "</div>"
         + "<div>Egress: <span class='text-red-400'>blocked</span> — direct + allorigins + corsproxy"
         + ($("teamId").value ? " + your proxy" : "") + " all failed</div>"
-        + "<div>Next retry: daily 06:30 UTC · we will Telegram you on success.</div>"
+        + "<div>Next retry: daily 06:10 cron · we will Telegram you on success.</div>"
         + "</div>"
         + '<div class="mt-2 text-xs text-slate-400">Meanwhile: press 🔄 Try Again above, or '
         + '<button id="manualCta" class="underline text-sky-400 font-semibold" type="button">Enter Squad Manually</button>.</div>';
@@ -540,6 +557,12 @@ function playerCard(pid, report) {
       return r.opponent + (r.is_home ? "(H)" : "(A)") + r.difficulty;
     }).join(" ");
   }
+  /* Phase 22 (D1): ownership rides the tooltip AND a visible chip. */
+  var ownChip = "";
+  if (p.ownership != null) {
+    tip += " · " + Number(p.ownership).toFixed(1) + "% owned";
+    ownChip = '<div class="price-tag" style="color:#a5b4fc">' + Number(p.ownership).toFixed(1) + "% owned</div>";
+  }
   /* xG/xA lines ONLY for Understat-matched players (never fabricated). */
   var xaStr = (p.xg != null && p.xa != null)
     ? '<div class="price-tag">xG ' + Number(p.xg).toFixed(2) + ' · xA ' + Number(p.xa).toFixed(2) + "</div>"
@@ -555,6 +578,12 @@ function playerCard(pid, report) {
     if (bb.weather_term && bb.weather_term !== 0) { parts.push("weather " + Number(bb.weather_term).toFixed(2)); }
     if (parts.length) { bdStr = '<div class="price-tag" style="color:#7dd3fc">' + parts.join(" · ") + "</div>"; }
   }
+  var simBtn = "";
+  if (LAST_REPORT && (report.starting_xi || []).indexOf(pid) !== -1) {
+    /* Phase 22 (D4): per-starter "doesn't play" toggle. */
+    simBtn = '<button class="sim-toggle' + (SIM_OUT[pid] ? " out" : "") + '" type="button" title="What-if: mark as not playing"'
+      + ' data-sim-pid="' + pid + '">' + (SIM_OUT[pid] ? "✕ out" : "±") + "</button>";
+  }
   return '<div class="' + cls + '" title="' + tip + '" data-player-id="' + pid + '" role="button" tabindex="0">'
     + badgeHTML(p.team)
     + (isC ? '<span class="role-badge c" title="Captain">C</span>' : "")
@@ -562,11 +591,13 @@ function playerCard(pid, report) {
     + photoHTML(p, false)
     + '<div class="web-name">' + esc(p.web_name || ("Player " + pid)) + "</div>"
     + '<div class="price-tag">' + fmtPrice(p.price) + "</div>"
+    + ownChip
     + '<span class="xpts-tag" title="' + esc(xpTip) + '">xPTS ' + fmtXp(p.expected_points) + "</span>"
     + xaStr
     + bdStr
     + FPLApp.fixtureStripHTML(runs)
     + newsFlagHTML(pid)
+    + simBtn
     + "</div>";
 }
 
@@ -605,6 +636,158 @@ function renderBench(report) {
   $("benchStrip").innerHTML = bench.length
     ? bench.map(function (pid) { return playerCard(pid, report); }).join("")
     : '<p class="text-slate-500 text-sm col-span-full">No bench information available.</p>';
+}
+
+/* ---------- Phase 22 decision-depth rendering ---------- */
+var SIM_OUT = {};  /* starter pid -> true when toggled "doesn't play" */
+
+function xpOf(pid) {
+  if (!LAST_REPORT || !LAST_REPORT.players) { return 0; }
+  var p = LAST_REPORT.players[String(pid)];
+  return p && p.expected_points != null ? Number(p.expected_points) : 0;
+}
+
+function simulateAutoSubs() {
+  /* FPL auto-sub rules: bench order priority, GK only replaces GK, and the
+     resulting XI must be a valid formation (GK1 · DEF>=3 · MID>=2 · FWD>=1). */
+  var report = LAST_REPORT;
+  if (!report) { return null; }
+  var outIds = Object.keys(SIM_OUT).map(Number).filter(function (pid) {
+    return (report.starting_xi || []).indexOf(pid) !== -1;
+  });
+  var remaining = (report.starting_xi || []).filter(function (pid) { return !SIM_OUT[pid]; });
+  var benchPool = (report.bench_order || []).filter(function (pid) { return !SIM_OUT[pid]; });
+  function pos(p) { return posOf(p, report); }
+  function valid(counts) {
+    var def = counts[2] || 0, mid = counts[3] || 0, fwd = counts[4] || 0;
+    return (counts[1] === 1) && def >= 3 && mid >= 2 && fwd >= 1 && (def + mid + fwd) === 10;
+  }
+  var subs = [];
+  function search(outIdx, poolLeft, picks) {
+    if (outIdx === outIds.length) {
+      var counts = {};
+      remaining.forEach(function (pid) { counts[pos(pid)] = (counts[pos(pid)] || 0) + 1; });
+      picks.forEach(function (pair) { counts[pos(pair.sub)] = (counts[pos(pair.sub)] || 0) + 1; });
+      return valid(counts) ? picks : null;
+    }
+    for (var i = 0; i < poolLeft.length; i++) {
+      var cand = poolLeft[i];
+      if (pos(outIds[outIdx]) === 1 && pos(cand) !== 1) { continue; }   /* GK↔GK only */
+      if (pos(outIds[outIdx]) !== 1 && pos(cand) === 1) { continue; }   /* GK never outfield */
+      var nextPicks = picks.concat([{ out: outIds[outIdx], sub: cand }]);
+      var found = search(outIdx + 1,
+        poolLeft.slice(0, i).concat(poolLeft.slice(i + 1)), nextPicks);
+      if (found) { return found; }
+    }
+    return null;
+  }
+  subs = search(0, benchPool.slice(), []) || [];
+  var newXI = remaining.concat(subs.map(function (p) { return p.sub; }));
+  var oldTotal = (report.starting_xi || []).reduce(function (s, pid) { return s + xpOf(pid); }, 0);
+  var newTotal = newXI.reduce(function (s, pid) { return s + xpOf(pid); }, 0);
+  return { subs: subs, new_xi: newXI, old_total: oldTotal, new_total: newTotal, delta: newTotal - oldTotal };
+}
+
+function renderSimulator() {
+  var box = $("simulatorBar");
+  var sim = simulateAutoSubs();
+  if (!sim) { box.style.display = "none"; return; }
+  if (!(sim.subs.length)) {
+    box.style.display = "none";
+    return;
+  }
+  var sign = sim.delta >= 0 ? "+" : "";
+  var color = sim.delta >= 0 ? "text-emerald-400" : "text-red-400";
+  var rows = sim.subs.map(function (p) {
+    return '<div class="flex items-center gap-2 text-sm py-1 border-t border-slate-700/40 first:border-0">'
+      + '<span class="text-red-400 font-semibold">' + esc(nameOf(p.out, LAST_REPORT)) + "</span>"
+      + '<span class="text-slate-500">→ replaced by</span>'
+      + '<span class="text-sky-300 font-semibold">' + esc(nameOf(p.sub, LAST_REPORT)) + "</span>"
+      + '<span class="text-slate-500 text-xs">(bench order)</span></div>';
+  }).join("");
+  box.innerHTML =
+    '<div class="flex flex-wrap items-center gap-x-3 gap-y-1">'
+    + '<div><div class="text-xs uppercase tracking-wide text-sky-400 font-bold">What-if simulator</div>'
+    + '<div class="text-xs text-slate-500">Click ± on any starter to mark him as not playing — autosubs follow FPL rules</div></div>'
+    + '<button id="simResetBtn" type="button" class="btn-ghost" style="padding:0.35rem 0.8rem;margin-left:auto">Reset</button>'
+    + "</div>"
+    + rows
+    + '<div class="mt-2 text-sm font-bold ' + color + '">New XI xPTS '
+    + Number(sim.new_total).toFixed(1) + " (" + sign + Number(sim.delta).toFixed(1)
+    + " vs original " + Number(sim.old_total).toFixed(1) + ")</div>";
+  var resetBtn = $("simResetBtn");
+  if (resetBtn) {
+    resetBtn.addEventListener("click", function () {
+      SIM_OUT = {};
+      renderSimulator();
+      renderPitch(LAST_REPORT);
+    });
+  }
+}
+
+function renderDifferentials(report) {
+  var box = $("differentialStrip");
+  var picks = (report.meta && report.meta.differential_picks) || [];
+  if (!picks.length) {
+    box.innerHTML = '<p class="text-slate-500 text-sm">No differential data yet — needs materialized xPTS plus ownership facts.</p>';
+    return;
+  }
+  box.innerHTML = picks.map(function (d) {
+    var fixture = d.next_fixture ? esc(d.next_fixture) : "—";
+    var own = d.ownership_pct != null ? Number(d.ownership_pct).toFixed(1) + "%" : "–";
+    return '<div class="rounded-xl border border-indigo-500/40 bg-indigo-950/30 p-3" data-testid="differential-pick">'
+      + '<div class="flex items-center justify-between"><span class="font-bold text-white text-sm">' + esc(d.web_name) + "</span>"
+      + '<span class="pill ok">diff +' + Number(d.differential_score) + "</span></div>"
+      + '<div class="text-xs text-slate-400 mt-1">xPTS ' + Number(d.xpts).toFixed(1)
+      + " · " + own + " owned · " + fixture
+      + (d.price != null ? " · £" + Number(d.price).toFixed(1) + "m" : "") + "</div>"
+      + '<div class="text-xs text-slate-500">xPTS rank #' + d.xpts_rank + " vs ownership rank #" + d.ownership_rank + "</div>"
+      + "</div>";
+  }).join("");
+}
+
+function renderCaptainCompare(report) {
+  var box = $("captainCompare");
+  var cc = report.meta && report.meta.captain_comparison;
+  if (!cc || !(cc.cards || []).length) { box.innerHTML = ""; return; }
+  var cardsHtml = (cc.cards || []).map(function (c) {
+    var own = c.ownership_pct != null ? Number(c.ownership_pct).toFixed(1) + "% owned" : "";
+    var fx = c.next_fixture ? esc(c.next_fixture) : "";
+    var badge = c.is_captain ? '<span class="pill ok" style="margin-left:6px">ARM</span>' : "";
+    return '<div class="rounded-xl border p-3 ' + (c.is_captain ? "border-yellow-500/50 bg-yellow-950/20" : "border-slate-600/40 bg-slate-900/40") + '" data-testid="captain-card">'
+      + '<div class="flex items-center justify-between"><span class="font-bold text-white text-sm">' + esc(c.web_name) + badge + "</span>"
+      + '<span class="num font-extrabold ' + (c.is_captain ? "text-yellow-400" : "text-sky-300") + '">' + fmtXp(c.xpts) + "</span></div>"
+      + '<div class="text-xs text-slate-400 mt-1">' + [own, fx].filter(Boolean).join(" · ") + "</div>"
+      + (c.blank_note ? '<div class="text-xs text-slate-500 mt-1">' + esc(c.blank_note) + "</div>" : "")
+      + "</div>";
+  }).join("");
+  box.innerHTML =
+    '<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">' + cardsHtml + "</div>"
+    + (cc.vice ? '<p class="mt-3 text-sm text-sky-300/90" data-testid="vice-ev-line">🛡 ' + esc(cc.vice.line) + " pts.</p>" : "");
+}
+
+function renderWatchlist(report) {
+  var box = $("watchlistBox");
+  var wl = report.meta && report.meta.transfer_watchlist;
+  if (!wl || !wl.positions) { box.style.display = "none"; return; }
+  var sections = Object.keys(wl.positions).filter(function (k) {
+    return (wl.positions[k] || []).length;
+  });
+  if (!sections.length) { box.style.display = "none"; return; }
+  var verdictTxt = wl.verdict && wl.verdict !== "roll"
+    ? "Even with the recommended move, keep these alternatives ranked:"
+    : "The math says roll — but these are the best-ranked IN candidates per needed position:";
+  var html = '<div class="text-sm text-slate-400 mb-3">' + esc(verdictTxt) + "</div>";
+  sections.forEach(function (label) {
+    html += '<div class="mb-3"><div class="text-xs uppercase tracking-wide text-sky-400 font-bold mb-1">' + esc(label) + "</div>";
+    html += wl.positions[label].map(function (item, idx) {
+      return '<div class="row" data-testid="watchlist-item"><div><strong>' + (idx + 1) + ". " + esc(item.web_name) + "</strong>"
+        + '<div class="faint small">' + esc(item.reason) + "</div></div></div>";
+    }).join("");
+    html += "</div>";
+  });
+  box.innerHTML = html;
+  box.style.display = "block";
 }
 
 /* ---------- Rendering: captain spotlight + transfer cards ---------- */
@@ -770,13 +953,18 @@ function renderChainBanner(report) {
 
 function renderReport(report) {
   LAST_REPORT = report;
+  SIM_OUT = {};
   renderSummary(report);
   renderChip(report);
   renderChainBanner(report);
   renderPitch(report);
   renderBench(report);
+  renderSimulator();
+  renderDifferentials(report);
   renderCaptain(report);
+  renderCaptainCompare(report);
   renderTransfers(report);
+  renderWatchlist(report);
   renderAnalyst(report);
   renderDataSources();
   loadPhase20Overlays();
@@ -939,12 +1127,14 @@ function closeDrawer() {
 function renderAnalyst(report) {
   var box = $("analystBox");
   if (!CURRENT_SESSION_ID) { box.innerHTML = ""; return; }
-  box.innerHTML = '<p class="text-slate-400 text-sm">Analyzing your squad…</p>';
+  /* Phase 21.1 (T3): the endpoint reads the pre-generated brief — this card
+     resolves in one round-trip, never a long LLM wait. */
+  box.innerHTML = '<p class="text-slate-400 text-sm">Reading pre-generated analysis…</p>';
   var url = API + "/api/v1/analyst/summary?session_id=" + encodeURIComponent(CURRENT_SESSION_ID);
   fetch(url).then(function (r) { return r.ok ? r.json() : null; }).then(function (data) {
     if (!data) { box.innerHTML = '<p class="text-slate-500 text-sm">Analyst unavailable.</p>'; return; }
     box.innerHTML = '<p class="text-slate-200 text-sm leading-relaxed">' + esc(data.summary || "No summary available.") + "</p>"
-      + (data.model ? '<p class="mt-2 text-xs text-slate-500">Model: ' + esc(data.model) + "</p>" : "");
+      + (data.model ? '<p class="mt-2 text-xs text-slate-500">Source: ' + esc(data.model) + (data.generated_at ? " · generated " + esc(String(data.generated_at).slice(0, 16).replace("T", " ")) : "") + "</p>" : "");
   }).catch(function () {
     box.innerHTML = '<p class="text-slate-500 text-sm">Analyst temporarily unavailable.</p>';
   });
@@ -1402,6 +1592,17 @@ function boot() {
   $("startOverBtn").addEventListener("click", startOver);
   /* Drawer: one delegated listener covers pitch, bench and future cards. */
   document.addEventListener("click", function (e) {
+    var sim = e.target.closest(".sim-toggle");
+    if (sim) {
+      e.stopPropagation();
+      e.preventDefault();
+      var pid2 = parseInt(sim.getAttribute("data-sim-pid"), 10);
+      SIM_OUT[pid2] = !SIM_OUT[pid2];
+      if (!SIM_OUT[pid2]) { delete SIM_OUT[pid2]; }
+      renderSimulator();
+      renderPitch(LAST_REPORT);
+      return;
+    }
     var card = e.target.closest(".player-card[data-player-id]");
     if (card) { openDrawer(parseInt(card.getAttribute("data-player-id"), 10)); }
   });

@@ -13,6 +13,7 @@ its result is written back so subsequent requests stay off-network.
 from __future__ import annotations
 
 import logging
+import os
 import threading
 import time
 from datetime import UTC, datetime, timedelta
@@ -109,11 +110,17 @@ async def _write_back_news_cache(items: list[NewsItem]) -> None:
 async def _cached_items() -> list[Any]:
     """Feed items with the 6h TTL; empty list when the feed is unreachable."""
     global _feed_cache
+    # Hermetic test suite: no live feed AND no shared SessionLocal under pytest.
+    import sys
+
+    if "pytest" in sys.modules or os.getenv("FPL_NO_NETWORK", "") == "1":
+        return []
+
     with _feed_lock:
-        if _feed_cache is not None and time.monotonic() - _feed_cache[0] < NEWS_TTL_SECONDS:
+        if _feed_cache is not None and time.time() - _feed_cache[0] < NEWS_TTL_SECONDS:
             return _feed_cache[1]
 
-    # Phase 20.1 — DB cache first (zero network on the warm path).
+    # Phase 20.1 — DB cache next (zero network on the warm path).
     try:
         from fpl_intelligence.db.session import SessionLocal  # noqa: PLC0415
 
@@ -123,9 +130,16 @@ async def _cached_items() -> list[Any]:
         finally:
             db.close()
         if items and fetched_at is not None:
-            age = time.monotonic() - fetched_at.timestamp()
+            # Phase 21.1 fix: fetched_at is a wall-clock UTC timestamp, so the
+            # remaining TTL must be measured against the same clock — mixing in
+            # time.monotonic() produced garbage ages (the "2864d old" family
+            # of clock-domain bugs).
+            fetched_utc = (
+                fetched_at if fetched_at.tzinfo else fetched_at.replace(tzinfo=UTC)
+            )
+            age_seconds = (datetime.now(UTC) - fetched_utc).total_seconds()
             with _feed_lock:
-                _feed_cache = (time.monotonic() - max(0.0, age), items)
+                _feed_cache = (time.time() - max(0.0, age_seconds), items)
             return items
     except Exception as exc:  # noqa: BLE001 — fall through to live fetch
         logger.warning("news db-cache read failed: %s", exc)
@@ -181,7 +195,7 @@ async def news_radar(
         "session_id": session_id,
         "scanned_at": (
             time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(_feed_cache[0]))
-            if (_feed_cache is not None and items)
+            if (_feed_cache is not None and items and _feed_cache[0] > 0)
             else None
         ),
         "headlines_scanned": len(items),

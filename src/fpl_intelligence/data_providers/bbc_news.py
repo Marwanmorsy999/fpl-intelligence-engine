@@ -13,6 +13,7 @@ availability vocabulary so random mentions do not raise flags.
 from __future__ import annotations
 
 import re
+import unicodedata
 import xml.etree.ElementTree as ET
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -110,11 +111,21 @@ async def fetch_items(
 # Alias generation + matching
 # --------------------------------------------------------------------------- #
 
+
+def _fold(text: str) -> str:
+    """Accent-free lowercase key ("Raya Martín" -> "raya martin")."""
+    decomposed = unicodedata.normalize("NFKD", text or "")
+    return "".join(ch for ch in decomposed if not unicodedata.combining(ch)).lower()
+
+
 def build_aliases(web_name: str, first_name: str = "", second_name: str = "") -> set[str]:
     """Generate the match aliases for one player.
 
     Includes the full name, web name, surname alone, and the compact
-    "B.Fernandes"-style initial+surname form managers actually type.
+    "B.Fernandes"-style initial+surname form managers actually type. Phase 22
+    (D5): every alias is accent-folded, and multi-token surnames gain their
+    last-token form ("B.Fernandes" -> "fernandes") so headline-only surname
+    mentions still match.
     """
     aliases: set[str] = set()
     web = (web_name or "").strip()
@@ -122,9 +133,9 @@ def build_aliases(web_name: str, first_name: str = "", second_name: str = "") ->
     second = (second_name or "").strip()
 
     def add(candidate: str) -> None:
-        cleaned = candidate.strip()
+        cleaned = _fold(candidate).strip()
         if len(cleaned) >= 3:
-            aliases.add(cleaned.lower())
+            aliases.add(cleaned)
 
     add(web)
     add(second)
@@ -133,6 +144,15 @@ def build_aliases(web_name: str, first_name: str = "", second_name: str = "") ->
         initial = first[0]
         add(f"{initial}. {second}")
         add(f"{initial}.{second}")
+    # D5: "B.Fernandes" as a WEB NAME folds to tokens ["b", "fernandes"];
+    # expose the bare surname token so "Fernandes" headlines still match.
+    web_tokens = [t for t in re.split(r"[\s\-.']+", _fold(web)) if t]
+    if len(web_tokens) > 1:
+        add(web_tokens[-1])
+    if second:
+        surname_tokens = [t for t in re.split(r"[\s\-']+", _fold(second)) if t]
+        if len(surname_tokens) > 1:
+            add(surname_tokens[-1])
     return aliases
 
 
@@ -140,6 +160,17 @@ def _alias_matches(alias: str, headline_lower: str) -> bool:
     """Alias-in-headline test with word boundaries; dots act as separators."""
     pattern = r"(?<![a-z0-9])" + re.escape(alias).replace(r"\.", r"\.?\s*") + r"(?![a-z0-9])"
     return re.search(pattern, headline_lower) is not None
+
+
+def _published_key(published: str) -> float:
+    """Sortable recency key; unparseable strings sort oldest instead of winning."""
+    try:
+        parsed = datetime.fromisoformat((published or "").replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=UTC)
+        return parsed.timestamp()
+    except ValueError:
+        return float("-inf")
 
 
 def match_headlines(
@@ -152,25 +183,31 @@ def match_headlines(
     ``players`` is ``(player_id, web_name, first_name, second_name)`` tuples.
     Returns ``{str(player_id): {headline, time, url, alias}}`` keeping only the
     most recent matching headline per player. Players with no match are absent.
+    Phase 22 (D5): alias and headline comparison are accent-folded, and
+    recency compares parsed timestamps rather than raw strings.
     """
     flags: dict[str, dict[str, Any]] = {}
-    kw_lower = [k.lower() for k in keywords]
+    kw_lower = [_fold(k) for k in keywords]
+    prepared: list[tuple[float, NewsItem]] = [
+        (_published_key(item.published), item) for item in items
+    ]
     for pid, web_name, first_name, second_name in players:
         best: NewsItem | None = None
         best_alias = ""
         best_kws: list[str] = []
-        for item in items:
-            lower = item.title.lower()
-            hit_keywords = [k for k in kw_lower if k in lower]
+        for _published_ts, item in sorted(prepared, key=lambda pair: pair[0], reverse=True):
+            lower = _fold(item.title)
+            hit_keywords = [k for k in kw_lower if k and k in lower]
             if not hit_keywords:
                 continue
             for alias in build_aliases(web_name, first_name, second_name):
                 if _alias_matches(alias, lower):
-                    if best is None or item.published >= best.published:
-                        best = item
-                        best_alias = alias
-                        best_kws = hit_keywords[:3]
+                    best = item
+                    best_alias = alias
+                    best_kws = hit_keywords[:3]
                     break
+            if best is not None:
+                break  # items were scanned newest-first; first hit wins
         if best is not None:
             flags[str(pid)] = {
                 "headline": best.title,

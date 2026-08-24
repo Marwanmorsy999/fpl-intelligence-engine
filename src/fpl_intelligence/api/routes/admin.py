@@ -21,13 +21,14 @@ from pathlib import Path
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, Depends, Header, HTTPException, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, select, text
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.orm import Session
 
+from fpl_intelligence.api import deps
 from fpl_intelligence.collectors.official_fpl import OfficialFPLDataProvider
 from fpl_intelligence.config import get_settings
 from fpl_intelligence.data_providers.api_football import ApiFootballConnector
@@ -128,6 +129,51 @@ def _make_ingest_sink() -> Callable[..., None]:
             db.close()
 
     return sink
+
+
+@router.get("/admin/ingest-results")
+@router.post("/admin/ingest-results")
+async def ingest_results_endpoint(
+    db: deps.GetDB,
+    _: None = Depends(_require_cron_auth),
+    force: str = Query("", description="Comma-separated gameweeks to force re-ingest."),
+) -> dict:
+    """Phase 21.1 one-shot — ingest finished-GW results from the official API.
+
+    Fetches ``/api/event/{gw}/live/`` through the egress masks for every
+    finished-but-uningested gameweek in ``fixtures_cache`` (optionally forcing
+    specific gameweeks), stores ingested history, scores pending
+    recommendations and reconciles the calibration ledger. Idempotent.
+    """
+    import asyncio
+
+    from fpl_intelligence.sync.results_ingestion import ingest_finished_gameweeks
+
+    force_gws: tuple[int, ...] = tuple(
+        int(part)
+        for part in (force or "").split(",")
+        if part.strip().isdigit()
+    )
+    try:
+        report = await asyncio.wait_for(
+            ingest_finished_gameweeks(db, force_gameweeks=force_gws), timeout=45.0
+        )
+        return JSONResponse(
+            status_code=200,
+            content={"ok": bool(report.get("ok")), "report": report},
+        )
+    except TimeoutError:
+        db.rollback()
+        return JSONResponse(
+            status_code=504,
+            content={"ok": False, "error": "results ingestion exceeded 45s budget"},
+        )
+    except Exception as exc:  # noqa: BLE001 - surface for cron visibility
+        db.rollback()
+        logger.exception("ingest-results failed")
+        return JSONResponse(
+            status_code=500, content={"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        )
 
 
 def _is_fpl_blocked(exc: BaseException) -> bool:
@@ -1667,8 +1713,21 @@ async def daily_endpoint(
         # -- 1. materialize (cap 25 s) --------------------------------------------
         t0 = _time.monotonic()
         try:
+            # Phase 21.1 (T2): pin the prediction horizon to the official FPL
+            # next-deadline gameweek so materialized xPTS matches what request
+            # paths ask for.
+            base_gw: int | None = None
+            try:
+                from fpl_intelligence.sync.gameweek_clock import (  # noqa: PLC0415
+                    bootstrap_target_gameweek,
+                )
+
+                base_gw = await bootstrap_target_gameweek()
+            except Exception:  # noqa: BLE001 — inference fallback below
+                base_gw = None
             report = await asyncio.wait_for(
-                materialize_all(db, season_code=SEASON_CODE), timeout=25.0
+                materialize_all(db, season_code=SEASON_CODE, base_gameweek=base_gw),
+                timeout=25.0,
             )
             mat_ok = bool(report.get("predictions", {}).get("ok")) or bool(
                 report.get("fixtures", {}).get("ok")
@@ -1705,7 +1764,7 @@ async def daily_endpoint(
             db.rollback()
             steps["sync"] = {"ok": False, "detail": f"{type(exc).__name__}: {exc}"}
 
-        # -- 3. grade any finished ungraded gameweek ----------------------------------
+        # -- 3. ingest finished-GW results from the official API, then grade ------
         graded_note = "nothing to grade"
         newly_scored_local = 0
         try:
@@ -1713,10 +1772,43 @@ async def daily_endpoint(
                 select(FixturesCacheDB).order_by(FixturesCacheDB.id.desc()).limit(1)
             )
             fin_gw = _finished_gameweek_from_cache((fx_row.payload or []) if fx_row else [])
+
+            # Phase 21.1 (T1): pull finalised per-element results for every
+            # finished-but-uningested gameweek straight from event/{gw}/live/
+            # through the egress masks, BEFORE scoring so verdicts have real
+            # actuals even when vaastav has not published yet.
+            ingest_note = "no finished gameweek to ingest"
+            if fin_gw is not None:
+                try:
+                    from fpl_intelligence.sync.results_ingestion import (  # noqa: PLC0415
+                        ingest_finished_gameweeks,
+                    )
+
+                    ingest_report = await asyncio.wait_for(
+                        ingest_finished_gameweeks(db), timeout=14.0
+                    )
+                    ingested = ingest_report.get("ingested") or []
+                    ingest_note = (
+                        "ingested "
+                        + ",".join(f"GW{i['gameweek']} via {i.get('via')}" for i in ingested)
+                        if ingested
+                        else "; ".join(
+                            f"GW{s['gameweek']}: {s['reason']}"
+                            for s in (ingest_report.get("skipped") or [])
+                        )
+                        or "nothing new"
+                    )
+                except TimeoutError:
+                    db.rollback()
+                    ingest_note = "deferred — results fetch over stage budget"
+                except Exception as exc:  # noqa: BLE001 - ingestion must not kill grading
+                    db.rollback()
+                    ingest_note = f"{type(exc).__name__}: {exc}"
+
             if fin_gw is not None:
                 newly_scored_local = score_pending_recommendations(db, up_to_gameweek=fin_gw)
                 db.commit()
-                graded_note = f"GW{fin_gw}: {newly_scored_local} recommendation(s) scored"
+                graded_note = f"GW{fin_gw}: {newly_scored_local} scored · {ingest_note}"
             else:
                 graded_note = "no fully-finished gameweek in fixtures cache yet"
         except Exception as exc:  # noqa: BLE001
@@ -1743,7 +1835,10 @@ async def daily_endpoint(
                     continue
                 try:
                     await asyncio.wait_for(
-                        assistant_brief(response=Response(), db=db, session_id=str(sid), gw=None),
+                        assistant_brief(
+                            response=Response(), db=db, session_id=str(sid), gw=None,
+                            generate=True,
+                        ),
                         timeout=14.0,
                     )
                     built += 1

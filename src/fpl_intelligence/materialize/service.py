@@ -237,11 +237,18 @@ async def refresh_element_facts(db: Session, season_code: str) -> dict[str, Any]
 # --------------------------------------------------------------------------- #
 # Step 5 — prediction chain -> predictions_current (next 5 GWs)
 # --------------------------------------------------------------------------- #
-async def precompute_predictions(db: Session, *, horizon: int = 5) -> dict[str, Any]:
+async def precompute_predictions(
+    db: Session, *, horizon: int = 5, base_gameweek: int | None = None
+) -> dict[str, Any]:
     """Run the full chain once per upcoming GW and persist every player.
 
     This is deliberately the expensive path: it may hit odds/weather/understat
     enrichment exactly ONCE per day. The request paths never do.
+
+    ``base_gameweek`` (Phase 21.1 T2) pins the horizon to the official FPL
+    next-deadline gameweek so ``predictions_current`` covers exactly what the
+    request paths will ask for; when omitted the fixtures-cache inference is
+    used as before.
     """
     from fastapi.concurrency import run_in_threadpool
 
@@ -252,6 +259,8 @@ async def precompute_predictions(db: Session, *, horizon: int = 5) -> dict[str, 
         return {"ok": False, "reason": "no fixtures cache yet"}
 
     current_gw = infer_current_gameweek(parse_fixtures(fixtures_row.payload))
+    if base_gameweek is not None:
+        current_gw = max(current_gw, int(base_gameweek))
     provider = get_prediction_provider(db)
 
     total_rows = 0
@@ -322,7 +331,9 @@ async def precompute_predictions(db: Session, *, horizon: int = 5) -> dict[str, 
 # --------------------------------------------------------------------------- #
 # Orchestrator
 # --------------------------------------------------------------------------- #
-async def materialize_all(db: Session, *, season_code: str = SEASON_CODE) -> dict[str, Any]:
+async def materialize_all(
+    db: Session, *, season_code: str = SEASON_CODE, base_gameweek: int | None = None
+) -> dict[str, Any]:
     """Run every materialization step and return a combined report."""
     started = time.perf_counter()
     report: dict[str, Any] = {"season_code": season_code}
@@ -331,7 +342,7 @@ async def materialize_all(db: Session, *, season_code: str = SEASON_CODE) -> dic
     report["results"] = await ingest_vaastav_results(db, season_code)
     report["news"] = await refresh_news_cache(db)
     report["element_facts"] = await refresh_element_facts(db, season_code)
-    report["predictions"] = await precompute_predictions(db)
+    report["predictions"] = await precompute_predictions(db, base_gameweek=base_gameweek)
     report["elapsed_seconds"] = round(time.perf_counter() - started, 2)
     report["ran_at"] = _now().isoformat()
     return report

@@ -22,6 +22,7 @@ import json
 import os
 import re
 import sys
+import urllib.error
 import urllib.request
 
 VAASTAV_RAW = (
@@ -60,16 +61,43 @@ def _season_candidates() -> list[str]:
     return ["2026-27", "2025-26", "2024-25"]
 
 
+def _get_status(url: str, timeout: float = 15) -> int:
+    """HTTP status for one URL; 0 on network failure (never raises)."""
+    req = urllib.request.Request(url, headers={"User-Agent": BROWSER_UA}, method="HEAD")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
+            return int(resp.status)
+    except urllib.error.HTTPError as exc:
+        return int(exc.code)
+    except Exception:  # noqa: BLE001 - probe only reports
+        return 0
+
+
 def _list_available_gws(season: str) -> list[int]:
-    """Probe gw1..gw38 files; return those that actually exist upstream."""
+    """Probe gw1..gw38 files; return those that actually exist upstream.
+
+    Phase 21.1 fix: probe the SEASON first (one request) and bail out early —
+    previously an unpublished season burned 38 requests, each swallowed
+    silently. Every miss now logs its exact URL and status.
+    """
+    fixtures_status = _get_status(f"{VAASTAV_RAW}/{season}/fixtures.csv")
+    if fixtures_status != 200:
+        print(
+            f"season {season}: not published upstream "
+            f"(fixtures.csv HTTP {fixtures_status or 'network-error'})"
+        )
+        return []
     available: list[int] = []
     for gw in range(1, 39):
         url = f"{VAASTAV_RAW}/{season}/gws/gw{gw}.csv"
-        try:
-            _get(url, timeout=15)
+        status = _get_status(url)
+        if status == 200:
             available.append(gw)
-        except Exception:  # noqa: BLE001 - missing file just means not published
-            continue
+        else:
+            label = "404" if status == 404 else "WARN"
+            print(f"  {label} {url} (HTTP {status})")
+            if gw > 1 and not available:
+                break  # gap in published gameweeks; stop probing this season
     return available
 
 

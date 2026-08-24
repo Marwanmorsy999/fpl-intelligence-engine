@@ -39,11 +39,13 @@ _SYNC_TABLES = (
 
 # Phase 20.1: register the materialized read-model tables too.
 _MATERIALIZED_TABLES = (
+    _materialized_models.AssistantBriefDB,
     _materialized_models.ElementFactDB,
     _materialized_models.FixturesCacheDB,
     _materialized_models.NewsCacheDB,
     _materialized_models.PredictionCurrentDB,
     _materialized_models.LiveSnapshotDB,
+    _materialized_models.ProviderRefreshDB,
 )
 assert all(_SYNC_TABLES), "sync models must be importable for metadata registration"
 assert all(_MATERIALIZED_TABLES), "materialized models must be importable"

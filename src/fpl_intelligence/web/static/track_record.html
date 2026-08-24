@@ -16,7 +16,7 @@
 <div class="wrap">
 
   <h1 style="font-size:22px;font-weight:800;color:#fff;margin:0 0 4px">Track record</h1>
-  <p class="muted small" style="margin-top:0">Every recommendation the engine made, graded against what actually happened. Cards appear as you use Decisions; verdicts land automatically once GitHub Actions pushes the gameweek's real results.</p>
+  <p class="muted small" style="margin-top:0">Every recommendation the engine made, graded against what actually happened. Cards appear as you use Decisions; verdicts land automatically once the daily 06:10 cron ingests the gameweek's real results.</p>
 
   <div style="display:flex;gap:8px;margin:16px 0 20px">
     <input id="entryInput" class="input" style="max-width:260px" placeholder="Your FPL entry id (e.g. 794561)" inputmode="numeric">
@@ -71,14 +71,20 @@ document.addEventListener("DOMContentLoaded", function () {
     var s = c.score;
     if (!s) return null;
     if (c.rec_type === "captain") {
+      var capName = s.captain_name || ("#" + s.captain);
+      var altName = s.alternative_name || ("#" + s.best_alternative);
       return "Model was " + (s.verdict === "wrong" ? "wrong" : "right") + " by " +
-        Math.abs(Number(s.delta || 0)) + " pts — captain " + s.captain + " (" + s.captain_points +
-        " doubled pts) vs best alternative " + s.best_alternative + " (" + s.alternative_points + ")";
+        Math.abs(Number(s.delta || 0)) + " pts — captain " + capName + " (" + s.captain_points +
+        " doubled pts) vs best alternative " + altName + " (" + s.alternative_points + ")";
     }
     if (c.rec_type === "transfer") {
+      var ins = (s.transfers_in_names && s.transfers_in_names.length) ? s.transfers_in_names.join(", ")
+        : (s.transfers_in || []).join(", ");
+      var outs = (s.transfers_out_names && s.transfers_out_names.length) ? s.transfers_out_names.join(", ")
+        : (s.transfers_out || []).join(", ");
       return "Model was " + (s.verdict === "wrong" ? "wrong" : "right") + " by " +
-        Math.abs(Number(s.delta || 0)) + " pts — in [" + (s.transfers_in || []).join(", ") +
-        "] gained " + s.gained + ", out [" + (s.transfers_out || []).join(", ") + "] lost " + s.lost +
+        Math.abs(Number(s.delta || 0)) + " pts — in [" + ins +
+        "] gained " + s.gained + ", out [" + outs + "] lost " + s.lost +
         (s.hit_cost ? " (-" + s.hit_cost + " hit)" : "");
     }
     if (c.rec_type === "chip") return "Chip call logged (neutral until per-chip replay exists).";
@@ -89,11 +95,23 @@ document.addEventListener("DOMContentLoaded", function () {
     var typeLabels = { captain: "Captaincy", transfer: "Transfer", xi: "Starting XI", chip: "Chip" };
     var subject = c.subject || {};
     var line = "";
-    if (c.rec_type === "captain") line = "Captain #" + subject.captain_id;
-    else if (c.rec_type === "transfer")
-      line = "IN [" + (subject.transfers_in || []).join(", ") + "] OUT [" + (subject.transfers_out || []).join(", ") + "]";
-    else if (c.rec_type === "xi") line = "XI of " + ((subject.xi || []).length) + " players";
-    else line = subject.chip || "—";
+    if (c.rec_type === "captain") {
+      line = subject.captain_name ? "Captain: " + subject.captain_name : "Captain #" + subject.captain_id;
+    } else if (c.rec_type === "transfer") {
+      var insN = (subject.transfers_in_names || []).length
+        ? "[" + subject.transfers_in_names.join(", ") + "]"
+        : "[" + (subject.transfers_in || []).join(", ") + "]";
+      var outsN = (subject.transfers_out_names || []).length
+        ? "[" + subject.transfers_out_names.join(", ") + "]"
+        : "[" + (subject.transfers_out || []).join(", ") + "]";
+      line = "IN " + insN + " OUT " + outsN;
+    } else if (c.rec_type === "xi") {
+      line = (subject.xi_names && subject.xi_names.length)
+        ? "XI: " + subject.xi_names.slice(0, 5).join(", ") + ((subject.xi_names.length > 5) ? " +" + (subject.xi_names.length - 5) : "")
+        : "XI of " + ((subject.xi || []).length) + " players";
+    } else {
+      line = subject.chip || "—";
+    }
 
     var scoreLine = cardText(c);
     return (
@@ -140,7 +158,7 @@ document.addEventListener("DOMContentLoaded", function () {
     var last5 = rolling.last_5 || [];
     $("last5").innerHTML = last5.length
       ? last5.map(renderCard).join("")
-      : '<p class="muted small">No graded cards yet — they appear automatically after a gameweek\'s results are ingested via history-push.</p>';
+      : '<p class="muted small">No graded cards yet — they appear automatically once the daily 06:10 cron ingests a gameweek\'s real results.</p>';
 
     var cards = data.cards || [];
     $("allCards").innerHTML = cards.length
