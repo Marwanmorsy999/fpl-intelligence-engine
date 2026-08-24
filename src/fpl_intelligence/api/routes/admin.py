@@ -176,6 +176,88 @@ async def ingest_results_endpoint(
         )
 
 
+@router.get("/admin/db-probe")
+async def db_probe_endpoint(
+    db: deps.GetDB,
+    _: None = Depends(_require_cron_auth),
+    table: str = Query("predictions_current"),
+    gameweek: int | None = Query(None),
+    element: int | None = Query(None),
+) -> dict:
+    """Read-only diagnostics for materialized tables (Phase 21.1 truth gate).
+
+    Surfaces raw aggregates/rows so incidents like an all-zeros xPTS write can
+    be diagnosed from production without shell access to the database.
+    """
+    from sqlalchemy import func, select
+
+    from fpl_intelligence.db.models import Gameweek, PlayerGameweekPerformance
+    from fpl_intelligence.sync.materialized_models import PredictionCurrentDB
+
+    gw = int(gameweek or 0)
+    if table == "predictions_current":
+        stats = db.execute(
+            select(
+                func.count(),
+                func.min(PredictionCurrentDB.expected_points),
+                func.max(PredictionCurrentDB.expected_points),
+                func.avg(PredictionCurrentDB.expected_points),
+            ).where(PredictionCurrentDB.gameweek == gw)
+        ).one()
+        rows = db.execute(
+            select(PredictionCurrentDB)
+            .where(PredictionCurrentDB.gameweek == gw)
+            .order_by(PredictionCurrentDB.element_id)
+        ).scalars().all()
+        return JSONResponse(
+            content={
+                "table": "predictions_current",
+                "gameweek": gw,
+                "count": int(stats[0] or 0),
+                "min_xpts": float(stats[1] or 0),
+                "max_xpts": float(stats[2] or 0),
+                "avg_xpts": round(float(stats[3] or 0), 3),
+                "rows": [
+                    {
+                        "element_id": int(r.element_id),
+                        "expected_points": float(r.expected_points),
+                        "source": r.source,
+                        "computed_at": str(r.computed_at),
+                    }
+                    for r in rows
+                    if element is None or int(r.element_id) == int(element)
+                ][:20],
+            }
+        )
+    if table == "perf_top":
+        q = (
+            select(
+                PlayerGameweekPerformance.player_id,
+                PlayerGameweekPerformance.total_points,
+                PlayerGameweekPerformance.minutes,
+            )
+            .where(
+                PlayerGameweekPerformance.gameweek_id.in_(
+                    select(Gameweek.id).where(Gameweek.provider_event_id == gw)
+                )
+            )
+            .order_by(PlayerGameweekPerformance.total_points.desc())
+            .limit(10)
+        )
+        rows = db.execute(q).all()
+        return JSONResponse(
+            content={
+                "table": "perf_top",
+                "gameweek": gw,
+                "rows": [
+                    {"player_id": int(r[0]), "points": int(r[1]), "minutes": int(r[2])}
+                    for r in rows
+                ],
+            }
+        )
+    return JSONResponse(status_code=400, content={"ok": False, "error": "unknown table"})
+
+
 def _is_fpl_blocked(exc: BaseException) -> bool:
     """True when ``exc`` looks like an FPL block (403/429) or a connection error.
 
