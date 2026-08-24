@@ -373,33 +373,46 @@ async def player_drawer(
                 breakdown = {k: round(float(v), 2) for k, v in raw_breakdown.items()}
             else:
                 # Breakdown null in materialized row (pre-v2.3.2 rows) — try inline
-                # proxy as honest fallback (still zero-network when odds/weather
-                # unavailable, degrades gracefully). This keeps the chip populated
-                # even before the next daily cron repopulates the table.
+                # proxy via skip_materialized so the four terms render even before
+                # the next daily cron repopulates the table. The proxy level
+                # degrades gracefully when odds/weather are blocked (no 500).
                 try:
                     provider_fb = deps.get_prediction_provider(db)
 
-                    def _predict_fb() -> Any:
-                        return provider_fb.get_squad_predictions([player_id], [target_gw])
+                    def _chain_fb() -> Any:
+                        return provider_fb.resolve_chain(int(target_gw), skip_materialized=True)
 
-                    preds_fb = await run_in_threadpool(_predict_fb)
-                    pred_fb = (preds_fb.get(target_gw) or {}).get(player_id)
-                    if pred_fb is not None:
-                        raw_bd = getattr(pred_fb, "breakdown", None)
-                        if isinstance(raw_bd, dict) and raw_bd:
-                            breakdown = {k: round(float(v), 2) for k, v in raw_bd.items()}
-                            # Keep materialized expected_points etc, only breakdown fallback
-                            if expected_points is None:
-                                expected_points = round(float(pred_fb.expected_points), 2)
-                            if prediction_source is None:
-                                prediction_source = getattr(pred_fb, "source", None)
-                            if data_quality is None:
-                                data_quality = getattr(pred_fb, "data_quality", None)
+                    chain_fb = await run_in_threadpool(_chain_fb)
+                    # Prefer the proxy level's breakdown directly
+                    fb_bd = None
+                    for lvl in chain_fb.levels:
+                        cand = lvl.per_player.get(int(player_id), {}).get("breakdown")
+                        if isinstance(cand, dict) and cand:
+                            fb_bd = cand
+                            break
+                    if isinstance(fb_bd, dict) and fb_bd:
+                        breakdown = {k: round(float(v), 2) for k, v in fb_bd.items()}
+                        # Keep materialized expected_points etc, only breakdown fallback
+                    else:
+                        # Fallback to labelled prediction's breakdown as second try
+                        def _predict_fb() -> Any:
+                            return provider_fb.get_squad_predictions([player_id], [target_gw])
+
+                        preds_fb = await run_in_threadpool(_predict_fb)
+                        pred_fb = (preds_fb.get(target_gw) or {}).get(player_id)
+                        if pred_fb is not None:
+                            raw_bd = getattr(pred_fb, "breakdown", None)
+                            if isinstance(raw_bd, dict) and raw_bd:
+                                breakdown = {k: round(float(v), 2) for k, v in raw_bd.items()}
+                            else:
+                                degraded = True
+                                if "xpts_breakdown" not in missing:
+                                    missing.append("xpts_breakdown")
                         else:
                             degraded = True
                             if "xpts_breakdown" not in missing:
                                 missing.append("xpts_breakdown")
-                    else:
+                    if breakdown is None:
                         degraded = True
                         if "xpts_breakdown" not in missing:
                             missing.append("xpts_breakdown")
