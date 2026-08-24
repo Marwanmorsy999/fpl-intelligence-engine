@@ -116,7 +116,24 @@ class TestLeagueKiller:
         assert mates["private"] is True
         overall = next(lg for lg in leagues if lg["league_id"] == 314)
         assert overall["private"] is False
-        assert pick_default_league(leagues)["league_id"] == 314
+        # v2.3.1: default skips globals (Overall/Gameweek) and picks private classic league
+        assert pick_default_league(leagues)["league_id"] == 794561
+
+    def test_pick_default_skips_gameweek_and_prefers_private(self):
+        leagues = [
+            {"league_id": 314, "name": "Overall", "member_count": 8904495, "private": False},
+            {"league_id": 321, "name": "Gameweek 1", "member_count": 8904495, "private": False},
+            {"league_id": 999, "name": "Mates Only", "member_count": 12, "private": True},
+            {"league_id": 1000, "name": "Work League", "member_count": 30, "private": True},
+        ]
+        # Biggest private wins even though globals are orders of magnitude larger
+        assert pick_default_league(leagues)["league_id"] == 1000
+        # When no private exists, the biggest non-global (The Big League) beats Overall
+        only_public = [
+            {"league_id": 314, "name": "Overall", "member_count": 8904495, "private": False},
+            {"league_id": 123456, "name": "The Big League", "member_count": 4200, "private": False},
+        ]
+        assert pick_default_league(only_public)["league_id"] == 123456
 
     def test_picker_choice_is_persisted(self, db_session):
         from fpl_intelligence.leagues.models import EntryLeagueDB, LeagueSelectionDB

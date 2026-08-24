@@ -65,7 +65,7 @@ document.addEventListener("DOMContentLoaded", function () {
       (data.detection_note ? ' <span class="faint small">' + esc(data.detection_note) + "</span>" : "");
     if (data.needs_picker && (data.leagues || []).length > 1) {
       picker(data, sessionKey);
-      /* Still render the default (most members) below the picker. */
+      /* Still render the default (private classic league, globals skipped) below the picker. */
     } else {
       $("pickerBox").style.display = "none";
     }

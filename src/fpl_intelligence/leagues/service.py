@@ -91,11 +91,31 @@ def parse_entry_leagues(payload: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def pick_default_league(leagues: list[dict[str, Any]]) -> dict[str, Any] | None:
-    """Default pick when no choice is remembered: MOST members (then id)."""
+    """Default pick when no choice is remembered: private classic league first.
+
+    Global system leagues — ``Overall`` and any ``Gameweek <n>`` league with
+    millions of members — are never the default even though they are the
+    biggest. If the user belongs to one or more private (``x``) classic
+    leagues we pick the biggest private one; otherwise we pick the biggest
+    non-global league; if every league is global we fall back to the biggest
+    global so a non-empty input never yields None.
+    """
     if not leagues:
         return None
+
+    def _is_global(lg: dict[str, Any]) -> bool:
+        name = str(lg.get("name") or "").strip().lower()
+        return name == "overall" or name.startswith("gameweek")
+
+    private = [lg for lg in leagues if lg.get("private")]
+    if private:
+        return sorted(
+            private, key=lambda x: (-(x.get("member_count") or 0), x["league_id"])
+        )[0]
+    non_global = [lg for lg in leagues if not _is_global(lg)]
+    candidates = non_global if non_global else leagues
     return sorted(
-        leagues, key=lambda x: (-(x.get("member_count") or 0), x["league_id"])
+        candidates, key=lambda x: (-(x.get("member_count") or 0), x["league_id"])
     )[0]
 
 

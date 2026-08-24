@@ -3,8 +3,9 @@
 Zero config: classic leagues are AUTO-DETECTED from
 ``/api/entry/{entry}/leagues/`` through the egress masks (daily cron + first
 visit), never hardcoded. When an entry belongs to several leagues the page
-shows a picker whose choice is remembered; the default is the league with
-the MOST members.
+shows a picker whose choice is remembered; the default skips global system
+leagues (``Overall``, ``Gameweek 1`` …) and picks the user's private classic
+league (biggest private; else biggest non-global).
 
 Honest states throughout: private/blocked leagues, cache age chips,
 "refreshing…" during on-demand refreshes (10-minute cooldown) and a note when
@@ -233,7 +234,7 @@ async def league_overview(
         "leagues": leagues,
         "selected": selected,
         "needs_picker": bool(len(leagues) > 1 and chosen is None and league_id is None),
-        "default_rule": "most members",
+        "default_rule": "private classic league, globals skipped",
         "detection_note": detection_note,
         "rivals_cap": RIVALS_CAP,
         "cache_age_seconds": None,
