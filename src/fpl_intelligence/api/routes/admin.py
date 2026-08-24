@@ -1829,8 +1829,11 @@ async def daily_endpoint(
             rows = db.execute(
                 select(SquadStateDB.session_id).order_by(SquadStateDB.updated_at.desc())
             ).scalars().all()[:_DAILY_MAX_SQUADS]
+            stage_t0 = _time.monotonic()
             for sid in rows:
-                if _time.monotonic() - started_at.timestamp() > 34.0:
+                # Phase 21.1 fix: compare monotonic-to-monotonic (the previous
+                # epoch-vs-monotonic mix skipped every squad after the first).
+                if _time.monotonic() - stage_t0 > 34.0:
                     skipped += 1
                     continue
                 try:

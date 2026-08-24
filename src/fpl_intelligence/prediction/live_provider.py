@@ -392,11 +392,31 @@ def _baseline_points_for_gameweek(db: Session, gameweek: int) -> ChainLevel | No
     if not points:
         return None
 
-    # Coverage gate: the level must explain a meaningful fraction of the
-    # ingested player universe before it is published — thin history falls
-    # through to the transparent proxy instead of serving sparse numbers.
+    # Phase 21.1 fix: every consumer of chain points (optimizer, drawer,
+    # materialized writer, ledger) keys by OFFICIAL FPL element id — translate
+    # the internal Player.id keys here so the baseline level speaks the same
+    # language as the proxy/backtest levels. Unmapped internal ids are dropped
+    # rather than mis-keyed (which silently served 0.0 xPTS after GW1 landed).
     from fpl_intelligence.db.models import Player
 
+    id_to_element = {
+        int(row[0]): int(row[1])
+        for row in db.execute(
+            select(Player.id, Player.fpl_element_id)
+        ).all()
+        if row[0] is not None and row[1] is not None
+    }
+    points = {
+        id_to_element[int(pid)]: value
+        for pid, value in points.items()
+        if int(pid) in id_to_element
+    }
+    if not points:
+        return None
+
+    # Coverage gate: the level must explain a meaningful fraction of the
+    # ingested player universe before it is published ? thin history falls
+    # through to the transparent proxy instead of serving sparse numbers.
     universe = int(db.scalar(select(func.count(Player.id))) or 0)
     coverage = (len(points) / universe) if universe > 0 else 0.0
     if coverage < BASELINE_COVERAGE_THRESHOLD:
