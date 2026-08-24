@@ -701,7 +701,9 @@ class TestDailyJob:
 
         assert resp.status_code in (200, 207)
         assert body["job"] == "daily"
-        assert set(body["steps"]) == {"tables", "materialize", "sync", "briefs", "grading"}
+        assert set(body["steps"]) == {
+            "tables", "materialize", "sync", "gate1", "briefs", "grading",
+        }
         assert body["steps"]["sync"]["detail"] == "no pending sync"
         assert body["steps"]["grading"]["ok"] is True
 

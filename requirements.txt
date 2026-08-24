@@ -31,5 +31,8 @@ scipy>=1.11,<2
 # --- telegram bot (Phase 10.2) ---
 python-telegram-bot>=21.0,<22
 
+# --- self-hosted web push (Phase 23) ---
+pywebpush>=2.0,<3
+
 # --- auth / server (prod) ---
 requests>=2.31

@@ -18,7 +18,7 @@ import os
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
@@ -1962,6 +1962,7 @@ async def daily_endpoint(
 
         # -- 1. materialize (cap 25 s) --------------------------------------------
         t0 = _time.monotonic()
+        base_gw: int | None = None
         try:
             # Phase 21.1 (T2): pin the prediction horizon to the official FPL
             # next-deadline gameweek so materialized xPTS matches what request
@@ -2037,6 +2038,119 @@ async def daily_endpoint(
             db.rollback()
             steps["sync"] = {"ok": False, "detail": f"{type(exc).__name__}: {exc}"}
 
+        # -- 2b. league auto-detect + price engine + league cache (cap ~10 s) ------
+        t0 = _time.monotonic()
+        gate1_note: dict[str, Any] = {}
+        new_price_moves = 0
+        try:
+            from sqlalchemy import select as _select
+
+            from fpl_intelligence.leagues.models import LeagueCacheDB
+            from fpl_intelligence.leagues.service import (
+                fetch_entry_leagues,
+                refresh_league_cache,
+                upsert_entry_leagues,
+            )
+
+            session_ids = [
+                str(sid)
+                for sid in db.execute(
+                    _select(SquadStateDB.session_id)
+                    .order_by(SquadStateDB.updated_at.desc())
+                ).scalars().all()[:3]
+                if str(sid).isdigit()
+            ]
+            discovered = 0
+            for sid in session_ids:
+                try:
+                    leagues = await asyncio.wait_for(
+                        fetch_entry_leagues(int(sid)), timeout=6.0
+                    )
+                    if leagues:
+                        upsert_entry_leagues(db, int(sid), leagues)
+                        discovered += len(leagues)
+                except Exception:  # noqa: BLE001 — one entry failing is fine
+                    db.rollback()
+            gate1_note["entry_leagues"] = (
+                f"{len(session_ids)} entries · {discovered} classic leagues"
+            )
+            # Refresh the remembered/default league's standings+picks.
+            sel_rows = db.execute(_select(LeagueCacheDB)).scalars().all()[:2]
+            target_gw_now: int | None = base_gw
+            for cache_row in sel_rows:
+                try:
+                    if target_gw_now is None:
+                        target_gw_now = 1
+                    await asyncio.wait_for(
+                        refresh_league_cache(
+                            db, int(cache_row.league_id), int(target_gw_now),
+                            include_picks=False,
+                        ),
+                        timeout=8.0,
+                    )
+                except Exception:  # noqa: BLE001
+                    db.rollback()
+            gate1_note["league_cache"] = "refreshed"
+        except Exception as exc:  # noqa: BLE001 — Gate-1 extras never kill the job
+            db.rollback()
+            gate1_note["error"] = f"{type(exc).__name__}: {exc}"
+
+        try:
+            from sqlalchemy import select as _select
+
+            from fpl_intelligence.prices.models import PriceSnapshotDB  # noqa: F401
+            from fpl_intelligence.prices.service import (
+                ensure_price_tables,
+                record_price_moves,
+                snapshot_prices,
+            )
+            from fpl_intelligence.sync.materialized_models import ElementFactDB
+
+            ensure_price_tables(db)
+            fact_rows = db.execute(_select(ElementFactDB)).scalars().all()
+            facts_map = {
+                int(r.element_id): {"now_cost": r.now_cost}
+                for r in fact_rows
+                if r.now_cost is not None
+            }
+            snap_n = snapshot_prices(db, facts_map) if facts_map else 0
+            new_price_moves = record_price_moves(db, int(base_gw or 1)) if base_gw else 0
+            gate1_note["prices"] = f"{snap_n} snapshots · {new_price_moves} new moves"
+
+            # Friday push for risers/fallers when the trigger is enabled (L2+L3).
+            if new_price_moves and datetime.now(UTC).weekday() == 4:
+                from fpl_intelligence.notifications.webpush import (
+                    dispatch as push_dispatch,
+                )
+                from fpl_intelligence.notifications.webpush import (
+                    todays_moves_note,
+                )
+
+                note = todays_moves_note(db)
+                for sid in [
+                    str(s) for s in db.execute(
+                        _select(SquadStateDB.session_id).order_by(
+                            SquadStateDB.updated_at.desc()
+                        )
+                    ).scalars().all()[:_DAILY_MAX_SQUADS]
+                ]:
+                    try:
+                        push_dispatch(
+                            db, sid, "prices",
+                            "Price moves today", note, url="/dashboard",
+                        )
+                        gate1_note["prices_push"] = sid
+                    except Exception:  # noqa: BLE001 — per-session isolation
+                        db.rollback()
+        except Exception as exc:  # noqa: BLE001
+            db.rollback()
+            gate1_note["prices"] = f"skipped ({type(exc).__name__})"
+        steps["gate1"] = {
+            "ok": True,
+            "ms": int((_time.monotonic() - t0) * 1000),
+            "detail": gate1_note,
+        }
+
         # -- 3. ingest finished-GW results from the official API, then grade ------
         graded_note = "nothing to grade"
         newly_scored_local = 0
@@ -2082,6 +2196,49 @@ async def daily_endpoint(
                 newly_scored_local = score_pending_recommendations(db, up_to_gameweek=fin_gw)
                 db.commit()
                 graded_note = f"GW{fin_gw}: {newly_scored_local} scored · {ingest_note}"
+                # Phase 23 (L2): per-session "graded" web push for rows graded
+                # during THIS run (bell + browser push, trigger-gated).
+                if newly_scored_local:
+                    try:
+                        from sqlalchemy import func as _func
+                        from sqlalchemy import select as _sel
+
+                        from fpl_intelligence.notifications.webpush import (
+                            dispatch as push_dispatch,
+                        )
+                        from fpl_intelligence.sync.models import (
+                            RecommendationDB as _Rec,
+                        )
+
+                        for sid in [
+                            str(s) for s in db.execute(
+                                _sel(SquadStateDB.session_id).order_by(
+                                    SquadStateDB.updated_at.desc()
+                                )
+                            ).scalars().all()[:_DAILY_MAX_SQUADS]
+                        ]:
+                            n = db.scalar(
+                                _sel(_func.count())
+                                .select_from(_Rec)
+                                .where(
+                                    _Rec.session_key == sid,
+                                    _Rec.scored_at >= started_at,
+                                )
+                            ) or 0
+                            if int(n):
+                                try:
+                                    push_dispatch(
+                                        db, sid, "graded",
+                                        "Track record updated",
+                                        f"{int(n)} recommendation(s) just graded "
+                                        f"for GW{fin_gw}.",
+                                        url="/track-record",
+                                    )
+                                except Exception:  # noqa: BLE001
+                                    db.rollback()
+                    except Exception as exc:  # noqa: BLE001 — push is best-effort
+                        db.rollback()
+                        logger.debug("graded push failed: %s", exc)
             else:
                 graded_note = "no fully-finished gameweek in fixtures cache yet"
         except Exception as exc:  # noqa: BLE001

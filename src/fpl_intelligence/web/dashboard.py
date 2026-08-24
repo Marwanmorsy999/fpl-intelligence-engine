@@ -36,10 +36,11 @@ _PAGES: dict[str, str] = {
     "/sources": "sources.html",
     "/connect": "connect.html",
     "/assistant": "assistant.html",  # Phase 20.0 weekly brief
+    "/league": "league.html",  # Phase 23 Gate 1 — LEAGUE KILLER
 }
 
 #: Whitelisted shared assets servable under /static (no directory traversal).
-_STATIC_FILES = {"app.css", "app.js", "bookmarklet.js"}
+_STATIC_FILES = {"app.css", "app.js", "bookmarklet.js", "notify.js"}
 
 
 def _register_dashboard_routes() -> None:

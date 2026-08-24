@@ -191,6 +191,10 @@
     <h2 class="text-lg font-bold text-sky-400 mb-3">Differential Picks <span class="text-slate-500 text-sm font-medium">(high xPTS, low ownership)</span></h2>
     <div id="differentialStrip" class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8"><p class="text-slate-500 text-sm">Loading…</p></div>
 
+    <!-- Phase 23 (L3) price moves strip -->
+    <h2 class="text-lg font-bold text-sky-400 mb-3">Today's Risers / Fallers</h2>
+    <div id="priceStrip" class="fg-card rounded-2xl p-4 shadow-xl mb-8"><p class="text-slate-500 text-sm">Loading…</p></div>
+
     <!-- Captain Spotlight -->
     <h2 class="text-lg font-bold text-sky-400 mb-3">Captain Spotlight</h2>
     <div id="captainHero" class="fg-card rounded-2xl p-5 shadow-xl mb-6"></div>
@@ -962,8 +966,33 @@ function renderChainBanner(report) {
   slot.innerHTML = html;
 }
 
-function renderReport(report) {
-  LAST_REPORT = report;
+/* ---------- Phase 23 (L3): Today's risers / fallers strip ---------- */
+function renderPriceStrip() {
+  var box = $("priceStrip");
+  if (!box) return;
+  fetch(API + "/api/v1/prices/moves?limit=5")
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .catch(function () { return null; })
+    .then(function (data) {
+      if (!data) { box.innerHTML = '<p class="text-slate-500 text-sm">Price data unavailable.</p>'; return; }
+      if (!data.has_data) {
+        box.innerHTML = '<p class="text-slate-500 text-sm" data-testid="price-strip-empty">' + esc(data.note || "No price moves yet.") + "</p>";
+        return;
+      }
+      function card(c, up) {
+        return '<div class="rounded-xl border p-3 ' + (up ? "border-emerald-500/40 bg-emerald-950/30" : "border-red-500/40 bg-red-950/30") + '" data-testid="price-move-card">'
+          + '<div class="flex items-center justify-between"><span class="font-bold text-white text-sm">' + esc(c.web_name) + "</span>"
+          + '<span class="num font-extrabold ' + (up ? "text-emerald-400" : "text-red-400") + '">' + (up ? "▲" : "▼") + " " + esc(c.label) + "</span></div>"
+          + '<div class="text-xs text-slate-400 mt-1">now ' + esc(c.new_cost) + "</div></div>";
+      }
+      box.innerHTML = '<div class="grid grid-cols-2 sm:grid-cols-5 gap-3">'
+        + (data.risers || []).map(function (c) { return card(c, true); }).join("")
+        + (data.fallers || []).map(function (c) { return card(c, false); }).join("")
+        + "</div>";
+    });
+}
+
+function renderReport(report) {  LAST_REPORT = report;
   SIM_OUT = {};
   renderSummary(report);
   renderChip(report);
@@ -1591,6 +1620,7 @@ function restoreSession(session, report) {
 function boot() {
   checkHealth();
   FPLApp.renderNav("/dashboard");
+  renderPriceStrip();
   /* Wire up event listeners */
   $("analyzeBtn").addEventListener("click", analyze);
   $("teamId").addEventListener("keydown", function (e) {

@@ -165,6 +165,8 @@ def parse_players_raw_csv(text: str) -> dict[int, dict[str, Any]]:
             "minutes": _opt_int(row.get("minutes")),
             "selected_by_percent": (row.get("selected_by_percent") or "").strip() or None,
             "cost_change_event": _opt_int(row.get("cost_change_event")),
+            # Phase 23 (L3): absolute price in £0.1m units for the price engine.
+            "now_cost": _opt_int(row.get("now_cost")),
             "status": (row.get("status") or "").strip() or None,
             "news": (row.get("news") or "").strip()[:500] or None,
         }

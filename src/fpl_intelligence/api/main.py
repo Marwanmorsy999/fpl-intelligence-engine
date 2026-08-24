@@ -12,9 +12,12 @@ from fpl_intelligence.api.routes.data_sources import router as data_sources_rout
 from fpl_intelligence.api.routes.drawer import router as drawer_router
 from fpl_intelligence.api.routes.fixtures import router as fixtures_router
 from fpl_intelligence.api.routes.intelligence import router as intelligence_router
+from fpl_intelligence.api.routes.league import router as league_router
 from fpl_intelligence.api.routes.live import router as live_router
 from fpl_intelligence.api.routes.news import router as news_router
 from fpl_intelligence.api.routes.players import router as players_router
+from fpl_intelligence.api.routes.prices import router as prices_router
+from fpl_intelligence.api.routes.push import router as push_router
 from fpl_intelligence.api.routes.squad import router as squad_router
 from fpl_intelligence.api.routes.sync import BookmarkletCorsMiddleware
 from fpl_intelligence.api.routes.sync import router as sync_router
@@ -72,6 +75,9 @@ app.include_router(news_router, prefix="/api/v1")
 app.include_router(drawer_router, prefix="/api/v1")
 app.include_router(assistant_router, prefix="/api/v1")
 app.include_router(live_router, prefix="/api/v1")
+app.include_router(league_router, prefix="/api/v1")
+app.include_router(push_router, prefix="/api/v1")
+app.include_router(prices_router, prefix="/api/v1")
 
 
 @app.get("/", include_in_schema=False)

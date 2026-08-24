@@ -60,6 +60,8 @@ class ElementFactDB(Base):
     minutes: Mapped[int | None] = mapped_column(Integer)
     selected_by_percent: Mapped[str | None] = mapped_column(String(20))
     cost_change_event: Mapped[int | None] = mapped_column(Integer)
+    #: Phase 23 (L3): absolute price in £0.1m units (price engine source).
+    now_cost: Mapped[int | None] = mapped_column(Integer)
     status: Mapped[str | None] = mapped_column(String(20))
     news: Mapped[str | None] = mapped_column(String(500))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

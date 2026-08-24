@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>League — FPL Intelligence</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/app.js"></script>
+</head>
+<body>
+<div id="topnav"></div>
+<div class="wrap">
+
+  <h1 style="font-size:22px;font-weight:800;color:#fff;margin:0 0 4px">League</h1>
+  <p class="muted small" style="margin-top:0">Your mini-league, auto-detected from your FPL entry — standings, rival ownership heat and your projected edge. Zero config.</p>
+
+  <div id="statusLine" class="muted small" style="margin:10px 0"></div>
+  <div id="pickerBox" style="display:none;margin:10px 0"></div>
+
+  <div id="contentBox"><p class="faint">Loading your league…</p></div>
+
+</div>
+<script>
+"use strict";
+document.addEventListener("DOMContentLoaded", function () {
+  FPLApp.renderNav("/league");
+  var $ = function (id) { return document.getElementById(id); };
+
+  function esc(s) { return FPLApp.esc(s); }
+
+  function cacheChip(seconds) {
+    if (seconds == null) return "";
+    var mins = Math.round(Number(seconds) / 60);
+    return '<span class="pill' + (mins <= 10 ? " ok" : "") + '" data-testid="cache-chip">cache ' +
+      (mins >= 1 ? mins + " min old" : "fresh") + "</span>";
+  }
+
+  function picker(data, sessionKey) {
+    var box = $("pickerBox");
+    box.style.display = "block";
+    box.innerHTML =
+      '<div class="card"><div class="small muted" style="margin-bottom:6px">You belong to several classic leagues — pick one (remembered):</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px">' +
+      (data.leagues || []).map(function (l) {
+        return '<button class="pill" data-testid="league-option" data-lid="' + l.league_id + '" style="cursor:pointer;border:none">' +
+          esc(l.name) + (l.member_count ? " · " + l.member_count + " managers" : "") + "</button>";
+      }).join("") + "</div></div>";
+    Array.prototype.forEach.call(box.querySelectorAll("[data-lid]"), function (btn) {
+      btn.addEventListener("click", function () {
+        fetch("/api/v1/league/select", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id: sessionKey, league_id: Number(btn.getAttribute("data-lid")) })
+        }).then(function () { load(sessionKey, true); });
+      });
+    });
+  }
+
+  function render(data, sessionKey) {
+    $("statusLine").innerHTML = cacheChip(data.cache_age_seconds) +
+      (data.detection_note ? ' <span class="faint small">' + esc(data.detection_note) + "</span>" : "");
+    if (data.needs_picker && (data.leagues || []).length > 1) {
+      picker(data, sessionKey);
+      /* Still render the default (most members) below the picker. */
+    } else {
+      $("pickerBox").style.display = "none";
+    }
+
+    var box = $("contentBox");
+    if (data.status === "refreshing") {
+      box.innerHTML = '<p class="muted small" data-testid="refreshing-note">Refreshing league data… this takes a few seconds — reload in a moment.</p>';
+      return;
+    }
+    if (!data.selected || !data.league_name) {
+      box.innerHTML = '<p class="faint small">' + esc(data.note || "No league detected yet.") + "</p>";
+      return;
+    }
+    var html = '<div class="section-h">' + esc(data.league_name || "League") +
+      (data.member_count ? ' <span class="faint small">(' + data.member_count + " managers)</span>" : "") + "</div>";
+
+    /* --- standings mini-table ------------------------------------------- */
+    var st = data.standings_top || [];
+    if (st.length) {
+      html += '<div class="card" data-testid="standings-table" style="padding:6px 14px;overflow-x:auto"><table class="data"><thead><tr><th>#</th><th>Manager</th><th class="num">GW</th><th class="num">Total</th></tr></thead><tbody>' +
+        st.map(function (r) {
+          var mine = String(r.entry_id) === sessionKey;
+          return "<tr" + (mine ? ' style="background:#134e4a"' : "") + "><td>" + esc(r.rank) + "</td><td>" +
+            (mine ? "<strong>YOU · </strong>" : "") + esc(r.entry_name) + "</td><td class=\"num\">" + esc(r.gw_points ?? "–") + '</td><td class="num">' + esc(r.total ?? "–") + "</td></tr>";
+        }).join("") + "</tbody></table>";
+      if (data.your_rank) {
+        html += '<p class="small" data-testid="your-rank-line">You are ranked <strong>#' + esc(data.your_rank) + "</strong>" +
+          (data.gap_to_top3 != null ? " · gap to top-3: <strong>" + (data.gap_to_top3 > 0 ? "+" : "") + data.gap_to_top3 + " pts</strong>" : "") + "</p>";
+      }
+      html += "</div>";
+    }
+
+    /* --- ownership heat --------------------------------------------------- */
+    var ins = data.ownership_insights || [];
+    if (ins.length) {
+      html += '<div class="section-h">Rival ownership heat</div><div class="card" data-testid="ownership-heat" style="padding:4px 16px">' +
+        ins.map(function (i) {
+          return '<div class="row"><div>' + esc(i.line) + "</div></div>";
+        }).join("") + "</div>";
+    }
+    var diffs = data.your_differentials || [];
+    if (diffs.length) {
+      html += '<div class="card" style="padding:4px 16px;margin-top:8px" data-testid="my-differentials"><div class="row"><div><strong>Your differentials:</strong> ' +
+        diffs.map(function (d) { return esc(d.web_name); }).join(", ") + " — owned by none of the top rivals.</div></div></div>";
+    }
+
+    /* --- projected edge ---------------------------------------------------- */
+    var edge = data.projected_edge || {};
+    if (edge.lines && edge.lines.length) {
+      html += '<div class="section-h">Projected edge (xPTS vs rivals)</div><div class="card" data-testid="projected-edge" style="padding:4px 16px">' +
+        '<div class="row"><div>Your XI xPTS: <strong class="num">' + Number(edge.your_xpts).toFixed(1) + "</strong></div></div>" +
+        edge.lines.slice(0, 5).map(function (l) {
+          var color = l.gap > 0 ? "#6ee7b7" : (l.gap < 0 ? "#fca5a5" : "#94a3b8");
+          return '<div class="row"><div style="color:' + color + '"><strong>' + esc(l.line) + "</strong></div></div>";
+        }).join("") +
+        (data.recommended_xi_source === "fielded-starters"
+          ? '<p class="faint small">Edge uses your fielded starters until the engine stores a recommended XI.</p>'
+          : "") +
+        "</div>";
+    }
+    var capInsight = data.captain_insight;
+    if (capInsight) {
+      html += '<p class="small" data-testid="captain-insight" style="color:#93c5fd">🧢 ' + esc(capInsight.line) + "</p>";
+    }
+
+    (data.honest_notes || []).forEach(function (n) {
+      html += '<p class="faint small">⚠️ ' + esc(n) + "</p>";
+    });
+
+    html += '<div style="margin-top:14px"><button id="refreshBtn" class="btn" type="button">Refresh league data</button></div>';
+    box.innerHTML = html;
+    $("refreshBtn").addEventListener("click", function () {
+      load(sessionKey, true);
+      $("contentBox").innerHTML = '<p class="muted small">Refreshing…</p>';
+    });
+  }
+
+  function load(sessionKey, forceRefresh) {
+    var url = "/api/v1/league?session_id=" + encodeURIComponent(sessionKey) + (forceRefresh ? "&refresh=true" : "");
+    fetch(url)
+      .then(function (r) { return r.ok ? r.json() : r.json().then(function (b) { throw new Error(b.detail || r.status); }); })
+      .then(function (data) { render(data, sessionKey); })
+      .catch(function (err) {
+        $("contentBox").innerHTML = '<p class="faint">' + esc(err.message || "League unavailable.") + "</p>";
+      });
+  }
+
+  FPLApp.session.bootstrap({
+    onReady: function (session) { load(session.key, false); },
+    onNoSession: function () {
+      $("contentBox").innerHTML =
+        '<span class="pill warn">No saved session</span> <span class="muted small">— open ' +
+        '<a href="/dashboard">Decisions</a>, enter your FPL ID once, and your leagues are auto-detected here.</span>';
+    },
+    onError: function (msg) {
+      $("contentBox").innerHTML = '<p class="faint">' + esc(msg || "Could not load.") + "</p>";
+    }
+  });
+});
+</script>
+</body>
+</html>

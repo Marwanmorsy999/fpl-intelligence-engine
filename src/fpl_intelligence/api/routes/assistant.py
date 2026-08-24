@@ -51,7 +51,7 @@ from fpl_intelligence.squad.bridge import DecisionOptimizerBridge
 from fpl_intelligence.squad.service import SquadService
 from fpl_intelligence.sync.gameweek_clock import resolve_target_gameweek
 from fpl_intelligence.sync.materialized_models import AssistantBriefDB
-from fpl_intelligence.sync.models import SyncLogDB
+from fpl_intelligence.sync.models import RecommendationDB, SyncLogDB
 from fpl_intelligence.sync.service import track_record_payload
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
@@ -231,6 +231,10 @@ async def _gather_facts(db: Session, session_id: str) -> dict[str, Any]:
     except Exception as exc:  # noqa: BLE001
         logger.warning("brief track record failed: %s", exc)
 
+    # --- Phase 23 (L1/L3): league edge + price moves ---------------------------
+    league_edge_lines = _league_edge_lines(db, session_id)
+    price_note = _price_moves_note(db)
+
     captain = report_dict.get("captain") or {}
     transfers = report_dict.get("transfer_plan") or {}
     chain = (report_dict.get("meta") or {}).get("chain") or {}
@@ -269,7 +273,106 @@ async def _gather_facts(db: Session, session_id: str) -> dict[str, Any]:
         "targets": targets,
         "news_lines": news_lines,
         "grade_line": grade_line,
+        "league_edge_lines": league_edge_lines,
+        "price_note": price_note,
     }
+
+
+def _league_edge_lines(db: Session, session_id: str) -> list[str]:
+    """Phase 23 (L1): LEAGUE EDGE brief lines from the league cache.
+
+    Honest by construction: when no cached league data exists the section is
+    simply absent — never a placeholder.
+    """
+    try:
+        from sqlalchemy import select as _select
+
+        from fpl_intelligence.leagues.models import (
+            LeagueCacheDB,
+            LeagueSelectionDB,
+        )
+
+        sel = db.scalar(
+            _select(LeagueSelectionDB).where(
+                LeagueSelectionDB.session_id == str(session_id)
+            )
+        )
+        cache_row: LeagueCacheDB | None = None
+        if sel is not None:
+            cache_row = db.get(LeagueCacheDB, int(sel.league_id))
+        if cache_row is None:
+            cache_row = db.scalar(_select(LeagueCacheDB).limit(1))
+        if cache_row is None or not (cache_row.standings or []):
+            return []
+
+        standings = [r for r in cache_row.standings if isinstance(r, dict)]
+        mine = next(
+            (r for r in standings if str(r.get("entry_id")) == str(session_id)),
+            None,
+        )
+        lines: list[str] = []
+        league_label = cache_row.name or f"League {cache_row.league_id}"
+        if mine is not None:
+            gap_txt = ""
+            if len(standings) >= 3 and mine.get("total") is not None \
+                    and standings[2].get("total") is not None:
+                gap = int(standings[2]["total"]) - int(mine["total"])
+                gap_txt = f", {gap:+d} to the top 3"
+            lines.append(
+                f"{league_label}: rank #{mine.get('rank')} of "
+                f"{cache_row.member_count or len(standings)}{gap_txt}"
+            )
+        rp = cache_row.rivals_picks or {}
+        picks_map = {
+            k: v for k, v in (rp.get("picks") or {}).items() if isinstance(v, list)
+        }
+        if picks_map and isinstance(rp.get("captains"), dict):
+            captains = {int(k): int(v) for k, v in rp["captains"].items() if v}
+            my_cap_row = db.scalar(
+                _select(RecommendationDB.subject).where(  # type: ignore[arg-type]
+                    RecommendationDB.session_key == str(session_id),
+                    RecommendationDB.rec_type == "captain",
+                )
+            )
+            my_captain = (
+                int(my_cap_row.get("captain_id") or 0)
+                if isinstance(my_cap_row, dict)
+                else None
+            )
+            if my_captain and my_captain in captains.values():
+                n = sum(1 for c in captains.values() if c == my_captain)
+                lines.append(f"{n} top rival(s) also captain your pick.")
+            elif my_captain and captains:
+                lines.append("Your captain differential: no top rival captains him.")
+    except Exception as exc:  # noqa: BLE001 — enrichment only
+        logger.debug("league edge lines failed: %s", exc)
+        return []
+    return lines[:3]
+
+
+def _price_moves_note(db: Session) -> str | None:
+    """Phase 23 (L3): one-line risers/fallers note for the brief."""
+    try:
+        from fpl_intelligence.prices.service import todays_moves_payload
+
+        payload = todays_moves_payload(db, limit=3)
+        if not payload["has_data"]:
+            return None
+        parts: list[str] = []
+        if payload["risers"]:
+            parts.append(
+                "Risers: "
+                + ", ".join(f"{c['web_name']} ({c['label']})" for c in payload["risers"])
+            )
+        if payload["fallers"]:
+            parts.append(
+                "Fallers: "
+                + ", ".join(f"{c['web_name']} ({c['label']})" for c in payload["fallers"])
+            )
+        return " · ".join(parts)
+    except Exception as exc:  # noqa: BLE001 — enrichment only
+        logger.debug("price note failed: %s", exc)
+        return None
 
 
 # --------------------------------------------------------------------------- #
@@ -652,6 +755,7 @@ async def assistant_brief(
         "session_id": session_id,
         "gameweek": gameweek,
         "sections": {SECTION_TITLES[k]: sections[k] for k in SECTION_KEYS},
+        "extra_sections": _extra_sections(facts),
         "model": model_label,
         "cached": False,
         "source": "generated" if generate else "template",
@@ -670,8 +774,40 @@ async def assistant_brief(
         _brief_cache[key] = dict(payload)
     _store_brief(db, session_id, gameweek, payload)
 
+    if generate:
+        # Phase 23 (L2): cron-only brief push through the self-hosted channel
+        # (bell always logs it; browser push only when the trigger is on).
+        try:
+            from fpl_intelligence.notifications.webpush import (
+                dispatch as webpush_dispatch,
+            )
+
+            first_action = (payload["tldr"] or [{}])[0].get("text", "")
+            webpush_dispatch(
+                db,
+                session_id=str(session_id),
+                kind="brief",
+                title=f"Weekly brief · GW{gameweek}",
+                body=first_action or "Your weekly brief is ready.",
+                url="/assistant",
+            )
+        except Exception as exc:  # noqa: BLE001 — best-effort push
+            logger.debug("brief webpush failed: %s", exc)
+
     payload["telegram"] = await maybe_push_brief(db, session_id, gameweek, payload)
     return payload
+
+
+def _extra_sections(facts: dict[str, Any]) -> dict[str, str]:
+    """Phase 23 additive sections (LEAGUE EDGE / PRICE MOVES) — never placeholders."""
+    extras: dict[str, str] = {}
+    lines = facts.get("league_edge_lines") or []
+    if lines:
+        extras["LEAGUE EDGE"] = " ".join(lines)
+    price_note = facts.get("price_note")
+    if price_note:
+        extras["PRICE MOVES"] = str(price_note)
+    return extras
 
 
 # --------------------------------------------------------------------------- #
@@ -886,6 +1022,8 @@ def format_brief_message(brief: dict[str, Any], entry_name: str | None) -> str:
             f"• <b>{act['kind']}</b>: {act['text']} ({act.get('confidence', '?')}%)"
         )
     for title, body in sections.items():
+        lines.append(f"\n<b>{title}</b>\n{body}")
+    for title, body in (brief.get("extra_sections") or {}).items():
         lines.append(f"\n<b>{title}</b>\n{body}")
     lines.append(f"\n<i>answering model: {brief.get('model', 'unknown')}</i>")
     return "\n".join(lines)

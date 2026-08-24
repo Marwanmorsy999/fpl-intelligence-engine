@@ -42,6 +42,16 @@ document.addEventListener("DOMContentLoaded", function () {
   var POS_NAMES = { 1: "GK", 2: "DEF", 3: "MID", 4: "FWD" };
   var CURRENT_SQUAD = null;
 
+  var PRICE_CHIPS = {};
+
+  function priceChip(pid) {
+    var d = PRICE_CHIPS[pid];
+    if (!d) return "";
+    return d > 0
+      ? ' <span class="pill ok" title="Price rose today">▲</span>'
+      : ' <span class="pill bad" title="Price fell today">▼</span>';
+  }
+
   function tile(pid, squad, slotIdx, names) {
     var isC = pid === squad.captain_id;
     var isV = !isC && pid === squad.vice_captain_id;
@@ -55,7 +65,7 @@ document.addEventListener("DOMContentLoaded", function () {
           '<span class="crest" data-team="' + (((squad.player_teams || {})[pid]) || 0) + '" style="' + "background:linear-gradient(135deg,#334155,#1e293b)" + '">' +
             FPLApp.esc(name.slice(0, 3).toUpperCase()) + "</span>" +
           "<div><strong>" + FPLApp.esc(name) + "</strong>" +
-            '<div class="faint small">' + (pos ? POS_NAMES[pos] + " · " : "") + (price != null ? "£" + Number(price).toFixed(1) + "m" : "") + "</div></div>" +
+            '<div class="faint small">' + (pos ? POS_NAMES[pos] + " · " : "") + (price != null ? "£" + Number(price).toFixed(1) + "m" : "") + priceChip(pid) + "</div></div>" +
           '<span style="margin-left:auto">' +
             (isC ? '<span class="pill warn">C×2</span>' : isV ? '<span class="pill">VC</span>' : "") +
             '<span class="faint small" style="margin-left:6px">#' + slotIdx + "</span></span>" +
@@ -178,6 +188,20 @@ document.addEventListener("DOMContentLoaded", function () {
       .then(function (res) { return res.ok ? res.json() : res.json().then(function (b) { throw new Error(b.detail || res.status); }); })
       .then(function (squad) {
         CURRENT_SQUAD = squad;
+        /* Phase 23 (L3): ▲/▼ price chips from the price engine. */
+        var ids = (squad.player_ids || []).join(",");
+        if (ids) {
+          fetch("/api/v1/prices/chips?player_ids=" + encodeURIComponent(ids))
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .catch(function () { return null; })
+            .then(function (data) {
+              if (data && data.chips) {
+                PRICE_CHIPS = {};
+                Object.keys(data.chips).forEach(function (k) { PRICE_CHIPS[k] = data.chips[k]; });
+                if (window.__MT_NAMES) render(squad, window.__MT_NAMES);
+              }
+            });
+        }
         fetch("/api/v1/players").then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (players) {
           var byElement = {};
           players.forEach(function (p) {

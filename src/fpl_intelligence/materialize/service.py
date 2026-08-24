@@ -216,6 +216,16 @@ async def refresh_element_facts(db: Session, season_code: str) -> dict[str, Any]
     facts = parse_players_raw_csv(text)
     now = _now()
     upserted = 0
+    # Phase 23 (L3): prod DBs predate the now_cost column — self-seal it.
+    try:
+        from sqlalchemy import text as sa_text
+
+        db.execute(
+            sa_text("ALTER TABLE element_facts ADD COLUMN IF NOT EXISTS now_cost INTEGER")
+        )
+        db.commit()
+    except Exception:  # noqa: BLE001 — sqlite lacks IF NOT EXISTS on ADD COLUMN
+        db.rollback()
     for element_id, fact in facts.items():
         row = db.get(ElementFactDB, int(element_id))
         if row is None:
@@ -226,6 +236,7 @@ async def refresh_element_facts(db: Session, season_code: str) -> dict[str, Any]
         row.minutes = fact["minutes"]
         row.selected_by_percent = fact["selected_by_percent"]
         row.cost_change_event = fact["cost_change_event"]
+        row.now_cost = fact.get("now_cost")
         row.status = fact["status"]
         row.news = fact["news"]
         row.updated_at = now

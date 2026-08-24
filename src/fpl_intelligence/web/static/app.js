@@ -8,6 +8,7 @@ window.FPLApp = (function () {
     { href: "/dashboard", label: "Decisions" },
     { href: "/my-team", label: "My Team" },
     { href: "/assistant", label: "Assistant" },
+    { href: "/league", label: "League" },
     { href: "/track-record", label: "Track Record" },
     { href: "/live", label: "Live" },
     { href: "/sources", label: "Sources" },
@@ -146,10 +147,68 @@ window.FPLApp = (function () {
       '<a class="brand" href="/dashboard"><span class="brand-dot">⚽</span>FPL Intelligence</a>' +
       links +
       '<span id="sessionChipHost" style="margin-left:auto;display:inline-flex;gap:6px"></span>' +
+      '<span id="bellHost" style="display:inline-flex"></span>' +
       '<span id="healthPill" class="pill">● …</span>' +
       "</div></div>";
     checkHealth();
     updateSessionChip();
+    renderBell();
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Phase 23 (L2) — in-app notification bell (notifications_log backed) *
+   * Works even when browser push permission was denied.                 *
+   * ------------------------------------------------------------------ */
+  function renderBell() {
+    var host = document.getElementById("bellHost");
+    if (!host) return;
+    var session = readSession();
+    if (!session || !session.key) { host.innerHTML = ""; return; }
+    fetch("/api/v1/push/unread-count?session_id=" + encodeURIComponent(session.key))
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; })
+      .then(function (d) {
+        var unread = d && typeof d.unread === "number" ? d.unread : 0;
+        host.innerHTML =
+          '<button id="bellBtn" class="pill' + (unread ? ' ok' : '') + '" style="cursor:pointer"' +
+          ' title="Notifications (in-app bell — independent of browser permission)">🔔' +
+          (unread ? '<strong id="bellCount">' + unread + '</strong>' : '') +
+          '</button><div id="bellPanel" data-testid="bell-panel" style="display:none;' +
+          'position:absolute;right:12px;top:52px;z-index:60;background:#0f172a;border:1px solid #334155;' +
+          'border-radius:12px;padding:10px 14px;width:min(92vw,360px);box-shadow:0 18px 40px rgba(0,0,0,.5)"></div>';
+        document.getElementById("bellBtn").addEventListener("click", toggleBellPanel);
+      });
+  }
+
+  function toggleBellPanel() {
+    var panel = document.getElementById("bellPanel");
+    if (!panel) return;
+    if (panel.style.display !== "none") { panel.style.display = "none"; return; }
+    panel.style.display = "block";
+    panel.innerHTML = '<p class="faint small">Loading…</p>';
+    var session = readSession();
+    fetch("/api/v1/push/log?limit=15&session_id=" + encodeURIComponent(session.key))
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; })
+      .then(function (d) {
+        if (!d) { panel.innerHTML = '<p class="faint small">Log unavailable.</p>'; return; }
+        var items = (d.items || []).map(function (it) {
+          return '<div style="padding:6px 0;border-bottom:1px solid #1e293b">' +
+            '<div><span class="pill' + (it.read_at ? '' : ' ok') + '">' + esc(it.kind) + '</span> ' +
+            '<span class="faint small">' + esc(String(it.created_at || "").slice(0, 16).replace("T", " ")) + '</span></div>' +
+            '<div class="small"><strong>' + esc(it.title) + '</strong></div>' +
+            '<div class="faint small">' + esc(it.body) + '</div></div>';
+        }).join("");
+        panel.innerHTML =
+          '<div style="display:flex;align-items:center;margin-bottom:4px"><strong>Notifications</strong>' +
+          '<button id="bellMarkRead" class="pill ok" style="margin-left:auto;cursor:pointer;border:none">Mark all read (' + Number(d.unread) + ')</button></div>' +
+          (items || '<p class="faint small">No notifications yet.</p>');
+        var btn = document.getElementById("bellMarkRead");
+        btn.addEventListener("click", function () {
+          fetch("/api/v1/push/mark-all-read?session_id=" + encodeURIComponent(session.key), { method: "POST" })
+            .then(function () { renderBell(); toggleBellPanel(); });
+        });
+      });
   }
 
   function checkHealth() {
@@ -284,6 +343,7 @@ window.FPLApp = (function () {
   return {
     esc: esc,
     renderNav: renderNav,
+    renderBell: renderBell,
     crestHTML: crestHTML,
     hydrateCrests: hydrateCrests,
     CLUB_COLORS: CLUB_COLORS,
