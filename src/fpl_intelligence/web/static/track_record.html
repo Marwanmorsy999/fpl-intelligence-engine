@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Track Record — FPL Intelligence</title>
 <link rel="icon" href="data:,">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#0f172a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
@@ -19,6 +21,8 @@
   <p class="muted small" style="margin-top:0">Every recommendation the engine made, graded against what actually happened. Cards appear as you use Decisions; verdicts land automatically once the daily 06:10 cron ingests the gameweek's real results.</p>
 
   <div style="display:flex;gap:8px;margin:16px 0 20px">
+    <button id="exportTrBtn" class="btn-ghost" type="button" data-testid="export-tr-btn">⬇ Track CSV</button>
+    <span id="trExportStatus" class="faint small" style="align-self:center"></span>
     <input id="entryInput" class="input" style="max-width:260px" placeholder="Your FPL entry id (e.g. 794561)" inputmode="numeric">
     <button id="loadBtn" class="btn" type="button">Load track record</button>
   </div>
@@ -166,6 +170,19 @@ document.addEventListener("DOMContentLoaded", function () {
       : '<p class="muted small">Nothing yet. Open the <a href="/dashboard">Decisions</a> page with your squad to start recording calls.</p>';
   }
 
+  $("exportTrBtn").addEventListener("click", function(){
+    var entry = ($("entryInput").value||"").trim();
+    if(!/^\d+$/.test(entry)){ alert("Enter your numeric FPL entry id."); return; }
+    fetch("/api/v1/sync/track-record?entry_id="+encodeURIComponent(entry)).then(function(r){return r.ok?r.json():null;}).then(function(data){
+      if(!data||!data.cards){ $("trExportStatus").textContent="No data"; return; }
+      var rows = (data.cards||[]).map(function(c){
+        var s=c.score||{};
+        return [c.gameweek, c.rec_type, s.predicted!=null?s.predicted:(s.captain_points!=null?s.captain_points:""), s.actual!=null?s.actual:(s.alternative_points!=null?s.alternative_points:""), s.delta!=null?s.delta:""];
+      });
+      FPLApp.exportCsv("track_record.csv", rows, ["gw","rec_type","predicted","actual","delta"]);
+      $("trExportStatus").textContent="track_record.csv downloaded"; setTimeout(function(){ $("trExportStatus").textContent=""; },1500);
+    });
+  });
   $("loadBtn").addEventListener("click", load);
   $("entryInput").addEventListener("keydown", function (ev) {
     if (ev.key === "Enter") load();

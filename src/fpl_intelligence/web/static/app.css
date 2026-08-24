@@ -143,3 +143,76 @@ pre.code { background:var(--surface-2); border:1px solid var(--line); border-rad
   font-size:10.5px; font-weight:800; letter-spacing:.09em;
   color:var(--accent); text-transform:uppercase; margin-bottom:3px;
 }
+
+/* --- Phase 24 — responsive layout, bottom tabs, touch targets --------------- */
+/* 44px minimum tap targets per spec (buttons, nav links, pills) */
+.btn, .btn-ghost { min-height: 44px; display:inline-flex; align-items:center; justify-content:center; }
+.navlink { min-height: 44px; display:inline-flex; align-items:center; }
+.pill { min-height: 22px; }
+.autocomplete-item { min-height: 44px; }
+
+.bottomnav { display:none; }
+
+/* Mobile: nav collapses to bottom tabs, cards stack single-column */
+@media (max-width: 640px) {
+  .topnav-inner { height: 48px; gap: 2px; }
+  .topnav-inner .navlink { display:none; }
+  .brand { margin-right:auto; font-size:14px; }
+  .bottomnav {
+    display:flex; position:fixed; bottom:0; left:0; right:0;
+    background: rgba(10,15,28,0.98); border-top:1px solid var(--line);
+    backdrop-filter: blur(10px); z-index:50;
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+    gap:2px; justify-content:space-around;
+  }
+  .bottomnav a {
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:1px; padding:6px 4px; border-radius:10px; color:var(--text-dim);
+    font-size:10px; font-weight:700; text-decoration:none; min-height:44px;
+  }
+  .bottomnav a.active { color:#fff; background:rgba(56,189,248,0.14); }
+  .bottomnav a span.icon { font-size:16px; line-height:1; }
+  /* cards stack single-column even when grid wants multi-col */
+  .grid { grid-template-columns: 1fr !important; }
+  .wrap { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
+  table.data { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+}
+
+/* Ensure grids still stack on tablet for cards */
+@media (max-width: 780px) {
+  .grid[style*="grid-template-columns:repeat"] { grid-template-columns: 1fr !important; }
+}
+
+/* --- Phase 24 — crunch view (deadline-day, no-scroll, big buttons) ---------- */
+.crunch-wrap {
+  max-width: 420px; margin: 0 auto; padding: 16px 12px calc(16px + env(safe-area-inset-bottom,0px));
+  min-height: 100vh; min-height: 100dvh; display:flex; flex-direction:column; gap:12px;
+  box-sizing:border-box;
+}
+.crunch-hero { text-align:center; padding:8px 0 4px; }
+.crunch-hero h1 { margin:0; font-size:20px; font-weight:800; color:#fff; }
+.crunch-hero p { margin:4px 0 0; color:var(--text-dim); font-size:12px; }
+.crunch-card {
+  background:var(--surface); border:1px solid var(--line); border-radius:16px;
+  padding:14px; display:flex; flex-direction:column; gap:10px;
+}
+.crunch-bigbtn {
+  width:100%; min-height:56px; border-radius:14px; font-size:16px; font-weight:800;
+  border:none; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:8px;
+}
+.crunch-bigbtn.primary { background: linear-gradient(135deg,#22c55e,#16a34a); color:#052e16; }
+.crunch-bigbtn.secondary { background: rgba(56,189,248,0.14); color:#7dd3fc; border:1px solid rgba(56,189,248,0.3); }
+.crunch-bigbtn.ghost { background: transparent; color:var(--text-dim); border:1px dashed var(--line-strong); }
+.crunch-no-scroll { overflow:hidden; height:100vh; height:100dvh; }
+
+/* Compare diff highlights */
+.diff-win { background: rgba(52,211,153,0.18); border:1px solid rgba(52,211,153,0.35); color:#6ee7b7; }
+.diff-lose { background: rgba(248,113,113,0.14); border:1px solid rgba(248,113,113,0.35); color:#fca5a5; }
+.diff-tie { background: transparent; border:1px solid var(--line); color:var(--text-dim); }
+
+/* Set-piece chips in drawer */
+.setpiece-chip {
+  display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700;
+  padding:4px 8px; border-radius:999px; border:1px solid var(--line-strong);
+  background: rgba(56,189,248,0.10); color:#7dd3fc; margin:2px 4px 2px 0;
+}

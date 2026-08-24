@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chips — FPL Intelligence</title>
+<link rel="icon" href="data:,">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#0f172a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/app.js"></script>
+</head>
+<body>
+<div id="topnav"></div>
+<div class="wrap">
+  <h1 style="font-size:22px;font-weight:800;color:#fff;margin:0 0 4px">Chip planner</h1>
+  <p class="muted small" style="margin-top:0">Horizon optimizer — simulate chips starting from GW2 (next 8 GWs). Ranked by projected total points. Respects your used chips. Export as .txt.</p>
+
+  <div style="display:flex;gap:8px;margin:14px 0">
+    <button id="runBtn" class="btn" type="button" data-testid="chips-run-btn">Run planner (next 8 GWs)</button>
+    <button id="exportBtn" class="btn-ghost" type="button" data-testid="chips-export-btn">⬇ Export plan .txt</button>
+    <span id="statusChip" class="pill" style="align-self:center">—</span>
+  </div>
+
+  <div id="plansBox"></div>
+  <div id="breakdownBox" style="margin-top:12px"></div>
+  <p id="noteLine" class="faint small" style="margin-top:10px"></p>
+</div>
+<script>
+"use strict";
+document.addEventListener("DOMContentLoaded", function () {
+  FPLApp.renderNav("/chips");
+  var $ = function(id){ return document.getElementById(id); };
+  var LAST_RESP = null;
+
+  function renderPlans(data){
+    LAST_RESP = data;
+    var plans = data.plans || [];
+    if(!plans.length){
+      $("plansBox").innerHTML = '<p class="faint small">No plans — engine could not score the horizon.</p>';
+      return;
+    }
+    $("plansBox").innerHTML = plans.map(function(plan, idx){
+      var title = plan.label || ("Plan "+(idx+1));
+      var ev = plan.total_ev != null ? Number(plan.total_ev).toFixed(1) : "—";
+      var gain = plan.total_gain != null ? Number(plan.total_gain).toFixed(1) : "—";
+      var badge = idx===0 ? '<span class="pill ok">BEST</span>' : '<span class="pill">#'+(idx+1)+'</span>';
+      return '<div class="card" data-testid="chips-plan" style="margin-bottom:10px">' +
+        '<div style="display:flex;align-items:center;gap:8px"><strong>'+FPLApp.esc(title)+'</strong>' + badge +
+        '<span style="margin-left:auto" class="num">total '+ev+' pts · <span style="color:#6ee7b7">+'+gain+' EV</span></span></div>' +
+        '<div class="small muted" style="margin-top:6px">'+plan.steps.map(function(s){
+          return 'GW'+s.gameweek+': '+FPLApp.esc(s.action)+(s.chip?' ('+FPLApp.esc(s.chip)+')':'');
+        }).join(' → ')+'</div>' +
+        '<button class="btn-ghost" style="margin-top:8px" data-plan="'+idx+'" data-testid="chips-detail-btn">View breakdown</button>' +
+        '</div>';
+    }).join("");
+    // breakdown for first plan by default
+    showBreakdown(0);
+    document.querySelectorAll("[data-plan]").forEach(function(btn){
+      btn.addEventListener("click", function(){ showBreakdown(parseInt(btn.getAttribute("data-plan"),10)); });
+    });
+    $("noteLine").textContent = data.note || "";
+  }
+
+  function showBreakdown(idx){
+    if (!LAST_RESP || !LAST_RESP.plans || !LAST_RESP.plans[idx]) return;
+    var plan = LAST_RESP.plans[idx];
+    var rows = (plan.breakdown||[]).map(function(r){
+      return '<tr><td>GW'+r.gameweek+'</td><td>'+FPLApp.esc(r.action)+'</td><td class="num">'+ (r.chip||"—")+'</td><td class="num">'+Number(r.xpts).toFixed(1)+'</td><td class="num" style="color:#6ee7b7">'+ (r.gain!=null?("+"+Number(r.gain).toFixed(1)):"—")+'</td></tr>';
+    }).join("");
+    $("breakdownBox").innerHTML = '<div class="card"><div class="small muted" style="margin-bottom:6px">Per-GW breakdown — '+FPLApp.esc(plan.label)+'</div>' +
+      '<table class="data"><thead><tr><th>GW</th><th>Action</th><th class="num">Chip</th><th class="num">xPTS</th><th class="num">Gain</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  }
+
+  function planTxt(){
+    if(!LAST_RESP || !LAST_RESP.plans) return "No plans.";
+    var lines=["FPL Intelligence — Chip planner", "Generated "+new Date().toLocaleString(), "Horizon: GW"+LAST_RESP.start_gw+" → GW"+(LAST_RESP.start_gw+LAST_RESP.horizon-1), "Chips available: "+(LAST_RESP.chips_available||[]).join(", ")||"none", ""];
+    LAST_RESP.plans.forEach(function(plan, idx){
+      lines.push((idx+1)+". "+plan.label+" = "+(plan.total_gain!=null?("+"+Number(plan.total_gain).toFixed(1)+" EV"):"")+" · total "+Number(plan.total_ev).toFixed(1)+" pts");
+      (plan.breakdown||[]).forEach(function(r){
+        lines.push("  GW"+r.gameweek+": "+r.action+(r.chip?" ["+r.chip+"]":"")+" · xPTS "+Number(r.xpts).toFixed(1)+(r.gain!=null?" gain +"+Number(r.gain).toFixed(1):""));
+      });
+      lines.push("");
+    });
+    return lines.join("\n");
+  }
+
+  $("runBtn").addEventListener("click", function(){
+    var sess = FPLApp.session.read();
+    if(!sess || !sess.key){ $("statusChip").textContent="No saved session — open Decisions first"; return; }
+    $("statusChip").textContent="Planning…";
+    // horizon from GW2 next 8 per spec, but use current squad GW+1? We request explicit start_gw=2 per spec gate proof
+    var url = "/api/v1/chips/plans?session_id="+encodeURIComponent(sess.key)+"&start_gw=2&horizon=8";
+    fetch(url).then(function(r){ return r.ok?r.json():r.json().then(function(b){ throw new Error(b.detail||r.status); }); }).then(function(data){
+      renderPlans(data);
+      $("statusChip").textContent="Ready · "+data.plans.length+" plans";
+    }).catch(function(err){
+      $("statusChip").textContent=err.message;
+    });
+  });
+  $("exportBtn").addEventListener("click", function(){
+    if(!LAST_RESP){ $("statusChip").textContent="Run planner first"; return; }
+    FPLApp.exportTxt("fpl-chip-plan.txt", planTxt());
+  });
+  // auto-run for sessions
+  var sess = FPLApp.session.read();
+  if(sess && sess.key){ $("runBtn").click(); }
+});
+</script>
+</body>
+</html>

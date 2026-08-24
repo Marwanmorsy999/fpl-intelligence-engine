@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>My Team — FPL Intelligence</title>
 <link rel="icon" href="data:,">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#0f172a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
@@ -22,6 +24,7 @@
   <p id="syncSubLine" class="faint small" style="margin:-2px 0 10px"></p>
 
   <div id="metaLine" class="muted small" style="margin:14px 0"></div>
+  <div style="display:flex;gap:8px;margin:10px 0"><button id="exportSquadBtn" class="btn-ghost" type="button" data-testid="myteam-export-btn">⬇ Squad CSV</button><span id="myteamStatus" class="faint small" style="align-self:center"></span></div>
   <div id="statusLine" class="muted small"></div>
 
   <div class="section-h">Squad</div>
@@ -255,6 +258,15 @@ document.addEventListener("DOMContentLoaded", function () {
     onError: function (msg) {
       $("statusLine").innerHTML = '<span class="pill bad">' + FPLApp.esc(msg || "Load failed.") + "</span>";
     }
+  });
+  $("exportSquadBtn").addEventListener("click", function(){
+    if(!CURRENT_SQUAD){ $("myteamStatus").textContent="No squad loaded"; return; }
+    fetch("/api/v1/decisions?session_id="+encodeURIComponent(FPLApp.session.read().key)).then(function(r){return r.ok?r.json():null;}).then(function(rep){
+      if(!rep || !rep.players){ $("myteamStatus").textContent="No data"; return; }
+      var rows = Object.keys(rep.players).map(function(pid){ var p=rep.players[pid]; return [p.id, p.web_name, p.price!=null?Number(p.price).toFixed(1):"", p.expected_points!=null?Number(p.expected_points).toFixed(1):""]; });
+      FPLApp.exportCsv("squad.csv", rows, ["element_id","web_name","price","xPTS"]);
+      $("myteamStatus").textContent="squad.csv downloaded"; setTimeout(function(){ $("myteamStatus").textContent=""; },1500);
+    }).catch(function(){ $("myteamStatus").textContent="Export failed"; });
   });
 });
 </script>

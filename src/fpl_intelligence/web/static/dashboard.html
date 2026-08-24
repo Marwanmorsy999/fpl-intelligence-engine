@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FPL Intelligence — Decisions</title>
 <link rel="icon" href="data:,">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#0f172a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
@@ -164,6 +166,14 @@
     <div id="demoBanner" class="mb-4 bg-amber-950/70 border border-amber-600 text-amber-200 rounded-xl px-4 py-3 text-sm font-semibold" style="display:none">⚠️ You are viewing a DEMO squad, not your real team.</div>
     <p id="teamName" class="text-slate-400 text-sm mb-4 font-semibold"></p>
     <div id="chipSlot" class="mb-6"></div>
+
+    <!-- Phase 24 M2 — share / export toolbar -->
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+      <button id="shareBtn" class="btn-ghost" type="button" data-testid="share-btn">🔗 Share</button>
+      <button id="exportSquadBtn" class="btn-ghost" type="button" data-testid="export-squad-btn">⬇ Squad CSV</button>
+      <button id="exportBriefBtn" class="btn-ghost" type="button" data-testid="export-brief-btn">⬇ Brief .txt</button>
+      <span id="shareStatus" class="faint small" style="align-self:center"></span>
+    </div>
 
     <!-- Chain provenance banner: honest disclosure of the prediction source -->
     <div id="chainBanner" class="mb-6"></div>
@@ -758,10 +768,17 @@ function renderCaptainCompare(report) {
     var badge = c.is_captain ? '<span class="pill ok" style="margin-left:6px">ARM</span>' : "";
     /* Phase 23 (C4): every number is labelled — "xPTS 6.6", "gap +0.6". */
     var xptsLabel = c.xpts_label || ("xPTS " + Number(c.xpts).toFixed(1));
+    var sp = c.set_pieces || {};
+    var spChips = "";
+    if (sp.penalty) spChips += '<span class="setpiece-chip">🥅 Pen</span>';
+    if (sp.corners) spChips += '<span class="setpiece-chip">🚩 Corner</span>';
+    if (sp.free_kicks) spChips += '<span class="setpiece-chip">🎯 FK</span>';
+    if (spChips) spChips = '<div style="margin-top:4px">' + spChips + '</div>';
     return '<div class="rounded-xl border p-3 ' + (c.is_captain ? "border-yellow-500/50 bg-yellow-950/20" : "border-slate-600/40 bg-slate-900/40") + '" data-testid="captain-card">'
       + '<div class="flex items-center justify-between"><span class="font-bold text-white text-sm">' + esc(c.web_name) + badge + "</span>"
       + '<span class="num font-extrabold ' + (c.is_captain ? "text-yellow-400" : "text-sky-300") + '" data-xpts-label>' + esc(xptsLabel) + "</span></div>"
       + '<div class="text-xs text-slate-400 mt-1">' + [own, fx].filter(Boolean).join(" · ") + "</div>"
+      + spChips
       + (c.blank_note ? '<div class="text-xs text-slate-500 mt-1">' + esc(c.blank_note) + "</div>" : "")
       + "</div>";
   }).join("");
@@ -1153,6 +1170,16 @@ function renderDrawerBody(d) {
   } else {
     html += '<div class="section-h">BBC news</div><p class="faint small">No matching headlines.</p>';
   }
+  /* Phase 24 C2 — set-piece chips */
+  html += '<div class="section-h">Set pieces</div><div data-testid="drawer-setpieces">';
+  var sp = d.set_pieces || {};
+  if (sp.penalty) html += '<span class="setpiece-chip" data-testid="setpiece-penalty">🥅 Penalty taker</span>';
+  if (sp.corners) html += '<span class="setpiece-chip" data-testid="setpiece-corners">🚩 Corner taker</span>';
+  if (sp.free_kicks) html += '<span class="setpiece-chip" data-testid="setpiece-freekick">🎯 Free-kick taker</span>';
+  if (!sp.penalty && !sp.corners && !sp.free_kicks) {
+    html += sp.unknown ? '<span class="faint small">unknown — not in curated set-piece map</span>' : '<span class="faint small">not a designated taker</span>';
+  }
+  html += "</div>";
   return html;
 }
 
@@ -1617,6 +1644,37 @@ function restoreSession(session, report) {
   $("results").style.display = "block";
 }
 
+function shareDecisions(){
+  if (!LAST_REPORT) { $("shareStatus").textContent = "No decisions to share yet."; return; }
+  var brief = "FPL GW"+LAST_REPORT.gameweek+" · Captain "+ (function(){ var c=LAST_REPORT.captain; if(!c) return "—"; var p=(LAST_REPORT.players||{})[String(c.player_id)]; return p? p.web_name : ("#"+c.player_id); })() + " ("+FPLApp.fmtPts(LAST_REPORT.captain?LAST_REPORT.captain.expected_points:"—")+" xPTS) · XI "+ (LAST_REPORT.starting_xi||[]).slice(0,4).map(function(pid){ var p=(LAST_REPORT.players||{})[String(pid)]; return p?p.web_name:pid; }).join(", ")+"…";
+  var url = window.location.href;
+  FPLApp.shareOrCopy({title:"FPL Intelligence GW"+LAST_REPORT.gameweek, text:brief, url:url}).then(function(r){
+    if(r && r.copied) $("shareStatus").textContent = "Link copied ✓";
+    else if(r && r.notSupported) $("shareStatus").textContent = "share not supported — copied to clipboard";
+    else $("shareStatus").textContent = "";
+    if(FPLApp.shareNotSupported()) $("shareStatus").textContent = "share not supported — copied to clipboard";
+    setTimeout(function(){ $("shareStatus").textContent=""; }, 2500);
+  });
+}
+function exportSquadCsv(){
+  if (!LAST_REPORT || !LAST_REPORT.players) { $("shareStatus").textContent="No squad to export"; return; }
+  var rows = Object.keys(LAST_REPORT.players).map(function(pid){
+    var p=LAST_REPORT.players[pid];
+    return [p.id, p.web_name, p.price!=null?Number(p.price).toFixed(1):"", p.expected_points!=null?Number(p.expected_points).toFixed(1):""];
+  });
+  FPLApp.exportCsv("squad.csv", rows, ["element_id","web_name","price","xPTS"]);
+  $("shareStatus").textContent="squad.csv downloaded";
+  setTimeout(function(){ $("shareStatus").textContent=""; },1500);
+}
+function exportBriefTxt(){
+  if (!LAST_REPORT) { $("shareStatus").textContent="No brief to export"; return; }
+  var txt = ["FPL Intelligence — Gameweek "+LAST_REPORT.gameweek+" brief","Generated "+new Date().toLocaleString(),"", "Captain: "+(function(){var c=LAST_REPORT.captain; if(!c) return "—"; var p=(LAST_REPORT.players||{})[String(c.player_id)]; return (p?p.web_name:c.player_id)+" · xPTS "+FPLApp.fmtPts(c.expected_points)+" — "+(c.main_reason||"");})(), "", "Starting XI: "+(LAST_REPORT.starting_xi||[]).map(function(pid){ var p=(LAST_REPORT.players||{})[String(pid)]; return p?p.web_name:pid; }).join(", "), "Bench: "+(LAST_REPORT.bench_order||[]).map(function(pid){ var p=(LAST_REPORT.players||{})[String(pid)]; return p?p.web_name:pid; }).join(", "), ""];
+  if(LAST_REPORT.transfer_plan) txt.push("Transfers: "+(LAST_REPORT.transfer_plan.main_reason||"")+" (gain +"+Number(LAST_REPORT.transfer_plan.expected_gain).toFixed(1)+")");
+  if(LAST_REPORT.chip_recommendation && LAST_REPORT.chip_recommendation.chip_name) txt.push("Chip: "+LAST_REPORT.chip_recommendation.chip_name+" — "+(LAST_REPORT.chip_recommendation.main_reason||""));
+  FPLApp.exportTxt("brief.txt", txt.join("\n"));
+  $("shareStatus").textContent="brief.txt downloaded";
+  setTimeout(function(){ $("shareStatus").textContent=""; },1500);
+}
 function boot() {
   checkHealth();
   FPLApp.renderNav("/dashboard");
@@ -1631,6 +1689,9 @@ function boot() {
   $("saveManualBtn").addEventListener("click", saveManual);
   $("retrySyncBtn").addEventListener("click", retrySync);
   $("startOverBtn").addEventListener("click", startOver);
+  var _sb = $("shareBtn"); if(_sb) _sb.addEventListener("click", shareDecisions);
+  var _es = $("exportSquadBtn"); if(_es) _es.addEventListener("click", exportSquadCsv);
+  var _eb = $("exportBriefBtn"); if(_eb) _eb.addEventListener("click", exportBriefTxt);
   /* Drawer: one delegated listener covers pitch, bench and future cards. */
   document.addEventListener("click", function (e) {
     var sim = e.target.closest(".sim-toggle");

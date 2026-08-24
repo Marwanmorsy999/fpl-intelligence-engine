@@ -623,6 +623,14 @@ async def player_drawer(
 
     # If we are degraded due to not_in_squad, keep degraded true even if other fields ok
 
+    # Phase 24 C2 — set-piece taker flags (manual curation)
+    try:
+        from fpl_intelligence.set_pieces.service import set_piece_flags as _set_flags  # noqa: PLC0415
+
+        set_pieces = _set_flags(int(player_id), team_val)
+    except Exception:
+        set_pieces = {"penalty": False, "corners": False, "free_kicks": False, "unknown": True}
+
     return {
         "session_id": session_id,
         "gameweek": target_gw,
@@ -638,6 +646,7 @@ async def player_drawer(
             "selected_by_percent": selected_by,
             "cost_change_event": cost_change,
         },
+        "set_pieces": set_pieces,
         "expected_points": expected_points,
         "prediction_source": prediction_source,
         "data_quality": data_quality,

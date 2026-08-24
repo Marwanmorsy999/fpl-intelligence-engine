@@ -7,6 +7,8 @@ from fpl_intelligence.api.deps import GetDB, assert_no_static_stub_in_production
 from fpl_intelligence.api.routes.admin import router as admin_router
 from fpl_intelligence.api.routes.analyst import router as analyst_router
 from fpl_intelligence.api.routes.assistant import router as assistant_router
+from fpl_intelligence.api.routes.chips import router as chips_router
+from fpl_intelligence.api.routes.compare import router as compare_router
 from fpl_intelligence.api.routes.crests import router as crests_router
 from fpl_intelligence.api.routes.data_sources import router as data_sources_router
 from fpl_intelligence.api.routes.drawer import router as drawer_router
@@ -78,6 +80,8 @@ app.include_router(live_router, prefix="/api/v1")
 app.include_router(league_router, prefix="/api/v1")
 app.include_router(push_router, prefix="/api/v1")
 app.include_router(prices_router, prefix="/api/v1")
+app.include_router(compare_router, prefix="/api/v1")
+app.include_router(chips_router, prefix="/api/v1")
 
 
 @app.get("/", include_in_schema=False)

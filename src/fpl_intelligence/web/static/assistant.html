@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Weekly Assistant — FPL Intelligence</title>
 <link rel="icon" href="data:,">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#0f172a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
@@ -18,9 +20,12 @@
   <h1 style="font-size:22px;font-weight:800;color:#fff;margin:0 0 4px">Weekly assistant</h1>
   <p class="muted small" style="margin-top:0">A structured pre-deadline brief built from your squad, the fixture scan, the BBC news radar and your track record. Generated lazily on load when this week's brief is missing, and pushed to Telegram once per GW from Friday 18:00 UTC onward.</p>
 
-  <div style="display:flex;gap:10px;align-items:center;margin:18px 0">
+  <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:18px 0">
     <button id="refreshBtn" class="btn" type="button">Build this week's brief</button>
+    <button id="shareBtn" class="btn-ghost" type="button" data-testid="assistant-share-btn">🔗 Share</button>
+    <button id="exportBtn" class="btn-ghost" type="button" data-testid="assistant-export-btn">⬇ Brief .txt</button>
     <span id="briefMeta" class="faint small"></span>
+    <span id="shareStatus" class="faint small"></span>
   </div>
 
   <div id="briefBox"><p class="faint">No brief loaded yet.</p></div>
@@ -109,6 +114,18 @@ document.addEventListener("DOMContentLoaded", function () {
   /* Phase 23 (C5): the gameweek currently shown in the main card is excluded
      from the history list — history means PAST briefs only. */
   var CURRENT_GW = null;
+  var LAST_BRIEF = null;
+  function briefToText(brief){
+    if(!brief) return "No brief.";
+    var lines=["FPL Intelligence — Weekly Brief GW"+brief.gameweek,"Generated "+(brief.generated_at||new Date().toLocaleString()),"Model: "+(brief.model||"unknown"),""];
+    (brief.tldr||[]).forEach(function(a){ lines.push(a.kind+": "+a.text+" ("+a.confidence+"%) — "+(a.reason||"")); });
+    lines.push("");
+    var secs = brief.sections||{};
+    Object.keys(secs).forEach(function(k){ lines.push(k); lines.push(secs[k]); lines.push(""); });
+    var extras=brief.extra_sections||{};
+    Object.keys(extras).forEach(function(k){ lines.push(k); lines.push(extras[k]); lines.push(""); });
+    return lines.join("\n");
+  }
 
   function renderHistory(sessionKey) {
     var h = history();
@@ -144,6 +161,7 @@ document.addEventListener("DOMContentLoaded", function () {
       .then(function (r) { return r.ok ? r.json() : r.json().then(function (b) { throw new Error(b.detail || r.status); }); })
       .then(function (brief) {
         store(session.key, brief);
+        LAST_BRIEF = brief;
         CURRENT_GW = Number(brief.gameweek);
         $("briefBox").innerHTML = briefCard(brief);
         $("briefMeta").textContent = "Built " + new Date().toLocaleTimeString() + " · captain " +
@@ -178,6 +196,19 @@ document.addEventListener("DOMContentLoaded", function () {
     var s = FPLApp.session.read();
     if (!s) return;
     build(s);
+  });
+  $("shareBtn").addEventListener("click", function(){
+    if(!LAST_BRIEF){ $("shareStatus").textContent="No brief to share"; return; }
+    var txt = briefToText(LAST_BRIEF).slice(0,600);
+    FPLApp.shareOrCopy({title:"FPL GW"+LAST_BRIEF.gameweek+" Brief", text:txt, url:window.location.href}).then(function(r){
+      $("shareStatus").textContent = r && r.copied ? "Link copied ✓" : "";
+      if(FPLApp.shareNotSupported()) $("shareStatus").textContent="share not supported — copied to clipboard";
+      setTimeout(function(){ $("shareStatus").textContent=""; },2000);
+    });
+  });
+  $("exportBtn").addEventListener("click", function(){
+    if(!LAST_BRIEF){ $("shareStatus").textContent="No brief to export"; return; }
+    FPLApp.exportTxt("brief.txt", briefToText(LAST_BRIEF));
   });
 });
 </script>

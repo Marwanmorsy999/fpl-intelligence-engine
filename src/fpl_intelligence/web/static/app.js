@@ -5,14 +5,17 @@
 "use strict";
 window.FPLApp = (function () {
   var NAV = [
-    { href: "/dashboard", label: "Decisions" },
-    { href: "/my-team", label: "My Team" },
-    { href: "/assistant", label: "Assistant" },
-    { href: "/league", label: "League" },
-    { href: "/track-record", label: "Track Record" },
-    { href: "/live", label: "Live" },
-    { href: "/sources", label: "Sources" },
-    { href: "/connect", label: "Connect" }
+    { href: "/dashboard", label: "Decisions", icon: "⚡" },
+    { href: "/my-team", label: "My Team", icon: "👥" },
+    { href: "/assistant", label: "Assistant", icon: "🤖" },
+    { href: "/league", label: "League", icon: "🏆" },
+    { href: "/track-record", label: "Track Record", icon: "📈" },
+    { href: "/compare", label: "Compare", icon: "⚖️" },
+    { href: "/chips", label: "Chips", icon: "🎯" },
+    { href: "/crunch", label: "Crunch", icon: "⏰" },
+    { href: "/live", label: "Live", icon: "🔴" },
+    { href: "/sources", label: "Sources", icon: "🔍" },
+    { href: "/connect", label: "Connect", icon: "🔗" }
   ];
 
   var LS_SESSION_V20 = "fpl_session_v20"; // {key, source, entry_name, synced_at}
@@ -142,6 +145,10 @@ window.FPLApp = (function () {
       var active = n.href === activeHref ? " active" : "";
       return '<a class="navlink' + active + '" href="' + n.href + '"' + (n.href === activeHref ? ' aria-current="page"' : "") + ">" + n.label + "</a>";
     }).join("");
+    var bottomLinks = NAV.slice(0, 6).map(function (n) {
+      var active = n.href === activeHref ? " active" : "";
+      return '<a class="' + active.trim() + '" href="' + n.href + '"' + (n.href === activeHref ? ' aria-current="page"' : "") + '><span class="icon">' + (n.icon || "•") + "</span>" + n.label + "</a>";
+    }).join("");
     host.innerHTML =
       '<div class="topnav"><div class="topnav-inner">' +
       '<a class="brand" href="/dashboard"><span class="brand-dot">⚽</span>FPL Intelligence</a>' +
@@ -149,10 +156,12 @@ window.FPLApp = (function () {
       '<span id="sessionChipHost" style="margin-left:auto;display:inline-flex;gap:6px"></span>' +
       '<span id="bellHost" style="display:inline-flex"></span>' +
       '<span id="healthPill" class="pill">● …</span>' +
-      "</div></div>";
+      "</div></div>" +
+      '<nav class="bottomnav" aria-label="Mobile navigation" data-testid="bottom-nav">' + bottomLinks + "</nav>";
     checkHealth();
     updateSessionChip();
     renderBell();
+    registerSW();
   }
 
   /* ------------------------------------------------------------------ *
@@ -340,6 +349,106 @@ window.FPLApp = (function () {
     try { localStorage.setItem(CREST_CACHE_KEY, JSON.stringify(cache)); } catch (e) { /* ignore */ }
   }
 
+  /* ------------------------------------------------------------------ *
+   * Phase 24 — PWA: service worker + install prompt                    *
+   * ------------------------------------------------------------------ */
+  var _deferredPrompt = null;
+  if (typeof window !== "undefined") {
+    window.addEventListener("beforeinstallprompt", function (e) {
+      e.preventDefault();
+      _deferredPrompt = e;
+      var host = document.getElementById("pwaInstallHost");
+      if (host) {
+        host.innerHTML = '<button id="pwaInstallBtn" class="btn" type="button" data-testid="pwa-install-btn">📲 Install FPL Intelligence</button>';
+        var btn = document.getElementById("pwaInstallBtn");
+        if (btn) btn.addEventListener("click", function () { triggerInstall(); });
+      }
+    });
+    window.addEventListener("appinstalled", function () { _deferredPrompt = null; });
+  }
+  function triggerInstall() {
+    if (!_deferredPrompt) return;
+    _deferredPrompt.prompt();
+    _deferredPrompt.userChoice.then(function () { _deferredPrompt = null; });
+  }
+  function registerSW() {
+    if (!("serviceWorker" in navigator)) return;
+    // avoid double-register on navigation
+    if (window.__fpl_sw_registered) return;
+    window.__fpl_sw_registered = true;
+    navigator.serviceWorker.register("/static/sw.js").catch(function () {});
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Phase 24 — share / export helpers (M2)                             *
+   * ------------------------------------------------------------------ */
+  function shareOrCopy(opts) {
+    var title = opts.title || "FPL Intelligence";
+    var text = opts.text || "";
+    var url = opts.url || window.location.href;
+    if (navigator.share) {
+      return navigator.share({ title: title, text: text, url: url }).catch(function () {
+        return copyToClipboard(text + " " + url);
+      });
+    }
+    return copyToClipboard(text + " " + url);
+  }
+  function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).then(function () {
+        return { copied: true };
+      }).catch(function () {
+        return fallbackCopy(text);
+      });
+    }
+    return fallbackCopy(text);
+  }
+  function fallbackCopy(text) {
+    try {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      return Promise.resolve({ copied: true });
+    } catch (e) {
+      return Promise.resolve({ copied: false, notSupported: true });
+    }
+  }
+  function shareNotSupported() {
+    return !(navigator.share || (navigator.clipboard && navigator.clipboard.writeText));
+  }
+  function downloadBlob(filename, blob) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 500);
+  }
+  function exportTxt(filename, text) {
+    downloadBlob(filename, new Blob([text], { type: "text/plain;charset=utf-8" }));
+  }
+  function exportCsv(filename, rows, headers) {
+    var lines = [];
+    if (headers && headers.length) lines.push(headers.map(csvEsc).join(","));
+    rows.forEach(function (r) {
+      lines.push(r.map(csvEsc).join(","));
+    });
+    exportTxt(filename, lines.join("\n"));
+  }
+  function csvEsc(v) {
+    var s = String(v === null || v === undefined ? "" : v);
+    if (s.indexOf(",") !== -1 || s.indexOf('"') !== -1 || s.indexOf("\n") !== -1) {
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  }
+
   return {
     esc: esc,
     renderNav: renderNav,
@@ -351,6 +460,14 @@ window.FPLApp = (function () {
     fmtPts: fmtPts,
     fdrColor: fdrColor,
     fixtureStripHTML: fixtureStripHTML,
+    registerSW: registerSW,
+    triggerInstall: triggerInstall,
+    shareOrCopy: shareOrCopy,
+    copyToClipboard: copyToClipboard,
+    shareNotSupported: shareNotSupported,
+    exportTxt: exportTxt,
+    exportCsv: exportCsv,
+    downloadBlob: downloadBlob,
     session: {
       read: readSession,
       save: saveSession,

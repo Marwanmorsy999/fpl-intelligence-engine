@@ -800,6 +800,16 @@ async def _attach_decision_depth(
             report.captain.player_id if report.captain else None,
             report.vice_captain,
         )
+        # Phase 24 C2 — highlight set-piece takers in captain comparison
+        try:
+            from fpl_intelligence.set_pieces.service import set_piece_flags as _sp_flags  # noqa: PLC0415
+
+            for card in comparison.get("cards", []) or []:
+                pid = int(card.get("player_id", 0) or 0)
+                team = xi_teams.get(pid)
+                card["set_pieces"] = _sp_flags(pid, team)
+        except Exception:
+            pass
         report.meta["captain_comparison"] = comparison
 
     await _run()

@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Connect — FPL Intelligence</title>
 <link rel="icon" href="data:,">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#0f172a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
@@ -161,8 +163,16 @@ function onOpen() {
     <p class="faint small" style="margin-bottom:0">Also supports <em>workflow_dispatch</em> for manual runs from the Actions tab.</p>
   </div>
 
+  <!-- ======= PWA install prompt (Phase 24) ======= -->
+  <div class="section-h">5 · Install as app (PWA)</div>
+  <div class="card">
+    <p class="muted small" style="margin-top:0">Install FPL Intelligence as a standalone app on your phone or desktop. Theme color #0f172a, offline shell cached.</p>
+    <div id="pwaInstallHost"><p class="faint small">Install prompt appears here when your browser supports it. If already installed, you're set.</p></div>
+    <p class="faint small" style="margin-bottom:0">If no button appears, use your browser's “Add to Home Screen” / “Install app” menu. Service worker caches the shell for offline fallback.</p>
+  </div>
+
   <!-- ======= Notifications (Phase 23 — self-hosted web push) ======= -->
-  <div class="section-h">5 · Notifications — self-hosted web push (no external accounts)</div>
+  <div class="section-h">6 · Notifications — self-hosted web push (no external accounts)</div>
   <div class="card" id="pushCard">
     <p class="muted small" style="margin-top:0">Enable browser notifications for goals, price moves, the weekly brief and track-record grading. The in-app 🔔 bell works regardless of this setting.</p>
     <button id="enablePushBtn" class="btn" type="button" data-testid="enable-notifications">Enable notifications</button>
