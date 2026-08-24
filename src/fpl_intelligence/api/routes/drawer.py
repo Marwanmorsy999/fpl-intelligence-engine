@@ -183,6 +183,17 @@ async def player_drawer(
         selected_by = row.selected_by_percent
         cost_change = row.cost_change_event
         status = row.status
+    if not selected_by:
+        # Phase 22 (D1): seed-catalog fallback so ownership renders even while
+        # element_facts is still cold early in the season.
+        try:
+            from fpl_intelligence.prediction.live_provider import load_player_catalog
+
+            seed_row = load_player_catalog().get(int(player_id))
+            if seed_row and seed_row.get("selected_by_percent"):
+                selected_by = str(seed_row["selected_by_percent"])
+        except Exception as exc:  # noqa: BLE001 — enrichment only
+            logger.debug("drawer ownership fallback failed: %s", exc)
 
     form_bars = _form_bars_from_history(db, player_id)
 
