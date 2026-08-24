@@ -690,12 +690,10 @@ function simulateAutoSubs() {
 
 function renderSimulator() {
   var box = $("simulatorBar");
+  if (!LAST_REPORT) { box.style.display = "none"; return; }
   var sim = simulateAutoSubs();
-  if (!sim) { box.style.display = "none"; return; }
-  if (!(sim.subs.length)) {
-    box.style.display = "none";
-    return;
-  }
+  if (!sim || !(sim.subs.length)) { box.style.display = "none"; return; }
+  box.style.display = "block";
   var sign = sim.delta >= 0 ? "+" : "";
   var color = sim.delta >= 0 ? "text-emerald-400" : "text-red-400";
   var rows = sim.subs.map(function (p) {
