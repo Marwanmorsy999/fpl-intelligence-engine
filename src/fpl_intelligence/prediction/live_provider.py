@@ -128,6 +128,7 @@ class LabeledPlayerPrediction(PlayerPrediction):
 
     source: str = ""
     data_quality: str = ""
+    breakdown: dict[str, float] | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -197,8 +198,8 @@ class ChainLevel:
     #: free-form provenance notes (run id, row counts, disabled signals...)
     notes: dict[str, Any] = field(default_factory=dict)
     #: Optional per-player estimate extras for the proxy level:
-    #: ``{player_id: {"minutes": .., "start": .., "conf": .., "compl": ..}}``
-    per_player: dict[int, dict[str, float]] = field(default_factory=dict)
+    #: ``{player_id: {"minutes": .., "start": .., "conf": .., "compl": .., "breakdown": {}}}``
+    per_player: dict[int, dict[str, Any]] = field(default_factory=dict)
 
     def meta(self) -> dict[str, Any]:
         return {
@@ -1082,15 +1083,17 @@ class LivePredictionProvider:
             return None
 
         points: dict[int, float] = {}
-        per_player: dict[int, dict[str, float]] = {}
+        per_player: dict[int, dict[str, Any]] = {}
         for row in rows:
             pid = int(row.element_id)
             points[pid] = float(row.expected_points)
-            extras: dict[str, float] = {"conf": 0.75, "compl": 0.85}
+            extras: dict[str, Any] = {"conf": 0.75, "compl": 0.85}
             if row.minutes_estimate is not None:
                 extras["minutes"] = float(row.minutes_estimate)
             if row.start_prob is not None:
                 extras["start"] = float(row.start_prob)
+            if isinstance(row.breakdown, dict) and row.breakdown:
+                extras["breakdown"] = {k: float(v) for k, v in row.breakdown.items()}
             per_player[pid] = extras
 
         notes: dict[str, Any] = {
@@ -1270,7 +1273,7 @@ class LivePredictionProvider:
                 else:
                     continue  # truly uncovered — omit rather than invent
 
-            predictions[pid] = _make_prediction(
+            pred = _make_prediction(
                 pid,
                 result.gameweek,
                 float(xp),
@@ -1281,6 +1284,15 @@ class LivePredictionProvider:
                 confidence=float(extras.get("conf", defaults["conf"])),
                 data_completeness=float(extras.get("compl", defaults["compl"])),
             )
+            # v2.3.2: propagate breakdown terms so materialized and proxy levels
+            # both render the four-chip decomposition in the drawer.
+            bd = extras.get("breakdown")
+            if isinstance(bd, dict) and bd:
+                try:
+                    pred.breakdown = {k: float(v) for k, v in bd.items()}
+                except Exception:
+                    pred.breakdown = None
+            predictions[pid] = pred
         return predictions
 
     # -- DecisionPredictionProvider protocol -------------------------------------
