@@ -1,4 +1,4 @@
-"""Phase 20.0 — deep-analysis player drawer endpoint.
+"""Phase 20.0 ??? deep-analysis player drawer endpoint.
 
 ``GET /api/v1/player/{player_id}/drawer?session_id=`` bundles everything the
 frontend drawer shows in one call:
@@ -11,7 +11,7 @@ frontend drawer shows in one call:
 * BBC news flags when any headline matched (materialized ``news_cache``).
 
 Phase 20.1: every input is read from indexed tables written by the daily
-06:10 materialize cron — ZERO live network fetches in the request path. This
+06:10 materialize cron ??? ZERO live network fetches in the request path. This
 is the fix for the production 504 (the old implementation fetched bootstrap +
 element-summary live per request and hung until timeout behind blocked FPL).
 """
@@ -79,6 +79,9 @@ async def player_drawer(
     db: GetDB,
     response: Response,
     session_id: str | None = Query(None, description="Per-user session key. Required."),
+    gw: int | None = Query(
+        None, description="Gameweek override (defaults to the saved squad's GW)."
+    ),
 ) -> dict[str, Any]:
     """Deep-analysis payload for one squad player."""
     if not session_id:
@@ -87,6 +90,7 @@ async def player_drawer(
     if squad is None or player_id not in (squad.player_ids or []):
         raise HTTPException(status_code=404, detail="Player not in this squad")
     response.headers["Cache-Control"] = "no-store"
+    target_gw = int(gw) if gw else int(squad.gameweek)
 
     # --- identity ------------------------------------------------------------
     row: ElementFactDB | None = db.get(ElementFactDB, int(player_id))
@@ -135,11 +139,11 @@ async def player_drawer(
     xg = xa = None
 
     def _predict() -> Any:
-        return provider.get_squad_predictions([player_id], [squad.gameweek])
+        return provider.get_squad_predictions([player_id], [target_gw])
 
     try:
         preds = await run_in_threadpool(_predict)
-        pred = (preds.get(squad.gameweek) or {}).get(player_id)
+        pred = (preds.get(target_gw) or {}).get(player_id)
         if pred is not None:
             expected_points = round(pred.expected_points, 2)
             prediction_source = getattr(pred, "source", None)
@@ -151,7 +155,7 @@ async def player_drawer(
             raw_breakdown = getattr(pred, "breakdown", None)
             if isinstance(raw_breakdown, dict):
                 breakdown = {k: round(float(v), 2) for k, v in raw_breakdown.items()}
-    except Exception as exc:  # noqa: BLE001 — xPTS is best-effort
+    except Exception as exc:  # noqa: BLE001 ??? xPTS is best-effort
         logger.warning("drawer predictions failed for %s: %s", player_id, exc)
 
     # --- Understat xG/xA (matched players only; OFFLINE snapshot, no network) --
@@ -206,7 +210,7 @@ async def player_drawer(
     )
     return {
         "session_id": session_id,
-        "gameweek": squad.gameweek,
+        "gameweek": target_gw,
         "player": {
             "id": player_id,
             "web_name": web_name,
