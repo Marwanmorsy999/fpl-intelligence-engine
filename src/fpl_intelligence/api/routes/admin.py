@@ -184,6 +184,11 @@ async def purge_history_endpoint(
     source_prefix: str = Query(
         "github-actions", description="Delete rows whose source starts with this."
     ),
+    include_ledger: bool = Query(
+        False,
+        description="Also delete prediction_ledger rows (calibration pairs "
+        "computed against cross-season actuals are meaningless).",
+    ),
 ) -> dict:
     """Phase 21.1 one-shot — remove cross-season ingested history.
 
@@ -200,7 +205,7 @@ async def purge_history_endpoint(
     from sqlalchemy import delete, func, select
 
     from fpl_intelligence.db.models import Gameweek, PlayerGameweekPerformance
-    from fpl_intelligence.sync.models import IngestedGameweekDB
+    from fpl_intelligence.sync.models import IngestedGameweekDB, PredictionLedgerDB
 
     like = f"{(source_prefix or 'github-actions').rstrip('%')}%"
     try:
@@ -243,6 +248,11 @@ async def purge_history_endpoint(
             )
         # Baseline window must never look at purged gameweeks again.
         _ = func.count  # keep import shape stable for future aggregates
+        deleted_ledger = 0
+        if include_ledger:
+            deleted_ledger = int(
+                db.execute(delete(PredictionLedgerDB)).rowcount or 0
+            )
         db.commit()
         return JSONResponse(
             content={
@@ -250,6 +260,7 @@ async def purge_history_endpoint(
                 "deleted_history_rows": deleted_history,
                 "purged_gameweeks": doomed_gws,
                 "deleted_mirror_rows": deleted_mirror,
+                "deleted_ledger_rows": deleted_ledger,
             }
         )
     except Exception as exc:  # noqa: BLE001 - surfaced for cron visibility
