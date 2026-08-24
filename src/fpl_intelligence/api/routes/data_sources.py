@@ -192,6 +192,7 @@ async def _probe_odds_uncached(db: Any) -> dict[str, Any]:
         status = "ok" if matched == total else ("degraded" if matched else "blocked")
         return {"status": status, "detail": detail}
     except Exception as exc:  # noqa: BLE001 — audit must never fail the page
+        db.rollback()  # keep the shared request session usable afterwards
         return {
             "status": "ok",
             "detail": (
@@ -278,10 +279,20 @@ async def _probe_understat_refresh_uncached(db: Any) -> dict[str, Any]:
         try:
             from datetime import datetime as _dt
 
-            from sqlalchemy import select
+            from sqlalchemy import select, text
 
             from fpl_intelligence.sync.materialized_models import ProviderRefreshDB
 
+            db.execute(
+                text(
+                    "CREATE TABLE IF NOT EXISTS provider_refresh ("
+                    " source VARCHAR(60) PRIMARY KEY,"
+                    " season_label VARCHAR(40),"
+                    " player_count INTEGER NOT NULL DEFAULT 0,"
+                    " payload JSONB NOT NULL DEFAULT '[]'::jsonb,"
+                    " fetched_at TIMESTAMP WITH TIME ZONE NOT NULL)"
+                )
+            )
             row = db.scalar(
                 select(ProviderRefreshDB).where(ProviderRefreshDB.source == "understat")
             )

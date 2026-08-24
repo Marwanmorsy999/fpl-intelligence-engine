@@ -162,6 +162,9 @@ class PlayerDetail(BaseModel):
     #: xPTS breakdown: base(price) + xG/xA term + market term + weather term.
     #: ``None`` when the resolved chain level does not produce a breakdown.
     xpts_breakdown: dict[str, float] | None = None
+    #: Phase 22 (D1) — share of managers owning this player ("selected by").
+    #: ``None`` when no materialized fact or seed row carries it.
+    ownership: float | None = None
 
 
 class DecisionReport(BaseModel):

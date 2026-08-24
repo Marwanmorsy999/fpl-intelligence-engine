@@ -308,6 +308,7 @@ def _ownership_map(db: Session) -> dict[int, float]:
             if value is not None:
                 owners[int(element_id)] = value
     except Exception as exc:  # noqa: BLE001 — enrichment only
+        db.rollback()  # a failed read must never leave the txn aborted
         logger.debug("element_facts ownership read failed: %s", exc)
     if len(owners) >= 100:
         return owners
@@ -537,6 +538,7 @@ def _prediction_rows(db: Session, gameweek: int) -> dict[int, float]:
             )
         ).all()
     except Exception as exc:  # noqa: BLE001 — table may be absent on old deploys
+        db.rollback()
         logger.debug("predictions_current read failed: %s", exc)
         return {}
     return {int(element_id): float(xpts) for element_id, xpts in rows if element_id is not None}
@@ -607,6 +609,7 @@ def _team_ids_for(db: Session, pids: set[int]) -> dict[int, int]:
             if element_id is not None and team_id is not None:
                 teams[int(element_id)] = int(team_id)
     except Exception as exc:  # noqa: BLE001 — metadata only
+        db.rollback()
         logger.debug("element_facts team read failed: %s", exc)
     return teams
 

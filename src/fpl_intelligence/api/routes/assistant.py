@@ -718,6 +718,7 @@ def _load_brief_row(db: Session, session_id: str, gameweek: int) -> dict[str, An
             )
         )
     except Exception as exc:  # noqa: BLE001 — table may not exist yet
+        db.rollback()
         logger.debug("brief row read failed: %s", exc)
         return None
     if row is None or not isinstance(row.payload, dict):

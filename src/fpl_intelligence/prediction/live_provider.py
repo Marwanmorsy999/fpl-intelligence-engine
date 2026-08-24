@@ -918,14 +918,34 @@ class LivePredictionProvider:
         return self._understat_index
 
     def _merge_understat_refresh(self, index: dict[str, dict[str, Any]]) -> None:
-        """Overlay the DB-stored refresh payload (best-effort, never raises)."""
+        """Overlay the DB-stored refresh payload (best-effort, never raises).
+
+        A missing table must ROLL BACK before returning — otherwise the
+        request's Postgres transaction stays aborted and every later query in
+        the request fails with InFailedSqlTransaction.
+        """
         try:
+            from sqlalchemy import text
+
             from fpl_intelligence.sync.materialized_models import ProviderRefreshDB
 
+            # Self-sealing DDL: deployments on alembic <0019 get the table on
+            # first use instead of erroring into an aborted transaction.
+            self.session.execute(
+                text(
+                    "CREATE TABLE IF NOT EXISTS provider_refresh ("
+                    " source VARCHAR(60) PRIMARY KEY,"
+                    " season_label VARCHAR(40),"
+                    " player_count INTEGER NOT NULL DEFAULT 0,"
+                    " payload JSONB NOT NULL DEFAULT '[]'::jsonb,"
+                    " fetched_at TIMESTAMP WITH TIME ZONE NOT NULL)"
+                )
+            )
             row = self.session.scalar(
                 select(ProviderRefreshDB).where(ProviderRefreshDB.source == "understat")
             )
         except Exception as exc:  # noqa: BLE001 — table may be absent pre-migration
+            self.session.rollback()
             logger.debug("provider_refresh read skipped: %s", exc)
             return
         if row is None or not isinstance(row.payload, list):
