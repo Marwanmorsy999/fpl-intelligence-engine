@@ -44,6 +44,9 @@ logger = logging.getLogger(__name__)
 _refresh_marks: dict[int, float] = {}
 _refresh_lock = threading.Lock()
 
+#: Inline refresh budget (serverless-safe; the response waits for it).
+_REFRESH_INLINE_BUDGET = 25.0
+
 
 def _ensure_tables(db: Any) -> None:
     """Self-sealing DDL for deployments whose DB predates Phase 23."""
@@ -263,14 +266,34 @@ async def league_overview(
             cooling = now_mono - last < REFRESH_COOLDOWN_SECONDS
             if not cooling:
                 _refresh_marks[lid] = now_mono
-        payload["status"] = "refreshing"
-        payload["note"] = "refreshing…"
         if not cooling:
+            # Serverless note: the refresh runs INSIDE this request (bounded),
+            # because background tasks are frozen once the response returns.
             target_gw = await _target_gameweek(db, 1)
-            task = asyncio.create_task(refresh_league_cache(db, lid, target_gw))
-            task.add_done_callback(_log_refresh_failure)
-        else:
-            payload["note"] = "refreshing… (cooldown active — previous attempt still warming)"
+            try:
+                await asyncio.wait_for(
+                    refresh_league_cache(db, lid, target_gw),
+                    timeout=_REFRESH_INLINE_BUDGET,
+                )
+                cache_row = db.get(LeagueCacheDB, lid)
+                if cache_row is not None and (cache_row.standings or []):
+                    fetched = cache_row.refreshed_at
+                    if fetched.tzinfo is None:
+                        fetched = fetched.replace(tzinfo=UTC)
+                    age = max(
+                        0.0, (datetime.now(UTC) - fetched).total_seconds()
+                    )
+                    payload["cache_age_seconds"] = round(age, 1)
+                    payload["status"] = "ok"
+                    payload.update(_build_view(db, cache_row, session_id))
+                    return payload
+            except TimeoutError:
+                pass
+        payload["status"] = "refreshing"
+        payload["note"] = (
+            "refreshing… (the standings pull is still warming — reload in a "
+            "few seconds)"
+        )
         return payload
 
     if cache_row is None or not (cache_row.standings or []):
