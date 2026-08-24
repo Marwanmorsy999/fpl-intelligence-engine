@@ -111,13 +111,22 @@ async def fetch_official_transfers(
     from fpl_intelligence.config import get_settings
     from fpl_intelligence.data_providers.fpl_egress import FplEgressChain
 
+    def _validate(data: Any) -> None:
+        if not isinstance(data, dict) or not isinstance(data.get("history"), list):
+            raise ValueError(
+                f"history payload missing 'history' list (got "
+                f"{type(data).__name__})"
+            )
+
     cfg = get_settings()
     chain = FplEgressChain(
         cfg.fpl_base_url,
         timeout=cfg.egress_strategy_timeout,
         cache_ttl=300.0,
     )
-    payload = await chain.fetch(f"/api/entry/{int(entry_id)}/history/")
+    payload = await chain.fetch(
+        f"/api/entry/{int(entry_id)}/history/", validator=_validate
+    )
     rows = parse_history_transfers(payload)
     excerpt: list[dict[str, Any]] = []
     if with_raw:
