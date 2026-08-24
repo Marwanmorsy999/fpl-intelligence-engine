@@ -13,8 +13,9 @@
 <link rel="stylesheet" href="/static/app.css">
 <script src="/static/app.js"></script>
 <style>
-  html,body{height:100%;margin:0}
-  body.crunch-no-scroll{overflow:hidden}
+  html,body{height:100%;margin:0;overflow:hidden}
+  body.crunch-no-scroll{overflow:hidden;height:100vh;height:100dvh}
+  .crunch-wrap{height:calc(100dvh - 56px);overflow:hidden;display:flex;flex-direction:column;gap:12px;max-width:420px;margin:0 auto;padding:12px 12px calc(12px + env(safe-area-inset-bottom,0px));box-sizing:border-box}
 </style>
 </head>
 <body class="crunch-no-scroll">

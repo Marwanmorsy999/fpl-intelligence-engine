@@ -51,9 +51,7 @@ document.addEventListener("DOMContentLoaded", function () {
       return '<div class="card" data-testid="chips-plan" style="margin-bottom:10px">' +
         '<div style="display:flex;align-items:center;gap:8px"><strong>'+FPLApp.esc(title)+'</strong>' + badge +
         '<span style="margin-left:auto" class="num">total '+ev+' pts · <span style="color:#6ee7b7">+'+gain+' EV</span></span></div>' +
-        '<div class="small muted" style="margin-top:6px">'+plan.steps.map(function(s){
-          return 'GW'+s.gameweek+': '+FPLApp.esc(s.action)+(s.chip?' ('+FPLApp.esc(s.chip)+')':'');
-        }).join(' → ')+'</div>' +
+        '<div class="small muted" style="margin-top:6px">'+ ((plan.chips||[]).length ? (plan.chips||[]).map(function(s){ return (s.chip? s.chip.replace("_"," "): s.action) + ' GW'+s.gw; }).join(' → ') : (plan.breakdown||[]).slice(0,3).map(function(s){ return 'GW'+s.gameweek+': '+s.action; }).join(' → ')) +'</div>' +
         '<button class="btn-ghost" style="margin-top:8px" data-plan="'+idx+'" data-testid="chips-detail-btn">View breakdown</button>' +
         '</div>';
     }).join("");
