@@ -247,7 +247,6 @@ async def league_overview(
         return payload
 
     cache_row = db.get(LeagueCacheDB, int(selected["league_id"]))
-    now_mono = time.monotonic()
     fresh = False
     should_refresh = cache_row is None or not (cache_row.standings or [])
     if cache_row is not None and (cache_row.standings or []):
@@ -261,11 +260,15 @@ async def league_overview(
 
     if should_refresh and refresh:
         lid = int(selected["league_id"])
+        # Wall-clock cooldown guard: monotonic() has no defined epoch and on
+        # freshly-started serverless workers can sit below the threshold,
+        # which permanently read "cooldown active" on a clean instance.
+        now_wall = time.time()
         with _refresh_lock:
             last = _refresh_marks.get(lid, 0.0)
-            cooling = now_mono - last < REFRESH_COOLDOWN_SECONDS
+            cooling = now_wall - last < REFRESH_COOLDOWN_SECONDS
             if not cooling:
-                _refresh_marks[lid] = now_mono
+                _refresh_marks[lid] = now_wall
         diag = ""
         if not cooling:
             target_gw = await _target_gameweek(db, 1)
