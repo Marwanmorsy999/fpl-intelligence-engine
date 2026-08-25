@@ -150,7 +150,7 @@ class FplSquadImporter:
         return list(self._last_egress_attempts)
 
     async def build_squad_from_entry(
-        self, entry_id: int, db: Session | None = None
+        self, entry_id: int, db: Session | None = None, *, force_next_gw: bool = False
     ) -> FplImportResult:
         """Resolve an FPL entry ID into a :class:`FplImportResult`.
 
@@ -158,6 +158,10 @@ class FplSquadImporter:
         unplayed GW (gameweek_clock). Store whichever differs from the saved
         snapshot (prefer next when both differ) so a pre-deadline transfer is
         never lost. The chosen GW is recorded as ``picks_gw`` / ``gameweek``.
+
+        v2.5.4: when ``force_next_gw`` is True (dashboard toggle), the next-GW
+        picks are returned even when they match the current GW — the user
+        explicitly wants the pre-deadline transfer window.
         """
         logger.info("build_squad_from_entry: START entry_id=%s db=%s", entry_id, db is not None)
         try:
@@ -245,7 +249,7 @@ class FplSquadImporter:
                     logger.info("picks next_gw fetch error: %s", exc)
                     picks_next = None
 
-            # Choose which payload to keep.
+            # Choose which payload to keep (v2.5.4 force_next_gw toggle).
             picks_payload, gameweek = self._choose_picks_payload(
                 current_gw=int(current_gw),
                 next_gw=int(next_gw) if next_gw is not None else None,
@@ -253,6 +257,7 @@ class FplSquadImporter:
                 picks_next=picks_next,
                 db=db,
                 entry_id=int(entry_id),
+                force_next_gw=bool(force_next_gw),
             )
             if picks_payload is None:
                 # Both missing — surface the original error.
@@ -297,6 +302,7 @@ class FplSquadImporter:
         picks_next: dict[str, Any] | None,
         db: Session | None,
         entry_id: int,
+        force_next_gw: bool = False,
     ) -> tuple[dict[str, Any] | None, int]:
         """Pick the truth payload between current and next GW picks.
 
@@ -307,6 +313,9 @@ class FplSquadImporter:
           if both differ, prefer the *next* GW — latest transfer).
         * If no saved snapshot → prefer next GW when it differs from current
           (captures a pre-deadline transfer), otherwise current.
+        v2.5.4: when ``force_next_gw`` is True, return the next-GW payload
+        unconditionally (if it exists) — the dashboard toggle forces picks_gw
+        to next_gw regardless of current_event.
         Returns (payload, picks_gw).
         """
         # Helper to extract element ids set.
@@ -320,6 +329,10 @@ class FplSquadImporter:
 
         ids_current = _ids(picks_current)
         ids_next = _ids(picks_next)
+
+        # v2.5.4: forced next-GW toggle — honour the checkbox from the dashboard.
+        if force_next_gw and picks_next is not None:
+            return picks_next, int(next_gw or current_gw)
 
         # Single payload cases
         if picks_current is None and picks_next is None:

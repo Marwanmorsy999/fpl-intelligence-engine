@@ -101,6 +101,19 @@
      The server-rendered markup below is replaced by FPLApp.renderNav at boot,
      which also mounts the persistent session chip. -->
 <div id="topnav"></div>
+<!-- v2.5.4 — sticky Sync Now ribbon (primary path, CSP-proof) -->
+<div id="syncRibbon" class="sync-ribbon" data-testid="sync-ribbon" style="position:sticky; top:56px; z-index:33; background:rgba(11,15,25,0.97); backdrop-filter:blur(10px); border-bottom:1px solid #1e293b; display:none">
+  <div style="max-width:1080px; margin:0 auto; padding:8px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap">
+    <button id="syncNowBtn" class="btn-primary" type="button" data-testid="sync-now-btn" style="min-height:44px; font-size:15px; font-weight:800; box-shadow:0 4px 14px rgba(34,197,94,0.25)">↻ Sync Now</button>
+    <label for="syncNextGwToggle" style="display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700; color:#cbd5e1; cursor:pointer; user-select:none">
+      <input id="syncNextGwToggle" type="checkbox" data-testid="sync-next-gw-toggle" style="width:16px; height:16px; accent-color:#22c55e"> Sync for NEXT gameweek
+    </label>
+    <span class="faint small" style="margin-left:auto; font-size:12px">Dashboard sync does the same dual-fetch (current + next GW) as the importer</span>
+  </div>
+  <div id="syncBannerSticky" class="hidden" role="status" aria-live="polite" data-testid="sync-banner-sticky" style="max-width:1080px; margin:0 auto; padding:0 16px 10px; display:none">
+    <div id="syncBannerStickyInner" style="background:linear-gradient(135deg,#052e16,#0a4a28); border:1px solid #16a34a; color:#bbf7d0; border-radius:12px; padding:10px 14px; font-size:14px; font-weight:800; box-shadow:0 6px 20px rgba(34,197,94,0.25)"></div>
+  </div>
+</div>
 
 <div class="max-w-4xl mx-auto px-4 py-8">
 
@@ -129,7 +142,6 @@
     <div class="flex flex-wrap items-center gap-3 mt-4">
       <button id="toggleManualBtn" class="btn-ghost" type="button">Enter Squad Manually</button>
       <button id="retrySyncBtn" class="btn-ghost" type="button" style="display:none; border-color:#38bdf8; color:#bae6fd;">🔄 Try Again</button>
-      <button id="syncNowBtn" class="btn-ghost" type="button" style="display:none; border-color:#22c55e; color:#bbf7d0;" data-testid="sync-now-btn">↻ Sync now</button>
       <details class="ml-auto text-slate-500 text-sm">
         <summary class="cursor-pointer select-none">Developer Tools</summary>
         <button id="demoBtn" class="btn-ghost mt-2" type="button">Try a Demo Team</button>
@@ -346,11 +358,13 @@ function updateSourceChip() {
   var demoChip = $("demoChip");
   var startOver = $("startOverBtn");
   var syncNow = $("syncNowBtn");
+  var ribbon = $("syncRibbon");
   if (CURRENT_SESSION_ID && CURRENT_SOURCE) {
     chip.style.display = "inline-flex";
     chip.textContent = CURRENT_SOURCE_LABEL;
     startOver.style.display = "inline-block";
     if (syncNow) syncNow.style.display = CURRENT_SOURCE === "demo" ? "none" : "inline-block";
+    if (ribbon) ribbon.style.display = CURRENT_SOURCE === "demo" ? "none" : "block";
     if (CURRENT_SOURCE === "demo") {
       demoChip.style.display = "inline-flex";
     } else {
@@ -361,6 +375,7 @@ function updateSourceChip() {
     demoChip.style.display = "none";
     startOver.style.display = "none";
     if (syncNow) syncNow.style.display = "none";
+    if (ribbon) ribbon.style.display = "none";
   }
   FPLApp.session.updateChip();
 }
@@ -377,6 +392,9 @@ function startOver() {
   $("demoBanner").style.display = "none";
   $("demoChip").style.display = "none";
   var sb = $("syncBanner"); if (sb) { sb.style.display = "none"; sb.textContent = ""; }
+  var sbs = $("syncBannerSticky"); if (sbs) { sbs.style.display = "none"; }
+  var sbsi = $("syncBannerStickyInner"); if (sbsi) { sbsi.textContent = ""; }
+  var tgl = $("syncNextGwToggle"); if (tgl) { tgl.checked = false; }
   updateSourceChip();
   /* Start Over is the only clear path back to the entry screen. */
   $("inputSection").style.display = "block";
@@ -523,37 +541,50 @@ async function retrySync() {
   }
 }
 
-/* v2.5.3 — Dashboard Sync now (6s server re-fetch, no bookmarklet) */
+/* v2.5.4 — Dashboard Sync now (sticky ribbon + NEXT GW toggle, 6s cap, same dual-fetch) */
 async function syncNow() {
   var btn = $("syncNowBtn");
   var banner = $("syncBanner");
+  var stickyWrap = $("syncBannerSticky");
+  var stickyInner = $("syncBannerStickyInner");
   if (!CURRENT_SESSION_ID) { showError("Enter your Team ID first."); return; }
   hideMessages();
   if (banner) { banner.style.display = "none"; banner.textContent = ""; }
+  if (stickyWrap) { stickyWrap.style.display = "none"; }
+  if (stickyInner) { stickyInner.textContent = ""; }
   btn.disabled = true;
   var origText = btn.textContent;
   btn.textContent = "⏳ Syncing…";
   try {
-    var res = await fetch(API + "/api/v1/squad/sync-now?session_id=" + encodeURIComponent(CURRENT_SESSION_ID), { method: "POST" });
+    var nextGwChecked = false;
+    try { nextGwChecked = !!($("syncNextGwToggle") && $("syncNextGwToggle").checked); } catch (e) {}
+    var url = API + "/api/v1/squad/sync-now?session_id=" + encodeURIComponent(CURRENT_SESSION_ID);
+    if (nextGwChecked) { url += "&next_gw=true"; }
+    var res = await fetch(url, { method: "POST" });
     if (!res.ok) {
       var body = await res.json().catch(function () { return {}; });
       throw new Error(body.detail || ("Sync failed (" + res.status + ")"));
     }
     var data = await res.json();
-    if (data.player_names) { /* server now returns player_names only inside decisions */ }
-    // Show banner: "synced HH:MM · IN X OUT Y"
-    if (banner && data.banner) {
-      banner.textContent = data.banner;
+    // Prominent green banner: "Synced! New squad loaded for GW2. IN: X OUT: Y"
+    var bannerText = data.banner || ("Synced! New squad loaded for GW" + (data.gameweek || "?") + ".");
+    if (banner) {
+      banner.textContent = bannerText;
       banner.style.display = "block";
     }
-    // If server indicates transfers, reflect in status briefly
-    setStatus(data.banner || "Synced — running the numbers…");
+    if (stickyWrap && stickyInner) {
+      stickyInner.textContent = bannerText;
+      stickyWrap.style.display = "block";
+    }
+    setStatus(bannerText);
     await renderFromApi();
-    // Keep banner visible after render
-    if (banner && data.banner) { banner.style.display = "block"; banner.textContent = data.banner; }
+    // Keep banners visible after render (renderFromApi hides status but not banners)
+    if (banner) { banner.style.display = "block"; banner.textContent = bannerText; }
+    if (stickyWrap && stickyInner) { stickyWrap.style.display = "block"; stickyInner.textContent = bannerText; }
   } catch (e) {
     showError(e.message);
     if (banner) { banner.style.display = "none"; }
+    if (stickyWrap) { stickyWrap.style.display = "none"; }
   } finally {
     btn.disabled = false;
     btn.textContent = origText;

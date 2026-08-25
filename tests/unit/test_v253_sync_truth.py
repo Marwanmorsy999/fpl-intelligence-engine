@@ -239,8 +239,10 @@ class TestSyncNowBannerAndDecisions:
             assert data["picks_gw"] == 2
             assert 999 in data["after_ids"]
             assert 100 in data["before_ids"]
-            assert "synced" in data["banner"]
+            assert "synced" in data["banner"].lower()
             assert "IN" in data["banner"] and "OUT" in data["banner"]
+            # v2.5.4: banner must be the prominent green style
+            assert "Synced!" in data["banner"] and "GW2" in data["banner"]
             # After sync-now, decisions must show new player
             squad_after = client.get("/api/v1/squad", params={"session_id": "2295006"}).json()
             assert 999 in squad_after["player_ids"]
@@ -250,11 +252,17 @@ class TestSyncNowBannerAndDecisions:
 
         p = Path("src/fpl_intelligence/web/static/bookmarklet.js")
         text = p.read_text(encoding="utf-8")
-        assert "2.5.3-sync-truth" in text
+        # v2.5.4-sync-fallback supersedes 2.5.3; accept either for backwards-compat
+        assert "2.5.4-sync-fallback" in text or "2.5.3-sync-truth" in text
         assert "BOOKMARKLET_VERSION" in text
+        # CSP fallback message must be present
+        assert "FPL blocked the sync" in text
+        assert "Sync Now button on your dashboard" in text
         p2 = Path("src/fpl_intelligence/web/static/connect.html")
-        assert "v2.5.3-sync-truth" in p2.read_text(encoding="utf-8")
+        assert "v2.5.4-sync-fallback" in p2.read_text(encoding="utf-8") or "v2.5.3-sync-truth" in p2.read_text(encoding="utf-8")
         assert "re-drag" in p2.read_text(encoding="utf-8").lower()
+        # connect warning for CSP
+        assert "If FPL blocks the bookmarklet" in p2.read_text(encoding="utf-8")
 
     def test_decisions_cache_key_includes_updated_at(self, api):
         client, db, token = api

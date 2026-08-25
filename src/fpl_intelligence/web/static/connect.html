@@ -42,9 +42,13 @@
       <li>Paste + save your token above.</li>
       <li>Drag this link to your bookmarks bar:</li>
     </ol>
-    <a id="bookmarkletLink" class="btn" href="#" onclick="return false" title="Drag me to your bookmarks bar" style="display:inline-block;text-decoration:none">⚽ Sync FPL Squad → Engine <span id="bmVersion" class="pill ok" style="margin-left:8px;font-size:0.65rem">v2.5.3-sync-truth</span></a>
+    <a id="bookmarkletLink" class="btn" href="#" onclick="return false" title="Drag me to your bookmarks bar" style="display:inline-block;text-decoration:none">⚽ Sync FPL Squad → Engine <span id="bmVersion" class="pill ok" style="margin-left:8px;font-size:0.65rem">v2.5.4-sync-fallback</span></a>
     <button id="copyBmBtn" class="btn-ghost" type="button" style="margin-left:10px">Copy link URL</button>
-    <p class="faint small" style="margin:6px 0 0">Bookmarklet version: <strong>v2.5.3-sync-truth</strong> — please <em>re-drag</em> the button to your bookmarks bar to update from any older version.</p>
+    <p class="faint small" style="margin:6px 0 0">Bookmarklet version: <strong>v2.5.4-sync-fallback</strong> — please <em>re-drag</em> the button to your bookmarks bar to update from any older version.</p>
+    <div class="card" style="margin:10px 0 0; background:rgba(251,191,36,0.08); border-color:rgba(251,191,36,0.35); padding:10px 12px">
+      <p class="small" style="margin:0; color:#fde68a; font-weight:700">⚠️ If FPL blocks the bookmarklet, just use the 'Sync Now' button on your dashboard instead.</p>
+      <p class="faint small" style="margin:4px 0 0">FPL's strict Content Security Policy (CSP) can block <code>javascript:</code> execution. The bookmarklet now shows “FPL blocked the sync. Please use the Sync Now button on your dashboard instead.” instead of redirecting — the dashboard Sync Now does the same dual-fetch (current + next GW) server-side.</p>
+    </div>
     <ol class="muted small" start="3" style="padding-left:18px;margin:12px 0 0">
       <li>Open <code>fantasy.premierleague.com/entry/&lt;your-id&gt;/event</code>.</li>
       <li>Click the bookmark. You'll see a success or failure alert — nothing else needed.</li>

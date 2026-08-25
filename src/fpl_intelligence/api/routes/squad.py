@@ -1084,6 +1084,10 @@ async def sync_now(
     db: GetDB,
     response: Response,
     session_id: str = Query(..., description="Per-user session key (= FPL entry id)."),
+    next_gw: bool = Query(
+        False,
+        description="When true, force picks_gw to the next unplayed GW (pre-deadline toggle).",
+    ),
 ) -> dict[str, Any]:
     """Dashboard 'Sync now' — server-side re-fetch via egress masks (6s cap).
 
@@ -1091,6 +1095,10 @@ async def sync_now(
     (current + next unplayed via gameweek_clock), picks the payload that
     contains the latest transfer (v2.5.3 truth), saves it, invalidates the
     per-session decisions cache, and returns an IN/OUT banner.
+
+    v2.5.4: when ``next_gw=true`` the dashboard toggle forces picks_gw to the
+    next unplayed GW regardless of current_event — dual-fetch stays identical,
+    only the choice is forced.
     """
     import asyncio
     from datetime import UTC, datetime
@@ -1111,8 +1119,10 @@ async def sync_now(
     importer = FplSquadImporter(egress=egress)
     try:
         # 6s hard cap for the entire mask chain (spec requirement).
+        # v2.5.4: pass through the NEXT-gameweek toggle so the dual-fetch is
+        # identical — only the choice is forced when next_gw=true.
         result = await asyncio.wait_for(
-            importer.build_squad_from_entry(int(session_id), db),
+            importer.build_squad_from_entry(int(session_id), db, force_next_gw=bool(next_gw)),
             timeout=6.0,
         )
     except TimeoutError as exc:  # noqa: UP041 — catches asyncio.TimeoutError on py311+
@@ -1155,10 +1165,15 @@ async def sync_now(
             out_names = [detected["name_out"]]
     now = datetime.now(UTC)
     hhmm = now.strftime("%H:%M")
+    gw_label = saved.gameweek
     if in_names or out_names:
-        banner = f"synced {hhmm} · IN {', '.join(in_names) if in_names else '—'} OUT {', '.join(out_names) if out_names else '—'}"  # noqa: E501
+        banner = (
+            f"Synced! New squad loaded for GW{gw_label}. "
+            f"IN: {', '.join(in_names) if in_names else '—'} "
+            f"OUT: {', '.join(out_names) if out_names else '—'}"
+        )
     else:
-        banner = f"synced {hhmm} · no changes"
+        banner = f"Synced! New squad loaded for GW{gw_label}. no changes · {hhmm}"
     return {
         "ok": True,
         "session_id": str(session_id),
