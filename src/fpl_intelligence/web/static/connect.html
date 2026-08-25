@@ -56,9 +56,9 @@
       <li>Paste + save your token above.</li>
       <li>Drag this link to your bookmarks bar:</li>
     </ol>
-    <a id="bookmarkletLink" class="btn" href="#" onclick="return false" title="Drag me to your bookmarks bar" style="display:inline-block;text-decoration:none">⚽ Sync FPL Squad → Engine <span id="bmVersion" class="pill ok" style="margin-left:8px;font-size:0.65rem">v2.5.5-ribbon-always</span></a>
+    <a id="bookmarkletLink" class="btn" href="#" onclick="return false" title="Drag me to your bookmarks bar" style="display:inline-block;text-decoration:none">⚽ Sync FPL Squad → Engine <span id="bmVersion" class="pill ok" style="margin-left:8px;font-size:0.65rem">v2.5.6-async-sync</span></a>
     <button id="copyBmBtn" class="btn-ghost" type="button" style="margin-left:10px">Copy link URL</button>
-    <p class="faint small" style="margin:6px 0 0">Bookmarklet version: <strong>v2.5.5-ribbon-always</strong> — please <em>re-drag</em> the button to your bookmarks bar to update from any older version.</p>
+    <p class="faint small" style="margin:6px 0 0">Bookmarklet version: <strong>v2.5.6-async-sync</strong> — please <em>re-drag</em> the button to your bookmarks bar to update from any older version.</p>
     <div class="card" style="margin:10px 0 0; background:rgba(251,191,36,0.08); border-color:rgba(251,191,36,0.35); padding:10px 12px">
       <p class="small" style="margin:0; color:#fde68a; font-weight:700">⚠️ If FPL blocks the bookmarklet, just use the 'Sync Now' button on your dashboard instead.</p>
       <p class="faint small" style="margin:4px 0 0">FPL's strict Content Security Policy (CSP) can block <code>javascript:</code> execution. The bookmarklet now shows “FPL blocked the sync. Please use the Sync Now button on your dashboard instead.” instead of redirecting — the dashboard Sync Now does the same dual-fetch (current + next GW) server-side.</p>
@@ -252,20 +252,51 @@ document.addEventListener("DOMContentLoaded", function () {
     var btn = $("syncNowBtn");
     var stickyWrap = $("syncBannerSticky"); var stickyInner = $("syncBannerStickyInner");
     if (stickyWrap) stickyWrap.style.display = "none"; if (stickyInner) stickyInner.textContent = "";
-    if (btn) { btn.disabled = true; btn.textContent = "\u23F3 Syncing..."; }
+    if (btn) { btn.disabled = true; btn.textContent = "Syncing\u2026"; }
     var nextGwChecked = false; try { nextGwChecked = !!($("syncNextGwToggle") && $("syncNextGwToggle").checked); } catch(e){}
     var url = "/api/v1/squad/sync-now?session_id=" + encodeURIComponent(sess.key);
     if (nextGwChecked) url += "&next_gw=true";
     fetch(url, { method: "POST" }).then(function(r){
-      if (!r.ok) return r.json().catch(function(){return {};}).then(function(b){ throw new Error(b.detail || ("Sync failed ("+r.status+")")); });
-      return r.json();
-    }).then(function(data){
-      var bannerText = data.banner || ("Synced! New squad loaded for GW" + (data.gameweek || "?") + ".");
-      if (stickyWrap && stickyInner) { stickyInner.textContent = bannerText; stickyWrap.style.display = "block"; }
-    }).catch(function(e){ alert(e.message); }).finally(function(){
-      _updateConnectRibbon();
-      if (btn) btn.textContent = "\u21BB Sync Now";
-    });
+      return r.json().catch(function(){return {};}).then(function(data){
+        if (r.status === 400 || r.status === 404 || r.status === 409) throw new Error(data.detail || ("Sync failed ("+r.status+")"));
+        if (data && data.state === "done") {
+          var bannerText = data.banner || ("Synced! New squad loaded for GW" + (data.gameweek || "?") + ".");
+          if (stickyWrap && stickyInner) { stickyInner.textContent = bannerText; stickyWrap.style.display = "block"; }
+          _updateConnectRibbon();
+          if (btn) btn.textContent = "\u21BB Sync Now";
+          return;
+        }
+        if (data && data.state === "failed") {
+          alert(data.error || "Sync failed \u2014 please Retry.");
+          _updateConnectRibbon();
+          if (btn) { btn.disabled = false; btn.textContent = "Retry"; }
+          return;
+        }
+        // running -> poll every 2s max 30s
+        var started = Date.now();
+        var poll = function(){
+          if (Date.now() - started > 30000) { alert("Sync is taking longer than expected \u2014 please Retry."); _updateConnectRibbon(); if(btn) btn.textContent = "\u21BB Sync Now"; return; }
+          fetch("/api/v1/squad/sync-status?session_id=" + encodeURIComponent(sess.key)).then(function(rr){
+            return rr.json().catch(function(){return {};}).then(function(dd){ return {status: rr.status, data: dd}; });
+          }).then(function(obj){
+            var d = obj.data;
+            if (d.state === "done") {
+              var bannerText2 = d.banner || ("Synced! New squad loaded for GW" + (d.gameweek || "?") + ".");
+              if (stickyWrap && stickyInner) { stickyInner.textContent = bannerText2; stickyWrap.style.display = "block"; }
+              _updateConnectRibbon();
+              if (btn) btn.textContent = "\u21BB Sync Now";
+            } else if (d.state === "failed") {
+              alert(d.error || "Sync failed \u2014 please Retry.");
+              _updateConnectRibbon();
+              if (btn) { btn.disabled = false; btn.textContent = "Retry"; }
+            } else {
+              setTimeout(poll, 2000);
+            }
+          }).catch(function(){ setTimeout(poll, 2000); });
+        };
+        setTimeout(poll, 2000);
+      });
+    }).catch(function(e){ alert(e.message); _updateConnectRibbon(); if (btn) btn.textContent = "\u21BB Sync Now"; });
   }
   // wire ribbon button immediately and keep state in sync with storage events
   try { var _snC = $("syncNowBtn"); if (_snC) _snC.addEventListener("click", _syncNowConnect); } catch(e){}

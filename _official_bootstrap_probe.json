@@ -1,0 +1,34 @@
+[
+  {
+    "id": 12,
+    "web_name": "Saka",
+    "code": 223340,
+    "now_cost": 95,
+    "team": 1,
+    "element_type": 3
+  },
+  {
+    "id": 364,
+    "web_name": "Tsimikas",
+    "code": 214285,
+    "now_cost": 50,
+    "team": 14,
+    "element_type": 2
+  },
+  {
+    "id": 378,
+    "web_name": "McConnell",
+    "code": 491501,
+    "now_cost": 45,
+    "team": 14,
+    "element_type": 3
+  },
+  {
+    "id": 411,
+    "web_name": "Haaland",
+    "code": 223094,
+    "now_cost": 155,
+    "team": 15,
+    "element_type": 4
+  }
+]

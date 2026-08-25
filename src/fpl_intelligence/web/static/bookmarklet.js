@@ -1,6 +1,6 @@
-/* v2.5.5-ribbon-always — FPL squad-push bookmarklet (source form).
-   The /connect page wraps this file's body into a javascript: URL.
-   v2.5.5 ribbon always visible; v2.5.4 CSP fallback: entire execution is wrapped in try/catch and a 3s
+/* v2.5.6-async-sync — FPL squad-push bookmarklet (source form).
+    The /connect page wraps this file's body into a javascript: URL.
+    v2.5.6 async sync (202 + poll, 25s cap, never dies); v2.5.5 ribbon always visible; v2.5.4 CSP fallback: entire execution is wrapped in try/catch and a 3s
    watchdog. If FPL's Content-Security-Policy blocks javascript: execution
    or any fetch times out, we alert "FPL blocked the sync. Please use the
    Sync Now button on your dashboard instead." instead of redirecting.
@@ -12,7 +12,7 @@
        (prefer next when it differs from saved or from current).
      - POST <ENGINE>/api/v1/sync/squad-push with Authorization: Bearer <token>
    Same-origin fetches only; the token is read from localStorage once. */
-var BOOKMARKLET_VERSION = "2.5.5-ribbon-always";
+var BOOKMARKLET_VERSION = "2.5.6-async-sync";
 (function () {
   "use strict";
   var CSP_MSG = "FPL blocked the sync. Please use the Sync Now button on your dashboard instead.";

@@ -189,6 +189,34 @@ class DecisionReport(BaseModel):
     meta: dict[str, Any] = Field(default_factory=dict)
 
 
+class FplViewPicks(BaseModel):
+    """FPL picks payload for a specific gameweek."""
+
+    gw: int
+    ids: list[int]
+    status: int  # 200 or 404
+
+
+class FplViewEntrySummary(BaseModel):
+    """Entry summary with last-deadline info."""
+
+    name: str | None = None
+    id: int | None = None
+    current_event: int
+    last_deadline_bank: int | None = None
+    last_deadline_total_transfers: int | None = None
+    last_deadline_bank_tenths: int | None = None
+
+
+class FplViewResponse(BaseModel):
+    """Raw FPL truth via egress masks - no mutation, no guessing."""
+
+    current_event: int
+    picks_current: FplViewPicks
+    picks_next: FplViewPicks
+    entry_summary: FplViewEntrySummary
+
+
 class FromFplResponse(BaseModel):
     """Response for ``POST /api/v1/squad/from-fpl``.
 

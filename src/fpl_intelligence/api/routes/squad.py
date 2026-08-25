@@ -50,6 +50,9 @@ from fpl_intelligence.squad.fpl_import import (
 )
 from fpl_intelligence.squad.models import (
     DecisionReport,
+    FplViewEntrySummary,
+    FplViewPicks,
+    FplViewResponse,
     FromFplResponse,
     PlayerDetail,
     SquadStateCreate,
@@ -1079,6 +1082,143 @@ async def demo_squad(
     )
 
 
+@router.get("/squad/sync-status")
+async def sync_status(
+    response: Response,
+    session_id: str = Query(..., description="Per-user session key (= FPL entry id)."),
+) -> dict[str, Any]:
+    """Poll the async sync-now job for a session.
+
+    Returns ``{state: running|done|failed, banner, picks_gw, ...}``.
+    """
+    if not session_id or not str(session_id).strip():
+        raise HTTPException(status_code=400, detail="session_id is required")
+    from fpl_intelligence.squad.sync_job import get_job  # noqa: PLC0415
+
+    job = get_job(str(session_id))
+    if job is None:
+        raise HTTPException(status_code=404, detail="No sync job for this session")
+    response.headers["Cache-Control"] = "no-store"
+    return {
+        "state": job["state"],
+        "job_id": job["job_id"],
+        "session_id": job["session_id"],
+        "banner": job.get("banner"),
+        "picks_gw": job.get("picks_gw"),
+        "gameweek": job.get("gameweek"),
+        "transfers_in": job.get("transfers_in", []),
+        "transfers_out": job.get("transfers_out", []),
+        "before_ids": job.get("before_ids", []),
+        "after_ids": job.get("after_ids", []),
+        "started_at": job.get("started_at"),
+        "finished_at": job.get("finished_at"),
+        "error": job.get("error"),
+        "next_gw": job.get("next_gw"),
+        "detected_transfer": job.get("detected_transfer"),
+        # v2.5.7 honesty fields
+        "chose_rule": job.get("chose_rule"),
+        "picks_next_status": job.get("picks_next_status"),
+        "ids_hash_current": job.get("ids_hash_current"),
+        "ids_hash_next": job.get("ids_hash_next"),
+    }
+
+
+@router.get("/squad/fpl-view", response_model=FplViewResponse)
+async def fpl_view(
+    response: Response,
+    session_id: str = Query(..., description="Per-user session key (= FPL entry id)."),
+) -> FplViewResponse:
+    """Raw FPL truth via egress masks — no mutation, no guessing.
+
+    Returns exactly what FPL shows for this entry:
+    - current_event: the FPL current gameweek
+    - picks_current: {gw, ids, status} for current_event
+    - picks_next: {gw, ids, status} for next unplayed GW (status 200/404)
+    - entry_summary: last-deadline bank/transfers from entry endpoint
+    """
+    if not session_id or not str(session_id).strip().isdigit():
+        raise HTTPException(status_code=400, detail="session_id must be a numeric entry id")
+
+    from fpl_intelligence.config import get_settings
+    from fpl_intelligence.data_providers.fpl_egress import FplEgressChain
+    from fpl_intelligence.squad.fpl_import import FplSquadImporter
+
+    settings = get_settings()
+    egress = FplEgressChain(
+        settings.fpl_base_url,
+        timeout=settings.egress_strategy_timeout,
+        cache_ttl=settings.egress_cache_ttl,
+    )
+    importer = FplSquadImporter(egress=egress)
+
+    # Fetch entry (for current_event, name, last_deadline info)
+    entry = await importer._fetch_json(
+        f"/api/entry/{session_id}/",
+        validator=lambda d: None if isinstance(d, dict) and "id" in d else (_ for _ in ()).throw(ValueError("entry payload missing 'id'")),
+    )
+    current_event = int(entry.get("current_event") or 1)
+    entry_name = entry.get("name")
+
+    # Fetch bootstrap for events list to resolve next GW
+    bootstrap = await importer._fetch_json(
+        "/api/bootstrap-static/",
+        validator=lambda d: None if isinstance(d, dict) and "elements" in d else (_ for _ in ()).throw(ValueError("bootstrap payload missing 'elements'")),
+    )
+
+    # Resolve next GW via gameweek_clock
+    next_gw: int | None = None
+    try:
+        from fpl_intelligence.sync.gameweek_clock import pick_target_event
+
+        events = bootstrap.get("events") if isinstance(bootstrap, dict) else None
+        if isinstance(events, list) and events:
+            next_gw = pick_target_event(events)
+            if next_gw is not None and int(next_gw) == int(current_event):
+                pass
+            if next_gw is None:
+                next_gw = int(current_event) + 1
+        else:
+            next_gw = int(current_event) + 1
+    except Exception:
+        next_gw = int(current_event) + 1
+
+    # Helper to fetch picks for a GW and return (ids, status)
+    async def _fetch_picks_with_status(gw: int) -> tuple[list[int], int]:
+        try:
+            payload = await importer._fetch_json(
+                f"/api/entry/{session_id}/event/{gw}/picks/",
+                validator=lambda d: None if isinstance(d, dict) and "picks" in d else (_ for _ in ()).throw(ValueError("picks payload missing 'picks'")),
+            )
+            picks = payload.get("picks") or []
+            ids = [int(p["element"]) for p in picks if isinstance(p, dict) and "element" in p]
+            return ids, 200
+        except Exception as exc:
+            # Classify the error: 404 -> picks not saved, others -> 500 but we return 404 for "not found"
+            err_text = str(exc)
+            if "404" in err_text or "Not found" in err_text or "picks" in err_text.lower():
+                return [], 404
+            return [], 500
+
+    # Fetch picks for current and next GW in parallel
+    picks_current_ids, picks_current_status = await _fetch_picks_with_status(int(current_event))
+    picks_next_ids, picks_next_status = await _fetch_picks_with_status(int(next_gw)) if next_gw else ([], 404)
+
+    response.headers["Cache-Control"] = "no-store"
+    return FplViewResponse(
+        current_event=current_event,
+        picks_current=FplViewPicks(gw=current_event, ids=picks_current_ids, status=picks_current_status),
+        picks_next=FplViewPicks(gw=next_gw or current_event, ids=picks_next_ids, status=picks_next_status),
+        entry_summary=FplViewEntrySummary(
+            name=entry_name,
+            id=int(entry.get("id", 0)),
+            current_event=current_event,
+            last_deadline_bank=entry.get("last_deadline_bank"),
+            last_deadline_total_transfers=entry.get("last_deadline_total_transfers"),
+            last_deadline_bank_tenths=entry.get("last_deadline_bank"),
+        ),
+    )
+
+
 @router.post("/squad/sync-now", status_code=200)
 async def sync_now(
     db: GetDB,
@@ -1089,101 +1229,95 @@ async def sync_now(
         description="When true, force picks_gw to the next unplayed GW (pre-deadline toggle).",
     ),
 ) -> dict[str, Any]:
-    """Dashboard 'Sync now' — server-side re-fetch via egress masks (6s cap).
+    """Dashboard 'Sync now' — async job pattern (v2.5.6).
 
-    Independent of the bookmarklet. Fetches the entry + both GW picks
-    (current + next unplayed via gameweek_clock), picks the payload that
-    contains the latest transfer (v2.5.3 truth), saves it, invalidates the
-    per-session decisions cache, and returns an IN/OUT banner.
-
-    v2.5.4: when ``next_gw=true`` the dashboard toggle forces picks_gw to the
-    next unplayed GW regardless of current_event — dual-fetch stays identical,
-    only the choice is forced.
+    Starts a background task (25s internal cap, parallel fetch via asyncio.gather,
+    bootstrap cached 10m, picks cached 60s) keyed by session. Returns 202
+    ``{job_id, state:"running"}`` immediately. If the job finishes <4s,
+    returns ``state:"done"`` directly with the banner. Poll
+    ``GET /squad/sync-status?session_id=`` every 2s (max 30s) for the result.
     """
-    import asyncio
-    from datetime import UTC, datetime
 
     if not session_id or not str(session_id).strip().isdigit():
         raise HTTPException(status_code=400, detail="session_id must be a numeric entry id")
 
-    # Capture before state for the banner.
-    before_squad = SquadService(session=db).get_squad(session_id=str(session_id))
-    before_ids: set[int] = set(before_squad.player_ids) if before_squad else set()
-
-    settings = get_settings()
-    egress = FplEgressChain(
-        settings.fpl_base_url,
-        timeout=settings.egress_strategy_timeout,
-        cache_ttl=settings.egress_cache_ttl,
-    )
-    importer = FplSquadImporter(egress=egress)
+    # Resolve engine bind for background task (so it shares the same DB in tests)
     try:
-        # 6s hard cap for the entire mask chain (spec requirement).
-        # v2.5.4: pass through the NEXT-gameweek toggle so the dual-fetch is
-        # identical — only the choice is forced when next_gw=true.
-        result = await asyncio.wait_for(
-            importer.build_squad_from_entry(int(session_id), db, force_next_gw=bool(next_gw)),
-            timeout=6.0,
-        )
-    except TimeoutError as exc:  # noqa: UP041 — catches asyncio.TimeoutError on py311+
-        raise HTTPException(status_code=504, detail="Sync timed out after 6s — try again") from exc
-    except FplEntryNotFound as exc:
-        raise HTTPException(status_code=404, detail="Could not find FPL Team ID.") from exc
-    except FplPicksNotSaved as exc:
-        raise HTTPException(status_code=409, detail="Picks not saved yet") from exc
-    except FplRateLimitBlocked as exc:
-        raise HTTPException(status_code=503, detail="FPL API blocked by rate limit") from exc
-    except FplApiUnavailable as exc:
-        raise HTTPException(status_code=503, detail=f"FPL API temporarily unavailable: {exc}") from exc  # noqa: E501
-    except Exception as exc:  # noqa: BLE001
-        logger.exception("sync-now failed for %s: %s", session_id, exc)
-        raise HTTPException(status_code=503, detail="Sync-now failed: upstream unavailable") from exc  # noqa: E501
-
-    saved = SquadService(session=db).set_squad(result.squad, session_id=str(session_id))
-    _invalidate_decisions_cache(str(session_id))
-    # Also invalidate via sync push path helper.
-    try:
-        from fpl_intelligence.transfers.service import (
-            detect_transfer_between_snapshots,  # noqa: PLC0415
-        )
-        detected = detect_transfer_between_snapshots(db, str(session_id))
+        engine_bind = db.get_bind()  # type: ignore[attr-defined]
+        if engine_bind is None:
+            engine_bind = getattr(db, "bind", None)
     except Exception:
-        detected = None
+        engine_bind = getattr(db, "bind", None)
+    if engine_bind is None:
+        try:
+            from fpl_intelligence.db.session import engine as _engine  # noqa: PLC0415
 
+            engine_bind = _engine
+        except Exception:
+            engine_bind = None
+    if engine_bind is None:
+        raise HTTPException(status_code=500, detail="Database engine unavailable")
+
+    from fpl_intelligence.squad.sync_job import (  # noqa: PLC0415
+        get_job,
+        start_sync_job,
+        wait_for_job_fast_poll,
+    )
+
+    job, _handle = start_sync_job(str(session_id), bool(next_gw), engine_bind)
+
+    # Fast path: if the whole job (fetch + save) resolves <4s, return done directly
+    completed = await wait_for_job_fast_poll(str(session_id), timeout=4.0)
+    if completed:
+        job_after = get_job(str(session_id))
+        if job_after is None:
+            job_after = job
+        state = job_after.get("state")
+        if state == "done":
+            response.headers["Cache-Control"] = "no-store"
+            return {
+                "job_id": job_after["job_id"],
+                "state": "done",
+                "ok": True,
+                "session_id": str(session_id),
+                "gameweek": job_after.get("gameweek"),
+                "picks_gw": job_after.get("picks_gw"),
+                "banner": job_after.get("banner"),
+                "before_ids": job_after.get("before_ids", []),
+                "after_ids": job_after.get("after_ids", []),
+                "transfers_in": job_after.get("transfers_in", []),
+                "transfers_out": job_after.get("transfers_out", []),
+                "detected_transfer": job_after.get("detected_transfer"),
+                "started_at": job_after.get("started_at"),
+                "finished_at": job_after.get("finished_at"),
+                "synced_at": job_after.get("finished_at"),
+                # v2.5.7 honesty fields
+                "chose_rule": job_after.get("chose_rule"),
+                "picks_next_status": job_after.get("picks_next_status"),
+                "ids_hash_current": job_after.get("ids_hash_current"),
+                "ids_hash_next": job_after.get("ids_hash_next"),
+            }
+        if state == "failed":
+            response.headers["Cache-Control"] = "no-store"
+            # Return 200 with failed state so UI can show honest reason + Retry without polling
+            return {
+                "job_id": job_after["job_id"],
+                "state": "failed",
+                "ok": False,
+                "session_id": str(session_id),
+                "error": job_after.get("error"),
+                "banner": job_after.get("banner"),
+                "started_at": job_after.get("started_at"),
+                "finished_at": job_after.get("finished_at"),
+            }
+        # Still running but wait returned? Fall through to 202
+    # Still running after 4s
+    response.status_code = 202
     response.headers["Cache-Control"] = "no-store"
-    after_ids = set(saved.player_ids)
-    ins = sorted(after_ids - before_ids)
-    outs = sorted(before_ids - after_ids)
-    # Names for banner
-    in_names = [result.player_names.get(pid, f"Player {pid}") for pid in ins]
-    out_names = [result.player_names.get(pid, f"Player {pid}") for pid in outs]
-    # Fallback: if no before snapshot, use snapshot diff detection for naming
-    if not before_ids and detected:
-        if detected.get("name_in"):
-            in_names = [detected["name_in"]]
-        if detected.get("name_out"):
-            out_names = [detected["name_out"]]
-    now = datetime.now(UTC)
-    hhmm = now.strftime("%H:%M")
-    gw_label = saved.gameweek
-    if in_names or out_names:
-        banner = (
-            f"Synced! New squad loaded for GW{gw_label}. "
-            f"IN: {', '.join(in_names) if in_names else '—'} "
-            f"OUT: {', '.join(out_names) if out_names else '—'}"
-        )
-    else:
-        banner = f"Synced! New squad loaded for GW{gw_label}. no changes · {hhmm}"
     return {
-        "ok": True,
+        "job_id": job["job_id"],
+        "state": "running",
         "session_id": str(session_id),
-        "gameweek": saved.gameweek,
-        "picks_gw": getattr(saved, "picks_gw", saved.gameweek),
-        "synced_at": now.isoformat(),
-        "banner": banner,
-        "before_ids": sorted(before_ids),
-        "after_ids": sorted(after_ids),
-        "transfers_in": ins,
-        "transfers_out": outs,
-        "detected_transfer": detected,
+        "started_at": job["started_at"],
+        "next_gw": bool(next_gw),
     }

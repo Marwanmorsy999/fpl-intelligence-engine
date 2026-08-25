@@ -1,0 +1,28 @@
+=== 1. REGRESSION SWEEP — every page renders, console clean ===
+/dashboard       OK
+/decisions       OK
+/targets         OK
+/league          OK
+/live            OK
+/my-team         OK
+/planner         OK
+/assistant       OK
+/track-record    OK
+/compare         OK
+/chips           OK
+/crunch          OK
+/sources         OK
+/connect         OK
+
+=== 2. DRAWER opens with 200 payload ===
+drawer click -> open=True, api status=200
+
+=== 3. Gate-1 UI landmarks ===
+sticky ribbon present: True · bottom tabs: True · More button: True
+More sheet opens: True
+
+/targets target cards rendered: 10
+/planner plan steps: 2 · rise-pressure chip: True
+
+=== VERDICT ===
+GATE 1 LIVE VERIFICATION PASSED.

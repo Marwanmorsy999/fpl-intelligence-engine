@@ -11,7 +11,10 @@ renders, so the user always knows which path reached FPL.
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import threading
+import time
 from collections.abc import Callable
 from typing import Any
 
@@ -32,6 +35,59 @@ from fpl_intelligence.db.models import Player, PlayerExternalId
 from fpl_intelligence.squad.models import SquadStateCreate
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# v2.5.6 — bootstrap (10m) + picks (60s) in-process caches for warm retry
+# ---------------------------------------------------------------------------
+_BOOTSTRAP_TTL = 600.0
+_PICKS_TTL = 60.0
+
+_BOOTSTRAP_CACHE: tuple[float, dict[str, Any]] | None = None
+_BOOTSTRAP_LOCK = threading.Lock()
+
+_PICKS_CACHE: dict[tuple[int, int], tuple[float, dict[str, Any]]] = {}
+_PICKS_LOCK = threading.Lock()
+
+
+def _get_cached_bootstrap() -> dict[str, Any] | None:
+    with _BOOTSTRAP_LOCK:
+        if _BOOTSTRAP_CACHE is None:
+            return None
+        at, payload = _BOOTSTRAP_CACHE
+        if time.monotonic() - at < _BOOTSTRAP_TTL:
+            return dict(payload) if isinstance(payload, dict) else payload
+        return None
+
+
+def _set_cached_bootstrap(payload: dict[str, Any]) -> None:
+    with _BOOTSTRAP_LOCK:
+        globals()["_BOOTSTRAP_CACHE"] = (time.monotonic(), dict(payload) if isinstance(payload, dict) else payload)
+
+
+def _get_cached_picks(entry_id: int, gw: int) -> dict[str, Any] | None:
+    key = (int(entry_id), int(gw))
+    with _PICKS_LOCK:
+        hit = _PICKS_CACHE.get(key)
+        if hit:
+            at, payload = hit
+            if time.monotonic() - at < _PICKS_TTL:
+                return dict(payload) if isinstance(payload, dict) else payload
+            _PICKS_CACHE.pop(key, None)
+    return None
+
+
+def _set_cached_picks(entry_id: int, gw: int, payload: dict[str, Any]) -> None:
+    key = (int(entry_id), int(gw))
+    with _PICKS_LOCK:
+        _PICKS_CACHE[key] = (time.monotonic(), dict(payload) if isinstance(payload, dict) else payload)
+
+
+def clear_fpl_import_caches() -> None:
+    """Clear bootstrap + picks caches (tests only)."""
+    with _BOOTSTRAP_LOCK:
+        globals()["_BOOTSTRAP_CACHE"] = None
+    with _PICKS_LOCK:
+        _PICKS_CACHE.clear()
 
 _FPL_ELEMENT_TYPE_TO_POSITION = {1: 1, 2: 2, 3: 3, 4: 4}
 
@@ -162,28 +218,46 @@ class FplSquadImporter:
         v2.5.4: when ``force_next_gw`` is True (dashboard toggle), the next-GW
         picks are returned even when they match the current GW — the user
         explicitly wants the pre-deadline transfer window.
+
+        v2.5.6: bootstrap cached 10 min; entry + picks_* fetched in parallel
+        via asyncio.gather; raw picks cached 60s for warm retry.
         """
         logger.info("build_squad_from_entry: START entry_id=%s db=%s", entry_id, db is not None)
         try:
-            entry = await self._fetch_json(
-                f"/api/entry/{entry_id}/",
-                validator=validate_entry_payload,
-            )
+            # --- bootstrap cache (10m) + parallel entry/bootstrap when cold ----
+            bootstrap = _get_cached_bootstrap()
+            if bootstrap is None:
+                # Cold: fetch entry + bootstrap in parallel
+                entry, bootstrap = await asyncio.gather(
+                    self._fetch_json(
+                        f"/api/entry/{entry_id}/",
+                        validator=validate_entry_payload,
+                    ),
+                    self._fetch_json(
+                        "/api/bootstrap-static/",
+                        validator=validate_bootstrap_payload,
+                    ),
+                )
+                _set_cached_bootstrap(bootstrap)
+                logger.info(
+                    "build_squad_from_entry: bootstrap fetched elements=%s",
+                    len(bootstrap.get("elements", [])),
+                )
+            else:
+                entry = await self._fetch_json(
+                    f"/api/entry/{entry_id}/",
+                    validator=validate_entry_payload,
+                )
+                logger.info(
+                    "build_squad_from_entry: bootstrap cache hit elements=%s",
+                    len(bootstrap.get("elements", [])),
+                )
             current_gw = int(entry.get("current_event") or 1)
             entry_name = entry.get("name")
             logger.info(
                 "build_squad_from_entry: entry fetched current_gw=%s name=%s",
                 current_gw,
                 entry_name,
-            )
-
-            bootstrap = await self._fetch_json(
-                "/api/bootstrap-static/",
-                validator=validate_bootstrap_payload,
-            )
-            logger.info(
-                "build_squad_from_entry: bootstrap fetched elements=%s",
-                len(bootstrap.get("elements", [])),
             )
             # v2.5.3: resolve next unplayed GW via gameweek_clock (bootstrap
             # next-deadline), fallback to current+1 when unavailable.
@@ -194,14 +268,7 @@ class FplSquadImporter:
                 events = bootstrap.get("events") if isinstance(bootstrap, dict) else None
                 if isinstance(events, list) and events:
                     next_gw = pick_target_event(events)
-                    # pick_target_event may return the same as current_gw when
-                    # the current deadline has not yet passed; we also want the
-                    # *next* GW after current for the transfer window, so if the
-                    # target equals current_gw try current+1 as candidate.
                     if next_gw is not None and int(next_gw) == int(current_gw):
-                        # Check if there is a later deadline after current_gw
-                        # — fall through to current+1 candidate if no pure
-                        # future event, otherwise keep target.
                         pass
                     if next_gw is None:
                         next_gw = int(current_gw) + 1
@@ -211,43 +278,94 @@ class FplSquadImporter:
                 logger.debug("next_gw resolve failed: %s", exc)
                 next_gw = int(current_gw) + 1
 
-            # Fetch picks for current_gw (required) and next_gw (optional).
+            # --- picks: warm cache 60s + parallel gather -----------------------
             picks_current: dict[str, Any] | None = None
             picks_next: dict[str, Any] | None = None
-            try:
-                picks_current = await self._fetch_json(
-                    f"/api/entry/{entry_id}/event/{current_gw}/picks/",
-                    validator=validate_picks_payload,
-                )
-                logger.info(
-                    "build_squad_from_entry: picks current_gw=%s count=%s",
-                    current_gw,
-                    len(picks_current.get("picks", [])),
-                )
-            except FplPicksNotSaved:
-                # Re-raise if both will be unavailable — caller maps to 409.
-                if next_gw is None or int(next_gw) == int(current_gw):
-                    raise
-                logger.info("picks for current_gw=%s not saved, will try next_gw=%s", current_gw, next_gw)
-                picks_current = None
 
+            cached_current = _get_cached_picks(int(entry_id), int(current_gw))
+            cached_next = None
             if next_gw is not None and int(next_gw) != int(current_gw):
+                cached_next = _get_cached_picks(int(entry_id), int(next_gw))
+
+            # Helper: safe fetch that returns payload or exception instance
+            async def _safe_fetch_picks(gw: int) -> Any:
                 try:
-                    picks_next = await self._fetch_json(
-                        f"/api/entry/{entry_id}/event/{int(next_gw)}/picks/",
+                    payload = await self._fetch_json(
+                        f"/api/entry/{entry_id}/event/{gw}/picks/",
                         validator=validate_picks_payload,
                     )
+                    _set_cached_picks(int(entry_id), int(gw), payload)
                     logger.info(
-                        "build_squad_from_entry: picks next_gw=%s count=%s",
-                        next_gw,
-                        len(picks_next.get("picks", [])),
+                        "build_squad_from_entry: picks gw=%s count=%s",
+                        gw,
+                        len(payload.get("picks", [])),
                     )
-                except (FplPicksNotSaved, FplApiUnavailable, FplEgressError):
-                    logger.info("picks for next_gw=%s unavailable (404 or blocked)", next_gw)
+                    return payload
+                except Exception as exc:  # noqa: BLE001 — caller classifies
+                    return exc
+
+            # Determine which GWs need network
+            need_current = cached_current is None
+            need_next = cached_next is None and next_gw is not None and int(next_gw) != int(current_gw)
+
+            if need_current and need_next:
+                results: list[Any] = await asyncio.gather(
+                    _safe_fetch_picks(int(current_gw)),
+                    _safe_fetch_picks(int(next_gw)),  # type: ignore[arg-type]
+                )
+                r_cur, r_next = results
+                if isinstance(r_cur, Exception):
+                    if isinstance(r_cur, FplPicksNotSaved):
+                        if next_gw is None or int(next_gw) == int(current_gw):
+                            raise r_cur
+                        logger.info("picks for current_gw=%s not saved, will try next_gw=%s", current_gw, next_gw)
+                        picks_current = None
+                    else:
+                        # For non-404 errors on current, treat as unavailable but allow next to win
+                        logger.info("picks current_gw fetch error: %s", r_cur)
+                        picks_current = None
+                else:
+                    picks_current = r_cur
+                if isinstance(r_next, Exception):
+                    if isinstance(r_next, (FplPicksNotSaved, FplApiUnavailable, FplEgressError)):
+                        logger.info("picks for next_gw=%s unavailable (%s)", next_gw, type(r_next).__name__)
+                    else:
+                        logger.info("picks next_gw fetch error: %s", r_next)
                     picks_next = None
-                except Exception as exc:  # noqa: BLE001
-                    logger.info("picks next_gw fetch error: %s", exc)
+                else:
+                    picks_next = r_next
+                if cached_current is not None and picks_current is None and not isinstance(r_cur, Exception):
+                    picks_current = cached_current
+                if cached_next is not None and picks_next is None and not isinstance(r_next, Exception):
+                    picks_next = cached_next
+            elif need_current:
+                r = await _safe_fetch_picks(int(current_gw))
+                if isinstance(r, Exception):
+                    if isinstance(r, FplPicksNotSaved):
+                        if next_gw is None or int(next_gw) == int(current_gw):
+                            raise r
+                        logger.info("picks for current_gw=%s not saved, will try next_gw=%s", current_gw, next_gw)
+                        picks_current = None
+                    else:
+                        logger.info("picks current_gw fetch error: %s", r)
+                        picks_current = None
+                else:
+                    picks_current = r
+                picks_next = cached_next
+            elif need_next:
+                picks_current = cached_current
+                r2 = await _safe_fetch_picks(int(next_gw))  # type: ignore[arg-type]
+                if isinstance(r2, Exception):
+                    if isinstance(r2, (FplPicksNotSaved, FplApiUnavailable, FplEgressError)):
+                        logger.info("picks for next_gw=%s unavailable (%s)", next_gw, type(r2).__name__)
+                    else:
+                        logger.info("picks next_gw fetch error: %s", r2)
                     picks_next = None
+                else:
+                    picks_next = r2
+            else:
+                picks_current = cached_current
+                picks_next = cached_next
 
             # Choose which payload to keep (v2.5.4 force_next_gw toggle).
             picks_payload, gameweek = self._choose_picks_payload(
