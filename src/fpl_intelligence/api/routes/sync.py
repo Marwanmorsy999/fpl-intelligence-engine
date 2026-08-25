@@ -129,6 +129,7 @@ class SquadPushPayload(BaseModel):
     picks: list[PickItem] = Field(..., min_length=15, max_length=15)
     bank: float = 0.0
     transfers: dict[str, Any] | None = None
+    picks_gw: int | None = Field(default=None, description="v2.5.3 truth GW — when set, overrides gameweek")
 
 
 class LivePushPayload(BaseModel):
@@ -194,6 +195,7 @@ async def squad_push(payload: SquadPushPayload, db: GetDB) -> dict[str, Any]:
     if captain_id == 0:
         raise HTTPException(status_code=422, detail="payload must mark exactly one is_captain pick")
 
+    effective_gw = int(payload.picks_gw or payload.gameweek)
     squad = SquadStateCreate(
         player_ids=ids,
         captain_id=captain_id,
@@ -201,7 +203,8 @@ async def squad_push(payload: SquadPushPayload, db: GetDB) -> dict[str, Any]:
         bank=payload.bank,
         free_transfers=_free_transfers_from(payload.transfers),
         chips_available=["wildcard", "free_hit", "bench_boost", "triple_captain"],
-        gameweek=payload.gameweek,
+        gameweek=effective_gw,
+        picks_gw=effective_gw,
         player_positions=positions or None,
         player_prices=None,
         player_teams=None,
@@ -210,16 +213,28 @@ async def squad_push(payload: SquadPushPayload, db: GetDB) -> dict[str, Any]:
     saved: SquadStateResponse = SquadService(session=db).set_squad(
         squad, session_id=str(payload.entry_id)
     )
+    # Cache invalidation: bump is implicit via updated_at in the row; ensure
+    # any in-process decisions cache keyed by updated_at will miss on next fetch.
+    # The squad-push already wrote updated_at = now, so invalidate here.
+    try:
+        from fpl_intelligence.api.routes.squad import _invalidate_decisions_cache  # noqa: PLC0415
+
+        _invalidate_decisions_cache(str(payload.entry_id))
+    except Exception:
+        pass
     _log_sync(
         db,
         "squad",
         entry_id=str(payload.entry_id),
-        gameweek=payload.gameweek,
+        gameweek=effective_gw,
         detail={
             "entry_name": payload.entry_name,
             "players": len(ids),
             "bank": payload.bank,
             "transfers": payload.transfers,
+            "picks_gw": effective_gw,
+            "captain": saved.captain_id,
+            "updated_at": saved.updated_at.isoformat() if saved.updated_at else None,
         },
     )
     db.commit()
@@ -227,9 +242,11 @@ async def squad_push(payload: SquadPushPayload, db: GetDB) -> dict[str, Any]:
         "ok": True,
         "session_id": str(payload.entry_id),
         "entry_name": payload.entry_name,
-        "gameweek": payload.gameweek,
+        "gameweek": effective_gw,
+        "picks_gw": effective_gw,
         "players": len(saved.player_ids),
         "captain": saved.captain_id,
+        "updated_at": saved.updated_at.isoformat() if saved.updated_at else None,
     }
 
 

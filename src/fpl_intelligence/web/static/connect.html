@@ -42,8 +42,9 @@
       <li>Paste + save your token above.</li>
       <li>Drag this link to your bookmarks bar:</li>
     </ol>
-    <a id="bookmarkletLink" class="btn" href="#" onclick="return false" title="Drag me to your bookmarks bar" style="display:inline-block;text-decoration:none">⚽ Sync FPL Squad → Engine</a>
+    <a id="bookmarkletLink" class="btn" href="#" onclick="return false" title="Drag me to your bookmarks bar" style="display:inline-block;text-decoration:none">⚽ Sync FPL Squad → Engine <span id="bmVersion" class="pill ok" style="margin-left:8px;font-size:0.65rem">v2.5.3-sync-truth</span></a>
     <button id="copyBmBtn" class="btn-ghost" type="button" style="margin-left:10px">Copy link URL</button>
+    <p class="faint small" style="margin:6px 0 0">Bookmarklet version: <strong>v2.5.3-sync-truth</strong> — please <em>re-drag</em> the button to your bookmarks bar to update from any older version.</p>
     <ol class="muted small" start="3" style="padding-left:18px;margin:12px 0 0">
       <li>Open <code>fantasy.premierleague.com/entry/&lt;your-id&gt;/event</code>.</li>
       <li>Click the bookmark. You'll see a success or failure alert — nothing else needed.</li>
@@ -90,21 +91,47 @@ function syncLiveMatchday() {
   post("/api/v1/sync/live-push", { gameweek: gw, elements: els });
 }
 
-// ==== Shared helpers ====
+// ==== Shared helpers — v2.5.3 truth: fetch current + next GW, prefer latest transfer ====
 function syncSquad() {
   var entry = jget("/api/entry/" + ENTRY_ID + "/");
-  var gw = (entry.entry && entry.entry.current_event) || 1;
-  var picks = jget("/api/entry/" + ENTRY_ID + "/event/" + gw + "/picks/");
+  var currentGw = (entry.entry && entry.entry.current_event) || entry.current_event || 1;
+  var nextGw = currentGw + 1;
+  // Try to refine nextGw via bootstrap when reachable (same logic as bookmarklet).
+  try {
+    var bs = jget("/api/bootstrap-static/");
+    var evs = (bs && bs.events) || [];
+    var best = null, bestTime = null, now = Date.now();
+    for (var i = 0; i < evs.length; i++) {
+      var ev = evs[i];
+      if (!ev || !ev.deadline_time) continue;
+      var dl = Date.parse(ev.deadline_time);
+      if (isNaN(dl) || dl <= now) continue;
+      if (bestTime === null || dl < bestTime) { bestTime = dl; best = ev.id; }
+    }
+    if (best !== null && best !== currentGw) nextGw = best;
+    else if (best === currentGw) nextGw = currentGw + 1;
+  } catch (e) { /* bootstrap optional */ }
+  var picksCur = null, picksNext = null;
+  try { picksCur = jget("/api/entry/" + ENTRY_ID + "/event/" + currentGw + "/picks/"); } catch (e) { picksCur = null; }
+  try { if (nextGw && nextGw !== currentGw) picksNext = jget("/api/entry/" + ENTRY_ID + "/event/" + nextGw + "/picks/"); } catch (e) { picksNext = null; }
+  var chosen = picksCur, chosenGw = currentGw;
+  if (picksCur && picksNext) {
+    var idsCur = (picksCur.picks || []).map(function (p) { return p.element; }).sort().join(",");
+    var idsNext = (picksNext.picks || []).map(function (p) { return p.element; }).sort().join(",");
+    if (idsCur !== idsNext) { chosen = picksNext; chosenGw = nextGw; }
+  } else if (!picksCur && picksNext) { chosen = picksNext; chosenGw = nextGw; }
+  if (!chosen) throw new Error("No picks for GW" + currentGw + " nor GW" + nextGw);
   post("/api/v1/sync/squad-push", {
     entry_id: ENTRY_ID,
-    entry_name: (entry.entry && entry.entry.name) || null,
-    gameweek: gw,
-    bank: (picks.entry_history && picks.entry_history.bank) || 0,
+    entry_name: (entry.entry && entry.entry.name) || entry.name || null,
+    gameweek: chosenGw,
+    picks_gw: chosenGw,
+    bank: (chosen.entry_history && chosen.entry_history.bank) || 0,
     transfers: {
-      made: (picks.entry_history && picks.entry_history.event_transfers) || 0,
-      cost: (picks.entry_history && picks.entry_history.event_transfers_cost) || 0
+      made: (chosen.entry_history && chosen.entry_history.event_transfers) || 0,
+      cost: (chosen.entry_history && chosen.entry_history.event_transfers_cost) || 0
     },
-    picks: (picks.picks || []).map(function (p) {
+    picks: (chosen.picks || []).map(function (p) {
       return {
         element_id: p.element, position: p.position,
         element_type: p.element_type,
@@ -207,13 +234,18 @@ document.addEventListener("DOMContentLoaded", function () {
     fetch("/static/bookmarklet.js")
       .then(function (r) { return r.text(); })
       .then(function (src) {
+        // Extract version if present
+        var verMatch = src.match(/BOOKMARKLET_VERSION\s*=\s*"([^"]+)"/);
+        var ver = verMatch ? verMatch[1] : "unknown";
         src = 'window.__FPL_ENGINE_BASE__="' + window.location.origin + '";\n' + src;
         var url = "javascript:" + encodeURIComponent(src);
         $("bookmarkletLink").href = url;
         $("bookmarkletLink").removeAttribute("onclick");
+        var verEl = document.getElementById("bmVersion");
+        if (verEl) verEl.textContent = ver;
         $("bmStatus").textContent = token
-          ? "Bookmarklet ready (" + src.length + " chars). Drag the button to your bookmarks bar."
-          : "Bookmarklet ready, but no token saved yet — you'll be prompted on first use.";
+          ? "Bookmarklet ready v" + ver + " (" + src.length + " chars). Drag the button to your bookmarks bar — re-drag to update."
+          : "Bookmarklet ready v" + ver + ", but no token saved yet — you'll be prompted on first use.";
       })
       .catch(function () {
         $("bmStatus").textContent = "Could not load bookmarklet source (/static/bookmarklet.js).";

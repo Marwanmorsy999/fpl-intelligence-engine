@@ -58,6 +58,11 @@ class SquadStateCreate(BaseModel):
     gameweek: int = Field(
         ..., gt=0, description="Current FPL gameweek.", examples=[_SQUAD_EXAMPLE["gameweek"]]
     )
+    picks_gw: int | None = Field(
+        default=None,
+        description="Which gameweek the picks were fetched from (current_event vs next GW). "
+        "When None, equals gameweek. v2.5.3 records the truth GW.",
+    )
     player_positions: dict[int, int] | None = Field(
         default=None,
         description="Optional mapping of player_id -> position_code (1=GK, 2=DEF, 3=MID, 4=FWD).",

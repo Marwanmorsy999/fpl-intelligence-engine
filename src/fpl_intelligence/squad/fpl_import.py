@@ -152,32 +152,26 @@ class FplSquadImporter:
     async def build_squad_from_entry(
         self, entry_id: int, db: Session | None = None
     ) -> FplImportResult:
-        """Resolve an FPL entry ID into a :class:`FplImportResult`."""
+        """Resolve an FPL entry ID into a :class:`FplImportResult`.
+
+        v2.5.3 truth: fetch picks for *both* current_event AND the next
+        unplayed GW (gameweek_clock). Store whichever differs from the saved
+        snapshot (prefer next when both differ) so a pre-deadline transfer is
+        never lost. The chosen GW is recorded as ``picks_gw`` / ``gameweek``.
+        """
         logger.info("build_squad_from_entry: START entry_id=%s db=%s", entry_id, db is not None)
         try:
             entry = await self._fetch_json(
                 f"/api/entry/{entry_id}/",
                 validator=validate_entry_payload,
             )
-            gameweek = entry.get("current_event") or 1
+            current_gw = int(entry.get("current_event") or 1)
             entry_name = entry.get("name")
             logger.info(
-                "build_squad_from_entry: entry fetched gameweek=%s name=%s",
-                gameweek,
+                "build_squad_from_entry: entry fetched current_gw=%s name=%s",
+                current_gw,
                 entry_name,
             )
-
-            try:
-                picks_payload = await self._fetch_json(
-                    f"/api/entry/{entry_id}/event/{gameweek}/picks/",
-                    validator=validate_picks_payload,
-                )
-                logger.info(
-                    "build_squad_from_entry: picks fetched count=%s",
-                    len(picks_payload.get("picks", [])),
-                )
-            except FplPicksNotSaved:
-                raise
 
             bootstrap = await self._fetch_json(
                 "/api/bootstrap-static/",
@@ -187,6 +181,83 @@ class FplSquadImporter:
                 "build_squad_from_entry: bootstrap fetched elements=%s",
                 len(bootstrap.get("elements", [])),
             )
+            # v2.5.3: resolve next unplayed GW via gameweek_clock (bootstrap
+            # next-deadline), fallback to current+1 when unavailable.
+            next_gw: int | None = None
+            try:
+                from fpl_intelligence.sync.gameweek_clock import pick_target_event
+
+                events = bootstrap.get("events") if isinstance(bootstrap, dict) else None
+                if isinstance(events, list) and events:
+                    next_gw = pick_target_event(events)
+                    # pick_target_event may return the same as current_gw when
+                    # the current deadline has not yet passed; we also want the
+                    # *next* GW after current for the transfer window, so if the
+                    # target equals current_gw try current+1 as candidate.
+                    if next_gw is not None and int(next_gw) == int(current_gw):
+                        # Check if there is a later deadline after current_gw
+                        # — fall through to current+1 candidate if no pure
+                        # future event, otherwise keep target.
+                        pass
+                    if next_gw is None:
+                        next_gw = int(current_gw) + 1
+                else:
+                    next_gw = int(current_gw) + 1
+            except Exception as exc:  # noqa: BLE001 — never fail import on clock
+                logger.debug("next_gw resolve failed: %s", exc)
+                next_gw = int(current_gw) + 1
+
+            # Fetch picks for current_gw (required) and next_gw (optional).
+            picks_current: dict[str, Any] | None = None
+            picks_next: dict[str, Any] | None = None
+            try:
+                picks_current = await self._fetch_json(
+                    f"/api/entry/{entry_id}/event/{current_gw}/picks/",
+                    validator=validate_picks_payload,
+                )
+                logger.info(
+                    "build_squad_from_entry: picks current_gw=%s count=%s",
+                    current_gw,
+                    len(picks_current.get("picks", [])),
+                )
+            except FplPicksNotSaved:
+                # Re-raise if both will be unavailable — caller maps to 409.
+                if next_gw is None or int(next_gw) == int(current_gw):
+                    raise
+                logger.info("picks for current_gw=%s not saved, will try next_gw=%s", current_gw, next_gw)
+                picks_current = None
+
+            if next_gw is not None and int(next_gw) != int(current_gw):
+                try:
+                    picks_next = await self._fetch_json(
+                        f"/api/entry/{entry_id}/event/{int(next_gw)}/picks/",
+                        validator=validate_picks_payload,
+                    )
+                    logger.info(
+                        "build_squad_from_entry: picks next_gw=%s count=%s",
+                        next_gw,
+                        len(picks_next.get("picks", [])),
+                    )
+                except (FplPicksNotSaved, FplApiUnavailable, FplEgressError):
+                    logger.info("picks for next_gw=%s unavailable (404 or blocked)", next_gw)
+                    picks_next = None
+                except Exception as exc:  # noqa: BLE001
+                    logger.info("picks next_gw fetch error: %s", exc)
+                    picks_next = None
+
+            # Choose which payload to keep.
+            picks_payload, gameweek = self._choose_picks_payload(
+                current_gw=int(current_gw),
+                next_gw=int(next_gw) if next_gw is not None else None,
+                picks_current=picks_current,
+                picks_next=picks_next,
+                db=db,
+                entry_id=int(entry_id),
+            )
+            if picks_payload is None:
+                # Both missing — surface the original error.
+                raise FplPicksNotSaved(f"No picks available for entry {entry_id}")
+            logger.info("build_squad_from_entry: chosen picks_gw=%s", gameweek)
         except (FplImportError, FplEgressError):
             raise
         except (httpx.HTTPStatusError, httpx.HTTPError, ValueError) as exc:
@@ -217,6 +288,88 @@ class FplSquadImporter:
                 f"FPL response parse failed: {type(exc).__name__}: {exc}"
             ) from exc
 
+    def _choose_picks_payload(
+        self,
+        *,
+        current_gw: int,
+        next_gw: int | None,
+        picks_current: dict[str, Any] | None,
+        picks_next: dict[str, Any] | None,
+        db: Session | None,
+        entry_id: int,
+    ) -> tuple[dict[str, Any] | None, int]:
+        """Pick the truth payload between current and next GW picks.
+
+        Rules (v2.5.3):
+        * If only one payload exists → use it.
+        * If both exist and a saved snapshot exists → prefer whichever
+          *differs* from the saved snapshot (if only one differs, that one;
+          if both differ, prefer the *next* GW — latest transfer).
+        * If no saved snapshot → prefer next GW when it differs from current
+          (captures a pre-deadline transfer), otherwise current.
+        Returns (payload, picks_gw).
+        """
+        # Helper to extract element ids set.
+        def _ids(payload: dict[str, Any] | None) -> set[int] | None:
+            if not payload or not isinstance(payload.get("picks"), list):
+                return None
+            try:
+                return {int(p["element"]) for p in payload["picks"] if isinstance(p, dict) and "element" in p}
+            except Exception:
+                return None
+
+        ids_current = _ids(picks_current)
+        ids_next = _ids(picks_next)
+
+        # Single payload cases
+        if picks_current is None and picks_next is None:
+            return None, current_gw
+        if picks_current is None:
+            return picks_next, int(next_gw or current_gw)
+        if picks_next is None:
+            return picks_current, int(current_gw)
+
+        # Both payloads present
+        # Try to load saved snapshot ids.
+        saved_ids: set[int] | None = None
+        if db is not None:
+            try:
+                from fpl_intelligence.squad.models_db import SquadStateDB
+
+                row = db.scalar(
+                    select(SquadStateDB).where(SquadStateDB.session_id == str(entry_id))
+                )
+                if row is not None and isinstance(row.squad_json, dict):
+                    pids = row.squad_json.get("player_ids") or []
+                    saved_ids = {int(pid) for pid in pids if isinstance(pid, (int, str)) and str(pid).isdigit()}
+                    # Also handle ints directly
+                    if not saved_ids and pids:
+                        try:
+                            saved_ids = {int(x) for x in pids}
+                        except Exception:
+                            saved_ids = None
+            except Exception as exc:  # noqa: BLE001 — never fail choice on DB read
+                logger.debug("saved snapshot read failed for choice: %s", exc)
+
+        if saved_ids is not None and ids_current is not None and ids_next is not None:
+            diff_current = ids_current != saved_ids
+            diff_next = ids_next != saved_ids
+            if diff_next and not diff_current:
+                return picks_next, int(next_gw or current_gw)
+            if diff_current and not diff_next:
+                return picks_current, int(current_gw)
+            if diff_next and diff_current:
+                # Both differ — prefer next (latest transfer)
+                return picks_next, int(next_gw or current_gw)
+            # Neither differs — no transfer, keep current
+            return picks_current, int(current_gw)
+
+        # No saved snapshot — prefer next when it differs from current
+        if ids_current is not None and ids_next is not None and ids_current != ids_next:
+            return picks_next, int(next_gw or current_gw)
+        # Default to current (or next if current missing)
+        return picks_current, int(current_gw)
+
     async def _fetch_json(
         self,
         path: str,
@@ -235,6 +388,14 @@ class FplSquadImporter:
             except FplEgressExhaustedError as exc:
                 self._last_egress_attempts = exc.attempts
                 self._last_winning_strategy = None
+                # When every mask was tried, check if the failure looks like a 404
+                # for picks/entry paths — those should surface as typed errors so
+                # the caller can try the next GW instead of failing the whole sync.
+                attempts_text = " ".join(err for _, err in exc.attempts)
+                if "/picks/" in path and ("404" in attempts_text or "Not found" in attempts_text):
+                    raise FplPicksNotSaved(f"Picks not found for {path}: {exc}") from exc
+                if path.startswith("/api/entry/") and path.endswith("/") and ("404" in attempts_text):
+                    raise FplEntryNotFound(f"FPL entry not found: {path}") from exc
                 # A 404 from *every* mask is genuinely a missing entry, not a
                 # block — but masks rarely 404, so treat exhaustion as blocked.
                 raise FplApiUnavailable(str(exc)) from exc
@@ -323,6 +484,7 @@ class FplSquadImporter:
             free_transfers=free_transfers,
             chips_available=chips_available,
             gameweek=gameweek,
+            picks_gw=gameweek,
             player_positions=player_positions,
             player_prices=player_prices,
             player_teams=player_teams,

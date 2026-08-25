@@ -70,6 +70,24 @@ router = APIRouter()
 GetDB = deps.GetDB
 
 # --------------------------------------------------------------------------- #
+# v2.5.3 — per-session decisions cache keyed by snapshot updated_at
+# --------------------------------------------------------------------------- #
+_decisions_cache: dict[str, Any] = {}
+_decisions_cache_lock = threading.Lock()
+
+
+def _decisions_cache_key(session_id: str, updated_at: Any, gameweek: int) -> str:
+    iso = updated_at.isoformat() if hasattr(updated_at, "isoformat") else str(updated_at or "")
+    return f"{session_id}:{iso}:{int(gameweek)}"
+
+
+def _invalidate_decisions_cache(session_id: str) -> None:
+    with _decisions_cache_lock:
+        for k in list(_decisions_cache.keys()):
+            if k.startswith(f"{session_id}:"):
+                _decisions_cache.pop(k, None)
+
+# --------------------------------------------------------------------------- #
 # Rate limiting for the public retry-sync endpoint (Phase 13.5).
 # A simple in-memory fixed-window limiter keyed by client IP. On a serverless
 # runtime this is per-instance (adequate for a "don't hammer FPL on deadline
@@ -107,6 +125,7 @@ async def set_squad(
             detail="session_id is required (query param or body field).",
         )
     result = SquadService(session=db).set_squad(payload, session_id=key)
+    _invalidate_decisions_cache(key)
     # Never cache responses that are specific to a session.
     response.headers["Cache-Control"] = "no-store"
     return result
@@ -392,6 +411,19 @@ async def get_decisions(
     except Exception as exc:  # noqa: BLE001 - metadata only, never fail decisions
         logger.warning("target gameweek resolution failed: %s", exc)
 
+    # v2.5.3: per-session decisions cache keyed by updated_at so a squad-push
+    # immediately invalidates stale renders. live_facts=true bypasses cache.
+    if not live_facts:
+        cache_key = _decisions_cache_key(session_id, squad.updated_at, squad.gameweek)
+        with _decisions_cache_lock:
+            cached = _decisions_cache.get(cache_key)
+        if cached is not None:
+            # Return a copy so callers cannot mutate the cached entry.
+            try:
+                return cached.model_copy(deep=True)  # type: ignore[attr-defined]
+            except Exception:
+                return cached
+
     applied_overrides: list = []
     if live_facts:
         try:
@@ -459,6 +491,16 @@ async def get_decisions(
     except Exception as exc:  # noqa: BLE001 - observability, not correctness
         logger.warning("recommendation recording failed for %s: %s", session_id, exc)
         db.rollback()
+
+    # v2.5.3: cache the fully-enriched report keyed by updated_at so a fresh
+    # squad-push is instantly visible and stale renders never survive a bump.
+    if not live_facts:
+        try:
+            cache_key = _decisions_cache_key(session_id, squad.updated_at, squad.gameweek)
+            with _decisions_cache_lock:
+                _decisions_cache[cache_key] = report.model_copy(deep=True)  # type: ignore[attr-defined]
+        except Exception:
+            pass
     return report
 
 
@@ -894,6 +936,7 @@ async def import_squad_from_fpl(
         ) from exc
 
     saved = SquadService(session=db).set_squad(result.squad, session_id=str(payload.entry_id))
+    _invalidate_decisions_cache(str(payload.entry_id))
     # Never cache responses that are specific to a session.
     response.headers["Cache-Control"] = "no-store"
     sync_status = _build_sync_status(result, entry_id=payload.entry_id)
@@ -971,6 +1014,7 @@ async def retry_sync(request: Request, db: GetDB, response: Response) -> FromFpl
         ) from exc
 
     saved = SquadService(session=db).set_squad(result.squad, session_id=session_key)
+    _invalidate_decisions_cache(session_key)
     # Never cache responses that are specific to a session.
     response.headers["Cache-Control"] = "no-store"
     sync_status = _build_sync_status(result, entry_id=pending_before.entry_id)
@@ -1023,6 +1067,7 @@ async def demo_squad(
     # The frontend may supply its own; otherwise we generate one server-side.
     demo_session_id = session_id or f"demo_{uuid4().hex}"
     saved = SquadService(session=db).set_squad(squad, session_id=demo_session_id)
+    _invalidate_decisions_cache(demo_session_id)
     # Never cache responses that are specific to a session.
     response.headers["Cache-Control"] = "no-store"
     return FromFplResponse(
@@ -1032,3 +1077,98 @@ async def demo_squad(
         gameweek=squad.gameweek,
         is_demo=True,
     )
+
+
+@router.post("/squad/sync-now", status_code=200)
+async def sync_now(
+    db: GetDB,
+    response: Response,
+    session_id: str = Query(..., description="Per-user session key (= FPL entry id)."),
+) -> dict[str, Any]:
+    """Dashboard 'Sync now' — server-side re-fetch via egress masks (6s cap).
+
+    Independent of the bookmarklet. Fetches the entry + both GW picks
+    (current + next unplayed via gameweek_clock), picks the payload that
+    contains the latest transfer (v2.5.3 truth), saves it, invalidates the
+    per-session decisions cache, and returns an IN/OUT banner.
+    """
+    import asyncio
+    from datetime import UTC, datetime
+
+    if not session_id or not str(session_id).strip().isdigit():
+        raise HTTPException(status_code=400, detail="session_id must be a numeric entry id")
+
+    # Capture before state for the banner.
+    before_squad = SquadService(session=db).get_squad(session_id=str(session_id))
+    before_ids: set[int] = set(before_squad.player_ids) if before_squad else set()
+
+    settings = get_settings()
+    egress = FplEgressChain(
+        settings.fpl_base_url,
+        timeout=settings.egress_strategy_timeout,
+        cache_ttl=settings.egress_cache_ttl,
+    )
+    importer = FplSquadImporter(egress=egress)
+    try:
+        # 6s hard cap for the entire mask chain (spec requirement).
+        result = await asyncio.wait_for(
+            importer.build_squad_from_entry(int(session_id), db),
+            timeout=6.0,
+        )
+    except TimeoutError as exc:  # noqa: UP041 — catches asyncio.TimeoutError on py311+
+        raise HTTPException(status_code=504, detail="Sync timed out after 6s — try again") from exc
+    except FplEntryNotFound as exc:
+        raise HTTPException(status_code=404, detail="Could not find FPL Team ID.") from exc
+    except FplPicksNotSaved as exc:
+        raise HTTPException(status_code=409, detail="Picks not saved yet") from exc
+    except FplRateLimitBlocked as exc:
+        raise HTTPException(status_code=503, detail="FPL API blocked by rate limit") from exc
+    except FplApiUnavailable as exc:
+        raise HTTPException(status_code=503, detail=f"FPL API temporarily unavailable: {exc}") from exc  # noqa: E501
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("sync-now failed for %s: %s", session_id, exc)
+        raise HTTPException(status_code=503, detail="Sync-now failed: upstream unavailable") from exc  # noqa: E501
+
+    saved = SquadService(session=db).set_squad(result.squad, session_id=str(session_id))
+    _invalidate_decisions_cache(str(session_id))
+    # Also invalidate via sync push path helper.
+    try:
+        from fpl_intelligence.transfers.service import (
+            detect_transfer_between_snapshots,  # noqa: PLC0415
+        )
+        detected = detect_transfer_between_snapshots(db, str(session_id))
+    except Exception:
+        detected = None
+
+    response.headers["Cache-Control"] = "no-store"
+    after_ids = set(saved.player_ids)
+    ins = sorted(after_ids - before_ids)
+    outs = sorted(before_ids - after_ids)
+    # Names for banner
+    in_names = [result.player_names.get(pid, f"Player {pid}") for pid in ins]
+    out_names = [result.player_names.get(pid, f"Player {pid}") for pid in outs]
+    # Fallback: if no before snapshot, use snapshot diff detection for naming
+    if not before_ids and detected:
+        if detected.get("name_in"):
+            in_names = [detected["name_in"]]
+        if detected.get("name_out"):
+            out_names = [detected["name_out"]]
+    now = datetime.now(UTC)
+    hhmm = now.strftime("%H:%M")
+    if in_names or out_names:
+        banner = f"synced {hhmm} · IN {', '.join(in_names) if in_names else '—'} OUT {', '.join(out_names) if out_names else '—'}"  # noqa: E501
+    else:
+        banner = f"synced {hhmm} · no changes"
+    return {
+        "ok": True,
+        "session_id": str(session_id),
+        "gameweek": saved.gameweek,
+        "picks_gw": getattr(saved, "picks_gw", saved.gameweek),
+        "synced_at": now.isoformat(),
+        "banner": banner,
+        "before_ids": sorted(before_ids),
+        "after_ids": sorted(after_ids),
+        "transfers_in": ins,
+        "transfers_out": outs,
+        "detected_transfer": detected,
+    }

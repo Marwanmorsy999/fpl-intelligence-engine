@@ -129,11 +129,13 @@
     <div class="flex flex-wrap items-center gap-3 mt-4">
       <button id="toggleManualBtn" class="btn-ghost" type="button">Enter Squad Manually</button>
       <button id="retrySyncBtn" class="btn-ghost" type="button" style="display:none; border-color:#38bdf8; color:#bae6fd;">🔄 Try Again</button>
+      <button id="syncNowBtn" class="btn-ghost" type="button" style="display:none; border-color:#22c55e; color:#bbf7d0;" data-testid="sync-now-btn">↻ Sync now</button>
       <details class="ml-auto text-slate-500 text-sm">
         <summary class="cursor-pointer select-none">Developer Tools</summary>
         <button id="demoBtn" class="btn-ghost mt-2" type="button">Try a Demo Team</button>
       </details>
     </div>
+    <div id="syncBanner" class="mt-3 hidden rounded-xl border border-emerald-700 bg-emerald-950/40 px-4 py-2 text-sm font-semibold text-emerald-200" role="status" aria-live="polite" data-testid="sync-banner" style="display:none"></div>
     <div id="status" class="mt-4 text-sky-300 text-sm font-semibold" role="status" aria-live="polite" style="display:none"></div>
     <div id="error" class="mt-4 bg-red-950/70 border border-red-700 text-red-200 rounded-xl px-4 py-3 text-sm font-semibold" role="alert" aria-live="assertive" style="display:none"></div>
   </section>
@@ -343,10 +345,12 @@ function updateSourceChip() {
   var chip = $("sourceChip");
   var demoChip = $("demoChip");
   var startOver = $("startOverBtn");
+  var syncNow = $("syncNowBtn");
   if (CURRENT_SESSION_ID && CURRENT_SOURCE) {
     chip.style.display = "inline-flex";
     chip.textContent = CURRENT_SOURCE_LABEL;
     startOver.style.display = "inline-block";
+    if (syncNow) syncNow.style.display = CURRENT_SOURCE === "demo" ? "none" : "inline-block";
     if (CURRENT_SOURCE === "demo") {
       demoChip.style.display = "inline-flex";
     } else {
@@ -356,6 +360,7 @@ function updateSourceChip() {
     chip.style.display = "none";
     demoChip.style.display = "none";
     startOver.style.display = "none";
+    if (syncNow) syncNow.style.display = "none";
   }
   FPLApp.session.updateChip();
 }
@@ -371,6 +376,7 @@ function startOver() {
   $("teamId").value = "";
   $("demoBanner").style.display = "none";
   $("demoChip").style.display = "none";
+  var sb = $("syncBanner"); if (sb) { sb.style.display = "none"; sb.textContent = ""; }
   updateSourceChip();
   /* Start Over is the only clear path back to the entry screen. */
   $("inputSection").style.display = "block";
@@ -514,6 +520,43 @@ async function retrySync() {
     $("status").style.display = "none";
   } finally {
     btn.disabled = false;
+  }
+}
+
+/* v2.5.3 — Dashboard Sync now (6s server re-fetch, no bookmarklet) */
+async function syncNow() {
+  var btn = $("syncNowBtn");
+  var banner = $("syncBanner");
+  if (!CURRENT_SESSION_ID) { showError("Enter your Team ID first."); return; }
+  hideMessages();
+  if (banner) { banner.style.display = "none"; banner.textContent = ""; }
+  btn.disabled = true;
+  var origText = btn.textContent;
+  btn.textContent = "⏳ Syncing…";
+  try {
+    var res = await fetch(API + "/api/v1/squad/sync-now?session_id=" + encodeURIComponent(CURRENT_SESSION_ID), { method: "POST" });
+    if (!res.ok) {
+      var body = await res.json().catch(function () { return {}; });
+      throw new Error(body.detail || ("Sync failed (" + res.status + ")"));
+    }
+    var data = await res.json();
+    if (data.player_names) { /* server now returns player_names only inside decisions */ }
+    // Show banner: "synced HH:MM · IN X OUT Y"
+    if (banner && data.banner) {
+      banner.textContent = data.banner;
+      banner.style.display = "block";
+    }
+    // If server indicates transfers, reflect in status briefly
+    setStatus(data.banner || "Synced — running the numbers…");
+    await renderFromApi();
+    // Keep banner visible after render
+    if (banner && data.banner) { banner.style.display = "block"; banner.textContent = data.banner; }
+  } catch (e) {
+    showError(e.message);
+    if (banner) { banner.style.display = "none"; }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = origText;
   }
 }
 
@@ -1712,6 +1755,7 @@ function boot() {
   $("toggleManualBtn").addEventListener("click", toggleManual);
   $("saveManualBtn").addEventListener("click", saveManual);
   $("retrySyncBtn").addEventListener("click", retrySync);
+  var _sn = $("syncNowBtn"); if(_sn) _sn.addEventListener("click", syncNow);
   $("startOverBtn").addEventListener("click", startOver);
   var _sb = $("shareBtn"); if(_sb) _sb.addEventListener("click", shareDecisions);
   var _es = $("exportSquadBtn"); if(_es) _es.addEventListener("click", exportSquadCsv);
