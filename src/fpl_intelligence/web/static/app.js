@@ -186,6 +186,7 @@ window.FPLApp = (function () {
     }
     var backdrop = document.getElementById("moreSheetBackdrop");
     if (backdrop) backdrop.addEventListener("click", function () { toggleSheet(false); });
+    ensureMainLandmark();
     checkHealth();
     updateSessionChip();
     renderBell();
@@ -199,6 +200,20 @@ window.FPLApp = (function () {
     if (!sheet || !backdrop) return;
     sheet.classList.toggle("open", open);
     backdrop.classList.toggle("open", open);
+  }
+
+  /* Accessibility: every page gets a <main> landmark around its content
+     (Lighthouse landmark-one-main). Idempotent, applies site-wide. */
+  function ensureMainLandmark() {
+    if (document.querySelector("main")) return;
+    var wrap =
+      document.querySelector(".wrap") ||
+      document.querySelector(".crunch-wrap") ||
+      document.querySelector(".max-w-4xl");
+    if (!wrap || !wrap.parentNode) return;
+    var main = document.createElement("main");
+    wrap.parentNode.insertBefore(main, wrap);
+    main.appendChild(wrap);
   }
 
   /* ------------------------------------------------------------------ *
@@ -607,6 +622,7 @@ window.FPLApp = (function () {
     fdrColor: fdrColor,
     fixtureStripHTML: fixtureStripHTML,
     sparklineSVG: sparklineSVG,
+    ensureMainLandmark: ensureMainLandmark,
     NAV_PRIMARY: NAV_PRIMARY,
     NAV_SECONDARY: NAV_SECONDARY,
     registerSW: registerSW,
