@@ -1,0 +1,202 @@
+/* ============================================================================
+   FPL Intelligence — Components (v2.6.1-real-design)
+   Shared component primitives: card, table, chip, button, banner, drawer,
+   tabs, ribbon. Every page uses these — no ad-hoc inline styles.
+   Depends on tokens.css (loaded first).
+   ============================================================================ */
+
+/* -------- Card -------- */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
+}
+.card--flush { padding: 0; overflow: hidden; }
+.card__header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-line);
+}
+.card__title { font-size: var(--text-lg); font-weight: 700; color: #fff; margin: 0; }
+.card__body { padding: var(--space-5); }
+.card--interactive:hover { border-color: var(--color-line-strong); box-shadow: var(--shadow-md); }
+
+/* Legacy alias used by older pages */
+.fg-card { composes: card; } /* fallback: pages using fg-card keep working via app.css */
+
+/* -------- Table (table-first, sticky headers) -------- */
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+table.data {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  min-width: 520px; /* allow horizontal scroll on phone, not page scroll */
+}
+table.data th {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--color-surface-2);
+  text-align: left;
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+  font-weight: 700;
+  padding: var(--space-3) var(--space-3);
+  border-bottom: 1px solid var(--color-line-strong);
+  white-space: nowrap;
+}
+table.data td {
+  padding: 11px var(--space-3);
+  border-bottom: 1px solid var(--color-line);
+  vertical-align: middle;
+  color: var(--color-text);
+}
+table.data tr:last-child td { border-bottom: none; }
+table.data tbody tr:hover td { background: rgba(148,163,184,0.04); }
+table.data th.num, table.data td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Sortable headers */
+th.sortable button {
+  background: none; border: none; color: inherit; font: inherit;
+  cursor: pointer; letter-spacing: inherit; text-transform: inherit;
+  padding: var(--space-1) 2px; min-height: 44px; display: inline-flex; align-items: center; gap: 4px;
+}
+th.sortable button:hover { color: var(--color-text); }
+
+/* -------- Chip / Pill -------- */
+.chip, .pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: var(--text-sm); font-weight: 700;
+  padding: 3px 10px; border-radius: var(--radius-full);
+  border: 1px solid var(--color-line-strong);
+  color: var(--color-text-dim);
+  min-height: 26px; white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.chip--pos, .pill.ok { color: #7CFFC4; border-color: var(--color-pos-border); background: var(--color-pos-weak); }
+.chip--neg, .pill.bad { color: #ff8fa8; border-color: var(--color-neg-border); background: var(--color-neg-weak); }
+.chip--warn, .pill.warn { color: #fde68a; border-color: var(--color-warn-border); background: var(--color-warn-weak); }
+.chip--faint { color: var(--color-text-faint); border-style: dashed; }
+.fdr-chip, .alpha-chip { font-variant-numeric: tabular-nums; }
+
+/* -------- Button -------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  min-height: 48px; padding: 10px 20px;
+  font-size: 14px; font-weight: 800; font-family: inherit;
+  border: none; border-radius: var(--radius-md);
+  background: linear-gradient(135deg, #38bdf8, #34d399);
+  color: #04202e; cursor: pointer;
+  transition: filter var(--transition-fast), box-shadow var(--transition-fast);
+  white-space: nowrap;
+}
+.btn:hover { filter: brightness(1.07); }
+.btn:active { filter: brightness(0.97); }
+.btn:focus-visible { box-shadow: var(--shadow-focus); outline: none; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn--ghost {
+  background: transparent; color: var(--color-accent);
+  border: 1px dashed var(--color-line-strong);
+}
+.btn--ghost:hover { background: rgba(148,163,184,0.08); }
+.btn--sm { min-height: 36px; padding: 6px 14px; font-size: var(--text-sm); }
+.btn--block { width: 100%; }
+
+/* -------- Banner -------- */
+.banner {
+  display: flex; align-items: flex-start; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-line-strong);
+  background: var(--color-surface-2);
+  font-size: var(--text-sm); line-height: var(--leading-normal);
+}
+.banner--info { border-color: rgba(56,189,248,0.35); background: rgba(56,189,248,0.08); color: #e0f2fe; }
+.banner--success { border-color: var(--color-pos-border); background: var(--color-pos-weak); color: #d1fae5; }
+.banner--warn { border-color: var(--color-warn-border); background: var(--color-warn-weak); color: #fef3c7; }
+.banner--danger { border-color: var(--color-neg-border); background: var(--color-neg-weak); color: #ffe4e6; }
+.banner strong { font-weight: 800; }
+
+/* -------- Drawer -------- */
+.drawer-backdrop {
+  position: fixed; inset: 0; background: rgba(2,6,17,0.62); z-index: 60;
+  opacity: 0; pointer-events: none; transition: opacity var(--transition-normal);
+}
+.drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+.drawer {
+  position: fixed; top: 0; right: -420px; width: min(400px, 92vw); height: 100vh;
+  background: var(--color-surface); border-left: 1px solid var(--color-line-strong);
+  z-index: 70; transition: right var(--transition-slow); overflow-y: auto; padding: var(--space-5);
+  box-sizing: border-box;
+}
+.drawer.open { right: 0; }
+.drawer__close {
+  position: absolute; top: var(--space-3); right: var(--space-4);
+  background: none; border: none; color: var(--color-text-dim);
+  font-size: 20px; cursor: pointer; line-height: 1;
+  min-width: 48px; min-height: 48px;
+}
+
+/* -------- Tabs -------- */
+.tabs {
+  display: flex; gap: 4px; border-bottom: 1px solid var(--color-line);
+  overflow-x: auto; scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tab {
+  padding: 10px 16px; font-size: var(--text-sm); font-weight: 700;
+  color: var(--color-text-dim); background: none; border: none;
+  border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap;
+  min-height: 44px; font-family: inherit;
+}
+.tab:hover { color: var(--color-text); }
+.tab--active, .tab.active, .tab[aria-selected="true"] {
+  color: #fff; border-bottom-color: var(--color-accent);
+}
+
+/* -------- Ribbon (sticky sync ribbon) -------- */
+.sync-ribbon, .exec-ribbon {
+  position: sticky; top: var(--header-height); z-index: 33;
+  background: rgba(11,15,25,0.97); backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--color-line);
+}
+.sync-ribbon__inner, .exec-ribbon-inner {
+  max-width: var(--max-width-content); margin: 0 auto;
+  padding: 6px var(--space-4);
+  display: flex; align-items: center; gap: var(--space-6);
+  overflow-x: auto; scrollbar-width: none; min-height: var(--ribbon-height);
+}
+.sync-ribbon__inner::-webkit-scrollbar, .exec-ribbon-inner::-webkit-scrollbar { display: none; }
+.ribbon-item { display: inline-flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+.ribbon-label { font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-faint); font-weight: 700; }
+.ribbon-value { font-size: 13.5px; font-weight: 700; color: var(--color-text); }
+
+/* -------- Stat tile (Track Record) -------- */
+.stat {
+  background: var(--color-surface-2); border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg); padding: var(--space-4) var(--space-4);
+}
+.stat__label { font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-faint); font-weight: 700; }
+.stat__value { font-size: 22px; font-weight: 800; color: #fff; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.stat__sub { font-size: var(--text-sm); color: var(--color-text-dim); margin-top: 2px; }
+
+/* -------- Inputs -------- */
+.input {
+  width: 100%; box-sizing: border-box;
+  background: var(--color-surface-2); border: 1px solid var(--color-line-strong);
+  color: var(--color-text); border-radius: var(--radius-md);
+  padding: 11px 13px; font-size: 15px; font-family: inherit;
+}
+.input:focus { outline: none; border-color: var(--color-accent); box-shadow: var(--shadow-focus); }
+
+/* Legacy shims so old class names keep working */
+.exec-ribbon { composes: sync-ribbon; }

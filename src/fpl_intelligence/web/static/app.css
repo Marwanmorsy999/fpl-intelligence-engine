@@ -1,23 +1,22 @@
-/* Phase 25 Gate 1 (U1) — EXECUTIVE READABILITY TOKENS, shared by every page.
-   Base 16px / 1.6 line-height; ui-monospace numerals; #0B0F19 canvas with
-   #00FF94 positive / #FF3366 negative (AA on the dark surface); 20px card
-   padding, 24px grid gap, >=48px tap targets. Inter for UI text. */
+/* Phase 25 Gate 1 (U1) + v2.6.1-real-design — tokens.css is the canonical
+   source; this file keeps legacy aliases so older markup keeps working while
+   new code uses --color-* / --space-* / --text-* from tokens.css. */
 :root {
-  --bg: #0B0F19;
-  --surface: #111827;
-  --surface-2: #0d1424;
-  --line: rgba(148, 163, 184, 0.16);
-  --line-strong: rgba(148, 163, 184, 0.30);
-  --text: #e6ebf4;
-  --text-dim: #a3aec1;
-  --text-faint: #8b95a7;
-  --accent: #38bdf8;
-  --pos: #00FF94;
-  --neg: #FF3366;
+  --bg: var(--color-bg, #0B0F19);
+  --surface: var(--color-surface, #111827);
+  --surface-2: var(--color-surface-2, #0d1424);
+  --line: var(--color-line, rgba(148, 163, 184, 0.16));
+  --line-strong: var(--color-line-strong, rgba(148, 163, 184, 0.30));
+  --text: var(--color-text, #e6ebf4);
+  --text-dim: var(--color-text-dim, #a3aec1);
+  --text-faint: var(--color-text-faint, #8b95a7);
+  --accent: var(--color-accent, #38bdf8);
+  --pos: var(--color-pos, #00FF94);
+  --neg: var(--color-neg, #FF3366);
   --good: var(--pos);
   --bad: var(--neg);
-  --warn: #fbbf24;
-  --radius: 14px;
+  --warn: var(--color-warn, #fbbf24);
+  --radius: var(--radius-lg, 14px);
 }
 html { background: var(--bg); }
 body {
@@ -320,3 +319,74 @@ pre.code { background:var(--surface-2); border:1px solid var(--line); border-rad
   font-size:13px; padding:8px 16px; cursor:pointer; min-height:44px;
 }
 .view-toggle button.active { background:rgba(56,189,248,.16); color:#fff; }
+
+/* ============================================================================
+   v2.6.1-real-design — D2/D3/D4/D5 layout system
+   Laptop >=1200: page-specific grids; Tablet 768-1199: collapse; Phone <640: single
+   col + bottom tabs + sticky ribbon + collapsible sections.
+   ============================================================================ */
+
+/* -- Page wrappers (opt-in): add class to .wrap for laptop grid ---------------- */
+@media (min-width: 1200px) {
+  .wrap--decisions {
+    display: grid;
+    grid-template-columns: 60% 1fr;
+    gap: var(--space-6);
+    align-items: start;
+  }
+  .wrap--decisions .decisions-main { min-width: 0; }
+  .wrap--decisions .decisions-rail { min-width: 0; display: flex; flex-direction: column; gap: var(--space-6); }
+  .wrap--decisions .decisions-bottom {
+    grid-column: 1 / -1;
+    display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6);
+  }
+  .wrap--team {
+    display: grid; grid-template-columns: 1fr 340px; gap: var(--space-6); align-items: start;
+  }
+  .wrap--team .team-heatmap { grid-column: 1 / -1; }
+  .wrap--live { display: grid; grid-template-columns: 1fr 340px; gap: var(--space-6); align-items: start; }
+  .wrap--live .live-header { grid-column: 1 / -1; }
+  .wrap--league { display: grid; grid-template-columns: 1fr 380px; gap: var(--space-6); align-items: start; }
+  .wrap--track .track-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-4); }
+}
+
+/* Tablet: two cols collapse gracefully */
+@media (min-width: 768px) and (max-width: 1199px) {
+  .wrap--decisions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
+  .wrap--decisions .decisions-bottom { grid-column: 1 / -1; }
+  .wrap--team { grid-template-columns: 1fr; }
+  .wrap--live { grid-template-columns: 1fr; }
+  .wrap--league { grid-template-columns: 1fr; }
+  .wrap--track .track-tiles { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Phone <640: single column, no horizontal page scroll */
+@media (max-width: 639px) {
+  html, body { overflow-x: hidden; }
+  .wrap, .wrap--decisions, .wrap--team, .wrap--live, .wrap--league { display: block; }
+  .wrap--decisions .decisions-bottom { display: block; }
+  .table-wrap { border-radius: var(--radius-md); }
+  table.data { font-size: var(--text-sm); }
+  /* Chips / fixture strips horizontal scroll */
+  .chip-row, .fixture-strip, .exec-ribbon-inner, .sync-ribbon__inner {
+    overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .chip-row::-webkit-scrollbar, .fixture-strip::-webkit-scrollbar { display: none; }
+  /* Collapsible bench/analysis folded by default */
+  details.collapsible > summary { list-style: none; cursor: pointer; min-height: 48px; display: flex; align-items: center; }
+  details.collapsible > summary::-webkit-details-marker { display: none; }
+  /* 48px targets already ensured via .btn/.navlink */
+  /* Sticky sync ribbon stays visible (no hide) */
+  .sync-ribbon, .exec-ribbon { position: sticky; top: 0; z-index: 33; }
+}
+
+/* D5 Readability */
+body { font-size: var(--text-base); line-height: var(--leading-relaxed); }
+.section-h { margin: var(--space-8) 0 var(--space-3); } /* 32px separation */
+table.data th, table.data td { font-variant-numeric: tabular-nums; }
+/* AA contrast ensured via tokens: --color-text #e6ebf4 on #0B0F19 = 15.1:1 */
+
+/* Kill ad-hoc inline-style overrides: ensure ribbon never hidden */
+.sync-ribbon[style*="display: none"], .exec-ribbon[style*="display: none"] { display: block !important; }
+#syncRibbon { display: block !important; } /* v2.5.5 ribbon-always */
+

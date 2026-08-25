@@ -10,24 +10,39 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/tokens.css">
+<link rel="stylesheet" href="/static/components.css">
 <link rel="stylesheet" href="/static/app.css">
 <script src="/static/app.js"></script>
+<style>
+  html, body { overflow-x: hidden; }
+  .chips-lead { margin-top: 0; }
+  .chips-actions { display: flex; gap: var(--space-2); margin: var(--space-4) 0; flex-wrap: wrap; align-items: center; }
+  .chips-actions .btn, .chips-actions .btn-ghost { min-height: 48px; }
+  .chip-plan { margin-bottom: var(--space-2); }
+  .chip-plan-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+  .chip-plan-total { margin-left: auto; }
+  .chip-plan-detail { margin-top: var(--space-2); min-height: 48px; }
+  .breakdown-wrap { margin-top: var(--space-3); }
+  .breakdown-wrap table.data { min-width: 520px; }
+  .note-line { margin-top: var(--space-2); }
+</style>
 </head>
 <body>
 <div id="topnav"></div>
 <div class="wrap">
-  <h1 class="page-title" style="margin:0 0 4px">Chip planner</h1>
-  <p class="muted small" style="margin-top:0">Horizon optimizer — simulate chips starting from GW2 (next 8 GWs). Ranked by projected total points. Respects your used chips. Export as .txt.</p>
+  <h1 class="page-title">Chip planner</h1>
+  <p class="muted small chips-lead">Horizon optimizer — simulate chips starting from GW2 (next 8 GWs). Ranked by projected total points. Respects your used chips. Export as .txt.</p>
 
-  <div style="display:flex;gap:8px;margin:14px 0">
+  <div class="chips-actions">
     <button id="runBtn" class="btn" type="button" data-testid="chips-run-btn">Run planner (next 8 GWs)</button>
     <button id="exportBtn" class="btn-ghost" type="button" data-testid="chips-export-btn">⬇ Export plan .txt</button>
-    <span id="statusChip" class="pill" style="align-self:center">—</span>
+    <span id="statusChip" class="pill">—</span>
   </div>
 
   <div id="plansBox"></div>
-  <div id="breakdownBox" style="margin-top:12px"></div>
-  <p id="noteLine" class="faint small" style="margin-top:10px"></p>
+  <div id="breakdownBox" class="breakdown-wrap"></div>
+  <p id="noteLine" class="faint small note-line"></p>
 </div>
 <script>
 "use strict";
@@ -48,11 +63,11 @@ document.addEventListener("DOMContentLoaded", function () {
       var ev = plan.total_ev != null ? Number(plan.total_ev).toFixed(1) : "—";
       var gain = plan.total_gain != null ? Number(plan.total_gain).toFixed(1) : "—";
       var badge = idx===0 ? '<span class="pill ok">BEST</span>' : '<span class="pill">#'+(idx+1)+'</span>';
-      return '<div class="card" data-testid="chips-plan" style="margin-bottom:10px">' +
-        '<div style="display:flex;align-items:center;gap:8px"><strong>'+FPLApp.esc(title)+'</strong>' + badge +
-        '<span style="margin-left:auto" class="num">total '+ev+' pts · <span style="color:#6ee7b7">+'+gain+' EV</span></span></div>' +
-        '<div class="small muted" style="margin-top:6px">'+ ((plan.chips||[]).length ? (plan.chips||[]).map(function(s){ return (s.chip? s.chip.replace("_"," "): s.action) + ' GW'+s.gw; }).join(' → ') : (plan.breakdown||[]).slice(0,3).map(function(s){ return 'GW'+s.gameweek+': '+s.action; }).join(' → ')) +'</div>' +
-        '<button class="btn-ghost" style="margin-top:8px" data-plan="'+idx+'" data-testid="chips-detail-btn">View breakdown</button>' +
+      return '<div class="card chip-plan" data-testid="chips-plan">' +
+        '<div class="chip-plan-head"><strong>'+FPLApp.esc(title)+'</strong>' + badge +
+        '<span class="num chip-plan-total">total '+ev+' pts · <span class="pos">+'+gain+' EV</span></span></div>' +
+        '<div class="small muted">'+ ((plan.chips||[]).length ? (plan.chips||[]).map(function(s){ return (s.chip? s.chip.replace("_"," "): s.action) + ' GW'+s.gw; }).join(' → ') : (plan.breakdown||[]).slice(0,3).map(function(s){ return 'GW'+s.gameweek+': '+s.action; }).join(' → ')) +'</div>' +
+        '<button class="btn-ghost chip-plan-detail" data-plan="'+idx+'" data-testid="chips-detail-btn">View breakdown</button>' +
         '</div>';
     }).join("");
     // breakdown for first plan by default
@@ -67,10 +82,10 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!LAST_RESP || !LAST_RESP.plans || !LAST_RESP.plans[idx]) return;
     var plan = LAST_RESP.plans[idx];
     var rows = (plan.breakdown||[]).map(function(r){
-      return '<tr><td>GW'+r.gameweek+'</td><td>'+FPLApp.esc(r.action)+'</td><td class="num">'+ (r.chip||"—")+'</td><td class="num">'+Number(r.xpts).toFixed(1)+'</td><td class="num" style="color:#6ee7b7">'+ (r.gain!=null?("+"+Number(r.gain).toFixed(1)):"—")+'</td></tr>';
+      return '<tr><td>GW'+r.gameweek+'</td><td>'+FPLApp.esc(r.action)+'</td><td class="num">'+ (r.chip||"—")+'</td><td class="num">'+Number(r.xpts).toFixed(1)+'</td><td class="num pos">'+ (r.gain!=null?("+"+Number(r.gain).toFixed(1)):"—")+'</td></tr>';
     }).join("");
-    $("breakdownBox").innerHTML = '<div class="card"><div class="small muted" style="margin-bottom:6px">Per-GW breakdown — '+FPLApp.esc(plan.label)+'</div>' +
-      '<table class="data"><thead><tr><th>GW</th><th>Action</th><th class="num">Chip</th><th class="num">xPTS</th><th class="num">Gain</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+    $("breakdownBox").innerHTML = '<div class="card"><div class="small muted">Per-GW breakdown — '+FPLApp.esc(plan.label)+'</div>' +
+      '<div class="table-wrap"><table class="data"><thead><tr><th>GW</th><th>Action</th><th class="num">Chip</th><th class="num">xPTS</th><th class="num">Gain</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
   }
 
   function planTxt(){

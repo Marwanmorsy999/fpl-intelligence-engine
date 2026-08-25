@@ -10,25 +10,44 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/tokens.css">
+<link rel="stylesheet" href="/static/components.css">
 <link rel="stylesheet" href="/static/app.css">
 <script src="/static/app.js"></script>
+<style>
+  html, body { overflow-x: hidden; }
+  .wrap--track { box-sizing: border-box; }
+  .track-controls { display: flex; gap: var(--space-2); margin: var(--space-4) 0 var(--space-5); align-items: center; flex-wrap: wrap; }
+  .track-controls .input { max-width: 260px; flex: 1 1 180px; }
+  .track-controls .btn, .track-controls .btn-ghost { min-height: 48px; }
+  #summaryGrid { display: none; }
+  #summaryGrid.track-tiles { gap: var(--space-4); }
+  /* last5 cards grid — auto-fill cards, stacks to 1 col on phone via app.css */
+  #last5 { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  .ledger-note { margin: 0 0 var(--space-2); }
+  .table-wrap { margin-top: var(--space-2); }
+  #transferLedger .row { padding: 10px 0; }
+  #allCards { padding: 4px var(--space-4); }
+  /* ensure tables inside ledger never cause page scroll */
+  .table-wrap table.data { min-width: 520px; }
+</style>
 </head>
 <body>
 <div id="topnav"></div>
-<div class="wrap">
+<div class="wrap wrap--track">
 
-  <h1 class="page-title" style="margin:0 0 4px">Track record</h1>
-  <p class="muted small" style="margin-top:0">Every recommendation the engine made, graded against what actually happened. Cards appear as you use Decisions; verdicts land automatically once the daily 06:10 cron ingests the gameweek's real results.</p>
+  <h1 class="page-title">Track record</h1>
+  <p class="muted small">Every recommendation the engine made, graded against what actually happened. Cards appear as you use Decisions; verdicts land automatically once the daily 06:10 cron ingests the gameweek's real results.</p>
 
-  <div style="display:flex;gap:8px;margin:16px 0 20px">
+  <div class="track-controls">
     <button id="exportTrBtn" class="btn-ghost" type="button" data-testid="export-tr-btn">⬇ Track CSV</button>
-    <span id="trExportStatus" class="faint small" style="align-self:center"></span>
-    <input id="entryInput" class="input" style="max-width:260px" placeholder="Your FPL entry id (e.g. 794561)" inputmode="numeric">
+    <span id="trExportStatus" class="faint small"></span>
+    <input id="entryInput" class="input" placeholder="Your FPL entry id (e.g. 794561)" inputmode="numeric">
     <button id="loadBtn" class="btn" type="button">Load track record</button>
   </div>
 
-  <!-- rolling summary -->
-  <div id="summaryGrid" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));display:none">
+  <!-- rolling summary: 4 tiles -> 4 cols laptop, 2 tablet, 1 phone -->
+  <div id="summaryGrid" class="track-tiles">
     <div class="stat"><div class="stat-label">Graded calls</div><div class="stat-value num" id="stGraded">–</div><div class="stat-sub" id="stGradedSub">&nbsp;</div></div>
     <div class="stat"><div class="stat-label">Hit rate</div><div class="stat-value num" id="stHit">–</div><div class="stat-sub">right or neutral</div></div>
     <div class="stat"><div class="stat-label">Net points</div><div class="stat-value num" id="stNet">–</div><div class="stat-sub">model vs alternatives</div></div>
@@ -36,14 +55,16 @@
   </div>
 
   <div class="section-h">Last 5 graded cards</div>
-  <div id="last5" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))"></div>
+  <div id="last5"></div>
 
   <div class="section-h">Transfer ledger</div>
-  <p id="ledgerNote" class="faint small" style="margin:0 0 8px">Every transfer we could verify for this entry — official FPL history first, snapshot-diff fallback (labelled). Horizon EV = Σ(xPTS_in − xPTS_out) over materialized prediction weeks − hit cost.</p>
-  <div id="transferLedger" class="card"><span class="faint small">Loads with your track record…</span></div>
+  <p id="ledgerNote" class="faint small ledger-note">Every transfer we could verify for this entry — official FPL history first, snapshot-diff fallback (labelled). Horizon EV = Σ(xPTS_in − xPTS_out) over materialized prediction weeks − hit cost.</p>
+  <div class="table-wrap">
+    <div id="transferLedger" class="card"><span class="faint small">Loads with your track record…</span></div>
+  </div>
 
   <div class="section-h">All recommendations</div>
-  <div class="card" style="padding:4px 16px" id="allCards"></div>
+  <div class="card" id="allCards"></div>
 
 </div>
 <script>
@@ -153,7 +174,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }).catch(function () {});
   }
 
-  /* Phase 25 Gate 0 (T1) — transfer ledger with horizon EV. */
+  /* Phase 25 Gate 0 (T1) — transfer ledger with horizon EV as sticky table. */
   function renderLedger(data) {
     var box = $("transferLedger");
     if (!data || data.status === "unavailable") {
@@ -169,24 +190,24 @@ document.addEventListener("DOMContentLoaded", function () {
       box.innerHTML = srcChip + ' <span class="faint small">No transfers recorded yet.</span>';
       return;
     }
-    var body = rows.slice(0, 20).map(function (t) {
+    // Build sticky table inside the card — table-wrap outer already handles overflow
+    var tableRows = rows.slice(0, 20).map(function (t) {
       var evTxt = (t.horizon_ev === null || t.horizon_ev === undefined)
         ? "EV unavailable"
         : "horizon EV " + (t.horizon_ev > 0 ? "+" : "") + Number(t.horizon_ev).toFixed(1);
       return (
-        '<div class="row ledger-row" data-testid="transfer-row">' +
-          "<div><strong>IN " + FPLApp.esc(t.name_in || ("#" + t.element_in)) +
-          " OUT " + FPLApp.esc(t.name_out || ("#" + t.element_out)) + "</strong>" +
-          ' <span class="faint small">GW' + t.gameweek + "</span></div>" +
-          '<div style="margin-left:auto;text-align:right"><span class="num">' + evTxt + "</span>" +
-          ' <span class="pill' + (t.cost > 0 ? " bad" : "") + '">hit ' + Number(t.cost || 0) + "</span></div>" +
-        "</div>"
+        '<tr data-testid="transfer-row">' +
+          '<td><strong>IN ' + FPLApp.esc(t.name_in || ("#" + t.element_in)) +
+          " OUT " + FPLApp.esc(t.name_out || ("#" + t.element_out)) + '</strong> <span class="faint small">GW' + t.gameweek + "</span></td>" +
+          '<td class="num">' + evTxt + '</td>' +
+          '<td><span class="pill' + (t.cost > 0 ? " bad" : "") + '">hit ' + Number(t.cost || 0) + "</span></td>" +
+        "</tr>"
       );
     }).join("");
     box.innerHTML =
       srcChip +
-      '<p class="how-computed faint small" style="margin:8px 0 4px">how computed: horizon EV = Σ(xPTS_in − xPTS_out) over materialized prediction GWs − hit cost</p>' +
-      body;
+      '<p class="how-computed faint small">how computed: horizon EV = Σ(xPTS_in − xPTS_out) over materialized prediction GWs − hit cost</p>' +
+      '<div class="table-wrap"><table class="data"><thead><tr><th>Transfer</th><th class="num">Horizon EV</th><th>Cost</th></tr></thead><tbody>' + tableRows + "</tbody></table></div>";
   }
 
   function loadLedger(entry) {

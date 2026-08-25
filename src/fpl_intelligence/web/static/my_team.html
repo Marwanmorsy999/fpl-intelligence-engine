@@ -10,45 +10,73 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/tokens.css">
+<link rel="stylesheet" href="/static/components.css">
 <link rel="stylesheet" href="/static/app.css">
 <script src="/static/app.js"></script>
+<style>
+  html, body { overflow-x: hidden; }
+  .wrap--team { min-width: 0; overflow-x: hidden; }
+  .team-intro, .team-main, .team-sidebar, .team-heatmap { min-width: 0; }
+  .wrap--team > .team-intro { grid-column: 1 / -1; }
+  #gwHeader { margin-left: 8px; vertical-align: middle; }
+  #syncSubLine { margin: -2px 0 10px; }
+  #metaLine { margin: 14px 0; }
+  .export-row { display: flex; gap: 8px; margin: 10px 0; align-items: center; flex-wrap: wrap; }
+  #myteamStatus { align-self: center; }
+  .view-toggle-row { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; flex-wrap: wrap; }
+  .squad-grid { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+  #squadTableView { display: none; }
+  #squadTableView.table-wrap { padding: 0; overflow-x: auto; }
+  .fixture-toggle { margin-left: 12px; }
+  .heatmap-note { margin: -6px 0 8px; }
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table.data { min-width: 520px; }
+</style>
 </head>
 <body>
 <div id="topnav"></div>
-<div class="wrap">
+<div class="wrap wrap--team">
 
-  <h1 class="page-title" style="margin:0 0 4px">My team
-    <span id="gwHeader" class="pill" style="margin-left:8px;vertical-align:middle">Gameweek –</span>
-  </h1>
-  <p class="muted small" style="margin-top:0">Your synced squad with prices, captaincy, fixture difficulty and squad analysis — restored automatically from your saved session.</p>
-  <p id="syncSubLine" class="faint small" style="margin:-2px 0 10px"></p>
+  <div class="team-intro">
+    <h1 class="page-title">My team
+      <span id="gwHeader" class="pill">Gameweek –</span>
+    </h1>
+    <p class="muted small">Your synced squad with prices, captaincy, fixture difficulty and squad analysis — restored automatically from your saved session.</p>
+    <p id="syncSubLine" class="faint small"></p>
+    <div id="metaLine" class="muted small"></div>
+    <div class="export-row"><button id="exportSquadBtn" class="btn-ghost" type="button" data-testid="myteam-export-btn">⬇ Squad CSV</button><span id="myteamStatus" class="faint small"></span></div>
+    <div id="statusLine" class="muted small"></div>
+  </div>
 
-  <div id="metaLine" class="muted small" style="margin:14px 0"></div>
-  <div style="display:flex;gap:8px;margin:10px 0"><button id="exportSquadBtn" class="btn-ghost" type="button" data-testid="myteam-export-btn">⬇ Squad CSV</button><span id="myteamStatus" class="faint small" style="align-self:center"></span></div>
-  <div id="statusLine" class="muted small"></div>
-
-  <div class="section-h">Squad</div>
-  <div style="display:flex;align-items:center;gap:10px;margin:0 0 10px">
-    <div class="view-toggle" role="group" aria-label="Squad view" data-testid="squad-view-toggle">
-      <button type="button" id="viewCardsBtn" class="active">Cards</button>
-      <button type="button" id="viewTableBtn">Sortable table</button>
+  <div class="team-main">
+    <div class="section-h">Squad</div>
+    <div class="view-toggle-row">
+      <div class="view-toggle" role="group" aria-label="Squad view" data-testid="squad-view-toggle">
+        <button type="button" id="viewCardsBtn" class="active">Cards</button>
+        <button type="button" id="viewTableBtn">Sortable table</button>
+      </div>
+      <span class="faint small">sort by xPTS · Alpha · price · volatility</span>
     </div>
-    <span class="faint small">sort by xPTS · Alpha · price · volatility</span>
+    <div id="squadGrid" class="grid squad-grid"></div>
+    <div id="squadTableView" class="card table-wrap"></div>
   </div>
-  <div id="squadGrid" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(210px,1fr))"></div>
-  <div id="squadTableView" class="card" style="display:none;padding:4px 16px"></div>
 
-  <div class="section-h">Squad analysis</div>
-  <div id="squadPanel" class="card"><span class="faint small">Loads with your squad…</span></div>
-
-  <div class="section-h">Fixture difficulty — next 5 gameweeks
-    <span class="view-toggle" role="group" aria-label="Fixture view" data-testid="fixture-view-toggle" style="margin-left:12px">
-      <button type="button" id="fxHeatBtn" class="active">Heatmap</button>
-      <button type="button" id="fxTableBtn">Table view</button>
-    </span>
+  <div class="team-sidebar">
+    <div class="section-h">Squad analysis</div>
+    <div id="squadPanel" class="card"><span class="faint small">Loads with your squad…</span></div>
   </div>
-  <p class="faint small" style="margin:-6px 0 8px">Heatmap cells show opponent and FDR (green = easy, red = hard). The accessible table view stays one click away.</p>
-  <div id="fixtureTableBox" class="card"><span class="faint small">Scanning fixtures…</span></div>
+
+  <div class="team-heatmap">
+    <div class="section-h">Fixture difficulty — next 5 gameweeks
+      <span class="view-toggle fixture-toggle" role="group" aria-label="Fixture view" data-testid="fixture-view-toggle">
+        <button type="button" id="fxHeatBtn" class="active">Heatmap</button>
+        <button type="button" id="fxTableBtn">Table view</button>
+      </span>
+    </div>
+    <p class="faint small heatmap-note">Heatmap cells show opponent and FDR (green = easy, red = hard). The accessible table view stays one click away.</p>
+    <div id="fixtureTableBox" class="card table-wrap"><span class="faint small">Scanning fixtures…</span></div>
+  </div>
 
 </div>
 <script>
@@ -175,7 +203,7 @@ document.addEventListener("DOMContentLoaded", function () {
     heat += "</div>";
 
     /* Accessible table view stays available behind the toggle. */
-    var table = '<div id="fxTableView" style="display:none"><table class="data"><thead><tr><th>Player</th>'
+    var table = '<div id="fxTableView" style="display:none"><div class="table-wrap"><table class="data"><thead><tr><th>Player</th>'
       + gws.map(function (gw) { return '<th class="num">GW' + gw + "</th>"; }).join("")
       + '<th class="num">Avg FDR</th><th class="num">Swing</th></tr></thead><tbody>'
       + scan.players.map(function (p) {
@@ -189,7 +217,7 @@ document.addEventListener("DOMContentLoaded", function () {
             + '<td class="num" style="color:' + (p.swing > 0 ? "var(--pos)" : p.swing < 0 ? "var(--neg)" : "#94a3b8") + '">'
             + (p.swing > 0 ? "+" : "") + p.swing.toFixed(1) + "</td></tr>";
         }).join("")
-      + "</tbody></table></div>";
+      + "</tbody></table></div></div>";
 
     $("fixtureTableBox").innerHTML = summary + heat + table
       + (scan.easiest_runs && scan.easiest_runs.length
@@ -232,7 +260,7 @@ document.addEventListener("DOMContentLoaded", function () {
     var fmt = function (v, digits, suffix) {
       return v === null || v === undefined ? "–" : Number(v).toFixed(digits === undefined ? 1 : digits) + (suffix || "");
     };
-    var html = '<table class="data"><thead><tr><th>Player</th>'
+    var html = '<div class="table-wrap"><table class="data"><thead><tr><th>Player</th>'
       + '<th class="num sortable"><button type="button" data-sort-key="xpts">xPTS</button></th>'
       + '<th class="num sortable"><button type="button" data-sort-key="alpha">Alpha</button></th>'
       + '<th class="num sortable"><button type="button" data-sort-key="price">Price</button></th>'
@@ -247,7 +275,7 @@ document.addEventListener("DOMContentLoaded", function () {
             + '<td class="num">' + fmt(r.price) + "</td>"
             + '<td class="num">' + fmt(r.vol) + "</td></tr>";
         }).join("")
-      + '</tbody></table><p class="faint small" style="margin:8px 0 6px">* Alpha unavailable without ownership — edge (xPTS − pos avg) shown instead.</p>';
+      + '</tbody></table></div><p class="faint small" style="margin:8px 0 6px">* Alpha unavailable without ownership — edge (xPTS − pos avg) shown instead.</p>';
     $("squadTableView").innerHTML = html;
     $("squadTableView").querySelectorAll("[data-sort-key]").forEach(function (btn) {
       btn.addEventListener("click", function () {

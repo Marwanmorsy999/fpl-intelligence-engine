@@ -10,47 +10,59 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/tokens.css">
+<link rel="stylesheet" href="/static/components.css">
 <link rel="stylesheet" href="/static/app.css">
 <script src="/static/app.js"></script>
 <style>
-  .compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  html, body { overflow-x: hidden; }
+  .compare-lead { margin-top: 0; }
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
   @media(max-width:640px){.compare-grid{grid-template-columns:1fr}}
   .compare-card{position:relative}
   .autocomplete-wrap{position:relative}
   .autocomplete-list{position:absolute;z-index:50;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:#0b1526;border:1px solid #334155;border-radius:10px;margin-top:4px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+  .autocomplete-list[hidden]{display:none !important}
   .autocomplete-item{padding:.5rem .8rem;cursor:pointer;font-size:.85rem;color:#e2e8f0;border-bottom:1px solid #1e293b;display:flex;justify-content:space-between;align-items:center;min-height:44px}
   .autocomplete-item:last-child{border-bottom:none}
   .autocomplete-item:hover,.autocomplete-item.active{background:#16233c}
+  .compare-controls { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin: var(--space-4) 0; }
+  @media(max-width:640px){ .compare-controls{ grid-template-columns:1fr; } }
+  .compare-actions { display: flex; gap: var(--space-2); margin-bottom: var(--space-3); flex-wrap: wrap; align-items: center; }
+  .compare-actions .btn-ghost { min-height: 48px; }
+  .diff-wrap { margin-top: var(--space-3); }
+  .diff-wrap table.data { min-width: 520px; }
+  .compare-status { margin-top: var(--space-2); }
 </style>
 </head>
 <body>
 <div id="topnav"></div>
 <div class="wrap">
-  <h1 class="page-title" style="margin:0 0 4px">Head-to-head compare</h1>
-  <p class="muted small" style="margin-top:0">Two autocomplete dropdowns (search by name/team/pos). Side-by-side cards, diff highlights, share & export.</p>
+  <h1 class="page-title">Head-to-head compare</h1>
+  <p class="muted small compare-lead">Two autocomplete dropdowns (search by name/team/pos). Side-by-side cards, diff highlights, share &amp; export.</p>
 
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0">
+  <div class="compare-controls">
     <div class="autocomplete-wrap">
       <label class="small muted" for="playerAInput"><strong>Player A</strong></label>
       <input id="playerAInput" class="input" placeholder="Search name / team / pos…" autocomplete="off" data-testid="compare-a-input">
-      <div id="playerAList" class="autocomplete-list" style="display:none" data-testid="compare-a-list"></div>
+      <div id="playerAList" class="autocomplete-list" hidden data-testid="compare-a-list"></div>
     </div>
     <div class="autocomplete-wrap">
       <label class="small muted" for="playerBInput"><strong>Player B</strong></label>
       <input id="playerBInput" class="input" placeholder="Search name / team / pos…" autocomplete="off" data-testid="compare-b-input">
-      <div id="playerBList" class="autocomplete-list" style="display:none" data-testid="compare-b-list"></div>
+      <div id="playerBList" class="autocomplete-list" hidden data-testid="compare-b-list"></div>
     </div>
   </div>
 
-  <div style="display:flex;gap:8px;margin-bottom:14px">
+  <div class="compare-actions">
     <button id="shareBtn" class="btn-ghost" type="button" data-testid="compare-share-btn">🔗 Share comparison</button>
     <button id="exportBtn" class="btn-ghost" type="button" data-testid="compare-export-btn">⬇ Export .txt</button>
-    <span id="shareStatus" class="faint small" style="align-self:center"></span>
+    <span id="shareStatus" class="faint small"></span>
   </div>
 
   <div id="compareGrid" class="compare-grid"></div>
-  <div id="diffBox" class="card" style="margin-top:14px;display:none" data-testid="compare-diff"></div>
-  <div id="statusLine" class="muted small" style="margin-top:10px"></div>
+  <div id="diffBox" class="card diff-wrap" hidden data-testid="compare-diff"></div>
+  <div id="statusLine" class="muted small compare-status"></div>
 </div>
 <script>
 "use strict";
@@ -79,25 +91,25 @@ document.addEventListener("DOMContentLoaded", function () {
   }
   function itemHTML(p){
     var canonical = (p.fpl_element_id != null) ? p.fpl_element_id : p.id;
-    return '<div class="autocomplete-item" data-id="'+canonical+'" data-name="'+esc(p.web_name)+'"><span>'+esc(p.web_name)+' <span style="color:#7dd3fc;font-size:11px">'+ (POS_NAMES[p.position]||"")+'</span></span><span style="color:#94a3b8;font-size:11px">T'+(p.team||"?")+' · £'+(p.price!=null?p.price.toFixed(1):"—")+'</span></div>';
+    return '<div class="autocomplete-item" data-id="'+canonical+'" data-name="'+esc(p.web_name)+'"><span>'+esc(p.web_name)+' <span class="pos-badge">'+ (POS_NAMES[p.position]||"")+'</span></span><span class="team-short">T'+(p.team||"?")+' · £'+(p.price!=null?p.price.toFixed(1):"—")+'</span></div>';
   }
   function wire(inputEl, listEl, onPick){
     inputEl.addEventListener("input", function(){
       var res = filterPlayers(inputEl.value);
-      if (!res.length){ listEl.innerHTML='<div class="autocomplete-item" style="color:#64748b">No matches</div>'; listEl.style.display="block"; return; }
+      if (!res.length){ listEl.innerHTML='<div class="autocomplete-item">No matches</div>'; listEl.hidden=false; return; }
       listEl.innerHTML = res.map(itemHTML).join("");
-      listEl.style.display="block";
+      listEl.hidden=false;
       listEl.querySelectorAll(".autocomplete-item[data-id]").forEach(function(el){
         el.addEventListener("click", function(){
           var pid = parseInt(el.getAttribute("data-id"),10);
           var player = ALL_PLAYERS.find(function(p){ return (p.fpl_element_id!=null?p.fpl_element_id:p.id)===pid; });
           inputEl.value = el.getAttribute("data-name");
-          listEl.style.display="none";
+          listEl.hidden=true;
           onPick(player, pid);
         });
       });
     });
-    inputEl.addEventListener("blur", function(){ setTimeout(function(){ listEl.style.display="none"; },150); });
+    inputEl.addEventListener("blur", function(){ setTimeout(function(){ listEl.hidden=true; },150); });
     inputEl.addEventListener("focus", function(){ if(inputEl.value.length>=1) inputEl.dispatchEvent(new Event("input")); });
     inputEl.addEventListener("keydown", function(e){
       if(e.key==="Enter"){
@@ -139,7 +151,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if(p.set_pieces.penalty) chips.push('<span class="setpiece-chip">🥅 Penalty taker</span>');
       if(p.set_pieces.corners) chips.push('<span class="setpiece-chip">🚩 Corner taker</span>');
       if(p.set_pieces.free_kicks) chips.push('<span class="setpiece-chip">🎯 Free-kick taker</span>');
-      if(!chips.length && p.set_pieces.unknown) chips.push('<span class="setpiece-chip" style="opacity:.6">unknown set pieces</span>');
+      if(!chips.length && p.set_pieces.unknown) chips.push('<span class="setpiece-chip">unknown set pieces</span>');
       return chips.join("");
     }
     function formBars(bars){
@@ -147,22 +159,22 @@ document.addEventListener("DOMContentLoaded", function () {
       var max = Math.max.apply(null, bars.map(function(x){return x.points||0;}).concat([2]));
       var barsH = '<div class="form-bars">' + bars.map(function(b){
         var h = Math.max(((b.points||0)/max)*100, 8);
-        return '<div style="flex:1;display:flex;flex-direction:column;align-items:center"><div class="form-bar" style="height:'+h+'%"><span>'+(b.points!=null?b.points:"-")+"</span></div></div>";
+        return '<div class="form-bar-wrap"><div class="form-bar" style="height:'+h+'%"><span>'+(b.points!=null?b.points:"-")+"</span></div></div>";
       }).join("")+"</div>";
-      var labels = '<div style="display:flex">' + bars.map(function(b){ return '<div class="form-bar-label">GW'+(b.gw||"?")+"</div>"; }).join("")+"</div>";
+      var labels = '<div class="form-bar-labels">' + bars.map(function(b){ return '<span>GW'+(b.gw||"?")+"</span>"; }).join("")+"</div>";
       return barsH+labels;
     }
     function card(p){
       var pos = POS_NAMES[p.position]||"?";
       return '<div class="card compare-card" data-testid="compare-card-'+p.id+'">' +
-        '<div style="display:flex;align-items:center;gap:10px"><span class="crest" data-team="'+(p.team||0)+'" style="background:linear-gradient(135deg,#334155,#1e293b)">'+esc((p.web_name||"?").slice(0,3).toUpperCase())+"</span>" +
+        '<div class="compare-card-head"><span class="crest" data-team="'+(p.team||0)+'">'+esc((p.web_name||"?").slice(0,3).toUpperCase())+"</span>" +
         '<div><strong>'+esc(p.web_name||("Player "+p.id))+'</strong><div class="faint small">'+pos+' · '+(p.team_short?esc(p.team_short):"Team "+(p.team||"?"))+' · £'+(p.price!=null?Number(p.price).toFixed(1):"—")+"</div></div>" +
-        '<span style="margin-left:auto" class="pill ok">xPTS '+FPLApp.fmtPts(p.expected_points)+"</span></div>" +
-        '<div class="grid" style="grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px">' +
-          '<div class="stat" style="padding:8px 10px"><div class="stat-label">xG/90</div><div class="stat-value" style="font-size:16px">'+(p.xg_per_90!=null?Number(p.xg_per_90).toFixed(2):"–")+"</div></div>" +
-          '<div class="stat" style="padding:8px 10px"><div class="stat-label">xA/90</div><div class="stat-value" style="font-size:16px">'+(p.xa_per_90!=null?Number(p.xa_per_90).toFixed(2):"–")+"</div></div>" +
-          '<div class="stat" style="padding:8px 10px"><div class="stat-label">Ownership</div><div class="stat-value" style="font-size:16px">'+(p.selected_by_percent?esc(p.selected_by_percent)+"%":"–")+"</div></div>" +
-          '<div class="stat" style="padding:8px 10px"><div class="stat-label">FDR avg</div><div class="stat-value" style="font-size:16px">'+(p.avg_fdr!=null?Number(p.avg_fdr).toFixed(1):"–")+"</div></div>" +
+        '<span class="pill ok">xPTS '+FPLApp.fmtPts(p.expected_points)+"</span></div>" +
+        '<div class="grid compare-stats">' +
+          '<div class="stat"><div class="stat-label">xG/90</div><div class="stat-value">'+(p.xg_per_90!=null?Number(p.xg_per_90).toFixed(2):"–")+"</div></div>" +
+          '<div class="stat"><div class="stat-label">xA/90</div><div class="stat-value">'+(p.xa_per_90!=null?Number(p.xa_per_90).toFixed(2):"–")+"</div></div>" +
+          '<div class="stat"><div class="stat-label">Ownership</div><div class="stat-value">'+(p.selected_by_percent?esc(p.selected_by_percent)+"%":"–")+"</div></div>" +
+          '<div class="stat"><div class="stat-label">FDR avg</div><div class="stat-value">'+(p.avg_fdr!=null?Number(p.avg_fdr).toFixed(1):"–")+"</div></div>" +
         "</div>" +
         '<div class="section-h">Last 5 bars</div>' + formBars(p.form_bars) +
         '<div class="section-h">Next 5 fixtures</div>' + (p.fixture_runs && p.fixture_runs.length ? FPLApp.fixtureStripHTML(p.fixture_runs) : '<p class="faint small">—</p>') +
@@ -172,7 +184,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     $("compareGrid").innerHTML = card(a) + card(b);
     FPLApp.hydrateCrests(document);
-    // diff row
+    // diff table with sticky header
     var diffs = data.diff || {};
     var rows = [
       {label:"xPTS", av: a.expected_points, bv: b.expected_points, fmt:"pts"},
@@ -181,27 +193,27 @@ document.addEventListener("DOMContentLoaded", function () {
       {label:"xA/90", av: a.xa_per_90, bv: b.xa_per_90, fmt:"num"},
       {label:"Price", av: a.price, bv: b.price, fmt:"price"}
     ];
-    var html = '<strong>Diffs</strong><div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">';
+    var html = '<strong>Diffs</strong><div class="table-wrap"><table class="data"><thead><tr><th>Metric</th><th class="num">Player A</th><th></th><th class="num">Player B</th></tr></thead><tbody>';
     rows.forEach(function(r){
       var av = r.av, bv = r.bv;
       if(av==null || bv==null) return;
       var win = av > bv ? "A" : (bv > av ? "B" : "tie");
       var clsA = win==="A" ? "diff-win" : (win==="B" ? "diff-lose" : "diff-tie");
       var clsB = win==="B" ? "diff-win" : (win==="A" ? "diff-lose" : "diff-tie");
-      html += '<div style="display:flex;gap:8px;align-items:center"><span class="small muted" style="width:80px">'+r.label+'</span>' +
-        '<span class="pill '+clsA+'" style="flex:1;justify-content:center" data-testid="diff-a-'+r.label+'">'+(r.fmt==="price"?"£":"")+ (av!=null?Number(av).toFixed(r.label==="Price"?1:2):"–") + (win==="A"?" ▲":"")+"</span>" +
-        '<span class="small" style="color:#64748b">vs</span>' +
-        '<span class="pill '+clsB+'" style="flex:1;justify-content:center" data-testid="diff-b-'+r.label+'">'+(r.fmt==="price"?"£":"")+ (bv!=null?Number(bv).toFixed(r.label==="Price"?1:2):"–") + (win==="B"?" ▲":"")+"</span></div>";
+      html += '<tr><td class="small muted">'+r.label+'</td>' +
+        '<td class="num"><span class="pill '+clsA+'" data-testid="diff-a-'+r.label+'">'+(r.fmt==="price"?"£":"")+ (av!=null?Number(av).toFixed(r.label==="Price"?1:2):"–") + (win==="A"?" ▲":"")+'</span></td>' +
+        '<td class="small">vs</td>' +
+        '<td class="num"><span class="pill '+clsB+'" data-testid="diff-b-'+r.label+'">'+(r.fmt==="price"?"£":"")+ (bv!=null?Number(bv).toFixed(r.label==="Price"?1:2):"–") + (win==="B"?" ▲":"")+'</span></td></tr>';
     });
-    html += "</div>";
+    html += "</tbody></table></div>";
     // set-piece diff note
     if (a.set_pieces || b.set_pieces) {
       var aHas = a.set_pieces && (a.set_pieces.penalty||a.set_pieces.corners||a.set_pieces.free_kicks);
       var bHas = b.set_pieces && (b.set_pieces.penalty||b.set_pieces.corners||b.set_pieces.free_kicks);
-      html += '<p class="small muted" style="margin-top:8px">Set-piece edge: '+(aHas&&!bHas?esc(a.web_name)+" has set pieces": bHas&&!aHas?esc(b.web_name)+" has set pieces" : aHas&&bHas?"Both take set pieces":"Neither is a designated taker")+"</p>";
+      html += '<p class="small muted">Set-piece edge: '+(aHas&&!bHas?esc(a.web_name)+" has set pieces": bHas&&!aHas?esc(b.web_name)+" has set pieces" : aHas&&bHas?"Both take set pieces":"Neither is a designated taker")+"</p>";
     }
     $("diffBox").innerHTML = html;
-    $("diffBox").style.display="block";
+    $("diffBox").hidden=false;
   }
 
   function compareTxt(data){

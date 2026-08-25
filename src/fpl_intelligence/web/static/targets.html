@@ -10,34 +10,60 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/tokens.css">
+<link rel="stylesheet" href="/static/components.css">
 <link rel="stylesheet" href="/static/app.css">
 <script src="/static/app.js"></script>
+<style>
+  html, body { overflow-x: hidden; }
+  .targets-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+  .targets-lead { margin-top: 0; }
+  .targets-toolbar { display: flex; gap: var(--space-2); align-items: center; margin: var(--space-4) 0 var(--space-2); flex-wrap: wrap; }
+  .targets-toolbar .section-h { margin: 0; }
+  .filter-label { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; min-height: 48px; }
+  #targetsList { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  .targets-table-wrap { margin-top: var(--space-4); }
+  .targets-table-wrap table.data { min-width: 640px; }
+  /* details summary 48px target */
+  details.card > summary { cursor: pointer; font-weight: 700; color: #fff; min-height: 48px; display: flex; align-items: center; }
+  .how-computed { margin-bottom: 0; }
+  @media (max-width: 640px) {
+    #targetsList { grid-template-columns: 1fr; }
+  }
+</style>
 </head>
 <body>
 <div id="topnav"></div>
 <div class="wrap">
 
   <h1 class="page-title">Transfer targets
-    <span id="gwHeader" class="pill" style="margin-left:8px">Gameweek –</span>
+    <span id="gwHeader" class="pill">Gameweek –</span>
   </h1>
-  <p class="muted small" style="margin-top:0">Alpha engine: value above position peers, weighted down by how much of your league already owns the player. Every input is shown — nothing hidden, nothing invented.</p>
+  <p class="muted small targets-lead">Alpha engine: value above position peers, weighted down by how much of your league already owns the player. Every input is shown — nothing hidden, nothing invented.</p>
 
   <div id="statusLine"></div>
 
   <div class="section-h">Next-GW focus</div>
   <div id="focusBox"><p class="faint small">Loading…</p></div>
 
-  <div style="display:flex;gap:10px;align-items:center;margin:16px 0 4px">
-    <div class="section-h" style="margin:0">Top targets by Alpha</div>
-    <label class="small muted" style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;min-height:48px">
+  <div class="targets-toolbar">
+    <div class="section-h">Top targets by Alpha</div>
+    <label class="small muted filter-label">
       <input type="checkbox" id="showAllChk" data-testid="show-all-toggle"> show all (incl. unaffordable)
     </label>
   </div>
-  <div id="targetsList" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))"><p class="faint small">Loading…</p></div>
+  <!-- card grid (primary) + table view (sticky, table-first) -->
+  <div id="targetsList"><p class="faint small">Loading…</p></div>
+  <div class="table-wrap targets-table-wrap" id="targetsTableWrap" hidden>
+    <table class="data" id="targetsTable">
+      <thead><tr><th>Player</th><th>Team</th><th class="num">Price</th><th class="num">xPTS</th><th class="num">Pos avg</th><th class="num">Own</th><th class="num">Vol</th><th class="num">Alpha</th><th>FDR next 3</th><th>Afford</th></tr></thead>
+      <tbody id="targetsTbody"></tbody>
+    </table>
+  </div>
 
-  <details class="card" style="margin-top:20px">
-    <summary style="cursor:pointer;font-weight:700;color:#fff;min-height:48px;display:flex;align-items:center">How this is computed</summary>
-    <p class="muted small" style="margin-bottom:0">
+  <details class="card">
+    <summary>How this is computed</summary>
+    <p class="muted small how-computed">
       <strong>Alpha = (xPTS − position-average xPTS) × (1 − ownership)</strong>.
       Ownership uses your league's cached rival picks when at least 3 rivals are cached,
       otherwise the global selected-by % (labelled). Volatility = standard deviation of the
@@ -109,13 +135,21 @@ document.addEventListener("DOMContentLoaded", function () {
     );
   }
 
+  function targetRow(t) {
+    var alphaCell = t.alpha === null || t.alpha === undefined ? '<span class="pill faint-chip">unavailable</span>' : '<span class="num ' + (t.alpha >= 0 ? "pos" : "neg") + '">' + (t.alpha > 0 ? "+" : "") + Number(t.alpha).toFixed(2) + "</span>";
+    var ownCell = t.own_p === null || t.own_p === undefined ? '<span class="pill faint-chip">unavailable</span>' : Math.round(t.own_p*100) + "%";
+    var volCell = t.volatility === null || t.volatility === undefined ? '<span class="pill faint-chip">unavailable</span>' : Number(t.volatility).toFixed(1);
+    var aff = t.affordability === "bank" ? '<span class="pill ok">affordable</span>' : t.affordability === "needs-sale" ? '<span class="pill">needs sale</span>' : '<span class="pill bad">unaffordable</span>';
+    return '<tr data-testid="target-row"><td><strong>' + FPLApp.esc(t.web_name) + '</strong>' + (t.user_owns ? ' <span class="pill warn">owned</span>' : '') + '</td><td>' + FPLApp.esc((t.team||"").slice(0,3)) + '</td><td class="num">£' + Number(t.price).toFixed(1) + '</td><td class="num">' + Number(t.xpts).toFixed(1) + '</td><td class="num">' + Number(t.pos_avg).toFixed(1) + '</td><td class="num">' + ownCell + '</td><td class="num">' + volCell + '</td><td class="num">' + alphaCell + '</td><td>' + fdrStrip(t.fixture_strip) + '</td><td>' + aff + '</td></tr>';
+  }
+
   function renderFocus(focus) {
     if (!focus || !focus.buys || !focus.buys.length) {
       $("focusBox").innerHTML = '<p class="faint small">No prediction data for the next gameweek yet.</p>';
       return;
     }
     $("focusBox").innerHTML =
-      '<p class="faint small" style="margin:0 0 8px">Top buys for GW' + focus.gameweek + ":</p>" +
+      '<p class="faint small">Top buys for GW' + focus.gameweek + ":</p>" +
       '<div class="focus-row">' +
       focus.buys.map(function (b, i) {
         var evTxt = b.alpha != null ? ((b.alpha > 0 ? "+" : "") + Number(b.alpha).toFixed(2) + " alpha") : "alpha n/a";
@@ -139,7 +173,20 @@ document.addEventListener("DOMContentLoaded", function () {
         $("targetsList").innerHTML = list.length
           ? list.map(targetCard).join("")
           : '<p class="faint small">No materialized predictions yet — the daily 06:10 cron fills them.</p>';
+        // also fill sticky table
+        var tbody = $("targetsTbody");
+        var wrap = $("targetsTableWrap");
+        if (tbody && wrap) {
+          if (list.length) {
+            tbody.innerHTML = list.map(targetRow).join("");
+            wrap.hidden = false;
+          } else {
+            tbody.innerHTML = "";
+            wrap.hidden = true;
+          }
+        }
         bindDrawers();
+        FPLApp.hydrateCrests(document);
       })
       .catch(function (err) {
         $("statusLine").innerHTML = '<span class="pill bad">' + FPLApp.esc(err.message || "Load failed.") + "</span>";

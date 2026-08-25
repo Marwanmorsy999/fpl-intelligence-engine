@@ -10,29 +10,62 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/tokens.css">
+<link rel="stylesheet" href="/static/components.css">
 <link rel="stylesheet" href="/static/app.css">
 <script src="/static/app.js"></script>
+<style>
+  html, body { overflow-x: hidden; }
+  .wrap--wide { max-width: 1160px; }
+  .connect-lead { margin-top: 0; }
+  .sync-ribbon__inner--connect { padding: 8px var(--space-4); gap: var(--space-3); }
+  .sync-ribbon-hint { font-size: 12px; font-weight: 700; color: var(--color-warn); display: none; }
+  .sync-ribbon-hint.show { display: inline; }
+  .sync-label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--color-text-dim); cursor: pointer; user-select: none; }
+  .sync-note { margin-left: auto; font-size: 12px; }
+  .sync-banner-sticky { max-width: var(--max-width-content); margin: 0 auto; padding: 0 var(--space-4) var(--space-2); display: none; }
+  .sync-banner-sticky.show { display: block; }
+  .sync-banner-inner { background: linear-gradient(135deg,#052e16,#0a4a28); border: 1px solid #16a34a; color: #bbf7d0; border-radius: 12px; padding: 10px 14px; font-size: 14px; font-weight: 800; box-shadow: 0 6px 20px rgba(34,197,94,0.25); }
+  .token-row { display: flex; gap: var(--space-2); margin-top: var(--space-2); flex-wrap: wrap; align-items: center; }
+  .token-row .input { flex: 1 1 260px; }
+  .token-row .btn { min-height: 48px; }
+  .bm-row { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; margin-top: var(--space-2); }
+  .bm-version { margin-left: var(--space-2); font-size: 0.65rem; }
+  .bm-warn { margin: 10px 0 0; background: rgba(251,191,36,0.08); border-color: rgba(251,191,36,0.35); padding: 10px 12px; }
+  .bm-warn-title { margin: 0; color: #fde68a; font-weight: 700; }
+  .bm-list { padding-left: 18px; margin: 6px 0 12px; }
+  .bm-list--lower { margin: 12px 0 0; }
+  .apps-list, .method-list { padding-left: 18px; }
+  .apps-list { margin-top: 4px; }
+  .method-list { margin: 6px 0; }
+  .push-toggles { display: none; margin-top: var(--space-3); }
+  .push-toggles.show { display: block; }
+  .push-actions { margin-top: var(--space-3); }
+  /* ensure tables never cause page scroll */
+  .table-wrap { margin-top: var(--space-2); }
+  table.data { min-width: 520px; }
+</style>
 </head>
 <body>
 <div id="topnav"></div>
 <!-- v2.5.5 — sticky Sync Now ribbon: ALWAYS visible on /connect (mirrors /dashboard) -->
-<div id="syncRibbon" class="sync-ribbon" data-testid="sync-ribbon" style="position:sticky; top:56px; z-index:33; background:rgba(11,15,25,0.97); backdrop-filter:blur(10px); border-bottom:1px solid #1e293b; display:block">
-  <div style="max-width:1080px; margin:0 auto; padding:8px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap">
-    <button id="syncNowBtn" class="btn-primary" type="button" data-testid="sync-now-btn" style="min-height:44px; font-size:15px; font-weight:800; box-shadow:0 4px 14px rgba(34,197,94,0.25)">↻ Sync Now</button>
-    <span id="syncHint" data-testid="sync-ribbon-hint" class="small" style="font-size:12px; font-weight:700; color:#fbbf24; display:none">Analyze your team to enable Sync Now</span>
-    <label for="syncNextGwToggle" style="display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700; color:#cbd5e1; cursor:pointer; user-select:none">
-      <input id="syncNextGwToggle" type="checkbox" data-testid="sync-next-gw-toggle" style="width:16px; height:16px; accent-color:#22c55e"> Sync for NEXT gameweek
+<div id="syncRibbon" class="sync-ribbon" data-testid="sync-ribbon">
+  <div class="sync-ribbon__inner sync-ribbon__inner--connect">
+    <button id="syncNowBtn" class="btn-primary" type="button" data-testid="sync-now-btn">↻ Sync Now</button>
+    <span id="syncHint" data-testid="sync-ribbon-hint" class="small sync-ribbon-hint">Analyze your team to enable Sync Now</span>
+    <label for="syncNextGwToggle" class="sync-label">
+      <input id="syncNextGwToggle" type="checkbox" data-testid="sync-next-gw-toggle"> Sync for NEXT gameweek
     </label>
-    <span class="faint small" style="margin-left:auto; font-size:12px">Dashboard sync does the same dual-fetch (current + next GW) as the importer</span>
+    <span class="faint small sync-note">Dashboard sync does the same dual-fetch (current + next GW) as the importer</span>
   </div>
-  <div id="syncBannerSticky" class="hidden" role="status" aria-live="polite" data-testid="sync-banner-sticky" style="max-width:1080px; margin:0 auto; padding:0 16px 10px; display:none">
-    <div id="syncBannerStickyInner" style="background:linear-gradient(135deg,#052e16,#0a4a28); border:1px solid #16a34a; color:#bbf7d0; border-radius:12px; padding:10px 14px; font-size:14px; font-weight:800; box-shadow:0 6px 20px rgba(34,197,94,0.25)"></div>
+  <div id="syncBannerSticky" class="sync-banner-sticky" role="status" aria-live="polite" data-testid="sync-banner-sticky">
+    <div id="syncBannerStickyInner" class="sync-banner-inner"></div>
   </div>
 </div>
-<div class="wrap">
+<div class="wrap wrap--wide">
 
-  <h1 class="page-title" style="margin:0 0 4px">Connect your data</h1>
-  <p class="muted small" style="margin-top:0">Three independent ways keep this engine fed. All pushes authenticate with your personal <strong>SYNC_PUSH_TOKEN</strong> (Bearer header). The token is shown once in your deployment report — paste it below and into Apps Script / GitHub secrets.</p>
+  <h1 class="page-title">Connect your data</h1>
+  <p class="muted small connect-lead">Three independent ways keep this engine fed. All pushes authenticate with your personal <strong>SYNC_PUSH_TOKEN</strong> (Bearer header). The token is shown once in your deployment report — paste it below and into Apps Script / GitHub secrets.</p>
 
   <!-- ======= Sync status ======= -->
   <div class="section-h">Sync status</div>
@@ -42,43 +75,45 @@
   <div class="section-h">1 · Your token</div>
   <div class="card">
     <label class="small muted" for="tokenInput">SYNC_PUSH_TOKEN</label>
-    <div style="display:flex;gap:8px;margin-top:6px">
+    <div class="token-row">
       <input id="tokenInput" type="password" class="input" placeholder="paste the 64-hex-char token from your deployment report" autocomplete="off">
       <button id="saveTokenBtn" class="btn" type="button">Save</button>
     </div>
-    <p class="faint small" style="margin-bottom:0">Stored in this browser only (localStorage) so the bookmarklet can use it. Never sent anywhere except your own engine's push endpoint.</p>
+    <p class="faint small">Stored in this browser only (localStorage) so the bookmarklet can use it. Never sent anywhere except your own engine's push endpoint.</p>
   </div>
 
   <!-- ======= Method A: bookmarklet ======= -->
   <div class="section-h">2 · Bookmarklet — instant one-click sync (recommended)</div>
   <div class="card">
-    <ol class="muted small" style="padding-left:18px;margin:6px 0 12px">
+    <ol class="muted small bm-list">
       <li>Paste + save your token above.</li>
       <li>Drag this link to your bookmarks bar:</li>
     </ol>
-    <a id="bookmarkletLink" class="btn" href="#" onclick="return false" title="Drag me to your bookmarks bar" style="display:inline-block;text-decoration:none">⚽ Sync FPL Squad → Engine <span id="bmVersion" class="pill ok" style="margin-left:8px;font-size:0.65rem">v2.5.6-async-sync</span></a>
-    <button id="copyBmBtn" class="btn-ghost" type="button" style="margin-left:10px">Copy link URL</button>
-    <p class="faint small" style="margin:6px 0 0">Bookmarklet version: <strong>v2.5.6-async-sync</strong> — please <em>re-drag</em> the button to your bookmarks bar to update from any older version.</p>
-    <div class="card" style="margin:10px 0 0; background:rgba(251,191,36,0.08); border-color:rgba(251,191,36,0.35); padding:10px 12px">
-      <p class="small" style="margin:0; color:#fde68a; font-weight:700">⚠️ If FPL blocks the bookmarklet, just use the 'Sync Now' button on your dashboard instead.</p>
-      <p class="faint small" style="margin:4px 0 0">FPL's strict Content Security Policy (CSP) can block <code>javascript:</code> execution. The bookmarklet now shows “FPL blocked the sync. Please use the Sync Now button on your dashboard instead.” instead of redirecting — the dashboard Sync Now does the same dual-fetch (current + next GW) server-side.</p>
+    <div class="bm-row">
+      <a id="bookmarkletLink" class="btn" href="#" onclick="return false" title="Drag me to your bookmarks bar">⚽ Sync FPL Squad → Engine <span id="bmVersion" class="pill ok bm-version">v2.5.6-async-sync</span></a>
+      <button id="copyBmBtn" class="btn-ghost" type="button">Copy link URL</button>
     </div>
-    <ol class="muted small" start="3" style="padding-left:18px;margin:12px 0 0">
+    <p class="faint small">Bookmarklet version: <strong>v2.5.6-async-sync</strong> — please <em>re-drag</em> the button to your bookmarks bar to update from any older version.</p>
+    <div class="card bm-warn">
+      <p class="small bm-warn-title">⚠️ If FPL blocks the bookmarklet, just use the 'Sync Now' button on your dashboard instead.</p>
+      <p class="faint small">FPL's strict Content Security Policy (CSP) can block <code>javascript:</code> execution. The bookmarklet now shows “FPL blocked the sync. Please use the Sync Now button on your dashboard instead.” instead of redirecting — the dashboard Sync Now does the same dual-fetch (current + next GW) server-side.</p>
+    </div>
+    <ol class="muted small bm-list bm-list--lower" start="3">
       <li>Open <code>fantasy.premierleague.com/entry/&lt;your-id&gt;/event</code>.</li>
       <li>Click the bookmark. You'll see a success or failure alert — nothing else needed.</li>
     </ol>
-    <p class="faint small" id="bmStatus" style="margin-bottom:0"></p>
+    <p class="faint small" id="bmStatus"></p>
   </div>
 
   <!-- ======= Method B: Apps Script ======= -->
   <div class="section-h">3 · Google Apps Script fetcher — automatic daily + matchday</div>
   <div class="card">
-    <p class="muted small" style="margin-top:0">Runs on Google's infrastructure (no Cloudflare, no Vercel egress problems). Two time-triggers:</p>
-    <ul class="muted small" style="margin-top:4px">
+    <p class="muted small">Runs on Google's infrastructure (no Cloudflare, no Vercel egress problems). Two time-triggers:</p>
+    <ul class="muted small apps-list">
       <li><strong>Daily 05:00 UTC</strong> (+ manual menu item): pulls your entry + picks → <code>squad-push</code></li>
       <li><strong>Sat &amp; Sun hourly 14:00–18:00 UTC</strong>: pulls live points → <code>live-push</code></li>
     </ul>
-    <ol class="muted small" style="padding-left:18px">
+    <ol class="muted small method-list">
       <li>Go to <a href="https://script.google.com" target="_blank" rel="noopener">script.google.com</a> → New project.</li>
       <li>Paste the script below. Set <code>ENGINE_BASE</code> and <code>TOKEN</code> at the top.</li>
       <li>Add triggers: clock icon → <em>syncSquadDaily</em>, Time-driven, Day timer 5–6am. Add a second trigger for <em>syncLiveMatchday</em>, Week timer Sat+Sun 2–6pm.</li>
@@ -194,37 +229,37 @@ function onOpen() {
       .addToUi();
   } catch (e) { /* standalone script has no UI */ }
 }</pre>
-    <p class="faint small" style="margin-bottom:0">The matchday trigger reads the official <code>/api/event/{gw}/live/</code> feed from Google's IPs — which are never rate-limited like datacenter proxies.</p>
+    <p class="faint small">The matchday trigger reads the official <code>/api/event/{gw}/live/</code> feed from Google's IPs — which are never rate-limited like datacenter proxies.</p>
   </div>
 
   <!-- ======= Method C: GitHub Actions ======= -->
   <div class="section-h">4 · GitHub Actions — vaastav dataset + Understat refresh (daily 06:00 UTC)</div>
   <div class="card">
-    <ol class="muted small" style="padding-left:18px;margin:6px 0">
+    <ol class="muted small method-list">
       <li>In your GitHub repo: <em>Settings → Secrets and variables → Actions</em>.</li>
       <li>Add repository secret <code>SYNC_PUSH_TOKEN</code> = your token.</li>
       <li>The committed <code>.github/workflows/data-refresh.yml</code> runs daily at 06:00 UTC, downloads the current-season vaastav GW files + an Understat snapshot, and POSTs them to <code>/api/v1/sync/history-push</code>. Each ingestion auto-rebuilds form features and re-scores your track record.</li>
     </ol>
-    <p class="faint small" style="margin-bottom:0">Also supports <em>workflow_dispatch</em> for manual runs from the Actions tab.</p>
+    <p class="faint small">Also supports <em>workflow_dispatch</em> for manual runs from the Actions tab.</p>
   </div>
 
   <!-- ======= PWA install prompt (Phase 24) ======= -->
   <div class="section-h">5 · Install as app (PWA)</div>
   <div class="card">
-    <p class="muted small" style="margin-top:0">Install FPL Intelligence as a standalone app on your phone or desktop. Theme color #0f172a, offline shell cached.</p>
+    <p class="muted small">Install FPL Intelligence as a standalone app on your phone or desktop. Theme color #0f172a, offline shell cached.</p>
     <div id="pwaInstallHost"><p class="faint small">Install prompt appears here when your browser supports it. If already installed, you're set.</p></div>
-    <p class="faint small" style="margin-bottom:0">If no button appears, use your browser's “Add to Home Screen” / “Install app” menu. Service worker caches the shell for offline fallback.</p>
+    <p class="faint small">If no button appears, use your browser's “Add to Home Screen” / “Install app” menu. Service worker caches the shell for offline fallback.</p>
   </div>
 
   <!-- ======= Notifications (Phase 23 — self-hosted web push) ======= -->
   <div class="section-h">6 · Notifications — self-hosted web push (no external accounts)</div>
   <div class="card" id="pushCard">
-    <p class="muted small" style="margin-top:0">Enable browser notifications for goals, price moves, the weekly brief and track-record grading. The in-app 🔔 bell works regardless of this setting.</p>
+    <p class="muted small">Enable browser notifications for goals, price moves, the weekly brief and track-record grading. The in-app 🔔 bell works regardless of this setting.</p>
     <button id="enablePushBtn" class="btn" type="button" data-testid="enable-notifications">Enable notifications</button>
-    <span id="pushStatus" class="faint small" style="margin-left:10px"></span>
-    <div id="triggerToggles" style="display:none;margin-top:12px"></div>
-    <div style="margin-top:12px">
-      <button id="testPushBtn" class="btn-ghost" type="button" style="display:none">Send test push</button>
+    <span id="pushStatus" class="faint small"></span>
+    <div id="triggerToggles" class="push-toggles"></div>
+    <div class="push-actions">
+      <button id="testPushBtn" class="btn-ghost" type="button" hidden>Send test push</button>
     </div>
   </div>
 
@@ -242,8 +277,8 @@ document.addEventListener("DOMContentLoaded", function () {
     var isDemo = sess && sess.source === "demo";
     var shouldEnable = hasSession && !isDemo;
     var rb = $("syncRibbon"); if (rb) rb.style.display = "block";
-    var btn = $("syncNowBtn"); if (btn) { btn.style.display = "inline-block"; btn.disabled = !shouldEnable; btn.title = shouldEnable ? "" : "Analyze your team to enable Sync Now"; if (!shouldEnable) btn.setAttribute("aria-disabled","true"); else btn.removeAttribute("aria-disabled"); }
-    var hint = $("syncHint"); if (hint) hint.style.display = shouldEnable ? "none" : "inline";
+    var btn = $("syncNowBtn"); if (btn) { btn.disabled = !shouldEnable; btn.title = shouldEnable ? "" : "Analyze your team to enable Sync Now"; if (!shouldEnable) btn.setAttribute("aria-disabled","true"); else btn.removeAttribute("aria-disabled"); }
+    var hint = $("syncHint"); if (hint) hint.classList.toggle("show", !shouldEnable);
     var tgl = $("syncNextGwToggle"); if (tgl) tgl.disabled = !shouldEnable;
   }
   function _syncNowConnect() {
@@ -251,7 +286,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!sess || !sess.key || sess.source === "demo") { alert("Analyze your team to enable Sync Now"); return; }
     var btn = $("syncNowBtn");
     var stickyWrap = $("syncBannerSticky"); var stickyInner = $("syncBannerStickyInner");
-    if (stickyWrap) stickyWrap.style.display = "none"; if (stickyInner) stickyInner.textContent = "";
+    if (stickyWrap) stickyWrap.classList.remove("show"); if (stickyInner) stickyInner.textContent = "";
     if (btn) { btn.disabled = true; btn.textContent = "Syncing\u2026"; }
     var nextGwChecked = false; try { nextGwChecked = !!($("syncNextGwToggle") && $("syncNextGwToggle").checked); } catch(e){}
     var url = "/api/v1/squad/sync-now?session_id=" + encodeURIComponent(sess.key);
@@ -261,7 +296,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (r.status === 400 || r.status === 404 || r.status === 409) throw new Error(data.detail || ("Sync failed ("+r.status+")"));
         if (data && data.state === "done") {
           var bannerText = data.banner || ("Synced! New squad loaded for GW" + (data.gameweek || "?") + ".");
-          if (stickyWrap && stickyInner) { stickyInner.textContent = bannerText; stickyWrap.style.display = "block"; }
+          if (stickyWrap && stickyInner) { stickyInner.textContent = bannerText; stickyWrap.classList.add("show"); }
           _updateConnectRibbon();
           if (btn) btn.textContent = "\u21BB Sync Now";
           return;
@@ -282,7 +317,7 @@ document.addEventListener("DOMContentLoaded", function () {
             var d = obj.data;
             if (d.state === "done") {
               var bannerText2 = d.banner || ("Synced! New squad loaded for GW" + (d.gameweek || "?") + ".");
-              if (stickyWrap && stickyInner) { stickyInner.textContent = bannerText2; stickyWrap.style.display = "block"; }
+              if (stickyWrap && stickyInner) { stickyInner.textContent = bannerText2; stickyWrap.classList.add("show"); }
               _updateConnectRibbon();
               if (btn) btn.textContent = "\u21BB Sync Now";
             } else if (d.state === "failed") {
@@ -363,9 +398,9 @@ document.addEventListener("DOMContentLoaded", function () {
           '<td class="num">' + ((data.counts || {})[kind] || 0) + '</td></tr>');
       });
       $("statusCard").innerHTML =
-        '<table class="data"><thead><tr><th>Channel</th><th>Last successful push</th><th class="num">Gameweek</th><th class="num">Total</th></tr></thead><tbody>' +
-        rows.join("") + "</tbody></table>" +
-        '<p class="faint small" style="margin:10px 0 0">Server token configured: ' +
+        '<div class="table-wrap"><table class="data"><thead><tr><th>Channel</th><th>Last successful push</th><th class="num">Gameweek</th><th class="num">Total</th></tr></thead><tbody>' +
+        rows.join("") + "</tbody></table></div>" +
+        '<p class="faint small">Server token configured: ' +
         (data.token_configured ? '<span class="pill ok">yes</span>' : '<span class="pill bad">NO — set SYNC_PUSH_TOKEN env var</span>') + "</p>";
     })
     .catch(function () {
@@ -392,9 +427,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function renderToggles(selected, sessionKey) {
     var host = $("triggerToggles");
-    host.style.display = "block";
+    host.classList.add("show");
     host.innerHTML = "<strong class='small muted'>Notify me about:</strong>" + PUSH_TRIGGERS.map(function (t) {
-      return '<label class="small muted" style="margin-left:14px"><input type="checkbox" data-trigger="' + t + '"' +
+      return '<label class="small muted"><input type="checkbox" data-trigger="' + t + '"' +
         (selected[t] !== false ? " checked" : "") + "> " + TRIGGER_LABELS[t] + "</label>";
     }).join("");
     Array.prototype.forEach.call(host.querySelectorAll("[data-trigger]"), function (cb) {
@@ -402,7 +437,7 @@ document.addEventListener("DOMContentLoaded", function () {
         resubscribe(sessionKey);
       });
     });
-    $("testPushBtn").style.display = "inline-block";
+    $("testPushBtn").hidden = false;
   }
 
   function currentTriggers() {

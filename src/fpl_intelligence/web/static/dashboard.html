@@ -11,6 +11,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="/static/tokens.css">
+<link rel="stylesheet" href="/static/components.css">
 <link rel="stylesheet" href="/static/app.css">
 <!-- Phase 20.0 — shared chrome + persistent session module -->
 <script src="/static/app.js"></script>
@@ -93,6 +95,42 @@
   .text-slate-600 { color: #7d879b !important; }
   footer a, p a, td a, li a { text-decoration: underline; }
   .drawer h2 { margin: 0 0 2px; font-size: 20px; color: #fff; }
+  .manual-form-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:0.7rem; }
+  .hidden { display:none !important; }
+  /* v2.6.1 — Decisions grid: outer wrap + inner #results grid, no horizontal scroll */
+  html, body { overflow-x: hidden; }
+  .wrap--decisions { box-sizing: border-box; max-width: 1080px; }
+  @media (min-width: 768px) {
+    .wrap--decisions > header,
+    .wrap--decisions > #inputSection,
+    .wrap--decisions > #manualEntry,
+    .wrap--decisions > #results { grid-column: 1 / -1; }
+    #results:not(.hidden) {
+      display: grid;
+      grid-template-columns: 60% 1fr;
+      gap: var(--space-6, 24px);
+      align-items: start;
+    }
+    #results:not(.hidden) #demoBanner,
+    #results:not(.hidden) #teamName,
+    #results:not(.hidden) #chipSlot,
+    #results:not(.hidden) > .flex,
+    #results:not(.hidden) #chainBanner,
+    #results:not(.hidden) #summaryBar { grid-column: 1 / -1; }
+    #results:not(.hidden) .decisions-main { grid-column: 1; min-width: 0; }
+    #results:not(.hidden) .decisions-rail { grid-column: 2; min-width: 0; display: flex; flex-direction: column; gap: var(--space-6, 24px); }
+    #results:not(.hidden) .decisions-bottom { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6, 24px); }
+  }
+  @media (min-width: 768px) and (max-width: 1199px) {
+    #results:not(.hidden) { grid-template-columns: 1fr 1fr; }
+    #results:not(.hidden) .decisions-bottom { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 767px) {
+    #results:not(.hidden) { display: block; }
+    #results:not(.hidden) .decisions-bottom { display: block; }
+    .pitch, .decisions-main, .decisions-rail, .decisions-bottom { min-width: 0; max-width: 100%; }
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  }
 </style>
 </head>
 <body class="text-slate-200 min-h-screen antialiased">
@@ -102,31 +140,31 @@
      which also mounts the persistent session chip. -->
 <div id="topnav"></div>
 <!-- v2.5.5 — sticky Sync Now ribbon: ALWAYS visible; demo/no-session -> disabled + hint -->
-<div id="syncRibbon" class="sync-ribbon" data-testid="sync-ribbon" style="position:sticky; top:56px; z-index:33; background:rgba(11,15,25,0.97); backdrop-filter:blur(10px); border-bottom:1px solid #1e293b; display:block">
-  <div style="max-width:1080px; margin:0 auto; padding:8px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap">
-    <button id="syncNowBtn" class="btn-primary" type="button" data-testid="sync-now-btn" style="min-height:44px; font-size:15px; font-weight:800; box-shadow:0 4px 14px rgba(34,197,94,0.25)">↻ Sync Now</button>
-    <span id="syncHint" data-testid="sync-ribbon-hint" class="small" style="font-size:12px; font-weight:700; color:#fbbf24; display:none">Analyze your team to enable Sync Now</span>
-    <label for="syncNextGwToggle" style="display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700; color:#cbd5e1; cursor:pointer; user-select:none">
-      <input id="syncNextGwToggle" type="checkbox" data-testid="sync-next-gw-toggle" style="width:16px; height:16px; accent-color:#22c55e"> Sync for NEXT gameweek
+<div id="syncRibbon" class="sync-ribbon" data-testid="sync-ribbon">
+  <div class="sync-ribbon__inner">
+    <button id="syncNowBtn" class="btn-primary" type="button" data-testid="sync-now-btn">↻ Sync Now</button>
+    <span id="syncHint" data-testid="sync-ribbon-hint" class="small hidden">Analyze your team to enable Sync Now</span>
+    <label for="syncNextGwToggle" class="inline-flex items-center gap-1.5 text-sm font-bold cursor-pointer select-none">
+      <input id="syncNextGwToggle" type="checkbox" data-testid="sync-next-gw-toggle"> Sync for NEXT gameweek
     </label>
-    <span class="faint small" style="margin-left:auto; font-size:12px">Dashboard sync does the same dual-fetch (current + next GW) as the importer</span>
+    <span class="faint small ml-auto">Dashboard sync does the same dual-fetch (current + next GW) as the importer</span>
   </div>
-  <div id="syncBannerSticky" class="hidden" role="status" aria-live="polite" data-testid="sync-banner-sticky" style="max-width:1080px; margin:0 auto; padding:0 16px 10px; display:none">
-    <div id="syncBannerStickyInner" style="background:linear-gradient(135deg,#052e16,#0a4a28); border:1px solid #16a34a; color:#bbf7d0; border-radius:12px; padding:10px 14px; font-size:14px; font-weight:800; box-shadow:0 6px 20px rgba(34,197,94,0.25)"></div>
+  <div id="syncBannerSticky" class="hidden" role="status" aria-live="polite" data-testid="sync-banner-sticky">
+    <div id="syncBannerStickyInner" class="banner banner--success"></div>
   </div>
 </div>
 
   <!-- v2.5.7 — "What FPL sees" debug card (collapsible) -->
-  <details id="fplViewCard" class="fg-card rounded-2xl p-4 shadow-xl mb-8 anim-in" style="display:none; border-color:#334155">
+  <details id="fplViewCard" class="fg-card rounded-2xl p-4 shadow-xl mb-8 anim-in hidden">
     <summary class="cursor-pointer select-none flex items-center gap-3 text-sm font-semibold text-sky-400">
       <span>🔍</span>
       <span>What FPL sees</span>
       <span class="ml-auto text-slate-500">Click to expand</span>
     </summary>
-    <div id="fplViewContent" class="mt-4 space-y-3 text-sm text-slate-300 font-mono" style="display:none"></div>
+    <div id="fplViewContent" class="mt-4 space-y-3 text-sm text-slate-300 font-mono hidden"></div>
   </details>
 
-  <div class="max-w-4xl mx-auto px-4 py-8">
+  <div class="wrap wrap--decisions">
 
   <!-- ======= Header ======= -->
   <header class="flex flex-wrap items-center gap-3 mb-8 anim-in">
@@ -137,9 +175,9 @@
     </div>
     <span class="text-xs font-bold px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-600 text-slate-300">Season 2026/27</span>
     <span id="healthPill" class="pill">● Checking…</span>
-    <span id="sourceChip" class="pill source" style="display:none"></span>
-    <span id="demoChip" class="pill demo" style="display:none">DEMO</span>
-    <button id="startOverBtn" class="btn-ghost" style="display:none" type="button">Start Over</button>
+    <span id="sourceChip" class="pill source hidden"></span>
+    <span id="demoChip" class="pill demo hidden">DEMO</span>
+    <button id="startOverBtn" class="btn-ghost hidden" type="button">Start Over</button>
   </header>
 
   <!-- ======= Input ======= -->
@@ -152,40 +190,40 @@
     </div>
     <div class="flex flex-wrap items-center gap-3 mt-4">
       <button id="toggleManualBtn" class="btn-ghost" type="button">Enter Squad Manually</button>
-      <button id="retrySyncBtn" class="btn-ghost" type="button" style="display:none; border-color:#38bdf8; color:#bae6fd;">🔄 Try Again</button>
+      <button id="retrySyncBtn" class="btn-ghost hidden" type="button">🔄 Try Again</button>
       <details class="ml-auto text-slate-500 text-sm">
         <summary class="cursor-pointer select-none">Developer Tools</summary>
         <button id="demoBtn" class="btn-ghost mt-2" type="button">Try a Demo Team</button>
       </details>
     </div>
-    <div id="syncBanner" class="mt-3 hidden rounded-xl border border-emerald-700 bg-emerald-950/40 px-4 py-2 text-sm font-semibold text-emerald-200" role="status" aria-live="polite" data-testid="sync-banner" style="display:none"></div>
-    <div id="status" class="mt-4 text-sky-300 text-sm font-semibold" role="status" aria-live="polite" style="display:none"></div>
-    <div id="error" class="mt-4 bg-red-950/70 border border-red-700 text-red-200 rounded-xl px-4 py-3 text-sm font-semibold" role="alert" aria-live="assertive" style="display:none"></div>
+    <div id="syncBanner" class="mt-3 hidden rounded-xl border border-emerald-700 bg-emerald-950/40 px-4 py-2 text-sm font-semibold text-emerald-200" role="status" aria-live="polite" data-testid="sync-banner"></div>
+    <div id="status" class="mt-4 text-sky-300 text-sm font-semibold hidden" role="status" aria-live="polite"></div>
+    <div id="error" class="mt-4 bg-red-950/70 border border-red-700 text-red-200 rounded-xl px-4 py-3 text-sm font-semibold hidden" role="alert" aria-live="assertive"></div>
   </section>
 
   <!-- ======= Manual Squad Entry ======= -->
-  <section id="manualEntry" class="fg-card rounded-2xl p-6 shadow-xl mb-8" style="display:none">
+  <section id="manualEntry" class="fg-card rounded-2xl p-6 shadow-xl mb-8 hidden">
     <h2 class="text-lg font-bold text-sky-400 mb-1">Manual Squad Entry</h2>
     <p class="text-slate-400 text-sm mb-4">Pick 2 GK · 5 DEF · 5 MID · 3 FWD, then choose your captain and vice.</p>
     <div id="pickCounter" class="mb-3 text-sm font-semibold"></div>
     <div id="budgetTracker" class="mb-4">
       <div class="flex justify-between text-xs text-slate-400 mb-1"><span>Total spend</span><span id="budgetText">£0.0m / £100.0m</span></div>
-      <div class="budget-bar"><div id="budgetFill" class="budget-fill budget-ok" style="width:0%"></div></div>
+      <div class="budget-bar"><div id="budgetFill" class="budget-fill budget-ok"></div></div>
     </div>
-    <div id="manualForm" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:0.7rem;"></div>
+    <div id="manualForm" class="manual-form-grid"></div>
     <div class="flex flex-wrap gap-4 mt-4">
       <div class="flex-1 min-w-[180px]">
         <label class="text-xs text-slate-400 block mb-1 font-semibold">Captain</label>
         <div class="autocomplete-wrap" id="capWrap">
           <input id="manualCap" type="text" class="input-dark" placeholder="Type to search your 15 players…" autocomplete="off" />
-          <div id="capList" class="autocomplete-list" style="display:none"></div>
+          <div id="capList" class="autocomplete-list hidden"></div>
         </div>
       </div>
       <div class="flex-1 min-w-[180px]">
         <label class="text-xs text-slate-400 block mb-1 font-semibold">Vice-Captain</label>
         <div class="autocomplete-wrap" id="viceWrap">
           <input id="manualVice" type="text" class="input-dark" placeholder="Type to search your 15 players…" autocomplete="off" />
-          <div id="viceList" class="autocomplete-list" style="display:none"></div>
+          <div id="viceList" class="autocomplete-list hidden"></div>
         </div>
       </div>
     </div>
@@ -193,17 +231,17 @@
   </section>
 
   <!-- ======= Results ======= -->
-  <section id="results" aria-live="polite" style="display:none">
-    <div id="demoBanner" class="mb-4 bg-amber-950/70 border border-amber-600 text-amber-200 rounded-xl px-4 py-3 text-sm font-semibold" style="display:none">⚠️ You are viewing a DEMO squad, not your real team.</div>
+  <section id="results" aria-live="polite" class="hidden">
+    <div id="demoBanner" class="mb-4 bg-amber-950/70 border border-amber-600 text-amber-200 rounded-xl px-4 py-3 text-sm font-semibold hidden">⚠️ You are viewing a DEMO squad, not your real team.</div>
     <p id="teamName" class="text-slate-400 text-sm mb-4 font-semibold"></p>
     <div id="chipSlot" class="mb-6"></div>
 
     <!-- Phase 24 M2 — share / export toolbar -->
-    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+    <div class="flex flex-wrap gap-2 mb-4">
       <button id="shareBtn" class="btn-ghost" type="button" data-testid="share-btn">🔗 Share</button>
       <button id="exportSquadBtn" class="btn-ghost" type="button" data-testid="export-squad-btn">⬇ Squad CSV</button>
       <button id="exportBriefBtn" class="btn-ghost" type="button" data-testid="export-brief-btn">⬇ Brief .txt</button>
-      <span id="shareStatus" class="faint small" style="align-self:center"></span>
+      <span id="shareStatus" class="faint small self-center"></span>
     </div>
 
     <!-- Chain provenance banner: honest disclosure of the prediction source -->
@@ -212,53 +250,61 @@
     <!-- Squad Summary Bar -->
     <div id="summaryBar" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8"></div>
 
-    <!-- Pitch View -->
-    <h2 class="text-lg font-bold text-sky-400 mb-1">Recommended Starting 11</h2>
-    <p class="text-xs text-slate-500 mb-3">C = Captain (2× points) · VC = Vice-Captain · Hover any card for details</p>
-    <div id="pitch" class="pitch px-3 py-4 mb-8">
-      <div class="pitch-mid"></div>
-      <div class="pitch-circle"></div>
-      <div id="pitchRows" class="relative"></div>
+    <div class="decisions-main">
+      <!-- Pitch View -->
+      <h2 class="text-lg font-bold text-sky-400 mb-1">Recommended Starting 11</h2>
+      <p class="text-xs text-slate-500 mb-3">C = Captain (2× points) · VC = Vice-Captain · Hover any card for details</p>
+      <div id="pitch" class="pitch px-3 py-4 mb-8">
+        <div class="pitch-mid"></div>
+        <div class="pitch-circle"></div>
+        <div id="pitchRows" class="relative"></div>
+      </div>
+
+      <!-- Bench Strip -->
+      <h2 class="text-lg font-bold text-sky-400 mb-3">Bench <span class="text-slate-500 text-sm font-medium">(auto-sub order)</span></h2>
+      <div id="benchStrip" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6"></div>
+
+      <!-- Phase 22 (D4) what-if simulator -->
+      <div id="simulatorBar" class="fg-card rounded-2xl p-4 shadow-xl mb-8 hidden"></div>
+
+      <!-- Phase 22 (D1) differential picks -->
+      <h2 class="text-lg font-bold text-sky-400 mb-3">Differential Picks <span class="text-slate-500 text-sm font-medium">(high xPTS, low ownership)</span></h2>
+      <div id="differentialStrip" class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8"><p class="text-slate-500 text-sm">Loading…</p></div>
+
+      <!-- Phase 23 (L3) price moves strip -->
+      <h2 class="text-lg font-bold text-sky-400 mb-3">Today's Risers / Fallers</h2>
+      <div id="priceStrip" class="fg-card rounded-2xl p-4 shadow-xl mb-8"><p class="text-slate-500 text-sm">Loading…</p></div>
+
+      <!-- Transfers -->
+      <h2 class="text-lg font-bold text-sky-400 mb-3">Transfer Recommendations</h2>
+      <div id="transferBox" class="fg-card rounded-2xl p-5 shadow-xl mb-6"></div>
+
+      <!-- Data Sources -->
+      <h2 class="text-lg font-bold text-sky-400 mb-3">Data Sources</h2>
+      <div id="dataSourcesBox" class="fg-card rounded-2xl p-5 shadow-xl mb-8"></div>
     </div>
 
-    <!-- Bench Strip -->
-    <h2 class="text-lg font-bold text-sky-400 mb-3">Bench <span class="text-slate-500 text-sm font-medium">(auto-sub order)</span></h2>
-    <div id="benchStrip" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6"></div>
+    <div class="decisions-rail">
+      <!-- Captain Spotlight -->
+      <h2 class="text-lg font-bold text-sky-400 mb-3">Captain Spotlight</h2>
+      <div id="captainHero" class="fg-card rounded-2xl p-5 shadow-xl mb-6"></div>
+      <!-- Phase 22 (D3) armband comparison cards + vice EV line -->
+      <div id="captainCompare" class="mb-8"></div>
 
-    <!-- Phase 22 (D4) what-if simulator -->
-    <div id="simulatorBar" class="fg-card rounded-2xl p-4 shadow-xl mb-8" style="display:none"></div>
+      <!-- Phase 22 (D2) transfer watchlist (even when the verdict is roll) -->
+      <div id="watchlistBox" class="fg-card rounded-2xl p-5 shadow-xl mb-8 hidden"></div>
+    </div>
 
-    <!-- Phase 22 (D1) differential picks -->
-    <h2 class="text-lg font-bold text-sky-400 mb-3">Differential Picks <span class="text-slate-500 text-sm font-medium">(high xPTS, low ownership)</span></h2>
-    <div id="differentialStrip" class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8"><p class="text-slate-500 text-sm">Loading…</p></div>
-
-    <!-- Phase 23 (L3) price moves strip -->
-    <h2 class="text-lg font-bold text-sky-400 mb-3">Today's Risers / Fallers</h2>
-    <div id="priceStrip" class="fg-card rounded-2xl p-4 shadow-xl mb-8"><p class="text-slate-500 text-sm">Loading…</p></div>
-
-    <!-- Captain Spotlight -->
-    <h2 class="text-lg font-bold text-sky-400 mb-3">Captain Spotlight</h2>
-    <div id="captainHero" class="fg-card rounded-2xl p-5 shadow-xl mb-6"></div>
-    <!-- Phase 22 (D3) armband comparison cards + vice EV line -->
-    <div id="captainCompare" class="mb-8"></div>
-
-    <!-- Transfers -->
-    <h2 class="text-lg font-bold text-sky-400 mb-3">Transfer Recommendations</h2>
-    <div id="transferBox" class="fg-card rounded-2xl p-5 shadow-xl mb-6"></div>
-    <!-- Phase 22 (D2) transfer watchlist (even when the verdict is roll) -->
-    <div id="watchlistBox" class="fg-card rounded-2xl p-5 shadow-xl mb-8" style="display:none"></div>
-
-    <!-- AI Analyst -->
-    <h2 class="text-lg font-bold text-sky-400 mb-3">AI Analyst</h2>
-    <div id="analystBox" class="fg-card rounded-2xl p-5 shadow-xl mb-8"></div>
-
-    <!-- Phase 20.0 — BBC News Radar flags -->
-    <h2 class="text-lg font-bold text-sky-400 mb-3">News Radar <span class="text-slate-500 text-sm font-medium">(BBC Sport)</span></h2>
-    <div id="newsRadarBox" class="fg-card rounded-2xl p-5 shadow-xl mb-8"><p class="text-slate-500 text-sm">Checking headlines…</p></div>
-
-    <!-- Data Sources -->
-    <h2 class="text-lg font-bold text-sky-400 mb-3">Data Sources</h2>
-    <div id="dataSourcesBox" class="fg-card rounded-2xl p-5 shadow-xl mb-8"></div>
+    <div class="decisions-bottom">
+      <section>
+        <h2 class="text-lg font-bold text-sky-400 mb-3">AI Analyst</h2>
+        <div id="analystBox" class="fg-card rounded-2xl p-5 shadow-xl mb-8"></div>
+      </section>
+      <section>
+        <h2 class="text-lg font-bold text-sky-400 mb-3">News Radar <span class="text-slate-500 text-sm font-medium">(BBC Sport)</span></h2>
+        <div id="newsRadarBox" class="fg-card rounded-2xl p-5 shadow-xl mb-8"><p class="text-slate-500 text-sm">Checking headlines…</p></div>
+      </section>
+    </div>
   </section>
 
   <!-- ======= Phase 20.0 player drawer (deep analysis) ======= -->
@@ -266,7 +312,7 @@
   <aside id="drawer" class="drawer" aria-label="Player deep analysis">
     <button class="drawer-close" onclick="closeDrawer()" type="button" aria-label="Close">×</button>
     <h2 id="drawerTitle">Player</h2>
-    <p class="faint small" style="margin:0 0 10px">Deep analysis · click any card on the pitch to open</p>
+    <p class="faint small mb-2.5">Deep analysis · click any card on the pitch to open</p>
     <div id="drawerBody"></div>
   </aside>
 
