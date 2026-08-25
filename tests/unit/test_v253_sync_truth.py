@@ -252,14 +252,14 @@ class TestSyncNowBannerAndDecisions:
 
         p = Path("src/fpl_intelligence/web/static/bookmarklet.js")
         text = p.read_text(encoding="utf-8")
-        # v2.5.4-sync-fallback supersedes 2.5.3; accept either for backwards-compat
-        assert "2.5.4-sync-fallback" in text or "2.5.3-sync-truth" in text
+        # v2.5.5-ribbon-always supersedes 2.5.4/2.5.3; accept either for backwards-compat
+        assert "2.5.5-ribbon-always" in text or "2.5.4-sync-fallback" in text or "2.5.3-sync-truth" in text
         assert "BOOKMARKLET_VERSION" in text
         # CSP fallback message must be present
         assert "FPL blocked the sync" in text
         assert "Sync Now button on your dashboard" in text
         p2 = Path("src/fpl_intelligence/web/static/connect.html")
-        assert "v2.5.4-sync-fallback" in p2.read_text(encoding="utf-8") or "v2.5.3-sync-truth" in p2.read_text(encoding="utf-8")
+        assert "v2.5.5-ribbon-always" in p2.read_text(encoding="utf-8") or "v2.5.4-sync-fallback" in p2.read_text(encoding="utf-8") or "v2.5.3-sync-truth" in p2.read_text(encoding="utf-8")
         assert "re-drag" in p2.read_text(encoding="utf-8").lower()
         # connect warning for CSP
         assert "If FPL blocks the bookmarklet" in p2.read_text(encoding="utf-8")

@@ -15,6 +15,20 @@
 </head>
 <body>
 <div id="topnav"></div>
+<!-- v2.5.5 — sticky Sync Now ribbon: ALWAYS visible on /connect (mirrors /dashboard) -->
+<div id="syncRibbon" class="sync-ribbon" data-testid="sync-ribbon" style="position:sticky; top:56px; z-index:33; background:rgba(11,15,25,0.97); backdrop-filter:blur(10px); border-bottom:1px solid #1e293b; display:block">
+  <div style="max-width:1080px; margin:0 auto; padding:8px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap">
+    <button id="syncNowBtn" class="btn-primary" type="button" data-testid="sync-now-btn" style="min-height:44px; font-size:15px; font-weight:800; box-shadow:0 4px 14px rgba(34,197,94,0.25)">↻ Sync Now</button>
+    <span id="syncHint" data-testid="sync-ribbon-hint" class="small" style="font-size:12px; font-weight:700; color:#fbbf24; display:none">Analyze your team to enable Sync Now</span>
+    <label for="syncNextGwToggle" style="display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700; color:#cbd5e1; cursor:pointer; user-select:none">
+      <input id="syncNextGwToggle" type="checkbox" data-testid="sync-next-gw-toggle" style="width:16px; height:16px; accent-color:#22c55e"> Sync for NEXT gameweek
+    </label>
+    <span class="faint small" style="margin-left:auto; font-size:12px">Dashboard sync does the same dual-fetch (current + next GW) as the importer</span>
+  </div>
+  <div id="syncBannerSticky" class="hidden" role="status" aria-live="polite" data-testid="sync-banner-sticky" style="max-width:1080px; margin:0 auto; padding:0 16px 10px; display:none">
+    <div id="syncBannerStickyInner" style="background:linear-gradient(135deg,#052e16,#0a4a28); border:1px solid #16a34a; color:#bbf7d0; border-radius:12px; padding:10px 14px; font-size:14px; font-weight:800; box-shadow:0 6px 20px rgba(34,197,94,0.25)"></div>
+  </div>
+</div>
 <div class="wrap">
 
   <h1 class="page-title" style="margin:0 0 4px">Connect your data</h1>
@@ -42,9 +56,9 @@
       <li>Paste + save your token above.</li>
       <li>Drag this link to your bookmarks bar:</li>
     </ol>
-    <a id="bookmarkletLink" class="btn" href="#" onclick="return false" title="Drag me to your bookmarks bar" style="display:inline-block;text-decoration:none">⚽ Sync FPL Squad → Engine <span id="bmVersion" class="pill ok" style="margin-left:8px;font-size:0.65rem">v2.5.4-sync-fallback</span></a>
+    <a id="bookmarkletLink" class="btn" href="#" onclick="return false" title="Drag me to your bookmarks bar" style="display:inline-block;text-decoration:none">⚽ Sync FPL Squad → Engine <span id="bmVersion" class="pill ok" style="margin-left:8px;font-size:0.65rem">v2.5.5-ribbon-always</span></a>
     <button id="copyBmBtn" class="btn-ghost" type="button" style="margin-left:10px">Copy link URL</button>
-    <p class="faint small" style="margin:6px 0 0">Bookmarklet version: <strong>v2.5.4-sync-fallback</strong> — please <em>re-drag</em> the button to your bookmarks bar to update from any older version.</p>
+    <p class="faint small" style="margin:6px 0 0">Bookmarklet version: <strong>v2.5.5-ribbon-always</strong> — please <em>re-drag</em> the button to your bookmarks bar to update from any older version.</p>
     <div class="card" style="margin:10px 0 0; background:rgba(251,191,36,0.08); border-color:rgba(251,191,36,0.35); padding:10px 12px">
       <p class="small" style="margin:0; color:#fde68a; font-weight:700">⚠️ If FPL blocks the bookmarklet, just use the 'Sync Now' button on your dashboard instead.</p>
       <p class="faint small" style="margin:4px 0 0">FPL's strict Content Security Policy (CSP) can block <code>javascript:</code> execution. The bookmarklet now shows “FPL blocked the sync. Please use the Sync Now button on your dashboard instead.” instead of redirecting — the dashboard Sync Now does the same dual-fetch (current + next GW) server-side.</p>
@@ -220,6 +234,43 @@ function onOpen() {
 document.addEventListener("DOMContentLoaded", function () {
   FPLApp.renderNav("/connect");
   var $ = function (id) { return document.getElementById(id); };
+  // v2.5.5 — ribbon ALWAYS visible (mirrors /dashboard); demo/no-session -> disabled + hint
+  function _updateConnectRibbon() {
+    var sess = null;
+    try { sess = FPLApp.session.read(); } catch (e) { try { sess = JSON.parse(localStorage.getItem("fpl_session_v20")||"null"); } catch(e2){} }
+    var hasSession = !!(sess && sess.key);
+    var isDemo = sess && sess.source === "demo";
+    var shouldEnable = hasSession && !isDemo;
+    var rb = $("syncRibbon"); if (rb) rb.style.display = "block";
+    var btn = $("syncNowBtn"); if (btn) { btn.style.display = "inline-block"; btn.disabled = !shouldEnable; btn.title = shouldEnable ? "" : "Analyze your team to enable Sync Now"; if (!shouldEnable) btn.setAttribute("aria-disabled","true"); else btn.removeAttribute("aria-disabled"); }
+    var hint = $("syncHint"); if (hint) hint.style.display = shouldEnable ? "none" : "inline";
+    var tgl = $("syncNextGwToggle"); if (tgl) tgl.disabled = !shouldEnable;
+  }
+  function _syncNowConnect() {
+    var sess = null; try { sess = FPLApp.session.read(); } catch(e){}
+    if (!sess || !sess.key || sess.source === "demo") { alert("Analyze your team to enable Sync Now"); return; }
+    var btn = $("syncNowBtn");
+    var stickyWrap = $("syncBannerSticky"); var stickyInner = $("syncBannerStickyInner");
+    if (stickyWrap) stickyWrap.style.display = "none"; if (stickyInner) stickyInner.textContent = "";
+    if (btn) { btn.disabled = true; btn.textContent = "\u23F3 Syncing..."; }
+    var nextGwChecked = false; try { nextGwChecked = !!($("syncNextGwToggle") && $("syncNextGwToggle").checked); } catch(e){}
+    var url = "/api/v1/squad/sync-now?session_id=" + encodeURIComponent(sess.key);
+    if (nextGwChecked) url += "&next_gw=true";
+    fetch(url, { method: "POST" }).then(function(r){
+      if (!r.ok) return r.json().catch(function(){return {};}).then(function(b){ throw new Error(b.detail || ("Sync failed ("+r.status+")")); });
+      return r.json();
+    }).then(function(data){
+      var bannerText = data.banner || ("Synced! New squad loaded for GW" + (data.gameweek || "?") + ".");
+      if (stickyWrap && stickyInner) { stickyInner.textContent = bannerText; stickyWrap.style.display = "block"; }
+    }).catch(function(e){ alert(e.message); }).finally(function(){
+      _updateConnectRibbon();
+      if (btn) btn.textContent = "\u21BB Sync Now";
+    });
+  }
+  // wire ribbon button immediately and keep state in sync with storage events
+  try { var _snC = $("syncNowBtn"); if (_snC) _snC.addEventListener("click", _syncNowConnect); } catch(e){}
+  _updateConnectRibbon();
+  window.addEventListener("storage", _updateConnectRibbon);
 
   // --- token persistence ---------------------------------------------------
   try { $("tokenInput").value = localStorage.getItem("fpl_sync_push_token") || ""; } catch (e) {}
@@ -389,6 +440,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   FPLApp.session.bootstrap({
     onReady: function (session) {
+      try { _updateConnectRibbon(); } catch(e){}
       $("enablePushBtn").addEventListener("click", function () { subscribeBrowser(session.key); });
       $("testPushBtn").addEventListener("click", function () {
         fetch("/api/v1/push/test?session_id=" + encodeURIComponent(session.key), { method: "POST" })
@@ -410,6 +462,7 @@ document.addEventListener("DOMContentLoaded", function () {
     },
     onNoSession: function () {
       $("enablePushBtn").disabled = false;
+      try { _updateConnectRibbon(); } catch(e){}
     }
   });
 });
