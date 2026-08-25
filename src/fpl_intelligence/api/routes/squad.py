@@ -1269,8 +1269,23 @@ async def sync_now(
 
     job, _handle = start_sync_job(str(session_id), bool(next_gw), engine_bind)
 
-    # Fast path: if the whole job (fetch + save) resolves <4s, return done directly
+    # Fast path: if the whole job (fetch + save) resolves <4s, return done directly.
+    # v2.6.0 serverless fix: on Vercel the background THREAD dies the moment we
+    # return 202 (instance freeze), so while running there we keep the request
+    # alive and poll inline up to ~45s (maxDuration is 60s). Locally the legacy
+    # 4s fast path + 202/poll behaviour is preserved.
+    import os as _os
+
+    on_vercel = _os.getenv("VERCEL", "") == "1"
     completed = await wait_for_job_fast_poll(str(session_id), timeout=4.0)
+    if not completed and on_vercel:
+        completed = await wait_for_job_fast_poll(str(session_id), timeout=41.0)
+        job_after_running = get_job(str(session_id)) or {}
+        if (
+            not completed
+            and job_after_running.get("state") == "failed"
+        ):
+            completed = True
     if completed:
         job_after = get_job(str(session_id))
         if job_after is None:
