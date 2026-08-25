@@ -208,6 +208,27 @@ class FplViewEntrySummary(BaseModel):
     last_deadline_bank_tenths: int | None = None
 
 
+class FplViewHistory(BaseModel):
+    """Official ``/entry/{id}/history/`` row for the target gameweek.
+
+    v2.6.0 — the cross-check signal: FPL's own per-gameweek transfer count.
+    When FPL has not written a row for the target GW yet (GW unfinished),
+    ``event_transfers`` is ``None`` and the newest available row is exposed so
+    the UI can show what FPL actually recorded instead of guessing.
+    """
+
+    gw: int
+    event_transfers: int | None = None
+    event_transfers_cost: int | None = None
+    #: Newest history row that exists (may be an earlier GW when the target
+    #: GW has no row yet).
+    latest_event: int | None = None
+    latest_event_transfers: int | None = None
+    #: Human sentence rendered verbatim in the fpl-view card, e.g.
+    #: "FPL history: 1 transfer made for GW2".
+    note: str
+
+
 class FplViewResponse(BaseModel):
     """Raw FPL truth via egress masks - no mutation, no guessing."""
 
@@ -215,6 +236,7 @@ class FplViewResponse(BaseModel):
     picks_current: FplViewPicks
     picks_next: FplViewPicks
     entry_summary: FplViewEntrySummary
+    fpl_history: FplViewHistory | None = None
 
 
 class FromFplResponse(BaseModel):

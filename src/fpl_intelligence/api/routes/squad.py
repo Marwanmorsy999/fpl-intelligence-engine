@@ -51,6 +51,7 @@ from fpl_intelligence.squad.fpl_import import (
 from fpl_intelligence.squad.models import (
     DecisionReport,
     FplViewEntrySummary,
+    FplViewHistory,
     FplViewPicks,
     FplViewResponse,
     FromFplResponse,
@@ -876,9 +877,20 @@ class FromFplRequest(BaseModel):
 def _build_sync_status(result: Any, entry_id: int) -> str:
     """Build an honest sync-status line naming the egress mask that won."""
     strategy = getattr(result, "winning_strategy", None)
-    if strategy:
-        return f"Synced via {strategy} — FPL ID {entry_id} saved."
-    return f"FPL ID {entry_id} saved."
+    base = f"Synced via {strategy} — FPL ID {entry_id} saved." if strategy else (
+        f"FPL ID {entry_id} saved."
+    )
+    # v2.6.0 — surface the transfer-saga truth branches on the status line.
+    if getattr(result, "rebuilt_from_history", False):
+        gw = getattr(result, "pending_transfer_gw", None) or "next"
+        return f"GW{gw} squad rebuilt from official FPL history. {base}"
+    if getattr(result, "no_pending_transfer", False):
+        gw = getattr(result, "pending_transfer_gw", None) or "next"
+        return (
+            f"No confirmed transfer found on FPL for GW{gw} — "
+            f"finish it on FPL, then sync. {base}"
+        )
+    return base
 
 
 @router.post("/squad/from-fpl", response_model=FromFplResponse, status_code=200)
@@ -1135,6 +1147,8 @@ async def fpl_view(
     - picks_current: {gw, ids, status} for current_event
     - picks_next: {gw, ids, status} for next unplayed GW (status 200/404)
     - entry_summary: last-deadline bank/transfers from entry endpoint
+    - fpl_history (v2.6.0): official /history/ row cross-check for the target
+      GW ("FPL history: N transfer(s) made for GWX").
     """
     if not session_id or not str(session_id).strip().isdigit():
         raise HTTPException(status_code=400, detail="session_id must be a numeric entry id")
@@ -1142,6 +1156,7 @@ async def fpl_view(
     from fpl_intelligence.config import get_settings
     from fpl_intelligence.data_providers.fpl_egress import FplEgressChain
     from fpl_intelligence.squad.fpl_import import FplSquadImporter
+    from fpl_intelligence.squad.fpl_truth import fetch_fpl_truth, history_note
 
     settings = get_settings()
     egress = FplEgressChain(
@@ -1151,70 +1166,58 @@ async def fpl_view(
     )
     importer = FplSquadImporter(egress=egress)
 
-    # Fetch entry (for current_event, name, last_deadline info)
-    entry = await importer._fetch_json(
-        f"/api/entry/{session_id}/",
-        validator=lambda d: None if isinstance(d, dict) and "id" in d else (_ for _ in ()).throw(ValueError("entry payload missing 'id'")),
-    )
-    current_event = int(entry.get("current_event") or 1)
-    entry_name = entry.get("name")
+    truth = await fetch_fpl_truth(int(session_id), importer)
 
-    # Fetch bootstrap for events list to resolve next GW
-    bootstrap = await importer._fetch_json(
-        "/api/bootstrap-static/",
-        validator=lambda d: None if isinstance(d, dict) and "elements" in d else (_ for _ in ()).throw(ValueError("bootstrap payload missing 'elements'")),
-    )
+    current_event = truth.current_event
+    next_gw = truth.next_gw or current_event
 
-    # Resolve next GW via gameweek_clock
-    next_gw: int | None = None
+    entry_name = truth.entry_name
+    # Entry summary needs raw entry fields (bank/transfers) — re-read cheaply
+    # through the same egress chain's 60s cache when available.
     try:
-        from fpl_intelligence.sync.gameweek_clock import pick_target_event
-
-        events = bootstrap.get("events") if isinstance(bootstrap, dict) else None
-        if isinstance(events, list) and events:
-            next_gw = pick_target_event(events)
-            if next_gw is not None and int(next_gw) == int(current_event):
-                pass
-            if next_gw is None:
-                next_gw = int(current_event) + 1
-        else:
-            next_gw = int(current_event) + 1
+        raw_entry = await egress.fetch(
+            f"/api/entry/{session_id}/",
+            validator=lambda d: (
+                None
+                if isinstance(d, dict) and "id" in d
+                else (_ for _ in ()).throw(ValueError("entry payload missing 'id'"))
+            ),
+        )
     except Exception:
-        next_gw = int(current_event) + 1
-
-    # Helper to fetch picks for a GW and return (ids, status)
-    async def _fetch_picks_with_status(gw: int) -> tuple[list[int], int]:
-        try:
-            payload = await importer._fetch_json(
-                f"/api/entry/{session_id}/event/{gw}/picks/",
-                validator=lambda d: None if isinstance(d, dict) and "picks" in d else (_ for _ in ()).throw(ValueError("picks payload missing 'picks'")),
-            )
-            picks = payload.get("picks") or []
-            ids = [int(p["element"]) for p in picks if isinstance(p, dict) and "element" in p]
-            return ids, 200
-        except Exception as exc:
-            # Classify the error: 404 -> picks not saved, others -> 500 but we return 404 for "not found"
-            err_text = str(exc)
-            if "404" in err_text or "Not found" in err_text or "picks" in err_text.lower():
-                return [], 404
-            return [], 500
-
-    # Fetch picks for current and next GW in parallel
-    picks_current_ids, picks_current_status = await _fetch_picks_with_status(int(current_event))
-    picks_next_ids, picks_next_status = await _fetch_picks_with_status(int(next_gw)) if next_gw else ([], 404)
+        raw_entry = {}
 
     response.headers["Cache-Control"] = "no-store"
     return FplViewResponse(
         current_event=current_event,
-        picks_current=FplViewPicks(gw=current_event, ids=picks_current_ids, status=picks_current_status),
-        picks_next=FplViewPicks(gw=next_gw or current_event, ids=picks_next_ids, status=picks_next_status),
+        picks_current=FplViewPicks(
+            gw=current_event,
+            ids=truth.picks_current_ids,
+            status=truth.picks_current_status,
+        ),
+        picks_next=FplViewPicks(
+            gw=next_gw, ids=truth.picks_next_ids, status=truth.picks_next_status
+        ),
         entry_summary=FplViewEntrySummary(
             name=entry_name,
-            id=int(entry.get("id", 0)),
+            id=int((raw_entry or {}).get("id", session_id)),
             current_event=current_event,
-            last_deadline_bank=entry.get("last_deadline_bank"),
-            last_deadline_total_transfers=entry.get("last_deadline_total_transfers"),
-            last_deadline_bank_tenths=entry.get("last_deadline_bank"),
+            last_deadline_bank=(raw_entry or {}).get("last_deadline_bank"),
+            last_deadline_total_transfers=(raw_entry or {}).get("last_deadline_total_transfers"),
+            last_deadline_bank_tenths=(raw_entry or {}).get("last_deadline_bank"),
+        ),
+        fpl_history=FplViewHistory(
+            gw=next_gw,
+            event_transfers=truth.history_event_transfers(),
+            event_transfers_cost=(truth.history_row or {}).get("event_transfers_cost")
+            if truth.history_row
+            else None,
+            latest_event=int(truth.latest_history_row.get("event") or 0)
+            if truth.latest_history_row
+            else None,
+            latest_event_transfers=int(truth.latest_history_row.get("event_transfers") or 0)
+            if truth.latest_history_row
+            else None,
+            note=history_note(truth),
         ),
     )
 

@@ -714,12 +714,16 @@ async function loadFplView() {
     var pn = data.picks_next;
     var currentIdsStr = pc.ids.length ? pc.ids.join(", ") : "(empty)";
     var nextIdsStr = (pn.status === 200 && pn.ids.length) ? pn.ids.join(", ") : (pn.status === 404 ? "NOT FOUND (404)" : "ERROR (" + pn.status + ")");
+    var histLine = data.fpl_history && data.fpl_history.note
+      ? '<div><span class="text-amber-400">FPL history:</span> ' + esc(data.fpl_history.note) + '</div>'
+      : "";
 
     content.innerHTML =
       '<div><span class="text-sky-400">FPL current GW:</span> ' + data.current_event + '</div>' +
       '<div><span class="text-sky-400">GW' + pc.gw + ' lineup:</span> ' + currentIdsStr + '</div>' +
       '<div><span class="text-sky-400">GW' + pn.gw + ' lineup:</span> ' + nextIdsStr + '</div>' +
-      '<div class="text-slate-500 text-xs mt-2">Entry: ' + (data.entry_summary.name || '—') + ' · last_deadline_bank: ' + (data.entry_summary.last_deadline_bank_tenths ? '£' + (data.entry_summary.last_deadline_bank_tenths/10).toFixed(1) + 'm' : '—') + ' · last_deadline_transfers: ' + (data.entry_summary.last_deadline_total_transfers ?? '—') + '</div>';
+      histLine +
+      '<div class="text-slate-500 text-xs mt-2">Entry: ' + esc(data.entry_summary.name || '—') + ' · last_deadline_bank: ' + (data.entry_summary.last_deadline_bank_tenths ? '£' + (data.entry_summary.last_deadline_bank_tenths/10).toFixed(1) + 'm' : '—') + ' · last_deadline_transfers: ' + (data.entry_summary.last_deadline_total_transfers ?? '—') + '</div>';
   } catch (e) {
     card.style.display = "none";
   }

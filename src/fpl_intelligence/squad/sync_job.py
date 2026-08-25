@@ -337,10 +337,26 @@ async def _run_sync_job(
             if detected.get("name_out"):
                 out_names = [detected["name_out"]]
 
-        # Banner honesty rules (v2.5.7)
-        # Need to know: picks_next_status, and whether current picks == saved
-        # Fetch the fpl-view data to make honest decision
-        chose_rule = "unknown"
+        # Banner honesty rules (v2.6.0-sync-final)
+        # One shared truth lens decides the banner so card/save/banner can
+        # never disagree. Branch order mirrors the spec:
+        #   B) rebuilt from official history
+        #   C) picks_next 404 + zero confirmed transfers -> honest banner
+        #   A) picks_next 200 + differs -> saved (default synced message)
+        now = datetime.now(UTC)
+        hhmm = now.strftime("%H:%M")
+        gw_label = getattr(saved, "picks_gw", saved.gameweek)
+
+        def _synced_banner() -> str:
+            if in_names or out_names:
+                return (
+                    f"Synced! New squad loaded for GW{gw_label}. "
+                    f"IN: {', '.join(in_names)} "
+                    f"OUT: {', '.join(out_names)}"
+                )
+            return f"Synced! New squad loaded for GW{gw_label}. no changes · {hhmm}"
+
+        chose_rule = "fallback"
         picks_next_status = None
         ids_hash_current = None
         ids_hash_next = None
@@ -348,7 +364,7 @@ async def _run_sync_job(
         try:
             from fpl_intelligence.config import get_settings
             from fpl_intelligence.data_providers.fpl_egress import FplEgressChain
-            from fpl_intelligence.squad.fpl_import import FplSquadImporter
+            from fpl_intelligence.squad.fpl_truth import fetch_fpl_truth
 
             settings = get_settings()
             egress = FplEgressChain(
@@ -356,117 +372,72 @@ async def _run_sync_job(
                 timeout=settings.egress_strategy_timeout,
                 cache_ttl=settings.egress_cache_ttl,
             )
-            importer = FplSquadImporter(egress=egress)
-
-            # Fetch entry for current_event
-            entry = await importer._fetch_json(
-                f"/api/entry/{session_id}/",
-                validator=lambda d: None if isinstance(d, dict) and "id" in d else (_ for _ in ()).throw(ValueError("entry payload missing 'id'")),
+            # Honour mocked importer classes (tests patch either location).
+            TruthImporterCls = _get_importer_cls()
+            truth_importer = TruthImporterCls(egress=egress)
+            truth = await asyncio.wait_for(
+                fetch_fpl_truth(int(session_id), truth_importer),
+                timeout=_INTERNAL_TIMEOUT,
             )
-            current_event = int(entry.get("current_event") or 1)
+            picks_next_status = truth.picks_next_status
+            ids_hash_current = hash(tuple(truth.picks_current_ids)) if truth.picks_current_ids else None
+            ids_hash_next = hash(tuple(truth.picks_next_ids)) if truth.picks_next_ids else None
 
-            # Fetch bootstrap for next GW
-            bootstrap = await importer._fetch_json(
-                "/api/bootstrap-static/",
-                validator=lambda d: None if isinstance(d, dict) and "elements" in d else (_ for _ in ()).throw(ValueError("bootstrap payload missing 'elements'")),
-            )
-            next_gw: int | None = None
-            try:
-                from fpl_intelligence.sync.gameweek_clock import pick_target_event
-
-                events = bootstrap.get("events") if isinstance(bootstrap, dict) else None
-                if isinstance(events, list) and events:
-                    next_gw = pick_target_event(events)
-                    if next_gw is not None and int(next_gw) == int(current_event):
-                        pass
-                    if next_gw is None:
-                        next_gw = int(current_event) + 1
-                else:
-                    next_gw = int(current_event) + 1
-            except Exception:
-                next_gw = int(current_event) + 1
-
-            # Fetch picks for current and next GW
-            async def _fetch_picks(gw: int) -> tuple[list[int], int]:
-                try:
-                    payload = await importer._fetch_json(
-                        f"/api/entry/{session_id}/event/{gw}/picks/",
-                        validator=lambda d: None if isinstance(d, dict) and "picks" in d else (_ for _ in ()).throw(ValueError("picks payload missing 'picks'")),
-                    )
-                    picks = payload.get("picks") or []
-                    ids = [int(p["element"]) for p in picks if isinstance(p, dict) and "element" in p]
-                    return sorted(ids), 200
-                except Exception as exc:
-                    err_text = str(exc)
-                    if "404" in err_text or "Not found" in err_text or "picks" in err_text.lower():
-                        return [], 404
-                    return [], 500
-
-            current_ids, _ = await _fetch_picks(int(current_event))
-            next_ids, next_status = await _fetch_picks(int(next_gw)) if next_gw else ([], 404)
-
-            picks_next_status = next_status
-            ids_hash_current = hash(tuple(current_ids)) if current_ids else None
-            ids_hash_next = hash(tuple(next_ids)) if next_ids else None
-
-            # Banner honesty rules
             saved_ids = set(before_ids)
-            current_ids_set = set(current_ids)
-            next_ids_set = set(next_ids)
+            current_ids_set = set(truth.picks_current_ids)
+            next_ids_set = set(truth.picks_next_ids)
+            pending_gw = result.pending_transfer_gw or truth.next_gw or saved.gameweek
 
-            if next_status == 404 and current_ids_set == saved_ids:
+            if result.rebuilt_from_history:
+                # Branch B — squad synthesised from official element_in/out.
+                chose_rule = "rebuilt_from_history"
+                ins_txt = ", ".join(in_names) if in_names else "—"
+                outs_txt = ", ".join(out_names) if out_names else "—"
+                banner = (
+                    f"Synced! GW{pending_gw} squad rebuilt from official FPL "
+                    f"history. IN: {ins_txt} OUT: {outs_txt}"
+                )
+            elif result.no_pending_transfer and truth.picks_next_status == 404 and (
+                not truth.next_transfers_count
+            ):
+                # Branch C — nothing confirmed on FPL for the target GW yet.
+                chose_rule = "no_confirmed_transfer"
+                banner = (
+                    f"No confirmed transfer found on FPL for GW{pending_gw} — "
+                    f"finish it on FPL, then sync."
+                )
+            elif truth.picks_next_status == 404 and current_ids_set == saved_ids:
                 # Rule 1: picks_next 404 AND picks_current == saved
                 chose_rule = "404_equal_saved"
-                now = datetime.now(UTC)
-                hhmm = now.strftime("%H:%M")
-                gw_label = next_gw or current_event
                 banner = (
-                    f"FPL shows no new GW{gw_label} lineup yet — confirm your transfer on FPL, "
+                    f"FPL shows no new GW{pending_gw} lineup yet — confirm your transfer on FPL, "
                     f"then sync again."
                 )
-            elif next_status == 200 and next_ids_set != saved_ids:
-                # Rule 2: picks_next 200 and differs from saved -> save it, show IN/OUT
+            elif truth.picks_next_status == 200 and next_ids_set != saved_ids:
+                # Rule 2: picks_next 200 and differs from saved -> was saved
                 chose_rule = "200_differs_saved"
-                now = datetime.now(UTC)
-                hhmm = now.strftime("%H:%M")
-                gw_label = saved.gameweek
-                if in_names or out_names:
-                    banner = (
-                        f"Synced! New squad loaded for GW{gw_label}. "
-                        f"IN: {', '.join(in_names) if in_names else '—'} "
-                        f"OUT: {', '.join(out_names) if out_names else '—'}"
-                    )
-                else:
-                    banner = f"Synced! New squad loaded for GW{gw_label}. no changes · {hhmm}"
+                banner = _synced_banner()
             else:
                 # Fallback: default behavior
                 chose_rule = "fallback"
-                now = datetime.now(UTC)
-                hhmm = now.strftime("%H:%M")
-                gw_label = saved.gameweek
-                if in_names or out_names:
-                    banner = (
-                        f"Synced! New squad loaded for GW{gw_label}. "
-                        f"IN: {', '.join(in_names) if in_names else '—'} "
-                        f"OUT: {', '.join(out_names) if out_names else '—'}"
-                    )
-                else:
-                    banner = f"Synced! New squad loaded for GW{gw_label}. no changes · {hhmm}"
+                banner = _synced_banner()
 
         except Exception as exc:
             logger.debug("banner honesty rules failed, using fallback: %s", exc)
             chose_rule = "error_fallback"
-            now = datetime.now(UTC)
-            hhmm = now.strftime("%H:%M")
-            gw_label = saved.gameweek
-            if in_names or out_names:
+            if result.rebuilt_from_history:
+                chose_rule = "rebuilt_from_history"
                 banner = (
-                    f"Synced! New squad loaded for GW{gw_label}. "
-                    f"IN: {', '.join(in_names) if in_names else '—'} "
-                    f"OUT: {', '.join(out_names) if out_names else '—'}"
+                    f"Synced! GW{gw_label} squad rebuilt from official FPL history."
+                )
+            elif result.no_pending_transfer:
+                chose_rule = "no_confirmed_transfer"
+                banner = (
+                    f"No confirmed transfer found on FPL for GW{result.pending_transfer_gw or gw_label} — "
+                    f"finish it on FPL, then sync."
                 )
             else:
-                banner = f"Synced! New squad loaded for GW{gw_label}. no changes · {hhmm}"
+                banner = _synced_banner()
 
         _set_job(
             str(session_id),

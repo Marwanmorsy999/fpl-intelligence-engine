@@ -89,6 +89,56 @@ def clear_fpl_import_caches() -> None:
     with _PICKS_LOCK:
         _PICKS_CACHE.clear()
 
+
+async def fetch_official_history_for_gw(
+    entry_id: int, gw: int, egress: FplEgressChain | None = None
+) -> dict[str, Any] | None:
+    """Fetch the official FPL history for a specific gameweek.
+
+    Returns the history block for the given GW with event_transfers count
+    and transfers array, or None if unavailable.
+    """
+    from fpl_intelligence.config import get_settings
+    from fpl_intelligence.data_providers.fpl_egress import FplEgressChain
+
+    if egress is None:
+        settings = get_settings()
+        egress = FplEgressChain(
+            settings.fpl_base_url,
+            timeout=settings.egress_strategy_timeout,
+            cache_ttl=300.0,
+        )
+
+    def _validate(data: Any) -> None:
+        if not isinstance(data, dict) or not isinstance(data.get("history"), list):
+            raise ValueError(
+                f"history payload missing 'history' list (got {type(data).__name__})"
+            )
+
+    try:
+        payload = await egress.fetch(
+            f"/api/entry/{int(entry_id)}/history/", validator=_validate
+        )
+    except Exception as exc:
+        logger.debug("fetch_official_history_for_gw failed for entry=%s: %s", entry_id, exc)
+        return None
+
+    for block in (payload or {}).get("history") or []:
+        if not isinstance(block, dict):
+            continue
+        try:
+            if int(block.get("event") or 0) == int(gw):
+                return {
+                    "event": block.get("event"),
+                    "event_transfers": block.get("event_transfers"),
+                    "event_transfers_cost": block.get("event_transfers_cost"),
+                    "transfers": block.get("transfers") or [],
+                }
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
 _FPL_ELEMENT_TYPE_TO_POSITION = {1: 1, 2: 2, 3: 3, 4: 4}
 
 _FPL_CHIP_TO_INTERNAL = {
@@ -162,6 +212,9 @@ class FplImportResult:
         gameweek: int,
         winning_strategy: str | None = None,
         egress_attempts: list[tuple[str, str]] | None = None,
+        rebuilt_from_history: bool = False,
+        pending_transfer_gw: int | None = None,
+        no_pending_transfer: bool = False,
     ) -> None:
         self.squad = squad
         self.player_names = player_names
@@ -169,6 +222,14 @@ class FplImportResult:
         self.gameweek = gameweek
         self.winning_strategy = winning_strategy
         self.egress_attempts = egress_attempts or []
+        #: v2.6.0 — True when the squad was synthesised from official history
+        #: element_in/out applied to the saved snapshot ("rebuilt" quirk path).
+        self.rebuilt_from_history = rebuilt_from_history
+        #: Target GW the transfer saga is about (= resolved next unplayed GW).
+        self.pending_transfer_gw = pending_transfer_gw
+        #: v2.6.0 — True when picks_next was 404 AND official history shows
+        #: zero confirmed transfers for the target GW (honest banner case).
+        self.no_pending_transfer = no_pending_transfer
 
 
 class FplSquadImporter:
@@ -377,6 +438,48 @@ class FplSquadImporter:
                 entry_id=int(entry_id),
                 force_next_gw=bool(force_next_gw),
             )
+
+            # --- v2.6.0 truth branches --------------------------------------
+            # Branch A (picks_next 200 + differs) is handled by
+            # _choose_picks_payload: the differing next-GW payload is returned
+            # and saved below. Branches B/C cover the FPL mid-window quirk:
+            # picks_next 404 while official history/transfers already record
+            # element_in/out for the target GW.
+            rebuilt_from_history = False
+            no_pending_transfer = False
+
+            next_unavailable = picks_next is None and (
+                next_gw is not None and int(next_gw) != int(current_gw)
+            )
+            chose_current = picks_payload is picks_current or picks_payload is cached_current
+
+            if picks_payload is None and db is not None:
+                # Both picks payloads missing — try rebuilding from official
+                # history before giving up.
+                rebuilt = await self._try_rebuild_from_history(
+                    db=db, entry_id=int(entry_id), bootstrap=bootstrap, target_gw=next_gw
+                )
+                if rebuilt is not None:
+                    picks_payload, gameweek = rebuilt
+                    rebuilt_from_history = True
+            elif next_unavailable and chose_current and not bool(force_next_gw):
+                saved_row_ids = self._load_saved_ids(db, int(entry_id))
+                if saved_row_ids:
+                    rebuilt = await self._try_rebuild_from_history(
+                        db=db,
+                        entry_id=int(entry_id),
+                        bootstrap=bootstrap,
+                        target_gw=next_gw,
+                        saved_ids=saved_row_ids,
+                        base_picks=picks_payload,
+                    )
+                    if rebuilt is not None:
+                        picks_payload, gameweek = rebuilt
+                        rebuilt_from_history = True
+                    else:
+                        # Branch C: nothing confirmed on FPL for the target GW.
+                        no_pending_transfer = True
+
             if picks_payload is None:
                 # Both missing — surface the original error.
                 raise FplPicksNotSaved(f"No picks available for entry {entry_id}")
@@ -398,6 +501,9 @@ class FplSquadImporter:
             )
             result.winning_strategy = self._last_winning_strategy
             result.egress_attempts = list(self._last_egress_attempts)
+            result.rebuilt_from_history = rebuilt_from_history
+            result.pending_transfer_gw = int(next_gw) if next_gw is not None else None
+            result.no_pending_transfer = no_pending_transfer
             logger.info(
                 "build_squad_from_entry: _build_result OK player_names=%s",
                 len(result.player_names),
@@ -500,6 +606,162 @@ class FplSquadImporter:
             return picks_next, int(next_gw or current_gw)
         # Default to current (or next if current missing)
         return picks_current, int(current_gw)
+
+    @staticmethod
+    def _load_saved_ids(db: Session | None, entry_id: int) -> list[int] | None:
+        """Saved snapshot player ids for ``entry_id`` (None when absent)."""
+        if db is None:
+            return None
+        try:
+            from fpl_intelligence.squad.models_db import SquadStateDB
+
+            row = db.scalar(select(SquadStateDB).where(SquadStateDB.session_id == str(entry_id)))
+            if row is not None and isinstance(row.squad_json, dict):
+                pids = row.squad_json.get("player_ids") or []
+                try:
+                    out = [int(x) for x in pids]
+                    return out or None
+                except (TypeError, ValueError):
+                    return None
+        except Exception as exc:  # noqa: BLE001 — never fail choice on DB read
+            logger.debug("saved snapshot read failed: %s", exc)
+        return None
+
+    async def _try_rebuild_from_history(
+        self,
+        *,
+        db: Session | None,
+        entry_id: int,
+        bootstrap: dict[str, Any],
+        target_gw: int | None,
+        saved_ids: list[int] | None = None,
+        base_picks: dict[str, Any] | None = None,
+    ) -> tuple[dict[str, Any], int] | None:
+        """Branch B — rebuild the next-GW squad from official transfer history.
+
+        When ``/event/{gw}/picks/`` 404s but official history already records
+        element_in/out for that GW, apply those swaps to the saved squad and
+        return a synthesised picks payload. Returns ``None`` when history
+        shows zero confirmed transfers (branch C) or is unreachable.
+        """
+        from fpl_intelligence.squad.fpl_truth import (
+            _fetch_confirmed_transfers,
+            _fetch_history,
+            rebuild_squad_ids_from_swaps,
+        )
+
+        rows = await asyncio.gather(
+            _fetch_history(self, entry_id),
+            _fetch_confirmed_transfers(self, entry_id),
+        )
+        history_rows, live_transfers = rows
+
+        swaps: list[dict[str, Any]] = []
+        seen_pairs: set[tuple[int, int]] = set()
+        # Live endpoint rows carry their own ``event``; history-block rows
+        # inherit the block's event.
+        candidates: list[tuple[int, dict[str, Any]]] = [
+            (int(tr.get("event") or 0), tr) for tr in live_transfers
+        ]
+        for block in history_rows:
+            try:
+                block_gw = int(block.get("event"))
+            except (TypeError, ValueError):
+                continue
+            for tr in block.get("transfers") or []:
+                if isinstance(tr, dict):
+                    candidates.append((block_gw, tr))
+        for ev, tr in candidates:
+            if target_gw is not None and ev != int(target_gw):
+                continue
+            try:
+                pair = (int(tr.get("element_in")), int(tr.get("element_out")))
+            except (TypeError, ValueError):
+                continue
+            if pair in seen_pairs:
+                continue
+            seen_pairs.add(pair)
+            swaps.append({"element_in": pair[0], "element_out": pair[1]})
+        # History event row without element arrays still proves a transfer was
+        # made only via its transfers array; an empty array means nothing.
+        if not swaps:
+            logger.info(
+                "rebuild-from-history: no confirmed swaps for gw=%s entry=%s",
+                target_gw,
+                entry_id,
+            )
+            return None
+
+        base_ids: list[int]
+        captain_id: int | None = None
+        vice_captain_id: int | None = None
+        if base_picks and isinstance(base_picks.get("picks"), list):
+            base_ids = [int(p["element"]) for p in base_picks["picks"] if isinstance(p, dict) and "element" in p]
+            captain_id = next(
+                (int(p["element"]) for p in base_picks["picks"] if isinstance(p, dict) and p.get("is_captain")),
+                None,
+            )
+            vice_captain_id = next(
+                (int(p["element"]) for p in base_picks["picks"] if isinstance(p, dict) and p.get("is_vice_captain")),
+                None,
+            )
+        else:
+            loaded = saved_ids if saved_ids is not None else self._load_saved_ids(db, entry_id)
+            if not loaded:
+                return None
+            base_ids = list(loaded)
+            if db is not None:
+                try:
+                    from fpl_intelligence.squad.models_db import SquadStateDB
+
+                    row = db.scalar(
+                        select(SquadStateDB).where(SquadStateDB.session_id == str(entry_id))
+                    )
+                    if row is not None and isinstance(row.squad_json, dict):
+                        captain_id = row.squad_json.get("captain_id")
+                        vice_captain_id = row.squad_json.get("vice_captain_id")
+                        captain_id = int(captain_id) if captain_id else None
+                        vice_captain_id = int(vice_captain_id) if vice_captain_id else None
+                except Exception as exc:  # noqa: BLE001 — display-only fallback
+                    logger.debug("captain read failed during rebuild: %s", exc)
+
+        rebuilt = rebuild_squad_ids_from_swaps(base_ids, swaps)
+        if rebuilt is None:
+            return None
+        new_ids, ins_applied, outs_removed = rebuilt
+
+        # Captain continuity: promote vice when the captain left, first XI
+        # member when both left.
+        elements = {int(e["id"]): e for e in bootstrap.get("elements") or []}
+        if captain_id in outs_removed:
+            captain_id = vice_captain_id if vice_captain_id in new_ids else next(iter(new_ids), None)
+        elif captain_id not in new_ids:
+            captain_id = next(iter(new_ids), None)
+        if vice_captain_id not in new_ids:
+            vice_captain_id = next((p for p in new_ids if p != captain_id), None)
+
+        def pick_meta(el: int) -> dict[str, Any]:
+            meta = {"element": el, "position": len(new_ids), "is_captain": el == captain_id, "is_vice_captain": el == vice_captain_id}
+            meta["multiplier"] = 2 if el == captain_id else 1
+            return meta
+
+        payload: dict[str, Any] = {
+            "picks": [pick_meta(el) for el in new_ids],
+            "entry_history": {},
+            "transfers": base_picks.get("transfers", {}) if isinstance(base_picks, dict) else {},
+            "_rebuilt_from_history": True,
+            "_swaps": [{"in": i, "out": o} for i, o in zip(ins_applied, outs_removed)],
+        }
+        _ = elements  # names resolve later through _build_result/bootstrap
+        logger.info(
+            "rebuild-from-history: applied %s swap(s) for gw=%s entry=%s ins=%s outs=%s",
+            len(ins_applied),
+            target_gw,
+            entry_id,
+            ins_applied,
+            outs_removed,
+        )
+        return payload, int(target_gw or 0)
 
     async def _fetch_json(
         self,
