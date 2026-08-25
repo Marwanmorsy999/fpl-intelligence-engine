@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Transfers — FPL Intelligence</title>
+<title>Transfer Planner — FPL Intelligence</title>
 <link rel="icon" href="data:,">
 <link rel="manifest" href="/static/manifest.json">
 <meta name="theme-color" content="#0B0F19">
@@ -51,12 +51,12 @@
 <div id="topnav"></div>
 <div class="wrap">
   <div class="transfers-head">
-    <h1 class="page-title">Transfer desk
+    <h1 class="page-title">Transfer Planner
       <span id="gwHeader" class="pill">Gameweek —</span>
     </h1>
-    <span id="stagedLabel" class="staged-label" hidden data-testid="staged-label">STAGED - Not yet pushed to FPL</span>
+    <span id="stagedLabel" class="staged-label" hidden data-testid="staged-label">STAGED - What-if simulation (not pushed to FPL)</span>
   </div>
-  <p class="muted small">Drag a squad player to OUT, pick a target for IN — the engine instantly recomputes Alpha, xPTS and captaincy for the Shadow Squad.</p>
+  <p class="muted small">What-If Simulator — drag a squad player to OUT, pick a target for IN. The engine instantly recomputes Alpha, xPTS and captaincy for the Shadow Squad. This planner never pushes to FPL.</p>
 
   <div id="statusLine"></div>
 
@@ -115,11 +115,10 @@
       </div>
 
       <div class="execute-row">
-        <button id="executeBtn" class="btn" type="button" disabled data-testid="execute-transfer-btn">Execute Transfer</button>
-        <button id="openFplBtn" class="btn-ghost" type="button" hidden data-testid="open-fpl-btn">Open FPL to Confirm</button>
+        <a id="viewOnFplBtn" class="btn" href="https://fantasy.premierleague.com/transfers" target="_blank" rel="noopener" data-testid="view-on-fpl-btn">View on FPL</a>
         <span id="executeStatus" class="small"></span>
       </div>
-      <p class="faint small" style="margin-top:6px">Direct push uses the Apps Script egress mask. If blocked, copy IN/OUT and confirm on FPL.</p>
+      <p class="faint small" style="margin-top:6px" data-testid="fpl-hint">Make the transfer on FPL, then click 'Sync Now' on your dashboard to pull the changes.</p>
     </div>
   </div>
 
@@ -221,8 +220,6 @@ document.addEventListener("DOMContentLoaded", function(){
 
   function updateStageBtn(){
     $("stageBtn").disabled = !(stagedIn!=null && stagedOut!=null);
-    // execute requires staged
-    $("executeBtn").disabled = true;
   }
 
   // Drop zones
@@ -302,13 +299,13 @@ document.addEventListener("DOMContentLoaded", function(){
     if(stagedIn==null || stagedOut==null) return;
     stageTransfer();
   });
-  $("clearStageBtn").addEventListener("click", function(){ stagedIn=null; stagedOut=null; renderStageSlots(); updateStageBtn(); $("valuationBox").hidden=true; $("shadowBox").hidden=true; $("stagedLabel").hidden=true; $("executeBtn").disabled=true; $("openFplBtn").hidden=true; $("executeStatus").textContent=""; });
+  $("clearStageBtn").addEventListener("click", function(){ stagedIn=null; stagedOut=null; renderStageSlots(); updateStageBtn(); $("valuationBox").hidden=true; $("shadowBox").hidden=true; $("stagedLabel").hidden=true; $("executeStatus").textContent=""; });
 
   function stageTransfer(){
     if(!session||!session.key){ $("statusLine").innerHTML='<span class="pill bad">No session — save your squad first.</span>'; return; }
     var sessKey = session.key;
     $("statusLine").innerHTML='<span class="pill">Staging…</span>';
-    // Parallel fetches: valuation + shadow
+    // Parallel fetches: valuation + shadow (planner-only — no push)
     var valUrl = "/api/v1/transfers/valuation?session_id="+encodeURIComponent(sessKey)+"&element_in="+stagedIn+"&element_out="+stagedOut;
     var shadUrl = "/api/v1/transfers/shadow?session_id="+encodeURIComponent(sessKey)+"&element_in="+stagedIn+"&element_out="+stagedOut;
     Promise.all([fetch(valUrl).then(function(r){return r.json();}), fetch(shadUrl).then(function(r){return r.json();})]).then(function(results){
@@ -317,7 +314,6 @@ document.addEventListener("DOMContentLoaded", function(){
       renderShadow(shadData);
       $("stagedLabel").hidden=false;
       $("statusLine").innerHTML='<span class="pill ok">Staged — shadow squad ready</span>';
-      $("executeBtn").disabled=false;
     }).catch(function(err){ $("statusLine").innerHTML='<span class="pill bad">'+esc(err.message||"Stage failed")+"</span>"; });
   }
 
@@ -360,51 +356,8 @@ document.addEventListener("DOMContentLoaded", function(){
     $("xiDelta").textContent = sh.xi_delta!=null ? "XI xPTS delta: "+(sh.xi_delta>0?"+":"")+Number(sh.xi_delta).toFixed(1) : "";
   }
 
-  $("executeBtn").addEventListener("click", function(){
-    if(stagedIn==null||stagedOut==null) return;
-    executeTransfer();
-  });
-
-  function executeTransfer(){
-    if(!session||!session.key) return;
-    $("executeStatus").textContent="Executing…";
-    $("executeBtn").disabled=true;
-    fetch("/api/v1/transfers/execute", {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({session_id: session.key, element_in: stagedIn, element_out: stagedOut})
-    }).then(function(r){ return r.json().then(function(b){ return {ok:r.ok, body:b}; }); }).then(function(res){
-      var b=res.body;
-      if(b.status==="executed"){
-        $("executeStatus").innerHTML='<span class="pill ok" data-testid="execute-success">Transfer Executed on FPL</span>';
-        // invalidate local staging?
-        // Update squad cache? For now just flash and keep staged label
-        $("openFplBtn").hidden=true;
-        // Invalidate decisions cache by bumping? We trust server did it.
-      } else {
-        // fallback
-        $("executeStatus").innerHTML='<span class="pill warn" data-testid="execute-fallback">Open FPL to Confirm — copied IN/OUT</span>';
-        $("openFplBtn").hidden=false;
-        $("openFplBtn").setAttribute("data-clipboard", b.clipboard||"");
-        $("openFplBtn").setAttribute("data-fpl-url", b.fpl_url||"https://fantasy.premierleague.com/transfers");
-        // copy to clipboard
-        var txt = b.clipboard||("IN: "+stagedIn+", OUT: "+stagedOut);
-        if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).catch(function(){}); }
-        else { try{ var ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta);}catch(e){} }
-      }
-      $("executeBtn").disabled=false;
-    }).catch(function(err){
-      $("executeStatus").innerHTML='<span class="pill bad">'+esc(err.message||"Execute failed")+"</span>";
-      $("executeBtn").disabled=false;
-    });
-  }
-
-  $("openFplBtn").addEventListener("click", function(){
-    var url = $("openFplBtn").getAttribute("data-fpl-url")||"https://fantasy.premierleague.com/transfers";
-    var txt = $("openFplBtn").getAttribute("data-clipboard")||"";
-    if(txt && navigator.clipboard){ navigator.clipboard.writeText(txt).catch(function(){}); }
-    window.open(url, "_blank");
-  });
+  // v2.7.2-planner-only: no execute logic. View on FPL is a plain link (href above).
+  // Hint: "Make the transfer on FPL, then click 'Sync Now' on your dashboard to pull the changes."
 
   // bootstrap session
   FPLApp.session.bootstrap({

@@ -9,7 +9,9 @@ Phase 27 Gate 0 adds:
 * ``GET /shadow`` — staged transfer valuation + shadow squad metrics
                  (labelled "STAGED - Not yet pushed to FPL").
 * ``GET /valuation`` — FT Valuation over next 3 GWs vs keeping player.
-* ``POST /execute`` — direct push via egress mask with clipboard fallback.
+
+v2.7.2-planner-only: POST /execute removed. App is planner-only: FPL is the
+execution layer. Use the "View on FPL" button and Sync Now to pull changes.
 """
 
 from __future__ import annotations
@@ -17,7 +19,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Body, Query, Response
+from fastapi import APIRouter, Query, Response
 from pydantic import BaseModel, Field
 
 from fpl_intelligence.api import deps
@@ -59,7 +61,8 @@ async def transfers_detected(
 
 
 # --------------------------------------------------------------------------- #
-# Phase 27 Gate 0 — Shadow Squad (T1) + FT Valuation (S3) + Direct Push (T2)
+# Phase 27 Gate 0 — Shadow Squad (T1) + FT Valuation (S3)
+# v2.7.2-planner-only — Direct Push (T2) / POST /execute removed.
 # --------------------------------------------------------------------------- #
 
 
@@ -67,16 +70,6 @@ class ShadowRequest(BaseModel):
     session_id: str = Field(..., description="FPL entry id / session key")
     element_in: int = Field(..., gt=0)
     element_out: int = Field(..., gt=0)
-
-
-class ExecuteRequest(BaseModel):
-    session_id: str = Field(..., description="FPL entry id / session key")
-    element_in: int = Field(..., gt=0)
-    element_out: int = Field(..., gt=0)
-    # Optional session cookie/CSRF forwarded from the Apps Script egress mask.
-    # When absent, the endpoint returns the clipboard fallback honestly.
-    fpl_session_cookie: str | None = Field(None, description="FPL session cookie (optional)")
-    csrf_token: str | None = Field(None, description="FPL CSRF token (optional)")
 
 
 @router.get("/valuation", include_in_schema=False)
@@ -248,131 +241,4 @@ async def transfers_shadow(
     }
 
 
-@router.post("/execute", include_in_schema=False)
-async def transfers_execute(
-    response: Response,
-    db: deps.GetDB,
-    body: ExecuteRequest = Body(...),  # noqa: B008
-) -> dict[str, Any]:
-    """Direct push to FPL via egress mask, with clipboard fallback.
-
-    Attempts POST /api/transfers/ through the Apps Script mask. When the mask
-    is unavailable or the session/CSRF is missing, returns an honest fallback
-    payload: clipboard text + FPL URL so the UI can offer "Open FPL to Confirm".
-    On success, invalidates the decisions cache and snapshots the new squad.
-    """
-    response.headers["Cache-Control"] = "no-store"
-    from fpl_intelligence.squad.service import SquadService
-    from fpl_intelligence.transfers.shadow import build_shadow_squad
-
-    squad = SquadService(session=db).get_squad(session_id=body.session_id)
-    if squad is None:
-        return {"status": "no-squad", "note": "No squad saved for this session"}
-
-    # Validate staged ids
-    shadow_ids = build_shadow_squad(list(squad.player_ids or []), int(body.element_out), int(body.element_in))
-    if shadow_ids is None:
-        return {"status": "invalid", "note": "OUT not in squad or IN already owned."}
-
-    # Enrich names for clipboard
-    try:
-        from fpl_intelligence.prediction.live_provider import load_player_catalog
-
-        cat = load_player_catalog()
-        name_in = cat.get(int(body.element_in), {}).get("web_name") or f"Player {body.element_in}"
-        name_out = cat.get(int(body.element_out), {}).get("web_name") or f"Player {body.element_out}"
-    except Exception:
-        name_in = f"Player {body.element_in}"
-        name_out = f"Player {body.element_out}"
-
-    clipboard = f"IN: {name_in}, OUT: {name_out}"
-    fpl_url = "https://fantasy.premierleague.com/transfers"
-
-    # Attempt egress POST when cookie/CSRF forwarded and mask configured
-    attempted = False
-    success = False
-    error_note = ""
-    if body.fpl_session_cookie and body.csrf_token:
-        attempted = True
-        try:
-            from fpl_intelligence.config import get_settings
-
-            settings = get_settings()
-            base = settings.fpl_base_url.rstrip("/")
-            # Apps Script mask POST contract: `${FPL_PROXY_URL}?url=<encoded>&method=POST&csrf=<token>`
-            # The script forwards cookies + CSRF header to FPL.
-            # When FPL_PROXY_URL not set, this branch is skipped and we fall through.
-            import os
-            from urllib.parse import quote
-
-            proxy = os.getenv("FPL_PROXY_URL", "").strip() or getattr(settings, "fpl_proxy_url", "")  # type: ignore[attr-defined]
-            if proxy:
-                import httpx
-
-                target = f"{base}/api/transfers/"
-                # Mask POST shape — try JSON body with entry + transfers array
-                payload = {
-                    "entry": int(body.session_id) if str(body.session_id).isdigit() else body.session_id,
-                    "event": int(squad.gameweek),
-                    "transfers": [{"element_in": int(body.element_in), "element_out": int(body.element_out)}],
-                }
-                # App Script expects `url` param + method override; we POST to the mask itself.
-                mask_url = proxy.split("?url=")[0].rstrip("?&")
-                async with httpx.AsyncClient(timeout=6.0) as client:
-                    resp = await client.post(
-                        mask_url,
-                        params={
-                            "url": target,
-                            "method": "POST",
-                            "csrf": body.csrf_token,
-                        },
-                        headers={
-                            "Cookie": body.fpl_session_cookie,
-                            "X-CSRFToken": body.csrf_token,
-                            "Referer": "https://fantasy.premierleague.com/",
-                        },
-                        json=payload,
-                    )
-                    if resp.status_code in (200, 201, 202):
-                        success = True
-                    else:
-                        error_note = f"mask POST {resp.status_code}: {resp.text[:200]}"
-            else:
-                error_note = "FPL_PROXY_URL not configured — clipboard fallback."
-        except Exception as exc:  # noqa: BLE001 — honest fallback
-            error_note = f"{type(exc).__name__}: {exc}"
-
-    if success:
-        # Invalidate cache, capture new snapshot as staged truth, return success
-        try:
-            from fpl_intelligence.api.routes.squad import _invalidate_decisions_cache
-
-            _invalidate_decisions_cache(str(body.session_id))
-        except Exception:
-            pass
-        try:
-            from fpl_intelligence.transfers.service import capture_snapshot
-
-            capture_snapshot(db, str(body.session_id), shadow_ids, int(squad.gameweek), float(squad.bank))
-        except Exception:
-            pass
-        return {
-            "status": "executed",
-            "message": "Transfer Executed on FPL",
-            "clipboard": clipboard,
-            "fpl_url": fpl_url,
-            "staged": {"element_in": int(body.element_in), "element_out": int(body.element_out)},
-            "shadow_ids": shadow_ids,
-        }
-
-    # Honest fallback — caller shows "Open FPL to Confirm" + copies clipboard
-    return {
-        "status": "fallback",
-        "message": "Open FPL to Confirm",
-        "clipboard": clipboard,
-        "fpl_url": fpl_url,
-        "staged": {"element_in": int(body.element_in), "element_out": int(body.element_out)},
-        "attempted": attempted,
-        "error": error_note or "Mask write unavailable — use clipboard fallback.",
-        "note": "If mask write failed/blocked, copy the IN/OUT line and confirm on the FPL site.",
-    }
+# v2.7.2 — POST /execute deleted. App is planner-only; FPL is the execution layer.
