@@ -461,3 +461,30 @@ async def league_select(body: LeagueSelectBody, db: deps.GetDB) -> dict[str, Any
     )
     db.commit()
     return {"ok": True, "session_id": body.session_id, "league_id": body.league_id}
+
+
+@router.get("/trajectory", include_in_schema=False)
+async def league_trajectory_route(
+    response: Response,
+    db: deps.GetDB,
+    session_id: str = Query(..., description="FPL entry id (= saved session key)."),
+) -> dict[str, Any]:
+    """Phase 27 Gate 1 (S1) — projected league rank over next 3 GWs."""
+    response.headers["Cache-Control"] = "no-store"
+    from fpl_intelligence.leagues.trajectory import league_trajectory
+
+    return league_trajectory(db, session_id)
+
+
+@router.get("/fomo", include_in_schema=False)
+async def league_fomo(
+    response: Response,
+    db: deps.GetDB,
+    session_id: str = Query(..., description="FPL entry id (= saved session key)."),
+    gameweek: int | None = Query(None, description="Gameweek to grade (defaults to latest ingested)."),
+) -> dict[str, Any]:
+    """Phase 27 Gate 1 (S2) — FOMO & Regret engine."""
+    response.headers["Cache-Control"] = "no-store"
+    from fpl_intelligence.track_record.fomo import compute_regret
+
+    return compute_regret(db, session_id, gameweek)

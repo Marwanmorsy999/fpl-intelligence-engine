@@ -57,6 +57,9 @@
   <div class="section-h">Last 5 graded cards</div>
   <div id="last5"></div>
 
+  <div class="section-h">FOMO & Regret — did you follow the math?</div>
+  <div id="fomoBox" class="card" data-testid="fomo-box"><p class="faint small">Loads with your track record…</p></div>
+
   <div class="section-h">Transfer ledger</div>
   <p id="ledgerNote" class="faint small ledger-note">Every transfer we could verify for this entry — official FPL history first, snapshot-diff fallback (labelled). Horizon EV = Σ(xPTS_in − xPTS_out) over materialized prediction weeks − hit cost.</p>
   <div class="table-wrap">
@@ -162,8 +165,43 @@ document.addEventListener("DOMContentLoaded", function () {
     try { localStorage.setItem("fpl_session_id", entry); } catch (e) {}
     fetch("/api/v1/sync/track-record?entry_id=" + encodeURIComponent(entry))
       .then(function (r) { return r.ok ? r.json() : r.json().then(function (b) { throw new Error(b.detail || r.status); }); })
-      .then(function (data) { render(data); loadCalibration(); loadLedger(entry); })
+      .then(function (data) { render(data); loadCalibration(); loadLedger(entry); loadFomo(entry); })
       .catch(function (err) { $("allCards").innerHTML = '<p class="muted small">' + esc(err.message || "Load failed.") + "</p>"; });
+  }
+
+  function loadFomo(entry){
+    fetch("/api/v1/league/fomo?session_id="+encodeURIComponent(entry))
+      .then(function(r){ return r.ok?r.json():null; })
+      .catch(function(){ return null; })
+      .then(function(d){
+        var box=$("fomoBox");
+        if(!d || d.status==="unavailable" || d.status==="no-recommendations"){
+          box.innerHTML = '<span class="pill faint-chip">FOMO unavailable</span> <span class="faint small">'+esc(d&&d.note||"Not enough post-GW history yet.")+'</span>';
+          return;
+        }
+        var html='';
+        if(d.alpha_capture){
+          var rateTxt = d.alpha_capture.rate!=null ? Math.round(d.alpha_capture.rate*100)+"%" : "–";
+          html += '<div class="stat" style="margin-bottom:10px" data-testid="alpha-capture-rate"><div class="stat-label">Alpha Capture Rate</div><div class="stat-value num">'+esc(rateTxt)+'</div><div class="stat-sub">'+esc(d.alpha_capture.line||"")+'</div><p class="faint small">'+esc(d.alpha_capture.how_computed||"")+'</p></div>';
+        }
+        if(d.captain_regret){
+          var cr=d.captain_regret;
+          html += '<div class="card" data-testid="captain-regret" style="margin-top:8px"><strong class="small">Cost of Ignoring Math</strong>';
+          if(cr.delta!=null){
+            html += '<p class="small" data-testid="cost-of-ignoring">You lost '+Math.abs(Number(cr.delta))+' pts by ignoring the captain recommendation. You captained #'+cr.user_captain+' ('+cr.user_points+' pts) vs engine pick #'+cr.recommended_captain+' ('+cr.recommended_points+' pts doubled).</p>';
+            html += '<p class="small" data-testid="fomo-cost-line">'+esc(d.cost_line||cr.line||"")+'</p>';
+          } else {
+            html += '<p class="faint small">'+esc(cr.note||"Not yet scored.")+'</p>';
+          }
+          html += '<p class="faint small">'+esc(cr.how_computed||"")+'</p></div>';
+        } else {
+          html += '<p class="faint small">No captain regret data for GW'+(d.gameweek||"")+'.</p>';
+        }
+        if(d.cost_line){
+          html += '<p class="small" data-testid="fomo-cost-line" style="font-weight:700; color:var(--color-warn)">'+esc(d.cost_line)+'</p>';
+        }
+        box.innerHTML = html||'<p class="faint small">No FOMO data yet.</p>';
+      });
   }
 
   function loadCalibration() {

@@ -38,6 +38,18 @@
     <div id="statusLine" class="muted small"></div>
     <div id="pickerBox"></div>
   </div>
+  <div id="trajectorySection" class="card" hidden data-testid="trajectory-section" style="grid-column:1/-1; margin-bottom:var(--space-4)">
+    <div class="section-h" style="margin-top:0">Projected League Rank — next 3 GWs</div>
+    <div id="trajectoryChart" data-testid="trajectory-chart" style="min-height:160px"></div>
+    <p id="trajectoryInsight" class="small" data-testid="trajectory-insight" style="margin:10px 0 4px; font-weight:600"></p>
+    <p id="trajectoryHow" class="faint small"></p>
+    <p id="trajectoryNote" class="faint small"></p>
+  </div>
+  <div id="fomoSection" class="card" data-testid="fomo-section" style="grid-column:1/-1">
+    <div class="section-h" style="margin-top:0">FOMO & Regret</div>
+    <p class="faint small">Post-GW grading: did you capture Alpha and follow the engine's captain?</p>
+    <div id="fomoContent"><p class="faint small">Loading…</p></div>
+  </div>
 
   <div class="league-main"><div id="contentBox"><p class="faint">Loading your league…</p></div></div>
   <div class="league-rail" id="leagueRail"></div>
@@ -175,11 +187,103 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  function renderTrajectory(data){
+    var sec=$("trajectorySection"), chart=$("trajectoryChart"), insight=$("trajectoryInsight"), how=$("trajectoryHow"), note=$("trajectoryNote");
+    if(!data||data.status!=="ok"||!data.series||!data.series.length){ if(sec) sec.hidden=true; return; }
+    sec.hidden=false;
+    // Build SVG line chart: x= GW steps (0..3), y= rank (1 best) OR cumulative points?
+    // Spec: "Projected League Rank line chart" — so y is rank. Invert so 1 top.
+    var hGws = data.horizon_gws||[];
+    var steps = hGws.length+1; // includes now
+    var labels = ["Now"].concat(hGws.map(function(g){ return "GW"+g; }));
+    var w=520,h=180,padL=36,padR=12,padT=14,padB=28;
+    var maxRank = data.series.length;
+    // ranks data: data.ranks[step][entry_id] = rank
+    var colors={};
+    var palette=["#38bdf8","#fbbf24","#4ade80","#f87171","#a78bfa"];
+    data.series.forEach(function(s,i){ colors[s.entry_id]=palette[i%palette.length]; if(s.is_you) colors[s.entry_id]="#00FF94"; });
+    // Build polylines per entry
+    var svg='<svg viewBox="0 0 '+w+' '+h+'" width="100%" height="'+h+'" role="img" aria-label="Projected rank over next 3 GWs" data-testid="trajectory-svg" style="background:var(--color-surface); border-radius:10px; border:1px solid var(--color-line)">';
+
+    // grid lines
+    for(var r=1;r<=maxRank;r++){
+      var y = padT + ((r-1)/(Math.max(1,maxRank-1))) * (h-padT-padB);
+      svg+='<line x1="'+padL+'" x2="'+(w-padR)+'" y1="'+y+'" y2="'+y+'" stroke="rgba(148,163,184,0.12)" stroke-dasharray="4 4"/>';
+      svg+='<text x="'+(padL-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="10" fill="#8b95a7">#'+r+'</text>';
+    }
+    // x labels
+    labels.forEach(function(lbl, idx){
+      var x = padL + (idx/(steps-1))*(w-padL-padR);
+      svg+='<text x="'+x+'" y="'+(h-8)+'" text-anchor="middle" font-size="10" fill="#a3aec1">'+esc(lbl)+'</text>';
+    });
+    data.series.forEach(function(s){
+      var pts = data.ranks.map(function(rm){ return rm[s.entry_id]; });
+      var coords = pts.map(function(rank, idx){
+        var x = padL + (idx/(steps-1))*(w-padL-padR);
+        var y = padT + ((rank-1)/(Math.max(1,maxRank-1))) * (h-padT-padB);
+        return x+","+y;
+      }).join(" ");
+      var col = colors[s.entry_id];
+      var dash = s.is_you ? "" : ' stroke-dasharray="6 3"';
+      svg+='<polyline fill="none" stroke="'+col+'" stroke-width="'+(s.is_you?3:2)+'" points="'+coords+'"'+dash+'/>';
+      // dots
+      pts.forEach(function(rank, idx){
+        var x = padL + (idx/(steps-1))*(w-padL-padR);
+        var y = padT + ((rank-1)/(Math.max(1,maxRank-1))) * (h-padT-padB);
+        svg+='<circle cx="'+x+'" cy="'+y+'" r="'+(s.is_you?5:3)+'" fill="'+col+'" stroke="#0B0F19" stroke-width="1.5"/>';
+      });
+    });
+    // legend
+    var legendY = padT+6;
+    var legendX = w-padR-120;
+    // background for legend
+    svg+='<rect x="'+(legendX-6)+'" y="2" width="126" height="'+(data.series.length*14+8)+'" rx="8" fill="rgba(11,15,25,0.85)" stroke="rgba(148,163,184,0.15)"/>';
+    data.series.forEach(function(s, i){
+      var y = 10 + i*14;
+      svg+='<rect x="'+legendX+'" y="'+y+'" width="10" height="10" rx="2" fill="'+colors[s.entry_id]+'"/>';
+      svg+='<text x="'+(legendX+14)+'" y="'+(y+9)+'" font-size="10" fill="#e6ebf4">'+esc(s.label.slice(0,14))+'</text>';
+    });
+    svg+='</svg>';
+    chart.innerHTML=svg;
+    insight.textContent = data.insight||"";
+    how.textContent = data.how_computed||"";
+    note.textContent = data.partial_note||"";
+  }
+
+  function loadTrajectory(sessionKey){
+    fetch("/api/v1/league/trajectory?session_id="+encodeURIComponent(sessionKey))
+      .then(function(r){ return r.ok?r.json():null; })
+      .catch(function(){ return null; })
+      .then(function(d){ if(d) renderTrajectory(d); });
+  }
+
+  function loadFomo(sessionKey){
+    var fomoHost = document.getElementById("fomoContent");
+    if(!fomoHost) return;
+    fetch("/api/v1/league/fomo?session_id="+encodeURIComponent(sessionKey))
+      .then(function(r){ return r.ok?r.json():null; })
+      .catch(function(){ return null; })
+      .then(function(d){
+        if(!d||d.status==="unavailable"||d.status==="no-recommendations"){ fomoHost.innerHTML='<p class="faint small">'+esc(d&&d.note||"Not enough history to grade FOMO yet.")+'</p>'; return; }
+        var html='';
+        if(d.alpha_capture){
+          html+='<div class="stat"><div class="stat-label">Alpha Capture Rate</div><div class="stat-value num">'+(d.alpha_capture.rate!=null?Math.round(d.alpha_capture.rate*100)+"%":"–")+'</div><div class="stat-sub">'+esc(d.alpha_capture.line||"")+'</div></div>';
+        }
+        if(d.captain_regret){
+          html+='<div class="card" data-testid="captain-regret"><strong class="small">Cost of Ignoring Math</strong><p class="small">'+esc(d.cost_line||d.captain_regret.line||"")+'</p><p class="faint small">'+esc(d.captain_regret.how_computed||"")+'</p></div>';
+        }
+        if(d.cost_line){
+          html+='<p class="small" data-testid="fomo-cost-line" style="font-weight:700; color:var(--color-warn)">'+esc(d.cost_line)+'</p>';
+        }
+        fomoHost.innerHTML = html||'<p class="faint small">No FOMO data yet.</p>';
+      });
+  }
+
   function load(sessionKey, forceRefresh) {
     var url = "/api/v1/league?session_id=" + encodeURIComponent(sessionKey) + (forceRefresh ? "&refresh=true" : "");
     fetch(url)
       .then(function (r) { return r.ok ? r.json() : r.json().then(function (b) { throw new Error(b.detail || r.status); }); })
-      .then(function (data) { render(data, sessionKey); })
+      .then(function (data) { render(data, sessionKey); loadTrajectory(sessionKey); loadFomo(sessionKey); })
       .catch(function (err) {
         $("contentBox").innerHTML = '<p class="faint">' + esc(err.message || "League unavailable.") + "</p>";
         var _rail = document.getElementById("leagueRail"); if (_rail) _rail.innerHTML = "";

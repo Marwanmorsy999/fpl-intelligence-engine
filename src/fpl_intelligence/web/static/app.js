@@ -14,6 +14,7 @@ window.FPLApp = (function () {
   ];
   var NAV_SECONDARY = [
     { href: "/my-team", label: "My Team", icon: "👥" },
+    { href: "/transfers", label: "Transfers", icon: "🔄" },
     { href: "/planner", label: "Planner", icon: "🗓️" },
     { href: "/assistant", label: "Assistant", icon: "🤖" },
     { href: "/track-record", label: "Track Record", icon: "📈" },
