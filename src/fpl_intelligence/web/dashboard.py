@@ -47,6 +47,8 @@ _PAGES: dict[str, str] = {
 #: Whitelisted shared assets servable under /static (no directory traversal).
 _STATIC_FILES = {
     "app.css",
+    "tokens.css",
+    "components.css",
     "app.js",
     "bookmarklet.js",
     "notify.js",
