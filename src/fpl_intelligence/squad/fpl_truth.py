@@ -75,19 +75,34 @@ class FplTruth:
 async def _fetch_history(
     importer: FplSquadImporter, entry_id: int
 ) -> list[dict[str, Any]]:
-    """Best-effort fetch of ``history[*]`` rows; empty on any failure."""
+    """Best-effort fetch of official per-GW history rows; empty on failure.
+
+    The real ``/entry/{id}/history/`` payload is ``{current, past, chips}``;
+    the per-gameweek rows (with ``event_transfers``) live under ``current``.
+    A legacy ``history`` key is still honoured when present so older shapes
+    keep working.
+    """
 
     def _validate(data: Any) -> None:
-        if not isinstance(data, dict) or not isinstance(data.get("history"), list):
-            raise ValueError("history payload missing 'history' list")
+        if not isinstance(data, dict):
+            raise ValueError("history payload not an object")
+        if not isinstance(data.get("history"), list) and not isinstance(
+            data.get("current"), list
+        ):
+            raise ValueError("history payload missing 'current'/'history' list")
 
     try:
         payload = await importer._fetch_json(  # noqa: SLF001 - same package
             HISTORY_PATH_FMT.format(entry_id=entry_id), validator=_validate
         )
-        rows = [r for r in payload.get("history") or [] if isinstance(r, dict)]
+        raw_blocks = (
+            payload["history"]
+            if isinstance(payload.get("history"), list)
+            else payload.get("current")
+        )
+        rows = [r for r in (raw_blocks or []) if isinstance(r, dict)]
         return rows
-    except Exception as exc:  # noqa: BLE001 â€” history is optional signal
+    except Exception as exc:  # noqa: BLE001 — history is optional signal
         logger.info("fpl_truth: history unavailable for %s: %s", entry_id, exc)
         return []
 
@@ -288,13 +303,13 @@ def history_note(truth: FplTruth) -> str:
             le = int(raw_le)
             lt = int(raw_lt) if isinstance(raw_lt, (int, str)) else 0
         except (TypeError, ValueError):
-            return "FPL history: no GW{} row yet — GW not finished".format(target)
+            return f"FPL history: no GW{target} row yet — GW not finished"
         plural = "" if lt == 1 else "s"
         return (
             f"FPL history: no GW{target} row yet — GW not finished · "
             f"latest GW{le}: {lt} transfer{plural}"
         )
-    return "FPL history: no GW{} row yet — GW not finished".format(target)
+    return f"FPL history: no GW{target} row yet — GW not finished"
 
 
 def rebuild_squad_ids_from_swaps(

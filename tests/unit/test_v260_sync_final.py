@@ -259,3 +259,34 @@ class TestFplViewHistoryField:
 
         fields = FplViewResponse.model_fields
         assert "fpl_history" in fields
+
+class TestRealHistoryShape:
+    """Regression: FPL returns {current, past, chips} - never a 'history' key."""
+
+    @pytest.mark.asyncio
+    async def test_fetch_history_reads_current_key(self) -> None:
+        from fpl_intelligence.squad.fpl_truth import _fetch_history
+
+        class FakeImp:
+            async def _fetch_json(self, path, *, validator=None):
+                assert validator is not None
+                # The REAL FPL shape:
+                validator({"current": [
+                    {"event": 1, "event_transfers": 0, "event_transfers_cost": 0}
+                ], "past": [], "chips": []})
+                return {
+                    "current": [{"event": 1, "event_transfers": 0}],
+                    "past": [],
+                    "chips": [],
+                }
+
+        rows = await _fetch_history(FakeImp(), 2295006)  # type: ignore[arg-type]
+        assert rows and rows[0]["event"] == 1
+
+    def test_parse_history_transfers_current_shape(self) -> None:
+        from fpl_intelligence.transfers.service import parse_history_transfers
+
+        rows = parse_history_transfers(
+            {"current": [{"event": 1, "event_transfers": 0}], "past": []}
+        )
+        assert rows == []

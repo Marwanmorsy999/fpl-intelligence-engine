@@ -56,14 +56,21 @@ def ensure_tables(db: Session) -> None:
 
 
 def parse_history_transfers(payload: dict[str, Any]) -> list[dict[str, Any]]:
-    """Flatten ``history[*].transfers`` into normalized rows (pure).
+    """Flatten per-gameweek blocks into normalized rows (pure).
 
-    Each raw transfer carries at least ``element_in``, ``element_out``,
-    ``event`` (gameweek), ``event_cost`` (points charged) and ``id``.
-    Rows without both element ids are skipped rather than guessed.
+    The real ``/entry/{id}/history/`` payload is ``{current, past, chips}``
+    where each ``current`` row carries ``event`` + counts (no element ids).
+    A legacy ``history`` key whose blocks contain ``transfers`` arrays with
+    ``element_in`` / ``element_out`` is honoured when present. Rows without
+    both element ids are skipped rather than guessed.
     """
     out: list[dict[str, Any]] = []
-    for block in (payload or {}).get("history") or []:
+    blocks: list[Any] = []
+    if isinstance((payload or {}).get("history"), list):
+        blocks = payload["history"]
+    elif isinstance((payload or {}).get("current"), list):
+        blocks = payload["current"]
+    for block in blocks:
         if not isinstance(block, dict):
             continue
         try:
@@ -112,9 +119,12 @@ async def fetch_official_transfers(
     from fpl_intelligence.data_providers.fpl_egress import FplEgressChain
 
     def _validate(data: Any) -> None:
-        if not isinstance(data, dict) or not isinstance(data.get("history"), list):
+        if not isinstance(data, dict) or not (
+            isinstance(data.get("history"), list)
+            or isinstance(data.get("current"), list)
+        ):
             raise ValueError(
-                f"history payload missing 'history' list (got "
+                f"history payload missing 'current'/'history' list (got "
                 f"{type(data).__name__})"
             )
 
@@ -132,11 +142,14 @@ async def fetch_official_transfers(
     if with_raw:
         # Verbatim newest event block (even when its array is empty) so the
         # UI/proof can prove official provenance, not just parsed rows.
-        blocks = [
-            b
-            for b in (payload or {}).get("history") or []
-            if isinstance(b, dict)
-        ]
+        blocks: list[Any] = (
+            payload["history"]
+            if isinstance((payload or {}).get("history"), list)
+            else (payload or {}).get("current")
+            if isinstance((payload or {}).get("current"), list)
+            else []
+        )
+        blocks = [b for b in blocks if isinstance(b, dict)]
         if blocks:
             last = max(blocks, key=lambda b: int(b.get("event") or 0))
             excerpt.append(
