@@ -56,7 +56,7 @@
     </h1>
     <span id="stagedLabel" class="staged-label" hidden data-testid="staged-label">STAGED - What-if simulation (not pushed to FPL)</span>
   </div>
-  <p class="muted small">What-If Simulator — drag a squad player to OUT, pick a target for IN. The engine instantly recomputes Alpha, xPTS and captaincy for the Shadow Squad. This planner never pushes to FPL.</p>
+  <p class="muted small">What-If Simulator — drag a squad player to OUT, pick a target for IN. The engine instantly recomputes Alpha, xPTS and captaincy for the Shadow Squad. Make this move on FPL, then save here to update your local math.</p>
 
   <div id="statusLine"></div>
 
@@ -116,9 +116,10 @@
 
       <div class="execute-row">
         <a id="viewOnFplBtn" class="btn" href="https://fantasy.premierleague.com/transfers" target="_blank" rel="noopener" data-testid="view-on-fpl-btn">View on FPL</a>
+        <button id="saveLocalBtn" class="btn-primary" type="button" data-testid="save-local-btn" title="Save staged IN/OUT to your local squad — no FPL fetch">Save to Local Squad</button>
         <span id="executeStatus" class="small"></span>
       </div>
-      <p class="faint small" style="margin-top:6px" data-testid="fpl-hint">Make the transfer on FPL, then click 'Sync Now' on your dashboard to pull the changes.</p>
+      <p class="faint small" style="margin-top:6px" data-testid="fpl-hint">Make this move on FPL, then save here to update your local math.</p>
     </div>
   </div>
 
@@ -356,8 +357,29 @@ document.addEventListener("DOMContentLoaded", function(){
     $("xiDelta").textContent = sh.xi_delta!=null ? "XI xPTS delta: "+(sh.xi_delta>0?"+":"")+Number(sh.xi_delta).toFixed(1) : "";
   }
 
+  // v2.7.3-dual-state: Save to Local Squad — pure DB write, no FPL fetch.
+  // Hint: "Make this move on FPL, then save here to update your local math."
+  function saveLocal(){
+    if(!session||!session.key){ $("statusLine").innerHTML='<span class="pill bad">No session — save your squad first.</span>'; return; }
+    if(stagedIn==null||stagedOut==null){ $("statusLine").innerHTML='<span class="pill bad">Pick OUT and IN first.</span>'; return; }
+    var btn=$("saveLocalBtn"); var prev=btn.textContent; btn.disabled=true; btn.textContent="Saving…";
+    $("statusLine").innerHTML='<span class="pill">Saving to local squad…</span>';
+    fetch("/api/v1/transfers/save-local",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({session_id:session.key,element_in:stagedIn,element_out:stagedOut})})
+      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok,body:j}; }); })
+      .then(function(res){
+        if(!res.ok){ $("statusLine").innerHTML='<span class="pill bad">'+esc(res.body.detail||"Save failed")+"</span>"; return; }
+        $("statusLine").innerHTML='<span class="pill ok">Local squad saved ✓ — trajectory & Alpha now use this XI</span>';
+        $("executeStatus").textContent="Local squad updated. Refresh /dashboard or /league to see new math.";
+        // reload effective squad so pills + grid reflect local change
+        return fetch("/api/v1/squad?session_id="+encodeURIComponent(session.key)).then(function(r){return r.ok?r.json():null;}).then(function(s){
+          if(s){ squad=s; setPills(); renderSquad(); }
+        });
+      }).catch(function(err){ $("statusLine").innerHTML='<span class="pill bad">'+esc(err.message||"Save failed")+"</span>"; })
+      .finally(function(){ btn.disabled=false; btn.textContent=prev; });
+  }
+  var _slb=$("saveLocalBtn"); if(_slb) _slb.addEventListener("click", saveLocal);
+  // Also support POST /squad/local — same semantics, kept for API symmetry
   // v2.7.2-planner-only: no execute logic. View on FPL is a plain link (href above).
-  // Hint: "Make the transfer on FPL, then click 'Sync Now' on your dashboard to pull the changes."
 
   // bootstrap session
   FPLApp.session.bootstrap({

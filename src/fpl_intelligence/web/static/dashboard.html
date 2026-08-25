@@ -139,15 +139,12 @@
      The server-rendered markup below is replaced by FPLApp.renderNav at boot,
      which also mounts the persistent session chip. -->
 <div id="topnav"></div>
-<!-- v2.5.5 — sticky Sync Now ribbon: ALWAYS visible; demo/no-session -> disabled + hint -->
+<!-- v2.7.3-dual-state — Refresh League Data ribbon: ALWAYS visible; demo/no-session -> disabled + hint -->
 <div id="syncRibbon" class="sync-ribbon" data-testid="sync-ribbon">
   <div class="sync-ribbon__inner">
-    <button id="syncNowBtn" class="btn-primary" type="button" data-testid="sync-now-btn">↻ Sync Now</button>
-    <span id="syncHint" data-testid="sync-ribbon-hint" class="small hidden">Analyze your team to enable Sync Now</span>
-    <label for="syncNextGwToggle" class="inline-flex items-center gap-1.5 text-sm font-bold cursor-pointer select-none">
-      <input id="syncNextGwToggle" type="checkbox" data-testid="sync-next-gw-toggle"> Sync for NEXT gameweek
-    </label>
-    <span class="faint small ml-auto">Dashboard sync does the same dual-fetch (current + next GW) as the importer</span>
+    <button id="syncNowBtn" class="btn-primary" type="button" data-testid="sync-now-btn">↻ Refresh League Data</button>
+    <span id="syncHint" data-testid="sync-ribbon-hint" class="small hidden">Analyze your team to enable Refresh League Data</span>
+    <span class="faint small ml-auto">Refresh pulls rival standings & picks via masks — your local squad is never overwritten</span>
   </div>
   <div id="syncBannerSticky" class="hidden" role="status" aria-live="polite" data-testid="sync-banner-sticky">
     <div id="syncBannerStickyInner" class="banner banner--success"></div>
@@ -428,7 +425,7 @@ function updateSourceChip() {
     syncNow.disabled = !shouldEnable;
     if (!shouldEnable) {
       syncNow.setAttribute("aria-disabled", "true");
-      syncNow.title = "Analyze your team to enable Sync Now";
+      syncNow.title = "Analyze your team to enable Refresh League Data";
     } else {
       syncNow.removeAttribute("aria-disabled");
       syncNow.title = "";
@@ -618,18 +615,19 @@ async function retrySync() {
 
 /* v2.5.6 — Dashboard Sync now (async job: 202 + poll, never dies, 25s cap, warm retry) */
 async function syncNow() {
+  // v2.7.3-dual-state: Refresh League Data — only pulls rival standings/picks via masks, never overwrites local_squad.
   var btn = $("syncNowBtn");
   var banner = $("syncBanner");
   var stickyWrap = $("syncBannerSticky");
   var stickyInner = $("syncBannerStickyInner");
-  if (!CURRENT_SESSION_ID || CURRENT_SOURCE === "demo") { showError("Analyze your team to enable Sync Now"); return; }
+  if (!CURRENT_SESSION_ID || CURRENT_SOURCE === "demo") { showError("Analyze your team to enable Refresh League Data"); return; }
   hideMessages();
   if (banner) { banner.style.display = "none"; banner.textContent = ""; }
   if (stickyWrap) { stickyWrap.style.display = "none"; }
   if (stickyInner) { stickyInner.textContent = ""; }
   btn.disabled = true;
   var origText = btn.textContent;
-  btn.textContent = "Syncing\u2026";
+  btn.textContent = "Refreshing\u2026";
   var shouldEnableFinally = !!(CURRENT_SESSION_ID && CURRENT_SOURCE !== "demo");
   function restoreBtn() {
     btn.disabled = !shouldEnableFinally;
@@ -638,73 +636,29 @@ async function syncNow() {
     var tg = $("syncNextGwToggle"); if (tg) tg.disabled = !shouldEnableFinally;
   }
   try {
-    var nextGwChecked = false;
-    try { nextGwChecked = !!($("syncNextGwToggle") && $("syncNextGwToggle").checked); } catch (e) {}
-    var url = API + "/api/v1/squad/sync-now?session_id=" + encodeURIComponent(CURRENT_SESSION_ID);
-    if (nextGwChecked) { url += "&next_gw=true"; }
-    var res = await fetch(url, { method: "POST" });
+    var url = API + "/api/v1/league/refresh";
+    var res = await fetch(url, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({session_id: CURRENT_SESSION_ID}) });
     var data = await res.json().catch(function () { return {}; });
-    // Handle validation errors immediately (400 etc)
-    if (res.status === 400 || res.status === 404 || res.status === 409) {
-      throw new Error(data.detail || ("Sync failed (" + res.status + ")"));
+    if (!res.ok && res.status !== 202) {
+      throw new Error(data.detail || data.note || ("Refresh failed (" + res.status + ")"));
     }
-    if (data && data.state === "done") {
-      var bannerText = data.banner || ("Synced! New squad loaded for GW" + (data.gameweek || "?") + ".");
+    if (data && (data.status === "ok" || data.status === "refreshing")) {
+      var bannerText = data.status === "ok"
+        ? ("League refreshed ✓ — " + (data.league_name || "standings") + " standings updated. Trajectory & Alpha now reflect rival data.")
+        : (data.note || "Refreshing… reload in a moment.");
       if (banner) { banner.textContent = bannerText; banner.style.display = "block"; }
       if (stickyWrap && stickyInner) { stickyInner.textContent = bannerText; stickyWrap.style.display = "block"; }
       setStatus(bannerText);
-      await renderFromApi();
+      // No squad overwrite — just confirm local squad still drives math; optionally refresh fpl view for display
       await loadFplView();
-      if (banner) { banner.style.display = "block"; banner.textContent = bannerText; }
-      if (stickyWrap && stickyInner) { stickyWrap.style.display = "block"; stickyInner.textContent = bannerText; }
       restoreBtn();
       return;
     }
-    if (data && data.state === "failed") {
-      var errMsg = data.error || "Sync failed \u2014 please Retry.";
-      showError(errMsg);
-      btn.disabled = false;
-      btn.textContent = "Retry";
-      var hintF = $("syncHint"); if (hintF) hintF.style.display = "none";
-      return;
+    if (data && data.status === "error") {
+      throw new Error(data.note || "Refresh failed");
     }
-    // running -> poll sync-status every 2s (max 30s)
-    var started = Date.now();
-    var poll = async function () {
-      if (Date.now() - started > 30000) {
-        showError("Sync is taking longer than expected \u2014 please Retry.");
-        restoreBtn();
-        btn.textContent = "Retry";
-        return;
-      }
-      try {
-        var r = await fetch(API + "/api/v1/squad/sync-status?session_id=" + encodeURIComponent(CURRENT_SESSION_ID));
-        var d = await r.json().catch(function () { return {}; });
-        if (r.status === 404) { throw new Error(d.detail || "No sync job"); }
-        if (d.state === "done") {
-          var bannerText2 = d.banner || ("Synced! New squad loaded for GW" + (d.gameweek || "?") + ".");
-          if (banner) { banner.textContent = bannerText2; banner.style.display = "block"; }
-          if (stickyWrap && stickyInner) { stickyInner.textContent = bannerText2; stickyWrap.style.display = "block"; }
-          setStatus(bannerText2);
-          await renderFromApi();
-          await loadFplView();
-          if (banner) { banner.style.display = "block"; banner.textContent = bannerText2; }
-          if (stickyWrap) { stickyWrap.style.display = "block"; stickyInner.textContent = bannerText2; }
-          restoreBtn();
-        } else if (d.state === "failed") {
-          showError((d.error || "Sync failed \u2014 please Retry."));
-          btn.disabled = false;
-          btn.textContent = "Retry";
-        } else {
-          setTimeout(poll, 2000);
-        }
-      } catch (e2) {
-        setTimeout(poll, 2000);
-      }
-    };
-    setTimeout(poll, 2000);
-    // keep button as Syncing… until poll resolves (do not restore now)
-    return;
+    // Fallback: still restore
+    restoreBtn();
   } catch (e) {
     showError(e.message);
     if (banner) { banner.style.display = "none"; }

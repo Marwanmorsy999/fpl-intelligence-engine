@@ -107,8 +107,14 @@ async def _target_gameweek(db: Any, fallback: int) -> int:
 
 
 def _user_squad(db: Any, session_key: str) -> dict[str, Any] | None:
-    from fpl_intelligence.squad.models_db import SquadStateDB
+    """v2.7.3-dual-state: effective squad (local preferred, base fallback)."""
+    from fpl_intelligence.squad.models_db import LocalSquadStateDB, SquadStateDB
 
+    local_row = db.scalar(
+        select(LocalSquadStateDB).where(LocalSquadStateDB.session_id == str(session_key))
+    )
+    if local_row is not None and isinstance(local_row.squad_json, dict):
+        return local_row.squad_json
     row = db.scalar(
         select(SquadStateDB).where(SquadStateDB.session_id == str(session_key))
     )
@@ -463,13 +469,90 @@ async def league_select(body: LeagueSelectBody, db: deps.GetDB) -> dict[str, Any
     return {"ok": True, "session_id": body.session_id, "league_id": body.league_id}
 
 
+class LeagueRefreshBody(BaseModel):
+    session_id: str = Field(..., description="FPL entry id (= session key)")
+    league_id: int | None = Field(None, description="Override the remembered choice")
+    gameweek: int | None = Field(None, description="Target GW for picks (defaults to clock)")
+
+
+@router.post("/refresh", include_in_schema=False)
+async def league_refresh(
+    body: LeagueRefreshBody, db: deps.GetDB, response: Response
+) -> dict[str, Any]:
+    """v2.7.3-dual-state: Refresh league standing + rival picks (no squad write).
+
+    This is what the renamed "Refresh League Data" button calls. It fetches
+    standings page 1 and capped rival picks via the egress masks, persists them
+    to ``league_cache`` and returns the same payload shape as ``GET /league``.
+    The user's ``local_squad`` is never touched.
+    """
+    response.headers["Cache-Control"] = "no-store"
+    _ensure_tables(db)
+    # Ensure we have discovered leagues for this entry.
+    from fpl_intelligence.leagues.service import stored_entry_leagues as _stored  # noqa: PLC0415
+
+    leagues = _stored(db, body.session_id)
+    if not leagues:
+        try:
+            discovered = await asyncio.wait_for(
+                fetch_entry_leagues(int(body.session_id)), timeout=8.0
+            )
+            if discovered:
+                upsert_entry_leagues(db, int(body.session_id), discovered)
+                leagues = _stored(db, body.session_id)
+        except Exception as exc:  # noqa: BLE001
+            return {"status": "error", "note": f"league auto-detect failed ({type(exc).__name__})", "session_id": body.session_id}
+
+    target_league_id = body.league_id
+    if target_league_id is None:
+        sel = db.get(LeagueSelectionDB, str(body.session_id))
+        if sel is not None:
+            target_league_id = sel.league_id
+        else:
+            default = pick_default(leagues)
+            target_league_id = int(default["league_id"]) if default else None
+    if target_league_id is None:
+        return {"status": "no-league", "note": "No classic league detected yet.", "session_id": body.session_id}
+
+    target_gw = body.gameweek
+    if target_gw is None:
+        target_gw = await _target_gameweek(db, 1)
+
+    try:
+        await asyncio.wait_for(
+            refresh_league_cache(db, int(target_league_id), int(target_gw)),
+            timeout=_REFRESH_INLINE_BUDGET,
+        )
+    except TimeoutError:
+        return {"status": "refreshing", "note": "Inline budget exceeded — retry shortly.", "league_id": target_league_id}
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        return {"status": "error", "note": f"{type(exc).__name__}: {exc}", "league_id": target_league_id}
+
+    # Return fresh view (mirrors GET /league success path)
+    cache_row = db.get(LeagueCacheDB, int(target_league_id))
+    if cache_row is None or not (cache_row.standings or []):
+        return {"status": "stale", "note": "No cached standings yet.", "league_id": target_league_id}
+    view = _build_view(
+        db,
+        cache_row,
+        str(body.session_id),
+        gameweek=int((cache_row.rivals_picks or {}).get("gameweek") or target_gw),
+    )
+    return {"status": "ok", "league_id": target_league_id, "gameweek": target_gw, **view}
+
+
 @router.get("/trajectory", include_in_schema=False)
 async def league_trajectory_route(
     response: Response,
     db: deps.GetDB,
     session_id: str = Query(..., description="FPL entry id (= saved session key)."),
 ) -> dict[str, Any]:
-    """Phase 27 Gate 1 (S1) — projected league rank over next 3 GWs."""
+    """Phase 27 Gate 1 (S1) — projected league rank over next 3 GWs.
+
+    v2.7.3-dual-state: simulates the user's *effective* (local-preferred) XI
+    against auto-fetched rival XIs.
+    """
     response.headers["Cache-Control"] = "no-store"
     from fpl_intelligence.leagues.trajectory import league_trajectory
 

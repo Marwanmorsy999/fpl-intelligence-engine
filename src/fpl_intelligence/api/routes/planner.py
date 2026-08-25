@@ -90,7 +90,8 @@ async def planner_overview(
     """Two-gameweek transfer plan with explicit assumptions."""
     response.headers["Cache-Control"] = "no-store"
 
-    squad = SquadService(session=db).get_squad(session_id=session_id)
+    # v2.7.3-dual-state: Horizon Planner reads the effective (local-preferred) squad
+    squad = SquadService(session=db).get_effective_squad(session_id=session_id)
     if squad is None:
         return {
             "session_id": session_id,

@@ -59,10 +59,12 @@ def league_trajectory(
     # Resolve target GW — fallback to 1 when clock unavailable (tests)
     try:
         import asyncio
+        from fpl_intelligence.squad.models_db import LocalSquadStateDB
 
-        # resolve_target_gameweek is async; try to get cached value synchronously
-        # by checking squad gameweek first.
-        row = db.scalar(select(SquadStateDB).where(SquadStateDB.session_id == str(session_id)))
+        # v2.7.3-dual-state: effective squad for fallback gameweek
+        row = db.scalar(select(LocalSquadStateDB).where(LocalSquadStateDB.session_id == str(session_id)))
+        if row is None:
+            row = db.scalar(select(SquadStateDB).where(SquadStateDB.session_id == str(session_id)))
         fallback_gw = 1
         if row is not None and isinstance(row.squad_json, dict):
             fallback_gw = int(row.squad_json.get("gameweek") or 1)
@@ -129,7 +131,12 @@ def league_trajectory(
         k: [int(p) for p in v] for k, v in (rp.get("picks") or {}).items() if isinstance(v, list)
     }
     # User picks: need squad XI; fallback to first 11 squad ids
-    user_row = db.scalar(select(SquadStateDB).where(SquadStateDB.session_id == str(session_id)))
+    # v2.7.3-dual-state: effective squad (local preferred)
+    from fpl_intelligence.squad.models_db import LocalSquadStateDB as _LocalDB  # noqa: PLC0415
+
+    user_row = db.scalar(select(_LocalDB).where(_LocalDB.session_id == str(session_id)))
+    if user_row is None:
+        user_row = db.scalar(select(SquadStateDB).where(SquadStateDB.session_id == str(session_id)))
     user_ids: list[int] = []
     if user_row is not None and isinstance(user_row.squad_json, dict):
         user_ids = [int(p) for p in (user_row.squad_json.get("player_ids") or [])[:11]]

@@ -38,6 +38,13 @@ from fpl_intelligence.squad.models import SquadStateCreate
 ENTRY_ID = 1234567
 
 
+@pytest.fixture(autouse=True)
+def _clear_import_caches():
+    fpl_import_mod.clear_fpl_import_caches()
+    yield
+    fpl_import_mod.clear_fpl_import_caches()
+
+
 def _bootstrap() -> dict:
     elements = []
     for i in range(1, 16):

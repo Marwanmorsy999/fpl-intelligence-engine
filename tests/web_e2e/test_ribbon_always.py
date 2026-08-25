@@ -77,7 +77,7 @@ class TestRibbonAlwaysVisible:
         expect(btn).to_be_disabled()
         hint = page.locator('[data-testid="sync-ribbon-hint"]')
         expect(hint).to_be_visible()
-        expect(hint).to_contain_text("Analyze your team to enable Sync Now")
+        expect(hint).to_contain_text("Analyze your team to enable Refresh League Data")
         tog = page.locator('[data-testid="sync-next-gw-toggle"]')
         expect(tog).to_be_disabled()
 
@@ -94,7 +94,7 @@ class TestRibbonAlwaysVisible:
         expect(btn).to_be_disabled()
         hint = page.locator('[data-testid="sync-ribbon-hint"]')
         expect(hint).to_be_visible()
-        expect(hint).to_contain_text("Analyze your team to enable Sync Now")
+        expect(hint).to_contain_text("Analyze your team to enable Refresh League Data")
 
     def test_dashboard_ribbon_visible_fpl_id_enabled(self, _mocked: Page):
         page = _mocked
@@ -121,7 +121,7 @@ class TestRibbonAlwaysVisible:
         page.reload(wait_until="domcontentloaded")
         expect(page.locator('[data-testid="sync-ribbon"]')).to_be_visible(timeout=8000)
         expect(page.locator('[data-testid="sync-now-btn"]')).to_be_disabled()
-        expect(page.locator('[data-testid="sync-ribbon-hint"]')).to_contain_text("Analyze your team to enable Sync Now")
+        expect(page.locator('[data-testid="sync-ribbon-hint"]')).to_contain_text("Analyze your team to enable Refresh League Data")
         # fpl_id on /connect
         sess_real = {"key": "794561", "source": "fpl_id", "entry_name": "Test FC", "synced_at": "2026-08-22T09:00:00Z"}
         _seed(page, sess_real)

@@ -29,6 +29,28 @@ class SquadStateDB(Base):
     __table_args__ = (UniqueConstraint("session_id", name="uq_squad_state_session"),)
 
 
+class LocalSquadStateDB(Base):
+    """v2.7.3-dual-state: user's *local* squad override (Transfer Planner).
+
+    The base :class:`SquadStateDB` row remains the last FPL-imported truth
+    (written by ``/squad/from-fpl`` / ``/sync/squad-push`` / ``/squad/sync-now``).
+    ``local_squad_state`` is written ONLY by the Transfer Planner's
+    ``Save to Local Squad`` action — no FPL fetch, no egress mask — and is the
+    source of truth for every user-facing math path (decisions, captaincy,
+    Alpha, Horizon Planner, Trajectory, FOMO). When absent the effective squad
+    falls back to the base row so a fresh install still renders.
+    """
+
+    __tablename__ = "local_squad_state"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    session_id: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    squad_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (UniqueConstraint("session_id", name="uq_local_squad_state_session"),)
+
+
 class PendingSyncDB(Base):
     """A queued auto-sync request (Phase 13.5).
 

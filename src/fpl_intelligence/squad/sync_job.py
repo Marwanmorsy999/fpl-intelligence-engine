@@ -78,8 +78,14 @@ def clear_job(session_id: str) -> None:
     with _lock:
         _jobs.pop(str(session_id), None)
         t = _tasks.pop(str(session_id), None)
-        if t and not t.done():
-            t.cancel()
+        try:
+            if t is not None:
+                if hasattr(t, "is_alive"):
+                    pass
+                elif hasattr(t, "done") and not t.done():
+                    t.cancel()
+        except Exception:
+            pass
 
 
 def clear_all_jobs() -> None:
@@ -87,8 +93,15 @@ def clear_all_jobs() -> None:
         for sid in list(_jobs.keys()):
             _jobs.pop(sid, None)
         for sid, t in list(_tasks.items()):
-            if not t.done():
-                t.cancel()
+            try:
+                # Thread case: is_alive / no cancel. Task case: done / cancel.
+                if hasattr(t, "is_alive"):
+                    # Thread — just drop it; daemon threads die with process.
+                    pass
+                elif hasattr(t, "done") and not t.done():
+                    t.cancel()
+            except Exception:
+                pass
             _tasks.pop(sid, None)
 
 

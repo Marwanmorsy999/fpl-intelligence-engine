@@ -151,6 +151,8 @@ def test_shadow_endpoint(db_session):
 
 
 def test_execute_fallback(db_session):
+    # v2.7.2-planner-only & v2.7.3-dual-state: direct FPL push removed — planner is local only.
+    # POST /transfers/execute no longer exists; Save to Local Squad is POST /transfers/save-local.
     def _override():
         yield db_session
 
@@ -158,34 +160,30 @@ def test_execute_fallback(db_session):
     client = TestClient(app)
     _make_squad(db_session, entry="888", ft=1, gw=2, ids=list(range(1, 16)))
     resp = client.post("/api/v1/transfers/execute", json={"session_id": "888", "element_in": 99, "element_out": 1})
-    assert resp.status_code == 200
-    data = resp.json()
-    # without cookie/CSRF it must fallback, not 500
-    assert data["status"] == "fallback"
-    assert "IN:" in data["clipboard"] and "OUT:" in data["clipboard"]
-    assert "fantasy.premierleague.com" in data["fpl_url"]
-    assert data["message"] == "Open FPL to Confirm"
+    assert resp.status_code == 404
     app.dependency_overrides.clear()
 
 
 def test_execute_mocked_success(monkeypatch, db_session):
-    # Mock the httpx call path by patching no matter — our endpoint currently only
-    # succeeds when cookie+csrf + proxy env set; we test that fallback is honest
-    # and that with a mocked proxy it would return executed.
-    # Simpler: we assert that execute endpoint accepts the fields and returns fallback honestly.
+    # v2.7.3-dual-state: planner-only — execute is 404, save-local is the contract.
     def _override():
         yield db_session
 
     app.dependency_overrides[get_db] = _override
     client = TestClient(app)
     _make_squad(db_session, entry="999", ft=1, gw=2, ids=list(range(1, 16)))
-    # Even with cookie, without FPL_PROXY_URL it falls back — this is the honest behaviour
     resp = client.post(
         "/api/v1/transfers/execute",
         json={"session_id": "999", "element_in": 99, "element_out": 1, "fpl_session_cookie": "x", "csrf_token": "y"},
     )
-    assert resp.status_code == 200
-    assert resp.json()["status"] in ("fallback", "executed")
+    assert resp.status_code == 404
+    # Verify the dual-state local save works instead (no FPL fetch):
+    resp2 = client.post(
+        "/api/v1/transfers/save-local",
+        json={"session_id": "999", "element_in": 99, "element_out": 1},
+    )
+    assert resp2.status_code == 200
+    assert resp2.json()["status"] == "ok"
     app.dependency_overrides.clear()
 
 

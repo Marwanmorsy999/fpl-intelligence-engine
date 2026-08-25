@@ -23,7 +23,7 @@ from fpl_intelligence.db.models import (
     Team,
     TeamExternalId,
 )
-from fpl_intelligence.squad.models_db import SquadStateDB  # noqa: F401
+from fpl_intelligence.squad.models_db import LocalSquadStateDB, SquadStateDB  # noqa: F401
 from fpl_intelligence.sync import materialized_models as _materialized_models  # noqa: F401
 from fpl_intelligence.sync import models as _sync_models  # noqa: F401
 

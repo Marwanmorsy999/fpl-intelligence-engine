@@ -167,7 +167,8 @@ async def targets_overview(
     """Top transfer targets ranked by Alpha with full provenance."""
     response.headers["Cache-Control"] = "no-store"
 
-    squad = SquadService(session=db).get_squad(session_id=session_id) if session_id else None
+    # v2.7.3-dual-state: user-facing Alpha reads the local override (effective squad)
+    squad = SquadService(session=db).get_effective_squad(session_id=session_id) if session_id else None
     bank = float(squad.bank or 0.0) if squad else 0.0
     squad_ids = list(squad.player_ids or []) if squad else []
     pos_counts: dict[int, int] = {}
@@ -368,9 +369,12 @@ async def squad_metrics(
     db: deps.GetDB,
     session_id: str = Query(..., description="Session key (saved squad)."),
 ) -> dict[str, Any]:
-    """Per-squad-player {xPTS, Alpha, price, volatility} for the sort view."""
+    """Per-squad-player {xPTS, Alpha, price, volatility} for the sort view.
+
+    v2.7.3-dual-state: reads the effective (local-preferred) squad.
+    """
     response.headers["Cache-Control"] = "no-store"
-    squad = SquadService(session=db).get_squad(session_id=session_id)
+    squad = SquadService(session=db).get_effective_squad(session_id=session_id)
     if squad is None:
         return {"session_id": session_id, "status": "no-squad", "metrics": {}}
 

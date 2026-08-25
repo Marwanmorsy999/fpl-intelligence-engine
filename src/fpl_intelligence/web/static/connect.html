@@ -48,15 +48,12 @@
 </head>
 <body>
 <div id="topnav"></div>
-<!-- v2.5.5 — sticky Sync Now ribbon: ALWAYS visible on /connect (mirrors /dashboard) -->
+<!-- v2.7.3-dual-state — Refresh League Data ribbon: ALWAYS visible on /connect (mirrors /dashboard) -->
 <div id="syncRibbon" class="sync-ribbon" data-testid="sync-ribbon">
   <div class="sync-ribbon__inner sync-ribbon__inner--connect">
-    <button id="syncNowBtn" class="btn-primary" type="button" data-testid="sync-now-btn">↻ Sync Now</button>
-    <span id="syncHint" data-testid="sync-ribbon-hint" class="small sync-ribbon-hint">Analyze your team to enable Sync Now</span>
-    <label for="syncNextGwToggle" class="sync-label">
-      <input id="syncNextGwToggle" type="checkbox" data-testid="sync-next-gw-toggle"> Sync for NEXT gameweek
-    </label>
-    <span class="faint small sync-note">Dashboard sync does the same dual-fetch (current + next GW) as the importer</span>
+    <button id="syncNowBtn" class="btn-primary" type="button" data-testid="sync-now-btn">↻ Refresh League Data</button>
+    <span id="syncHint" data-testid="sync-ribbon-hint" class="small sync-ribbon-hint">Analyze your team to enable Refresh League Data</span>
+    <span class="faint small sync-note">Refresh pulls rival standings & picks via masks — your local squad is never overwritten</span>
   </div>
   <div id="syncBannerSticky" class="sync-banner-sticky" role="status" aria-live="polite" data-testid="sync-banner-sticky">
     <div id="syncBannerStickyInner" class="sync-banner-inner"></div>
@@ -269,7 +266,7 @@ function onOpen() {
 document.addEventListener("DOMContentLoaded", function () {
   FPLApp.renderNav("/connect");
   var $ = function (id) { return document.getElementById(id); };
-  // v2.5.5 — ribbon ALWAYS visible (mirrors /dashboard); demo/no-session -> disabled + hint
+  // v2.7.3-dual-state — ribbon ALWAYS visible (mirrors /dashboard); demo/no-session -> disabled + hint
   function _updateConnectRibbon() {
     var sess = null;
     try { sess = FPLApp.session.read(); } catch (e) { try { sess = JSON.parse(localStorage.getItem("fpl_session_v20")||"null"); } catch(e2){} }
@@ -277,61 +274,39 @@ document.addEventListener("DOMContentLoaded", function () {
     var isDemo = sess && sess.source === "demo";
     var shouldEnable = hasSession && !isDemo;
     var rb = $("syncRibbon"); if (rb) rb.style.display = "block";
-    var btn = $("syncNowBtn"); if (btn) { btn.disabled = !shouldEnable; btn.title = shouldEnable ? "" : "Analyze your team to enable Sync Now"; if (!shouldEnable) btn.setAttribute("aria-disabled","true"); else btn.removeAttribute("aria-disabled"); }
+    var btn = $("syncNowBtn"); if (btn) { btn.disabled = !shouldEnable; btn.title = shouldEnable ? "" : "Analyze your team to enable Refresh League Data"; if (!shouldEnable) btn.setAttribute("aria-disabled","true"); else btn.removeAttribute("aria-disabled"); }
     var hint = $("syncHint"); if (hint) hint.classList.toggle("show", !shouldEnable);
     var tgl = $("syncNextGwToggle"); if (tgl) tgl.disabled = !shouldEnable;
   }
   function _syncNowConnect() {
+    // v2.7.3-dual-state: Refresh League Data — only pulls rival standings/picks via masks, never overwrites local_squad.
     var sess = null; try { sess = FPLApp.session.read(); } catch(e){}
-    if (!sess || !sess.key || sess.source === "demo") { alert("Analyze your team to enable Sync Now"); return; }
+    if (!sess || !sess.key || sess.source === "demo") { alert("Analyze your team to enable Refresh League Data"); return; }
     var btn = $("syncNowBtn");
     var stickyWrap = $("syncBannerSticky"); var stickyInner = $("syncBannerStickyInner");
     if (stickyWrap) stickyWrap.classList.remove("show"); if (stickyInner) stickyInner.textContent = "";
-    if (btn) { btn.disabled = true; btn.textContent = "Syncing\u2026"; }
-    var nextGwChecked = false; try { nextGwChecked = !!($("syncNextGwToggle") && $("syncNextGwToggle").checked); } catch(e){}
-    var url = "/api/v1/squad/sync-now?session_id=" + encodeURIComponent(sess.key);
-    if (nextGwChecked) url += "&next_gw=true";
-    fetch(url, { method: "POST" }).then(function(r){
+    if (btn) { btn.disabled = true; btn.textContent = "Refreshing\u2026"; }
+    var url = "/api/v1/league/refresh";
+    fetch(url, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({session_id: sess.key}) }).then(function(r){
       return r.json().catch(function(){return {};}).then(function(data){
-        if (r.status === 400 || r.status === 404 || r.status === 409) throw new Error(data.detail || ("Sync failed ("+r.status+")"));
-        if (data && data.state === "done") {
-          var bannerText = data.banner || ("Synced! New squad loaded for GW" + (data.gameweek || "?") + ".");
+        if (!r.ok && r.status !== 202) throw new Error(data.detail || data.note || ("Refresh failed ("+r.status+")"));
+        if (data && (data.status === "ok" || data.status === "refreshing")) {
+          var bannerText = data.status === "ok" ? ("League refreshed ✓ — " + (data.league_name || "standings") + " updated. Trajectory & Alpha use your local squad.") : (data.note || "Refreshing…");
           if (stickyWrap && stickyInner) { stickyInner.textContent = bannerText; stickyWrap.classList.add("show"); }
           _updateConnectRibbon();
-          if (btn) btn.textContent = "\u21BB Sync Now";
+          if (btn) btn.textContent = "\u21BB Refresh League Data";
           return;
         }
-        if (data && data.state === "failed") {
-          alert(data.error || "Sync failed \u2014 please Retry.");
+        if (data && (data.status === "failed" || data.status === "error")) {
+          alert(data.note || data.error || "Refresh failed \u2014 please Retry.");
           _updateConnectRibbon();
           if (btn) { btn.disabled = false; btn.textContent = "Retry"; }
           return;
         }
-        // running -> poll every 2s max 30s
-        var started = Date.now();
-        var poll = function(){
-          if (Date.now() - started > 30000) { alert("Sync is taking longer than expected \u2014 please Retry."); _updateConnectRibbon(); if(btn) btn.textContent = "\u21BB Sync Now"; return; }
-          fetch("/api/v1/squad/sync-status?session_id=" + encodeURIComponent(sess.key)).then(function(rr){
-            return rr.json().catch(function(){return {};}).then(function(dd){ return {status: rr.status, data: dd}; });
-          }).then(function(obj){
-            var d = obj.data;
-            if (d.state === "done") {
-              var bannerText2 = d.banner || ("Synced! New squad loaded for GW" + (d.gameweek || "?") + ".");
-              if (stickyWrap && stickyInner) { stickyInner.textContent = bannerText2; stickyWrap.classList.add("show"); }
-              _updateConnectRibbon();
-              if (btn) btn.textContent = "\u21BB Sync Now";
-            } else if (d.state === "failed") {
-              alert(d.error || "Sync failed \u2014 please Retry.");
-              _updateConnectRibbon();
-              if (btn) { btn.disabled = false; btn.textContent = "Retry"; }
-            } else {
-              setTimeout(poll, 2000);
-            }
-          }).catch(function(){ setTimeout(poll, 2000); });
-        };
-        setTimeout(poll, 2000);
+        _updateConnectRibbon();
+        if (btn) btn.textContent = "\u21BB Refresh League Data";
       });
-    }).catch(function(e){ alert(e.message); _updateConnectRibbon(); if (btn) btn.textContent = "\u21BB Sync Now"; });
+    }).catch(function(e){ alert(e.message); _updateConnectRibbon(); if (btn) btn.textContent = "\u21BB Refresh League Data"; });
   }
   // wire ribbon button immediately and keep state in sync with storage events
   try { var _snC = $("syncNowBtn"); if (_snC) _snC.addEventListener("click", _syncNowConnect); } catch(e){}

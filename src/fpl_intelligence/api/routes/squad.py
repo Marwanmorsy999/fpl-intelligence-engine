@@ -145,17 +145,18 @@ async def get_squad(
     response: Response,
     session_id: str | None = Query(None, description="Per-user session key. Required."),
 ) -> SquadStateResponse:
-    """Retrieve the squad state for a specific session.
+    """Retrieve the *effective* squad state for a specific session.
 
-    ``session_id`` is REQUIRED. Returns 404 if missing or if no squad has been
-    saved for that key — never falls back to a default or another user's squad.
+    v2.7.3-dual-state: prefers the Transfer Planner's ``local_squad`` override;
+    falls back to the last FPL-imported base row. ``session_id`` is REQUIRED.
+    Returns 404 if missing or if no squad has been saved for that key.
     """
     if not session_id:
         raise HTTPException(
             status_code=404,
             detail="No squad saved for this session",
         )
-    squad = SquadService(session=db).get_squad(session_id=session_id)
+    squad = SquadService(session=db).get_effective_squad(session_id=session_id)
     if squad is None:
         raise HTTPException(
             status_code=404,
@@ -164,6 +165,148 @@ async def get_squad(
     # Never cache responses that are specific to a session.
     response.headers["Cache-Control"] = "no-store"
     return squad
+
+
+@router.get(
+    "/squad/base",
+    response_model=SquadStateResponse,
+    responses={404: {"description": "No squad saved for this session"}},
+    include_in_schema=False,
+)
+async def get_base_squad(
+    db: GetDB,
+    response: Response,
+    session_id: str | None = Query(None, description="Per-user session key. Required."),
+) -> SquadStateResponse:
+    """Raw FPL-truth squad (base) — diagnostic only, not used by UI."""
+    if not session_id:
+        raise HTTPException(status_code=404, detail="No squad saved for this session")
+    squad = SquadService(session=db).get_squad(session_id=session_id)
+    if squad is None:
+        raise HTTPException(status_code=404, detail="No squad saved for this session")
+    response.headers["Cache-Control"] = "no-store"
+    return squad
+
+
+@router.get(
+    "/squad/local",
+    response_model=SquadStateResponse,
+    responses={404: {"description": "No local squad saved"}},
+    include_in_schema=False,
+)
+async def get_local_squad(
+    db: GetDB,
+    response: Response,
+    session_id: str | None = Query(None, description="Per-user session key. Required."),
+) -> SquadStateResponse:
+    """Local Transfer Planner override — 404 when none saved."""
+    if not session_id:
+        raise HTTPException(status_code=404, detail="No local squad saved for this session")
+    squad = SquadService(session=db).get_local_squad(session_id=session_id)
+    if squad is None:
+        raise HTTPException(status_code=404, detail="No local squad saved for this session")
+    response.headers["Cache-Control"] = "no-store"
+    return squad
+
+
+class LocalSaveBody(BaseModel):
+    session_id: str = Field(..., description="Per-user session key (= FPL entry id)")
+    element_in: int = Field(..., gt=0, description="Player id to bring in")
+    element_out: int = Field(..., gt=0, description="Player id to take out")
+
+
+@router.post(
+    "/squad/local",
+    response_model=SquadStateResponse,
+    include_in_schema=False,
+)
+async def save_local_squad_swap(
+    body: LocalSaveBody, db: GetDB, response: Response
+) -> SquadStateResponse:
+    """v2.7.3-dual-state: Save a staged IN/OUT to ``local_squad`` (no FPL fetch).
+
+    Validates ``element_out in current effective squad`` and
+    ``element_in not already owned``, computes a 15-man shadow list, copies
+    captain/vice if they were moved, adjusts bank by price delta, enriches
+    position/price/team from the catalog, persists via
+    ``SquadService.set_local_squad`` and invalidates the decisions cache.
+    """
+    from fpl_intelligence.transfers.shadow import build_shadow_squad  # noqa: PLC0415
+
+    svc = SquadService(session=db)
+    cur = svc.get_effective_squad(session_id=body.session_id)
+    if cur is None:
+        raise HTTPException(status_code=404, detail="No squad saved for this session — import your team first.")
+    shadow_ids = build_shadow_squad(list(cur.player_ids), int(body.element_out), int(body.element_in))
+    if shadow_ids is None:
+        raise HTTPException(status_code=422, detail="Staged transfer invalid: OUT not in squad or IN already owned.")
+
+    # Resolve catalog for price/position/team enrichment.
+    try:
+        from fpl_intelligence.prediction.live_provider import load_player_catalog  # noqa: PLC0415
+
+        catalog = load_player_catalog()
+    except Exception:
+        catalog = {}
+
+    # Bank adjustment: bank + price_out - price_in (tenths via catalog now_cost)
+    bank = float(cur.bank or 0.0)
+    try:
+        price_in = float(catalog.get(int(body.element_in), {}).get("price") or 0.0)
+        price_out = float(catalog.get(int(body.element_out), {}).get("price") or 0.0)
+        # Fallback to stored squad prices when catalog price missing.
+        if not price_in:
+            price_in = float((cur.player_prices or {}).get(int(body.element_in)) or 0.0)
+        if not price_out:
+            price_out = float((cur.player_prices or {}).get(int(body.element_out)) or 0.0)
+        if price_in or price_out:
+            bank = round(bank + price_out - price_in, 1)
+    except Exception:
+        pass
+
+    # Captain/vice follow the swapped player.
+    captain_id = int(cur.captain_id)
+    vice_id = int(cur.vice_captain_id)
+    if captain_id == int(body.element_out):
+        captain_id = int(body.element_in)
+    if vice_id == int(body.element_out):
+        vice_id = int(body.element_in)
+
+    # Enrich position/price/team for the new player.
+    new_positions = dict(cur.player_positions or {})
+    new_prices = dict(cur.player_prices or {})
+    new_teams = dict(cur.player_teams or {})
+    cat_row = catalog.get(int(body.element_in), {})
+    if cat_row.get("position"):
+        new_positions[int(body.element_in)] = int(cat_row["position"])
+    new_positions.pop(int(body.element_out), None)
+    if cat_row.get("price") is not None:
+        new_prices[int(body.element_in)] = float(cat_row["price"])
+    new_prices.pop(int(body.element_out), None)
+    if cat_row.get("team") is not None:
+        new_teams[int(body.element_in)] = int(cat_row["team"])
+    new_teams.pop(int(body.element_out), None)
+
+    payload = cur.model_copy(
+        update={
+            "player_ids": shadow_ids,
+            "captain_id": captain_id,
+            "vice_captain_id": vice_id,
+            "bank": bank,
+            "player_positions": new_positions or None,
+            "player_prices": new_prices or None,
+            "player_teams": new_teams or None,
+            "session_id": body.session_id,
+        }
+    )
+    # Strip updated_at so set_local_squad stamps fresh time.
+    saved = svc.set_local_squad(
+        SquadStateCreate(**{k: v for k, v in payload.model_dump().items() if k != "updated_at"}),
+        session_id=body.session_id,
+    )
+    _invalidate_decisions_cache(body.session_id)
+    response.headers["Cache-Control"] = "no-store"
+    return saved
 
 
 def _build_player_details(
@@ -397,7 +540,7 @@ async def get_decisions(
             status_code=404,
             detail="No squad saved for this session",
         )
-    squad = SquadService(session=db).get_squad(session_id=session_id)
+    squad = SquadService(session=db).get_effective_squad(session_id=session_id)
     if squad is None:
         raise HTTPException(status_code=404, detail="No squad saved for this session")
 
