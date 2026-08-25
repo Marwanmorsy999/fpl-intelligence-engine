@@ -101,44 +101,49 @@ class SquadService:
 
     @staticmethod
     def _ensure_local_table(db: Session) -> None:
+        """Idempotently create ``local_squad_state`` on any dialect.
+
+        v2.7.4-prod-heal: prefers ``Base.metadata.create_all`` (dialect-safe,
+        idempotent) and only falls back to raw Postgres DDL when metadata is
+        unavailable — the previous SERIAL-first DDL silently failed to seal
+        non-Postgres binds.
+        """
         try:
-            # Check via inspector; fallback to try create.
             from sqlalchemy import inspect as _insp
-            from sqlalchemy import text as _text
 
             insp = _insp(db.get_bind())
             if insp.has_table("local_squad_state"):
                 return
-            db.execute(
-                _text(
-                    """
-                    CREATE TABLE IF NOT EXISTS local_squad_state (
-                        id SERIAL PRIMARY KEY,
-                        session_id VARCHAR(255) NOT NULL UNIQUE,
-                        squad_json JSON NOT NULL,
-                        updated_at TIMESTAMP WITH TIME ZONE NOT NULL
-                    )
-                    """
-                )
-            )
-            # SQLite uses different DDL — the Postgres SERIAL above fails on sqlite.
-            # create_all is dialect-safe and idempotent, so use it as fallback.
-            try:
-                db.commit()
-            except Exception:
-                db.rollback()
-                from fpl_intelligence.db.base import Base as _Base  # noqa: PLC0415
 
-                _Base.metadata.create_all(
-                    db.get_bind(), tables=[LocalSquadStateDB.__table__]
+            from fpl_intelligence.db.base import Base as _Base  # noqa: PLC0415
+
+            _Base.metadata.create_all(
+                db.get_bind(), tables=[LocalSquadStateDB.__table__]
+            )
+            db.commit()
+        except Exception:  # noqa: BLE001 — best-effort; raw DDL last resort
+            with contextlib.suppress(Exception):
+                db.rollback()
+            try:
+                from sqlalchemy import text as _text  # noqa: PLC0415
+
+                db.execute(
+                    _text(
+                        """
+                        CREATE TABLE IF NOT EXISTS local_squad_state (
+                            id SERIAL PRIMARY KEY,
+                            session_id VARCHAR(255) NOT NULL UNIQUE,
+                            squad_json JSON NOT NULL,
+                            updated_at TIMESTAMP WITH TIME ZONE NOT NULL
+                        )
+                        """
+                    )
                 )
                 db.commit()
-        except Exception as exc:  # noqa: BLE001 — best-effort
-            try:
-                db.rollback()
-            except Exception:
-                pass
-            logger.debug("local_squad DDL ensure skipped: %s", exc)
+            except Exception as exc:  # noqa: BLE001 — degrade, never raise
+                with contextlib.suppress(Exception):
+                    db.rollback()
+                logger.debug("local_squad DDL ensure skipped: %s", exc)
 
     def _upsert_local(self, db: Session, session_id: str, state: SquadStateResponse) -> None:
         # Self-seal table on first use (prod DB predates 0021).
@@ -238,6 +243,39 @@ class SquadService:
 
     # -- v2.7.3-dual-state: local_squad overlay --------------------------------
 
+    @staticmethod
+    def _read_local_row(db: Session, session_id: str) -> LocalSquadStateDB | None:
+        """Self-sealing read of ``local_squad_state`` (v2.7.4-prod-heal).
+
+        Prod DBs that predate migration 0021 lack the table; a bare SELECT
+        raises and (worse) poisons the session for every later query on the
+        same request. Every read therefore:
+        1. tries the select,
+        2. on failure rolls back, re-seals the table, retries ONCE,
+        3. returns ``None`` ("no local squad") when still failing — callers
+           fall back to the base squad instead of surfacing a 500.
+        """
+        try:
+            return db.execute(
+                select(LocalSquadStateDB).where(LocalSquadStateDB.session_id == session_id)
+            ).scalar_one_or_none()
+        except Exception as exc:  # noqa: BLE001 — never fail a read path
+            logger.warning("local_squad read failed (self-sealing): %s", exc)
+            with contextlib.suppress(Exception):
+                db.rollback()
+            try:
+                SquadService._ensure_local_table(db)
+                return db.execute(
+                    select(LocalSquadStateDB).where(
+                        LocalSquadStateDB.session_id == session_id
+                    )
+                ).scalar_one_or_none()
+            except Exception as exc2:  # noqa: BLE001 — degrade to "no local squad"
+                logger.warning("local_squad read failed after re-seal: %s", exc2)
+                with contextlib.suppress(Exception):
+                    db.rollback()
+                return None
+
     def set_local_squad(self, payload: SquadStateCreate, session_id: str) -> SquadStateResponse:
         """Persist a *local* squad override (Transfer Planner, no FPL fetch).
 
@@ -274,19 +312,26 @@ class SquadService:
         return state
 
     def get_local_squad(self, session_id: str) -> SquadStateResponse | None:
-        """Return the local override, or None if the user never saved one."""
+        """Return the local override, or None if the user never saved one.
+
+        Never raises (v2.7.4-prod-heal): a missing/broken table degrades to
+        ``None`` so callers fall back to the base squad.
+        """
         if not self._is_persistent():
             with self._lock:
                 return self._local_state
         with self._lock:
             db, own = self._acquire()
             try:
-                row = db.execute(
-                    select(LocalSquadStateDB).where(LocalSquadStateDB.session_id == session_id)
-                ).scalar_one_or_none()
+                row = self._read_local_row(db, session_id)
                 if row is None:
                     return None
                 return SquadStateResponse.model_validate(row.squad_json)
+            except Exception as exc:  # noqa: BLE001 — never fail a read path
+                logger.warning("get_local_squad degraded to None: %s", exc)
+                with contextlib.suppress(Exception):
+                    db.rollback()
+                return None
             finally:
                 if own:
                     db.close()
@@ -296,7 +341,8 @@ class SquadService:
 
         This is what Captaincy, Alpha, Horizon Planner, Trajectory and FOMO
         all read. The daily league/rival fetch stays auto-fetched and
-        unaffected.
+        unaffected. Never raises (v2.7.4-prod-heal): any local/base read
+        failure degrades to the other layer and finally to ``None``.
         """
         # Fast path: in-memory mode
         if not self._is_persistent():
@@ -307,17 +353,23 @@ class SquadService:
         with self._lock:
             db, own = self._acquire()
             try:
-                local_row = db.execute(
-                    select(LocalSquadStateDB).where(LocalSquadStateDB.session_id == session_id)
-                ).scalar_one_or_none()
+                local_row = self._read_local_row(db, session_id)
                 if local_row is not None:
-                    return SquadStateResponse.model_validate(local_row.squad_json)
+                    try:
+                        return SquadStateResponse.model_validate(local_row.squad_json)
+                    except Exception as exc:  # noqa: BLE001 — corrupt row → base
+                        logger.warning("local squad payload invalid, using base: %s", exc)
                 base_row = db.execute(
                     select(SquadStateDB).where(SquadStateDB.session_id == session_id)
                 ).scalar_one_or_none()
                 if base_row is None:
                     return None
                 return SquadStateResponse.model_validate(base_row.squad_json)
+            except Exception as exc:  # noqa: BLE001 — last-resort degradation
+                logger.warning("get_effective_squad failed; treating as no squad: %s", exc)
+                with contextlib.suppress(Exception):
+                    db.rollback()
+                return None
             finally:
                 if own:
                     db.close()

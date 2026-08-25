@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-  "buildCommand": "pip install .",
+  "buildCommand": "pip install . && python scripts/deploy_migrate.py",
   "functions": {
     "api/index.py": {
       "runtime": "@vercel/python@6.58.0",

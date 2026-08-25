@@ -140,3 +140,56 @@ async def resolve_target_gameweek(db: Any, fallback: int = 1) -> int:
     except Exception as exc:  # noqa: BLE001 - never fail a request on metadata
         logger.warning("fixtures-cache gameweek fallback failed: %s", exc)
     return fallback
+
+
+def resolve_season_gw_ceiling_sync(db: Any, fallback: int | None = None) -> int | None:
+    """Sync ceiling for the CURRENT season's GW range (v2.7.4-prod-heal).
+
+    Recommender/grading queries must never read past the current season:
+    ``ingested_history`` keeps last season's rows (e.g. GW38 of 2025/26) and
+    ``MAX(gameweek)`` silently grades a dead season. This returns the current
+    target GW from (in order): the in-process bootstrap cache, a fresh
+    bootstrap fetch when possible, then the fixtures-cache inference — and
+    ``None`` when nothing trustworthy is available so callers can degrade
+    honestly instead of guessing.
+    """
+    with _target_lock:
+        _, cached = _target_cache
+    if cached is not None:
+        return int(cached)
+
+    if _in_pytest():
+        # Never touch the network under pytest; fall through to fixtures cache.
+        pass
+    else:
+        try:
+            import asyncio
+
+            loop = asyncio.get_event_loop()
+            if not loop.is_running():
+                fetched = loop.run_until_complete(bootstrap_target_gameweek())
+                if fetched is not None:
+                    return int(fetched)
+        except Exception as exc:  # noqa: BLE001 - honest degradation
+            logger.debug("sync bootstrap gw probe failed: %s", exc)
+
+    try:
+        from sqlalchemy import select  # noqa: PLC0415
+
+        from fpl_intelligence.fixtures.scanner import (  # noqa: PLC0415
+            infer_current_gameweek,
+            parse_fixtures,
+        )
+        from fpl_intelligence.sync.materialized_models import FixturesCacheDB  # noqa: PLC0415
+
+        row = db.scalar(select(FixturesCacheDB).order_by(FixturesCacheDB.id.desc()).limit(1))
+        if row is not None and row.payload:
+            inferred = infer_current_gameweek(
+                parse_fixtures(row.payload),
+                fallback=fallback if fallback is not None else 0,
+            )
+            if inferred:
+                return int(inferred)
+    except Exception as exc:  # noqa: BLE001 - honest degradation
+        logger.warning("season gw ceiling inference failed: %s", exc)
+    return fallback

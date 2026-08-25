@@ -15,6 +15,7 @@ the league is larger than the cached standings page.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import threading
 import time
@@ -107,17 +108,47 @@ async def _target_gameweek(db: Any, fallback: int) -> int:
 
 
 def _user_squad(db: Any, session_key: str) -> dict[str, Any] | None:
-    """v2.7.3-dual-state: effective squad (local preferred, base fallback)."""
-    from fpl_intelligence.squad.models_db import LocalSquadStateDB, SquadStateDB
+    """v2.7.3-dual-state: effective squad (local preferred, base fallback).
 
-    local_row = db.scalar(
-        select(LocalSquadStateDB).where(LocalSquadStateDB.session_id == str(session_key))
-    )
-    if local_row is not None and isinstance(local_row.squad_json, dict):
-        return local_row.squad_json
-    row = db.scalar(
-        select(SquadStateDB).where(SquadStateDB.session_id == str(session_key))
-    )
+    v2.7.4-prod-heal: fully self-sealing and never-raising. Prod DBs that
+    predate migration 0021 lack ``local_squad_state``; the read degrades to
+    the base row and finally to ``None`` instead of surfacing a 500.
+    """
+    from fpl_intelligence.squad.models_db import LocalSquadStateDB, SquadStateDB
+    from fpl_intelligence.squad.service import SquadService
+
+    try:
+        local_row = db.scalar(
+            select(LocalSquadStateDB).where(LocalSquadStateDB.session_id == str(session_key))
+        )
+        if local_row is not None and isinstance(local_row.squad_json, dict):
+            return local_row.squad_json
+    except Exception as exc:  # noqa: BLE001 — table may not exist yet on prod
+        logger.warning("local_squad_state read failed; re-sealing table: %s", exc)
+        with contextlib.suppress(Exception):
+            db.rollback()
+        SquadService._ensure_local_table(db)
+        try:
+            local_row = db.scalar(
+                select(LocalSquadStateDB).where(
+                    LocalSquadStateDB.session_id == str(session_key)
+                )
+            )
+            if local_row is not None and isinstance(local_row.squad_json, dict):
+                return local_row.squad_json
+        except Exception as exc2:  # noqa: BLE001 — degrade to base squad
+            logger.warning("local_squad_state still unreadable, using base: %s", exc2)
+            with contextlib.suppress(Exception):
+                db.rollback()
+    try:
+        row = db.scalar(
+            select(SquadStateDB).where(SquadStateDB.session_id == str(session_key))
+        )
+    except Exception as exc:  # noqa: BLE001 — never fail a league render
+        logger.warning("squad_state read failed; treating as no squad: %s", exc)
+        with contextlib.suppress(Exception):
+            db.rollback()
+        return None
     if row is None or not isinstance(row.squad_json, dict):
         return None
     return row.squad_json
@@ -127,13 +158,19 @@ def _stored_xi(db: Any, session_key: str, gameweek: int) -> tuple[list[int], str
     """Stored engine-recommended XI, falling back to the fielded starters."""
     from fpl_intelligence.sync.models import RecommendationDB
 
-    row = db.scalar(
-        select(RecommendationDB).where(
-            RecommendationDB.session_key == str(session_key),
-            RecommendationDB.gameweek == int(gameweek),
-            RecommendationDB.rec_type == "xi",
+    try:
+        row = db.scalar(
+            select(RecommendationDB).where(
+                RecommendationDB.session_key == str(session_key),
+                RecommendationDB.gameweek == int(gameweek),
+                RecommendationDB.rec_type == "xi",
+            )
         )
-    )
+    except Exception as exc:  # noqa: BLE001 — v2.7.4-prod-heal never-500
+        logger.warning("recommendation xi read failed: %s", exc)
+        with contextlib.suppress(Exception):
+            db.rollback()
+        row = None
     if row is not None and isinstance(row.subject, dict):
         xi = [int(p) for p in (row.subject.get("xi") or [])]
         if xi:
@@ -149,12 +186,18 @@ def _stored_xi(db: Any, session_key: str, gameweek: int) -> tuple[list[int], str
 def _xpts_map(db: Any, gameweek: int) -> dict[int, float]:
     from fpl_intelligence.sync.materialized_models import PredictionCurrentDB
 
-    rows = db.execute(
-        select(
-            PredictionCurrentDB.element_id,
-            PredictionCurrentDB.expected_points,
-        ).where(PredictionCurrentDB.gameweek == int(gameweek))
-    ).all()
+    try:
+        rows = db.execute(
+            select(
+                PredictionCurrentDB.element_id,
+                PredictionCurrentDB.expected_points,
+            ).where(PredictionCurrentDB.gameweek == int(gameweek))
+        ).all()
+    except Exception as exc:  # noqa: BLE001 — v2.7.4-prod-heal never-500
+        logger.warning("predictions_current read failed gw%s: %s", gameweek, exc)
+        with contextlib.suppress(Exception):
+            db.rollback()
+        return {}
     return {int(e): float(x or 0.0) for e, x in rows}
 
 
@@ -175,13 +218,19 @@ def _name_map(db: Any) -> dict[int, str]:
 def _stored_captain(db: Any, session_key: str, gameweek: int) -> int | None:
     from fpl_intelligence.sync.models import RecommendationDB
 
-    row = db.scalar(
-        select(RecommendationDB.subject).where(
-            RecommendationDB.session_key == str(session_key),
-            RecommendationDB.gameweek == int(gameweek),
-            RecommendationDB.rec_type == "captain",
+    try:
+        row = db.scalar(
+            select(RecommendationDB.subject).where(
+                RecommendationDB.session_key == str(session_key),
+                RecommendationDB.gameweek == int(gameweek),
+                RecommendationDB.rec_type == "captain",
+            )
         )
-    )
+    except Exception as exc:  # noqa: BLE001 — v2.7.4-prod-heal never-500
+        logger.warning("captain recommendation read failed: %s", exc)
+        with contextlib.suppress(Exception):
+            db.rollback()
+        return None
     if isinstance(row, dict):
         cap = int(row.get("captain_id") or 0)
         return cap or None
@@ -202,8 +251,44 @@ async def league_overview(
     league_id: int | None = Query(None, description="Override the remembered choice."),
     refresh: bool = Query(False, description="Trigger an on-demand refresh."),
 ) -> dict[str, Any]:
-    """Everything the /league page renders, served from the Postgres cache."""
+    """Everything the /league page renders, served from the Postgres cache.
+
+    v2.7.4-prod-heal NEVER-500 contract: any unexpected failure returns a
+    200 payload with an honest degraded chip instead of an error page.
+    """
     response.headers["Cache-Control"] = "no-store"
+    try:
+        return await _league_overview_impl(db, session_id, league_id, refresh)
+    except Exception as exc:  # noqa: BLE001 — degrade honestly, never 500
+        with contextlib.suppress(Exception):
+            db.rollback()
+        logger.exception("GET /league failed; serving degraded payload")
+        return {
+            "session_id": session_id,
+            "status": "degraded",
+            "leagues": [],
+            "selected": None,
+            "needs_picker": False,
+            "rivals_cap": RIVALS_CAP,
+            "cache_age_seconds": None,
+            "note": (
+                f"league data stale since {datetime.now(UTC).isoformat(timespec='seconds')} "
+                f"— render failed ({type(exc).__name__}); retry or press Refresh"
+            ),
+            "diag": f"{type(exc).__name__}: {exc}",
+            "honest_notes": [
+                "League page could not be computed right now — showing a "
+                "degraded state rather than failing."
+            ],
+        }
+
+
+async def _league_overview_impl(
+    db: deps.GetDB,
+    session_id: str,
+    league_id: int | None,
+    refresh: bool,
+) -> dict[str, Any]:
     _ensure_tables(db)
 
     # --- 0. auto-detected leagues (cached rows; live discovery on miss) ------
@@ -552,11 +637,30 @@ async def league_trajectory_route(
 
     v2.7.3-dual-state: simulates the user's *effective* (local-preferred) XI
     against auto-fetched rival XIs.
+    v2.7.4-prod-heal NEVER-500 contract: any failure returns a 200 payload
+    with an honest "trajectory unavailable" chip.
     """
     response.headers["Cache-Control"] = "no-store"
     from fpl_intelligence.leagues.trajectory import league_trajectory
 
-    return league_trajectory(db, session_id)
+    try:
+        return league_trajectory(db, session_id)
+    except Exception as exc:  # noqa: BLE001 — degrade honestly, never 500
+        with contextlib.suppress(Exception):
+            db.rollback()
+        logger.exception("GET /league/trajectory failed; serving degraded payload")
+        return {
+            "session_id": session_id,
+            "status": "unavailable",
+            "note": f"trajectory unavailable: {type(exc).__name__}: {exc}",
+            "series": [],
+            "insight": None,
+            "horizon_gws": [],
+            "how_computed": (
+                "Projection needs league cache + predictions_current + squad "
+                "rows; one of them failed to read."
+            ),
+        }
 
 
 @router.get("/fomo", include_in_schema=False)

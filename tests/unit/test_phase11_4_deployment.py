@@ -118,8 +118,21 @@ def test_vercel_json_build_command_installs_the_project() -> None:
     """The build must install the package (or its pinned requirements)."""
     build = _load_vercel().get("buildCommand", "").strip()
     assert build.startswith("pip install"), f"unexpected buildCommand: {build!r}"
-    assert build.endswith(".") or "requirements.txt" in build, (
+    install_part = build.split("&&")[0].strip()
+    assert install_part.endswith(".") or "requirements.txt" in install_part, (
         f"buildCommand must install this project: {build!r}"
+    )
+
+
+def test_vercel_json_build_command_applies_migrations() -> None:
+    """v2.7.4-prod-heal: the deploy step migrates the prod DB explicitly.
+
+    The 0021 gap (missing ``local_squad_state``) 500'd /league and
+    /league/trajectory; the schema must move with the code, never behind it.
+    """
+    build = _load_vercel().get("buildCommand", "")
+    assert "deploy_migrate.py" in build, (
+        f"buildCommand must run the migration step: {build!r}"
     )
 
 

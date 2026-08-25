@@ -1,1 +1,1 @@
-__version__ = "2.7.3-dual-state"
+__version__ = "2.7.4"

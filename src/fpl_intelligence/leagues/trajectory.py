@@ -38,6 +38,54 @@ def _starting_xi_for(entry_key: str, picks_map: dict[str, list[int]], xi_len: in
     return [int(p) for p in lst[:xi_len]]
 
 
+def _effective_squad_json(db: Any, session_id: str) -> dict[str, Any] | None:
+    """Self-sealing, never-raising effective-squad read (v2.7.4-prod-heal).
+
+    Prod DBs pre-migration-0021 lack ``local_squad_state``; the bare SELECT
+    both raised a 500 and left the session poisoned (PendingRollbackError on
+    every later query). Here: try local -> on failure rollback + re-seal ->
+    fall back to base -> degrade to None.
+    """
+    from fpl_intelligence.squad.models_db import LocalSquadStateDB, SquadStateDB
+    from fpl_intelligence.squad.service import SquadService
+
+    try:
+        local_row = db.scalar(
+            select(LocalSquadStateDB).where(LocalSquadStateDB.session_id == str(session_id))
+        )
+        if local_row is not None and isinstance(local_row.squad_json, dict):
+            return local_row.squad_json
+    except Exception as exc:  # noqa: BLE001 — table may not exist yet
+        logger.warning("trajectory: local_squad read failed; re-sealing: %s", exc)
+        with contextlib.suppress(Exception):
+            db.rollback()
+        SquadService._ensure_local_table(db)
+        try:
+            local_row = db.scalar(
+                select(LocalSquadStateDB).where(
+                    LocalSquadStateDB.session_id == str(session_id)
+                )
+            )
+            if local_row is not None and isinstance(local_row.squad_json, dict):
+                return local_row.squad_json
+        except Exception as exc2:  # noqa: BLE001 — degrade to base
+            logger.warning("trajectory: local_squad still unreadable: %s", exc2)
+            with contextlib.suppress(Exception):
+                db.rollback()
+    try:
+        base_row = db.scalar(
+            select(SquadStateDB).where(SquadStateDB.session_id == str(session_id))
+        )
+    except Exception as exc:  # noqa: BLE001 — never fail the render
+        logger.warning("trajectory: base squad read failed: %s", exc)
+        with contextlib.suppress(Exception):
+            db.rollback()
+        return None
+    if base_row is not None and isinstance(base_row.squad_json, dict):
+        return base_row.squad_json
+    return None
+
+
 def league_trajectory(
     db: Any,
     session_id: str,
@@ -51,7 +99,6 @@ def league_trajectory(
     from fpl_intelligence.api.routes.league import _ensure_tables, pick_default
     from fpl_intelligence.leagues.models import LeagueCacheDB, LeagueSelectionDB
     from fpl_intelligence.leagues.service import stored_entry_leagues
-    from fpl_intelligence.squad.models_db import SquadStateDB
     from fpl_intelligence.sync.gameweek_clock import resolve_target_gameweek  # noqa: PLC0415  # sync import
 
     _ensure_tables(db)
@@ -59,15 +106,13 @@ def league_trajectory(
     # Resolve target GW — fallback to 1 when clock unavailable (tests)
     try:
         import asyncio
-        from fpl_intelligence.squad.models_db import LocalSquadStateDB
 
         # v2.7.3-dual-state: effective squad for fallback gameweek
-        row = db.scalar(select(LocalSquadStateDB).where(LocalSquadStateDB.session_id == str(session_id)))
-        if row is None:
-            row = db.scalar(select(SquadStateDB).where(SquadStateDB.session_id == str(session_id)))
+        # v2.7.4-prod-heal: self-sealing read; rollback keeps session usable.
+        squad_json = _effective_squad_json(db, str(session_id))
         fallback_gw = 1
-        if row is not None and isinstance(row.squad_json, dict):
-            fallback_gw = int(row.squad_json.get("gameweek") or 1)
+        if squad_json is not None:
+            fallback_gw = int(squad_json.get("gameweek") or 1)
         # Try async resolve; if loop running use fallback
         try:
             loop = asyncio.get_event_loop()
@@ -78,6 +123,8 @@ def league_trajectory(
         except RuntimeError:
             target_gw = fallback_gw
     except Exception:
+        with contextlib.suppress(Exception):
+            db.rollback()
         target_gw = 1
 
     horizon_gws = [int(target_gw) + i for i in range(horizon)]
@@ -132,14 +179,11 @@ def league_trajectory(
     }
     # User picks: need squad XI; fallback to first 11 squad ids
     # v2.7.3-dual-state: effective squad (local preferred)
-    from fpl_intelligence.squad.models_db import LocalSquadStateDB as _LocalDB  # noqa: PLC0415
-
-    user_row = db.scalar(select(_LocalDB).where(_LocalDB.session_id == str(session_id)))
-    if user_row is None:
-        user_row = db.scalar(select(SquadStateDB).where(SquadStateDB.session_id == str(session_id)))
+    # v2.7.4-prod-heal: self-sealing, never-raising read.
+    squad_json = _effective_squad_json(db, session_id)
     user_ids: list[int] = []
-    if user_row is not None and isinstance(user_row.squad_json, dict):
-        user_ids = [int(p) for p in (user_row.squad_json.get("player_ids") or [])[:11]]
+    if squad_json is not None:
+        user_ids = [int(p) for p in (squad_json.get("player_ids") or [])[:11]]
 
     # Determine top-3 rivals by current total (excluding user)
     rivals_sorted = sorted(

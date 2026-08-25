@@ -36,20 +36,59 @@ def _actual_points_map(db: Any, gameweek: int) -> dict[int, int]:
         return {}
 
 
+def _season_gw_ceiling(db: Any) -> int | None:
+    """CURRENT-season GW ceiling from the gameweek clock (v2.7.4-prod-heal).
+
+    ``ingested_history`` retains last season's rows (GW38 of 2025/26); any
+    recommender query that trusts ``MAX(gameweek)`` grades a dead season.
+    Returns None when the clock cannot be trusted so callers degrade honestly.
+    """
+    try:
+        from fpl_intelligence.sync.gameweek_clock import resolve_season_gw_ceiling_sync
+
+        return resolve_season_gw_ceiling_sync(db)
+    except Exception as exc:  # noqa: BLE001 — honest degradation
+        logger.warning("season gw ceiling unavailable: %s", exc)
+        return None
+
+
 def compute_regret(db: Any, session_id: str, gameweek: int | None = None) -> dict[str, Any]:
     """Cost of Ignoring Math + Alpha Capture details for one GW.
 
-    If gameweek None, uses latest ingested GW that has both recommendation and actuals.
+    If gameweek None, uses latest ingested GW **within the CURRENT season's
+    GW range (v2.7.4-prod-heal)** — never a raw MAX(gw), which picks up
+    last season's rows. An explicit gameweek beyond the ceiling is clamped
+    down and disclosed.
     """
     from fpl_intelligence.sync.models import RecommendationDB
 
-    # Choose GW: max ingested that has actuals
+    ceiling = _season_gw_ceiling(db)
+
+    # Choose GW: max ingested that has actuals — bounded by the current season.
     chosen_gw = gameweek
+    clamped_note = ""
+    if (
+        ceiling is not None
+        and chosen_gw is not None
+        and int(chosen_gw) > int(ceiling)
+    ):
+        clamped_note = (
+            f"Requested GW{int(chosen_gw)} is beyond the current season's "
+            f"GW{ceiling} range — graded within-range instead."
+        )
+        chosen_gw = int(ceiling)
     if chosen_gw is None:
         try:
             from fpl_intelligence.sync.models import IngestedGameweekDB
 
-            row = db.scalar(select(IngestedGameweekDB.gameweek).order_by(IngestedGameweekDB.gameweek.desc()).limit(1))
+            stmt = (
+                select(IngestedGameweekDB.gameweek)
+                .order_by(IngestedGameweekDB.gameweek.desc())
+                .limit(1)
+            )
+            if ceiling is not None:
+                stmt = stmt.where(IngestedGameweekDB.gameweek <= int(ceiling))
+            row = db.scalar(stmt)
             chosen_gw = int(row) if row is not None else None
         except Exception:
             chosen_gw = None
@@ -62,6 +101,7 @@ def compute_regret(db: Any, session_id: str, gameweek: int | None = None) -> dic
             "gameweek": None,
             "captain_regret": None,
             "alpha_capture": None,
+            "season_note": clamped_note or None,
             "how_computed": "Needs ingested_history rows + RecommendationDB captain rows for the same GW.",
         }
 
@@ -74,6 +114,7 @@ def compute_regret(db: Any, session_id: str, gameweek: int | None = None) -> dic
             "gameweek": gw,
             "captain_regret": None,
             "alpha_capture": None,
+            "season_note": clamped_note or None,
             "how_computed": "ingested_history empty for this gameweek.",
         }
 
@@ -199,6 +240,7 @@ def compute_regret(db: Any, session_id: str, gameweek: int | None = None) -> dic
             "gameweek": gw,
             "captain_regret": None,
             "alpha_capture": None,
+            "season_note": clamped_note or None,
             "how_computed": "RecommendationDB has no captain/transfer rows for this GW+session.",
         }
 
@@ -229,5 +271,6 @@ def compute_regret(db: Any, session_id: str, gameweek: int | None = None) -> dic
         "captain_regret": captain_regret,
         "alpha_capture": alpha_capture,
         "cost_line": cost_line,
-        "how_computed": "Captain regret vs engine pick + Alpha capture rate from graded transfer calls — all from ingested actuals.",
+        "season_note": clamped_note or None,
+        "how_computed": "Captain regret vs engine pick + Alpha capture rate from graded transfer calls — all from ingested actuals, bounded by the current season's GW range.",
     }
