@@ -531,6 +531,10 @@ async function renderFromApi() {
   }
   var report = await res.json();
   renderReport(report);
+  loadAlphaChips().then(function () {
+    /* Re-render chips once Alpha values arrive (no-op when unavailable). */
+    if (LAST_REPORT) { renderReport(LAST_REPORT); }
+  });
   $("results").style.display = "block";
 }
 
@@ -538,6 +542,23 @@ async function renderFromApi() {
 var FIXTURE_RUNS = {};   /* pid -> next-5 runs (from /fixtures/scan) */
 var NEWS_FLAGS = {};     /* pid -> {headline,time,url} (from /news/radar) */
 var LAST_REPORT = null;
+/* Phase 25 Gate 1 (U2): Alpha chip per squad player, best-effort from
+   /api/v1/targets — absent values simply render no chip. */
+var ALPHA_BY_PID = {};
+
+function loadAlphaChips() {
+  if (!CURRENT_SESSION_ID) return Promise.resolve();
+  return fetch(API + "/api/v1/targets?session_id=" + encodeURIComponent(CURRENT_SESSION_ID))
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .catch(function () { return null; })
+    .then(function (data) {
+      if (!data || !data.targets) return;
+      ALPHA_BY_PID = {};
+      data.targets.forEach(function (t) {
+        if (t.user_owns && t.alpha != null) { ALPHA_BY_PID[t.player_id] = t.alpha; }
+      });
+    });
+}
 
 function newsFlagHTML(pid) {
   var f = NEWS_FLAGS[pid];
@@ -571,11 +592,10 @@ function playerCard(pid, report) {
       return r.opponent + (r.is_home ? "(H)" : "(A)") + r.difficulty;
     }).join(" ");
   }
-  /* Phase 22 (D1): ownership rides the tooltip AND a visible chip. */
-  var ownChip = "";
+  /* Phase 22 (D1): ownership disclosure moves into the tooltip + drawer
+     (Phase 25 U2 progressive disclosure: card = name/team/price/xPTS/Alpha). */
   if (p.ownership != null) {
     tip += " · " + Number(p.ownership).toFixed(1) + "% owned";
-    ownChip = '<div class="price-tag" style="color:#a5b4fc">' + Number(p.ownership).toFixed(1) + "% owned</div>";
   }
   /* xG/xA lines ONLY for Understat-matched players (never fabricated). */
   var xaStr = (p.xg != null && p.xa != null)
@@ -592,6 +612,14 @@ function playerCard(pid, report) {
     if (bb.weather_term && bb.weather_term !== 0) { parts.push("weather " + Number(bb.weather_term).toFixed(2)); }
     if (parts.length) { bdStr = '<div class="price-tag" style="color:#7dd3fc">' + parts.join(" · ") + "</div>"; }
   }
+  /* Phase 25 Gate 1 (U2): ownership/xG/breakdown/fixture/news chips live in
+     the drawer; the card shows ONLY name, team badge, price, xPTS and the
+     Alpha chip (when the targets engine has one). */
+  var alphaChip = ALPHA_BY_PID[pid] != null
+    ? '<span class="alpha-chip num ' + (ALPHA_BY_PID[pid] >= 0 ? "pos" : "neg") +
+      '" title="Alpha = (xPTS − pos avg) × (1 − ownership)">' +
+      (ALPHA_BY_PID[pid] > 0 ? "+" : "") + Number(ALPHA_BY_PID[pid]).toFixed(2) + "</span>"
+    : "";
   var simBtn = "";
   if (LAST_REPORT && (report.starting_xi || []).indexOf(pid) !== -1) {
     /* Phase 22 (D4): per-starter "doesn't play" toggle. */
@@ -605,12 +633,8 @@ function playerCard(pid, report) {
     + photoHTML(p, false)
     + '<div class="web-name">' + esc(p.web_name || ("Player " + pid)) + "</div>"
     + '<div class="price-tag">' + fmtPrice(p.price) + "</div>"
-    + ownChip
     + '<span class="xpts-tag" title="' + esc(xpTip) + '">xPTS ' + fmtXp(p.expected_points) + "</span>"
-    + xaStr
-    + bdStr
-    + FPLApp.fixtureStripHTML(runs)
-    + newsFlagHTML(pid)
+    + alphaChip
     + simBtn
     + "</div>";
 }
@@ -1111,19 +1135,13 @@ function renderDrawerBody(d) {
   }
   html += "</div>";
 
-  /* Last-5 form bars */
+  /* Last-5 form — Phase 25 Gate 1 (U2): inline SVG sparkline replaces the
+     bulky bars; values stay readable in the aria-label and labels row. */
   html += '<div class="section-h">Last 5 gameweeks</div>';
   if (d.form_bars && d.form_bars.length) {
-    var maxPts = Math.max.apply(null, d.form_bars.map(function (b) { return b.points || 0; }).concat([2]));
-    html += '<div class="form-bars">' + d.form_bars.map(function (b) {
-      var hPct = Math.max(((b.points || 0) / maxPts) * 100, 8);
-      return '<div style="flex:1;display:flex;flex-direction:column;align-items:center">'
-        + '<div class="form-bar" style="height:' + hPct + '%" data-testid="form-bar"><span>' + (b.points != null ? b.points : "-") + "</span></div>"
-        + "</div>";
-    }).join("") + "</div>";
-    html += '<div style="display:flex">' + d.form_bars.map(function (b) {
-      return '<div class="form-bar-label">GW' + (b.gw != null ? b.gw : "?") + "</div>";
-    }).join("") + "</div>";
+    var pts = d.form_bars.map(function (b) { return b.points; });
+    var gws = d.form_bars.map(function (b) { return "GW" + (b.gw != null ? b.gw : "?"); });
+    html += '<div data-testid="form-spark">' + FPLApp.sparklineSVG(pts, gws) + "</div>";
   } else {
     html += '<p class="faint small">No finished-gameweek history available yet.</p>';
   }

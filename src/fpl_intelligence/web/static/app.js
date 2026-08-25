@@ -4,19 +4,26 @@
    clear path. Loaded by every page; exposes window.FPLApp. No frameworks. */
 "use strict";
 window.FPLApp = (function () {
-  var NAV = [
+  /* Phase 25 Gate 1 (U3): primary surfaces first; everything else lives in
+     the mobile "More" sheet and stays reachable from desktop nav too. */
+  var NAV_PRIMARY = [
     { href: "/dashboard", label: "Decisions", icon: "⚡" },
-    { href: "/my-team", label: "My Team", icon: "👥" },
-    { href: "/assistant", label: "Assistant", icon: "🤖" },
+    { href: "/targets", label: "Targets", icon: "🎯" },
     { href: "/league", label: "League", icon: "🏆" },
+    { href: "/live", label: "Live", icon: "🔴" }
+  ];
+  var NAV_SECONDARY = [
+    { href: "/my-team", label: "My Team", icon: "👥" },
+    { href: "/planner", label: "Planner", icon: "🗓️" },
+    { href: "/assistant", label: "Assistant", icon: "🤖" },
     { href: "/track-record", label: "Track Record", icon: "📈" },
     { href: "/compare", label: "Compare", icon: "⚖️" },
-    { href: "/chips", label: "Chips", icon: "🎯" },
+    { href: "/chips", label: "Chips", icon: "🎲" },
     { href: "/crunch", label: "Crunch", icon: "⏰" },
-    { href: "/live", label: "Live", icon: "🔴" },
     { href: "/sources", label: "Sources", icon: "🔍" },
     { href: "/connect", label: "Connect", icon: "🔗" }
   ];
+  var NAV = NAV_PRIMARY.concat(NAV_SECONDARY);
 
   var LS_SESSION_V20 = "fpl_session_v20"; // {key, source, entry_name, synced_at}
   var LS_LEGACY_KEYS = ["fpl_session_id", "fpl_session_source", "fpl_session_source_label"];
@@ -145,10 +152,12 @@ window.FPLApp = (function () {
       var active = n.href === activeHref ? " active" : "";
       return '<a class="navlink' + active + '" href="' + n.href + '"' + (n.href === activeHref ? ' aria-current="page"' : "") + ">" + n.label + "</a>";
     }).join("");
-    var bottomLinks = NAV.slice(0, 6).map(function (n) {
+    /* Mobile bottom tabs: Decisions · Targets · League · Live · More (sheet). */
+    var bottomLinks = NAV_PRIMARY.slice(0, 4).map(function (n) {
       var active = n.href === activeHref ? " active" : "";
       return '<a class="' + active.trim() + '" href="' + n.href + '"' + (n.href === activeHref ? ' aria-current="page"' : "") + '><span class="icon">' + (n.icon || "•") + "</span>" + n.label + "</a>";
     }).join("");
+    var moreActive = NAV_SECONDARY.some(function (n) { return n.href === activeHref; }) ? " active" : "";
     host.innerHTML =
       '<div class="topnav"><div class="topnav-inner">' +
       '<a class="brand" href="/dashboard"><span class="brand-dot">⚽</span>FPL Intelligence</a>' +
@@ -157,11 +166,148 @@ window.FPLApp = (function () {
       '<span id="bellHost" style="display:inline-flex"></span>' +
       '<span id="healthPill" class="pill">● …</span>' +
       "</div></div>" +
-      '<nav class="bottomnav" aria-label="Mobile navigation" data-testid="bottom-nav">' + bottomLinks + "</nav>";
+      '<div id="execRibbonHost"></div>' +
+      '<nav class="bottomnav" aria-label="Mobile navigation" data-testid="bottom-nav">' +
+      bottomLinks +
+      '<button type="button" id="moreBtn"' + (moreActive ? ' aria-current="true"' : "") + ' aria-haspopup="dialog"><span class="icon">⋯</span>More</button>' +
+      "</nav>" +
+      '<div id="moreSheetBackdrop" class="more-sheet-backdrop"></div>' +
+      '<div id="moreSheet" class="more-sheet" role="dialog" aria-label="More pages" data-testid="more-sheet">' +
+      "<h3>More</h3>" +
+      '<div class="more-sheet-grid">' +
+      NAV_SECONDARY.map(function (n) {
+        var active = n.href === activeHref ? " active" : "";
+        return '<a class="' + active.trim() + '" href="' + n.href + '"><span aria-hidden="true">' + n.icon + "</span>" + n.label + "</a>";
+      }).join("") +
+      "</div></div>";
+    var moreBtn = document.getElementById("moreBtn");
+    if (moreBtn) {
+      moreBtn.addEventListener("click", function () { toggleSheet(true); });
+    }
+    var backdrop = document.getElementById("moreSheetBackdrop");
+    if (backdrop) backdrop.addEventListener("click", function () { toggleSheet(false); });
     checkHealth();
     updateSessionChip();
     renderBell();
+    renderRibbon(activeHref);
     registerSW();
+  }
+
+  function toggleSheet(open) {
+    var sheet = document.getElementById("moreSheet");
+    var backdrop = document.getElementById("moreSheetBackdrop");
+    if (!sheet || !backdrop) return;
+    sheet.classList.toggle("open", open);
+    backdrop.classList.toggle("open", open);
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Phase 25 Gate 1 (U2) — sticky executive ribbon                      *
+   * GW · bank · value · league rank · hit deficit. Every value is       *
+   * fetched from an honest source; missing data renders as "–".         *
+   * ------------------------------------------------------------------ */
+  var RIBBON_CACHE_KEY = "fpl_ribbon_v1";
+  var RIBBON_TTL_MS = 5 * 60 * 1000;
+
+  function ribbonCache() {
+    try {
+      var raw = JSON.parse(localStorage.getItem(RIBBON_CACHE_KEY) || "{}");
+      if (raw && raw.at && Date.now() - raw.at < RIBBON_TTL_MS && raw.data) return raw.data;
+    } catch (e) {}
+    return null;
+  }
+  function ribbonCacheSave(data) {
+    try { localStorage.setItem(RIBBON_CACHE_KEY, JSON.stringify({ at: Date.now(), data: data })); } catch (e) {}
+  }
+
+  function fetchJson(url) {
+    return fetch(url).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+  }
+
+  function renderRibbon(activeHref) {
+    var host = document.getElementById("execRibbonHost");
+    if (!host) return;
+    var cached = ribbonCache();
+    var shell =
+      '<div class="exec-ribbon"><div class="exec-ribbon-inner" data-testid="exec-ribbon">' +
+      '<span class="ribbon-item"><span class="ribbon-label">GW</span><span class="ribbon-value num" id="rbGw">–</span></span>' +
+      '<span class="ribbon-item"><span class="ribbon-label">Bank</span><span class="ribbon-value num" id="rbBank">–</span></span>' +
+      '<span class="ribbon-item"><span class="ribbon-label">Value</span><span class="ribbon-value num" id="rbValue">–</span></span>' +
+      '<span class="ribbon-item"><span class="ribbon-label">Rank</span><span class="ribbon-value num" id="rbRank">–</span></span>' +
+      '<span class="ribbon-item"><span class="ribbon-label">Hits</span><span class="ribbon-value num" id="rbHits">–</span></span>' +
+      "</div></div>";
+    host.innerHTML = shell;
+    if (cached) paint(cached);
+    loadRibbonData(function (data) { paint(data); ribbonCacheSave(data); });
+
+    function paint(d) {
+      if (!d) return;
+      set("rbGw", d.gw != null ? String(d.gw) : "–");
+      set("rbBank", d.bank != null ? "£" + Number(d.bank).toFixed(1) + "m" : "–");
+      set("rbValue", d.value != null ? "£" + Number(d.value).toFixed(1) + "m" : "–");
+      set("rbRank", d.rank != null ? "#" + d.rank : "–");
+      set("rbHits", d.hits != null ? "-" + d.hits : "–");
+    }
+    function set(id, txt) {
+      var el = document.getElementById(id);
+      if (el) el.textContent = txt;
+    }
+  }
+
+  function loadRibbonData(done) {
+    var session = readSession();
+    var data = {};
+    fetchJson("/api/v1/sync/target-gameweek").then(function (d) {
+      if (d && d.gameweek) data.gw = Number(d.gameweek);
+      if (!session || !session.key) return done(data);
+      return fetchJson("/api/v1/decisions?session_id=" + encodeURIComponent(session.key)).then(function (rep) {
+        var summary = rep && rep.meta && rep.meta.squad_summary;
+        if (summary) {
+          if (summary.bank != null) data.bank = Number(summary.bank);
+          if (summary.team_value != null) data.value = Number(summary.team_value);
+        }
+        return fetchJson("/api/v1/league?session_id=" + encodeURIComponent(session.key));
+      }).then(function (lg) {
+        if (lg && lg.your_rank != null) data.rank = Number(lg.your_rank);
+        return fetchJson("/api/v1/transfers/ledger?entry_id=" + encodeURIComponent(session.key));
+      }).then(function (led) {
+        if (led && Array.isArray(led.transfers)) {
+          var hits = led.transfers.reduce(function (sum, t) { return sum + Number(t.cost || 0); }, 0);
+          if (led.transfers.length) data.hits = hits;
+        }
+        done(data);
+      });
+    }).catch(function () { done(data); });
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Phase 25 Gate 1 (U2) — inline SVG sparkline for form data            *
+   * ------------------------------------------------------------------ */
+  function sparklineSVG(points, labels) {
+    var vals = (points || []).map(function (p) { return Number(p) || 0; });
+    if (!vals.length) return "";
+    var w = 240, h = 48, pad = 6;
+    var max = Math.max.apply(null, vals.concat([2]));
+    var step = vals.length > 1 ? (w - pad * 2) / (vals.length - 1) : 0;
+    var coords = vals.map(function (v, i) {
+      var x = pad + i * step;
+      var y = h - pad - ((v / max) * (h - pad * 2));
+      return [Math.round(x), Math.round(y)];
+    });
+    var poly = coords.map(function (c) { return c.join(","); }).join(" ");
+    var dots = coords.map(function (c) {
+      return '<circle class="spark-dot" cx="' + c[0] + '" cy="' + c[1] + '" r="3"></circle>';
+    }).join("");
+    var svg =
+      '<svg class="form-spark" viewBox="0 0 ' + w + " " + h + '" preserveAspectRatio="none" role="img"' +
+      ' aria-label="Last gameweeks points: ' + vals.join(", ") + '">' +
+      '<polyline points="' + poly + '"></polyline>' + dots + "</svg>";
+    if (labels && labels.length) {
+      svg += '<div class="form-spark-labels">' + labels.map(function (l) {
+        return "<span>" + esc(String(l)) + "</span>";
+      }).join("") + "</div>";
+    }
+    return svg;
   }
 
   /* ------------------------------------------------------------------ *
@@ -460,6 +606,9 @@ window.FPLApp = (function () {
     fmtPts: fmtPts,
     fdrColor: fdrColor,
     fixtureStripHTML: fixtureStripHTML,
+    sparklineSVG: sparklineSVG,
+    NAV_PRIMARY: NAV_PRIMARY,
+    NAV_SECONDARY: NAV_SECONDARY,
     registerSW: registerSW,
     triggerInstall: triggerInstall,
     shareOrCopy: shareOrCopy,

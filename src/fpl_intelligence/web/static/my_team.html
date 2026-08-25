@@ -17,7 +17,7 @@
 <div id="topnav"></div>
 <div class="wrap">
 
-  <h1 style="font-size:22px;font-weight:800;color:#fff;margin:0 0 4px">My team
+  <h1 class="page-title" style="margin:0 0 4px">My team
     <span id="gwHeader" class="pill" style="margin-left:8px;vertical-align:middle">Gameweek –</span>
   </h1>
   <p class="muted small" style="margin-top:0">Your synced squad with prices, captaincy, fixture difficulty and squad analysis — restored automatically from your saved session.</p>
@@ -28,12 +28,26 @@
   <div id="statusLine" class="muted small"></div>
 
   <div class="section-h">Squad</div>
+  <div style="display:flex;align-items:center;gap:10px;margin:0 0 10px">
+    <div class="view-toggle" role="group" aria-label="Squad view" data-testid="squad-view-toggle">
+      <button type="button" id="viewCardsBtn" class="active">Cards</button>
+      <button type="button" id="viewTableBtn">Sortable table</button>
+    </div>
+    <span class="faint small">sort by xPTS · Alpha · price · volatility</span>
+  </div>
   <div id="squadGrid" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(210px,1fr))"></div>
+  <div id="squadTableView" class="card" style="display:none;padding:4px 16px"></div>
 
   <div class="section-h">Squad analysis</div>
   <div id="squadPanel" class="card"><span class="faint small">Loads with your squad…</span></div>
 
-  <div class="section-h">Fixture difficulty — next 5 gameweeks</div>
+  <div class="section-h">Fixture difficulty — next 5 gameweeks
+    <span class="view-toggle" role="group" aria-label="Fixture view" data-testid="fixture-view-toggle" style="margin-left:12px">
+      <button type="button" id="fxHeatBtn" class="active">Heatmap</button>
+      <button type="button" id="fxTableBtn">Table view</button>
+    </span>
+  </div>
+  <p class="faint small" style="margin:-6px 0 8px">Heatmap cells show opponent and FDR (green = easy, red = hard). The accessible table view stays one click away.</p>
   <div id="fixtureTableBox" class="card"><span class="faint small">Scanning fixtures…</span></div>
 
 </div>
@@ -131,12 +145,38 @@ document.addEventListener("DOMContentLoaded", function () {
       $("fixtureTableBox").innerHTML = '<p class="faint small">Fixture scan unavailable right now.</p>';
       return;
     }
-    $("fixtureTableBox").innerHTML =
+    var gws = scan.horizon_gws || [];
+    var summary =
       '<p class="muted small" style="margin-top:0">Per-player next-5 difficulty (opponent · H/A · FDR colour). '
       + 'Squad swing score: <strong class="num">' + (scan.squad_swing_score > 0 ? "+" : "")
-      + Number(scan.squad_swing_score).toFixed(1) + '</strong> <span class="faint">(positive = easy patch)</span></p>'
-      + '<table class="data"><thead><tr><th>Player</th>'
-      + (scan.horizon_gws || []).map(function (gw) { return '<th class="num">GW' + gw + "</th>"; }).join("")
+      + Number(scan.squad_swing_score).toFixed(1) + '</strong> <span class="faint">(positive = easy patch)</span></p>';
+
+    /* U2 — colour heatmap grid: one row per player, one cell per gameweek. */
+    var gridCols = "minmax(110px,1.4fr)";
+    for (var gi = 0; gi < gws.length; gi++) { gridCols += " 44px"; }
+    gridCols += " 52px";
+    var heat = '<div class="heat-grid" data-testid="fixture-heatmap">';
+    heat += '<div class="heat-row" style="grid-template-columns:' + gridCols + '">'
+      + '<span class="faint small">Player</span>'
+      + gws.map(function (gw) { return '<span class="faint small num" style="text-align:center">GW' + gw + "</span>"; }).join("")
+      + '<span class="faint small num" style="text-align:right">FDR</span></div>';
+    scan.players.forEach(function (p) {
+      heat += '<div class="heat-row" style="grid-template-columns:' + gridCols + '" data-testid="heatmap-row">'
+        + '<span class="heat-name">' + FPLApp.esc(p.web_name)
+        + (p.is_starter ? "" : ' <span class="pill">bench</span>') + "</span>"
+        + p.runs.map(function (r) {
+            var opp = r.opponent === "—" ? "–" : r.opponent.slice(0, 3);
+            return '<div class="heat-cell" title="' + FPLApp.esc(r.opponent) + (r.is_home ? " (H)" : " (A)")
+              + ' · FDR ' + r.difficulty + '" style="background:' + FPLApp.fdrColor(r.difficulty)
+              + '">' + FPLApp.esc(opp) + " " + r.difficulty + "</div>";
+          }).join("")
+        + '<span class="num faint small" style="text-align:right">' + Number(p.avg_fdr).toFixed(1) + "</span></div>";
+    });
+    heat += "</div>";
+
+    /* Accessible table view stays available behind the toggle. */
+    var table = '<div id="fxTableView" style="display:none"><table class="data"><thead><tr><th>Player</th>'
+      + gws.map(function (gw) { return '<th class="num">GW' + gw + "</th>"; }).join("")
       + '<th class="num">Avg FDR</th><th class="num">Swing</th></tr></thead><tbody>'
       + scan.players.map(function (p) {
           return "<tr><td><strong>" + FPLApp.esc(p.web_name) + "</strong>"
@@ -146,10 +186,12 @@ document.addEventListener("DOMContentLoaded", function () {
                   + ' style="background:' + FPLApp.fdrColor(r.difficulty) + '">' + r.opponent + " " + r.difficulty + "</span></td>";
               }).join("")
             + '<td class="num">' + Number(p.avg_fdr).toFixed(1) + "</td>"
-            + '<td class="num" style="color:' + (p.swing > 0 ? "#6ee7b7" : p.swing < 0 ? "#fca5a5" : "#94a3b8") + '">'
+            + '<td class="num" style="color:' + (p.swing > 0 ? "var(--pos)" : p.swing < 0 ? "var(--neg)" : "#94a3b8") + '">'
             + (p.swing > 0 ? "+" : "") + p.swing.toFixed(1) + "</td></tr>";
         }).join("")
-      + "</tbody></table>"
+      + "</tbody></table></div>";
+
+    $("fixtureTableBox").innerHTML = summary + heat + table
       + (scan.easiest_runs && scan.easiest_runs.length
         ? '<div class="section-h" style="margin-top:18px">TRANSFER TARGETS — EASIEST TEAM RUNS (NEXT 4 GW)</div>'
           + '<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(190px,1fr))">'
@@ -158,6 +200,78 @@ document.addEventListener("DOMContentLoaded", function () {
                 + '<div style="margin-top:6px">' + FPLApp.fixtureStripHTML(t.runs) + "</div></div>";
             }).join("") + "</div>"
         : "");
+  }
+
+  /* U3 — sortable squad table (xPTS / Alpha / price / volatility). */
+  var SQUAD_METRICS = {};
+  var METRIC_SORT = { key: null, dir: -1 };
+
+  function renderSquadTable(squad, names) {
+    var ids = squad.player_ids || [];
+    if (!ids.length) { $("squadTableView").innerHTML = ""; return; }
+    var rows = ids.map(function (pid) {
+      var m = SQUAD_METRICS[pid] || {};
+      return {
+        pid: pid,
+        name: (names && names[pid]) || ("Player " + pid),
+        xpts: m.xpts,
+        alpha: m.alpha,
+        edge: m.edge,
+        price: squad.player_prices ? squad.player_prices[pid] : null,
+        vol: m.volatility
+      };
+    });
+    if (METRIC_SORT.key) {
+      rows.sort(function (a, b) {
+        var va = a[METRIC_SORT.key], vb = b[METRIC_SORT.key];
+        va = va === null || va === undefined ? -Infinity : Number(va);
+        vb = vb === null || vb === undefined ? -Infinity : Number(vb);
+        return (va - vb) * METRIC_SORT.dir * -1;
+      });
+    }
+    var fmt = function (v, digits, suffix) {
+      return v === null || v === undefined ? "–" : Number(v).toFixed(digits === undefined ? 1 : digits) + (suffix || "");
+    };
+    var html = '<table class="data"><thead><tr><th>Player</th>'
+      + '<th class="num sortable"><button type="button" data-sort-key="xpts">xPTS</button></th>'
+      + '<th class="num sortable"><button type="button" data-sort-key="alpha">Alpha</button></th>'
+      + '<th class="num sortable"><button type="button" data-sort-key="price">Price</button></th>'
+      + '<th class="num sortable"><button type="button" data-sort-key="vol">Volatility</button></th>'
+      + "</tr></thead><tbody>"
+      + rows.map(function (r) {
+          return "<tr><td><strong>" + FPLApp.esc(r.name) + "</strong></td>"
+            + '<td class="num">' + fmt(r.xpts) + "</td>"
+            + '<td class="num">' + (r.alpha !== null && r.alpha !== undefined
+                ? '<span style="color:' + (r.alpha >= 0 ? "var(--pos)" : "var(--neg)") + '">' + (r.alpha > 0 ? "+" : "") + Number(r.alpha).toFixed(2) + "</span>"
+                : (r.edge != null ? fmt(r.edge) + "*" : "–")) + "</td>"
+            + '<td class="num">' + fmt(r.price) + "</td>"
+            + '<td class="num">' + fmt(r.vol) + "</td></tr>";
+        }).join("")
+      + '</tbody></table><p class="faint small" style="margin:8px 0 6px">* Alpha unavailable without ownership — edge (xPTS − pos avg) shown instead.</p>';
+    $("squadTableView").innerHTML = html;
+    $("squadTableView").querySelectorAll("[data-sort-key]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var key = btn.getAttribute("data-sort-key");
+        if (METRIC_SORT.key === key) { METRIC_SORT.dir *= -1; }
+        else { METRIC_SORT.key = key; METRIC_SORT.dir = -1; }
+        if (CURRENT_SQUAD && window.__MT_NAMES) renderSquadTable(CURRENT_SQUAD, window.__MT_NAMES);
+      });
+    });
+  }
+
+  function setSquadView(table) {
+    $("viewCardsBtn").classList.toggle("active", !table);
+    $("viewTableBtn").classList.toggle("active", table);
+    $("squadGrid").style.display = table ? "none" : "";
+    $("squadTableView").style.display = table ? "" : "none";
+  }
+  function setFixtureView(table) {
+    $("fxHeatBtn").classList.toggle("active", !table);
+    $("fxTableBtn").classList.toggle("active", table);
+    var heat = document.querySelector('[data-testid="fixture-heatmap"]');
+    var tv = document.getElementById("fxTableView");
+    if (tv) { tv.style.display = table ? "" : "none"; }
+    if (heat) { heat.style.display = table ? "none" : ""; }
   }
 
   /* Phase 23 (C6): header states the gameweek decisions apply to plus an
@@ -204,6 +318,19 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (window.__MT_NAMES) render(squad, window.__MT_NAMES);
               }
             });
+          /* U3: sortable-table metrics (best-effort). */
+          fetch("/api/v1/targets/squad-metrics?session_id=" + encodeURIComponent(sessionKey))
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .catch(function () { return null; })
+            .then(function (data) {
+              SQUAD_METRICS = {};
+              if (data && data.metrics) {
+                Object.keys(data.metrics).forEach(function (k) {
+                  SQUAD_METRICS[Number(k)] = data.metrics[k];
+                });
+              }
+              renderSquadTable(squad, window.__MT_NAMES || {});
+            });
         }
         fetch("/api/v1/players").then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (players) {
           var byElement = {};
@@ -241,6 +368,15 @@ document.addEventListener("DOMContentLoaded", function () {
       .map(function (pid, i) { return tile(pid, squad, i + 1, names); })
       .join("");
     FPLApp.hydrateCrests(document);
+    renderSquadTable(squad, names);
+  }
+
+  /* U3 — view toggles */
+  $("viewCardsBtn").addEventListener("click", function () { setSquadView(false); });
+  $("viewTableBtn").addEventListener("click", function () { setSquadView(true); });
+  if ($("fxHeatBtn") && $("fxTableBtn")) {
+    $("fxHeatBtn").addEventListener("click", function () { setFixtureView(false); });
+    $("fxTableBtn").addEventListener("click", function () { setFixtureView(true); });
   }
 
   /* Phase 20.0 — zero-typing bootstrap: no entry input on this page at all.

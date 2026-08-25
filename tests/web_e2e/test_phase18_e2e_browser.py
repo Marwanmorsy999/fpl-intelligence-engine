@@ -292,6 +292,45 @@ def browser_page(page: Page) -> Iterator[Page]:
         "**/api/v1/news/radar*",
         lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({})),
     )
+    # Phase 25 Gate 1 ribbon endpoints — empty-but-valid payloads keep the
+    # console clean while the sticky ribbon degrades to "–".
+    page.route(
+        "**/api/v1/sync/**",
+        lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({})),
+    )
+    page.route(
+        "**/api/v1/league**",
+        lambda r: r.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps({"your_rank": None}),
+        ),
+    )
+    page.route(
+        "**/api/v1/transfers/**",
+        lambda r: r.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps({"transfers": []}),
+        ),
+    )
+    page.route(
+        "**/api/v1/targets**",
+        lambda r: r.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps({"targets": []}),
+        ),
+    )
+    # Pre-existing dashboard fetches that were never mocked (404 console noise).
+    page.route(
+        "**/api/v1/prices/**",
+        lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({})),
+    )
+    page.route(
+        "**/api/v1/push/**",
+        lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({"unread": 0})),
+    )
 
     yield page
 

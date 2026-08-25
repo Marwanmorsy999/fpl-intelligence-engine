@@ -27,7 +27,7 @@ PAGES = [
     ("/my-team", ["My team"]),
     ("/assistant", ["Weekly assistant"]),
     ("/track-record", ["Track record"]),
-    ("/live", ["Matchday board"]),
+    ("/live", ["Live matchday"]),
     ("/sources", ["Data sources"]),
     ("/connect", ["Connect your data"]),
 ]
@@ -96,13 +96,17 @@ class TestNav:
         page = instrumented
         page.goto(BASE_URL + path, wait_until="domcontentloaded")
 
+        # Phase 25 Gate 1 (U3): desktop nav lists every surface — primary
+        # (Decisions · Targets · League · Live) first, then secondary pages.
         nav = page.locator(".topnav .navlink")
-        expect(nav).to_have_count(7)  # Phase 20.0 adds Assistant
+        expect(nav).to_have_count(13)
         labels = [t.strip() for t in nav.all_inner_texts()]
-        assert labels == [
-            "Decisions", "My Team", "Assistant",
-            "Track Record", "Live", "Sources", "Connect",
-        ]
+        assert labels[:4] == ["Decisions", "Targets", "League", "Live"]
+        assert "My Team" in labels and "Sources" in labels and "Connect" in labels
+
+        # Mobile bottom tabs show the four primary surfaces plus a More sheet.
+        tabs = page.locator(".bottomnav a")
+        expect(tabs).to_have_count(4)
 
         for text in expectations:
             expect(page.locator("body")).to_contain_text(text)
@@ -199,50 +203,83 @@ class TestTrackRecord:
 class TestLiveBoard:
     def test_renders_pushed_live_points(self, instrumented: Page) -> None:
         page = instrumented
+        # Shape mirrors GET /api/v1/live (Phase 19.0 matchday engine).
         payload = {
             "session_id": "794561",
             "gameweek": 3,
+            "live_mode": True,
+            "gw_finished": False,
+            "headline": {
+                "team_total": 39,
+                "captain_vs_vice_delta": 6,
+                "captain_name": "Haaland",
+                "vice_name": "Someone",
+                "text": "Team 39 pts",
+            },
             "rows": [
                 {
                     "element_id": 411,
                     "name": "Haaland",
-                    "on_bench": False,
-                    "is_captain": True,
-                    "live_points": 6,
+                    "pos": "FWD",
                     "minutes": 60,
-                    "fixture": "MCI vs BOU",
-                    "opponent": "BOU",
-                    "updated_at": "2026-08-22T15:10:00+00:00",
+                    "goals": 0,
+                    "assists": 0,
+                    "bonus": 0,
+                    "raw_points": 6,
+                    "multiplier": 2,
+                    "points": 12,
+                    "is_captain": True,
+                    "is_vice": False,
+                    "team": "MCI",
+                    "team_id": 15,
                 },
+            ],
+            "bench": [
                 {
                     "element_id": 425,
                     "name": "Areola",
-                    "on_bench": True,
-                    "is_captain": False,
-                    "live_points": 0,
+                    "pos": "GK",
                     "minutes": None,
-                    "fixture": None,
-                    "opponent": None,
-                    "updated_at": None,
+                    "goals": None,
+                    "assists": None,
+                    "bonus": None,
+                    "raw_points": 0,
+                    "multiplier": 1,
+                    "points": 0,
+                    "is_captain": False,
+                    "is_vice": False,
+                    "team": "WHU",
+                    "team_id": 9,
                 },
             ],
-            "total_live_points": 33,
-            "effective_total": 39,
-            "players_with_data": 2,
-            "has_live_data": True,
-            "espn_fallback_url": "https://www.espn.com/soccer/scoreboard/_/league/eng.1",
-            "note": None,
+            "espn_matches": [],
+            "picks_source": "saved-squad",
+            "data_age_seconds": 0,
+            "stale_snapshot": False,
+            "graded_now": False,
+            "pings_sent": 0,
+            "track_record_url": "/track-record",
+            "note": "",
+            "as_of": "2026-08-22T15:10:00+00:00",
         }
-        page.route("**/api/v1/sync/live-board*", _json_route(payload))
+        # live.html polls /api/v1/live?session_id= (the Phase 19.0 matchday
+        # engine), not the legacy sync/live-board read model.
+        page.route("**/api/v1/live?*", _json_route(payload))
 
         page.goto(BASE_URL + "/live", wait_until="domcontentloaded")
-        page.fill("#entryInput", "794561")
-        page.click("#loadBtn")
+        # The live board is zero-typing since Phase 20: the shared session
+        # drives it, so seed the session instead of typing an entry id.
+        page.evaluate(
+            "() => localStorage.setItem('fpl_session_v20', JSON.stringify("
+            "{key:'794561', source:'fpl_id', entry_name:'Test', synced_at:new Date().toISOString()}))"
+        )
+        page.reload(wait_until="domcontentloaded")
+        page.wait_for_timeout(1500)
 
         expect(page.locator("#xiBox")).to_contain_text("Haaland")
         expect(page.locator("#xiBox")).to_contain_text("C×2")
         expect(page.locator("#benchBox")).to_contain_text("Areola")
-        expect(page.locator("#stTotal")).to_have_text("39")
+        expect(page.locator("#teamTotal")).to_have_text("39")
 
 
 class TestConnect:
