@@ -10,7 +10,10 @@ data/processed/
 docs/
 audit/
 supabase/
-scripts/
+# scripts/: heavy QA tooling stays out of the bundle, EXCEPT the deploy-time
+# migration runner (v2.7.4-prod-heal) which buildCommand executes explicitly.
+scripts/*
+!scripts/deploy_migrate.py
 .venv/
 venv/
 .kilo/
