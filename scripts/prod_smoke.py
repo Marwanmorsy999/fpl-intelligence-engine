@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import json
+import os
 import sys
 import time
 import urllib.error
@@ -114,7 +115,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    session_id = args.session_id or env_default_session()
+    # v2.7.5: honor --session-id > $FPL_SESSION_ID > DEFAULT_SESSION_ID.
+    # (The documented default was previously never applied, so unattended
+    # runs silently requested session_id=None.)
+    session_id = (
+        args.session_id
+        or os.environ.get("FPL_SESSION_ID")
+        or DEFAULT_SESSION_ID
+    )
     expect_version = args.expect_version
 
     failures: list[str] = []
@@ -187,13 +195,6 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     print("SMOKE ALL GREEN")
     return 0
-
-
-def env_default_session() -> str | None:
-    """Session id resolution helper ($FPL_SESSION_ID env)."""
-    import os
-
-    return os.environ.get("FPL_SESSION_ID")
 
 
 if __name__ == "__main__":
