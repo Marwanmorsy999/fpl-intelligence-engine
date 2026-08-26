@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-  "buildCommand": "pip install . && python scripts/deploy_migrate.py",
+  "buildCommand": "pip install . && python -m fpl_intelligence.prod_migrate",
   "functions": {
     "api/index.py": {
       "runtime": "@vercel/python@6.58.0",

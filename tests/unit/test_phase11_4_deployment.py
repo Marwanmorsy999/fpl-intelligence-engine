@@ -131,7 +131,7 @@ def test_vercel_json_build_command_applies_migrations() -> None:
     /league/trajectory; the schema must move with the code, never behind it.
     """
     build = _load_vercel().get("buildCommand", "")
-    assert "deploy_migrate.py" in build, (
+    assert "python -m fpl_intelligence.prod_migrate" in build, (
         f"buildCommand must run the migration step: {build!r}"
     )
 
