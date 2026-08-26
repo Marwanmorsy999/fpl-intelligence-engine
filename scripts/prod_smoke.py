@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Prod smoke gate (v2.7.5-decisions-heal).
+"""Prod smoke gate (v2.7.7-league-regression).
 
 Hits every user-facing production endpoint and FAILS on:
   * any 5xx response,
@@ -8,9 +8,12 @@ Hits every user-facing production endpoint and FAILS on:
     chip_recommendation) or serving an empty ``players`` map — the bare
     ``{"generated_at": ...}`` skeleton from the v2.7.4 incident,
   * /league lacking BOTH a real rank/standings AND an honest degraded state
-    (status/note) — one of the two must always be present.
+    (status/note) — one of the two must always be present,
+  * /league with a **numeric** session_id returning 5xx (v2.7.7 regression
+    gate: league_refresh body must never escape as unhandled),
+  * /league/trajectory with a numeric session_id returning 5xx.
 
-Run it before tagging from now on::
+Run it before AND after every tag::
 
     python scripts/prod_smoke.py                       # default prod URL + session 2295006
     python scripts/prod_smoke.py --session-id 1234567 --base-url https://...
@@ -48,9 +51,13 @@ ENDPOINTS: list[tuple[str, str, tuple[str, ...]]] = [
     ),
     ("targets", "/api/v1/targets", ()),
     ("planner", "/api/v1/planner", ()),
+    # v2.7.7 regression gate: /league with NUMERIC session must never 500.
+    # Previously tested but NOT with an explicit numeric-vs-None distinction.
     ("league", "/api/v1/league", ()),
+    # v2.7.7 regression gate: trajectory with numeric session must never 500.
     ("league/trajectory", "/api/v1/league/trajectory", ()),
     ("league/fomo", "/api/v1/league/fomo", ()),
+    ("live", "/api/v1/live", ()),
     ("squad/fpl-view", "/api/v1/squad/fpl-view", ()),
     ("transfers/ledger", "/api/v1/transfers/ledger?entry_id={sid}", ()),
     ("sync/calibration", "/api/v1/sync/calibration", ()),
@@ -61,7 +68,7 @@ TIMEOUT_SECONDS = 90.0
 
 def _get(url: str) -> tuple[int, str]:
     req = urllib.request.Request(  # noqa: S310 — fixed https base from args
-        url, headers={"User-Agent": "prod-smoke/2.7.5"}
+        url, headers={"User-Agent": "prod-smoke/2.7.7"}
     )
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT_SECONDS) as resp:  # noqa: S310
@@ -88,15 +95,33 @@ def _check_decisions_depth(parsed: dict[str, object]) -> str:
 
 
 def _check_league_state(parsed: dict[str, object]) -> str:
-    """League must show a real rank/standings OR an honest degraded chip."""
+    """League must show a real rank/standings OR an honest degraded chip.
+
+    v2.7.7: also rejects the bare empty-object {} which indicates a
+    completely unhandled failure (no status, no note, no leagues key).
+    """
     has_rank = bool(parsed.get("your_rank") is not None or parsed.get("standings_top"))
     status = str(parsed.get("status") or "")
-    honest_chip = status in {"degraded", "refreshing", "stale", "no-league"} or bool(
-        parsed.get("note")
-    )
+    honest_chip = status in {
+        "degraded", "refreshing", "stale", "no-league", "error"
+    } or bool(parsed.get("note"))
     if has_rank or honest_chip:
         return ""
     return " league-no-rank-and-no-honest-state"
+
+
+def _check_trajectory_state(parsed: dict[str, object], http_status: int) -> str:
+    """Trajectory must never 500 and must carry a status field.
+
+    v2.7.7 regression gate: /league/trajectory with a numeric session_id
+    must return 200 with an honest status chip (even if unavailable/no-league).
+    """
+    if http_status >= 500:
+        return " trajectory-500"
+    status = str(parsed.get("status") or "")
+    if not status:
+        return " trajectory-no-status-field"
+    return ""
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -156,6 +181,11 @@ def main(argv: list[str] | None = None) -> int:
         elif label == "league":
             detail += _check_league_state(parsed)
             ok = ok and not detail
+        elif label == "league/trajectory":
+            extra = _check_trajectory_state(parsed, status)
+            if extra:
+                detail += extra
+                ok = False
         if status >= 500:
             detail += f" body={body[:200]!r}"
         verdict = "OK" if ok else "FAIL"

@@ -572,8 +572,32 @@ async def league_refresh(
     standings page 1 and capped rival picks via the egress masks, persists them
     to ``league_cache`` and returns the same payload shape as ``GET /league``.
     The user's ``local_squad`` is never touched.
+
+    v2.7.7-league-regression NEVER-500 contract: mirrors league_overview — the
+    entire body is wrapped so any DB/network failure returns a 200 error chip,
+    never a raw 500.  (v2.7.6 left _ensure_tables + db.get calls outside a
+    try/except, which could escape as unhandled exceptions on Vercel cold-starts
+    before the ServerErrorMiddleware chain was fully initialized.)
     """
     response.headers["Cache-Control"] = "no-store"
+    try:
+        return await _league_refresh_impl(db, body)
+    except Exception as exc:  # noqa: BLE001 — degrade honestly, never 500
+        with contextlib.suppress(Exception):
+            db.rollback()
+        logger.exception("POST /league/refresh failed; serving degraded payload")
+        return {
+            "session_id": body.session_id,
+            "status": "error",
+            "note": (
+                f"league refresh failed ({type(exc).__name__}); retry shortly"
+            ),
+            "diag": f"{type(exc).__name__}: {exc}",
+        }
+
+
+async def _league_refresh_impl(db: Any, body: LeagueRefreshBody) -> dict[str, Any]:
+    """Inner implementation — called from the never-500 wrapper above."""
     _ensure_tables(db)
     # Ensure we have discovered leagues for this entry.
     from fpl_intelligence.leagues.service import stored_entry_leagues as _stored  # noqa: PLC0415
