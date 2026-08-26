@@ -42,7 +42,7 @@ ENDPOINTS: list[tuple[str, str, tuple[str, ...]]] = [
     ("league/trajectory", "/api/v1/league/trajectory", ()),
     ("league/fomo", "/api/v1/league/fomo", ()),
     ("squad/fpl-view", "/api/v1/squad/fpl-view", ()),
-    ("transfers/ledger", "/api/v1/transfers/ledger", ()),
+    ("transfers/ledger", "/api/v1/transfers/ledger?entry_id={sid}", ()),
     ("sync/calibration", "/api/v1/sync/calibration", ()),
 ]
 
