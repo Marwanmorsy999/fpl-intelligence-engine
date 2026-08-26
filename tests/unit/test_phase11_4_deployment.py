@@ -152,9 +152,18 @@ def test_function_entrypoint_file_exists() -> None:
     assert "app" in entry.read_text(encoding="utf-8")
 
 
-def test_function_uses_the_python_runtime() -> None:
-    runtime = _function_config().get("runtime", "")
-    assert "@vercel/python" in runtime, f"unexpected runtime: {runtime!r}"
+def test_function_does_not_pin_a_broken_runtime_version() -> None:
+    """v2.7.4-prod-heal: the explicit @vercel/python@x.y.z pin is omitted.
+
+    The pinned runtime broke deploys twice (pin-version-mismatch, then a
+    peer-dependency conflict in Vercel's builder image). Vercel auto-detects
+    Python entrypoints; the pin adds no value and only couples us to
+    platform-internal builder versions.
+    """
+    fn = _function_config()
+    assert "runtime" not in fn or "@vercel/python" in str(fn.get("runtime")), (
+        f"unexpected runtime override: {fn.get('runtime')!r}"
+    )
 
 
 def test_function_pins_region_and_max_duration() -> None:
