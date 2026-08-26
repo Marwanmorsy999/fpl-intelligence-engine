@@ -20,7 +20,27 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from alembic.config import Config
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+_REPO_CANDIDATES = (
+    None,  # resolved lazily to Path.cwd() (Vercel build runs at project root)
+    Path(__file__).resolve().parents[2],  # source checkout layout
+)
+
+
+def _repo_root() -> Path:
+    """Locate the checkout that owns ``alembic.ini``.
+
+    When pip-installed (site-packages) the module's own path is useless —
+    the build always executes at the project root, so CWD wins.
+    """
+    candidates: list[Path] = [Path.cwd()]
+    candidates.extend(c for c in _REPO_CANDIDATES if c is not None)
+    for candidate in candidates:
+        try:
+            if (candidate / "alembic.ini").is_file():
+                return candidate
+        except OSError:  # pragma: no cover - defensive on exotic filesystems
+            continue
+    return Path.cwd()
 
 
 def _normalized_url() -> str:
@@ -46,8 +66,9 @@ def main() -> int:
     from alembic import command
     from alembic.config import Config
 
-    cfg = Config(str(_REPO_ROOT / "alembic.ini"))
-    cfg.set_main_option("script_location", str(_REPO_ROOT / "migrations"))
+    repo_root = _repo_root()
+    cfg = Config(str(repo_root / "alembic.ini"))
+    cfg.set_main_option("script_location", str(repo_root / "migrations"))
     cfg.set_main_option("sqlalchemy.url", url)
 
     try:
