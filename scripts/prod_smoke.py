@@ -1,9 +1,14 @@
 #!/usr/bin/env python
-"""Prod smoke gate (v2.7.4-prod-heal).
+"""Prod smoke gate (v2.7.5-decisions-heal).
 
 Hits every user-facing production endpoint and FAILS on:
   * any 5xx response,
-  * any /health version mismatch vs the local package version.
+  * any /health version mismatch vs the local package version,
+  * /decisions missing required keys (starting_xi/captain/transfer_plan/
+    chip_recommendation) or serving an empty ``players`` map — the bare
+    ``{"generated_at": ...}`` skeleton from the v2.7.4 incident,
+  * /league lacking BOTH a real rank/standings AND an honest degraded state
+    (status/note) — one of the two must always be present.
 
 Run it before tagging from now on::
 
@@ -35,7 +40,11 @@ DEFAULT_SESSION_ID = "2295006"
 #: (label, path, required top-level keys)
 ENDPOINTS: list[tuple[str, str, tuple[str, ...]]] = [
     ("health", "/health", ("status", "version")),
-    ("decisions", "/api/v1/decisions", ()),
+    (
+        "decisions",
+        "/api/v1/decisions",
+        ("gameweek", "starting_xi", "captain", "transfer_plan", "chip_recommendation"),
+    ),
     ("targets", "/api/v1/targets", ()),
     ("planner", "/api/v1/planner", ()),
     ("league", "/api/v1/league", ()),
@@ -51,7 +60,7 @@ TIMEOUT_SECONDS = 90.0
 
 def _get(url: str) -> tuple[int, str]:
     req = urllib.request.Request(  # noqa: S310 — fixed https base from args
-        url, headers={"User-Agent": "prod-smoke/2.7.4"}
+        url, headers={"User-Agent": "prod-smoke/2.7.5"}
     )
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT_SECONDS) as resp:  # noqa: S310
@@ -61,6 +70,32 @@ def _get(url: str) -> tuple[int, str]:
         with contextlib.suppress(Exception):
             body = exc.read().decode("utf-8", errors="replace")
         return exc.code, body
+
+
+def _check_decisions_depth(parsed: dict[str, object]) -> str:
+    """Return a failure note when the decisions skeleton guard would fire."""
+    problems = ""
+    players = parsed.get("players") or {}
+    if not isinstance(players, dict) or len(players) == 0:
+        problems += " players-empty"
+    xi = parsed.get("starting_xi") or []
+    if not isinstance(xi, list) or len(xi) == 0:
+        problems += " starting_xi-empty"
+    if parsed.get("captain") is None:
+        problems += " captain-null"
+    return problems
+
+
+def _check_league_state(parsed: dict[str, object]) -> str:
+    """League must show a real rank/standings OR an honest degraded chip."""
+    has_rank = bool(parsed.get("your_rank") is not None or parsed.get("standings_top"))
+    status = str(parsed.get("status") or "")
+    honest_chip = status in {"degraded", "refreshing", "stale", "no-league"} or bool(
+        parsed.get("note")
+    )
+    if has_rank or honest_chip:
+        return ""
+    return " league-no-rank-and-no-honest-state"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -107,6 +142,12 @@ def main(argv: list[str] | None = None) -> int:
             if key not in parsed:
                 ok = False
                 detail += f" missing-key:{key}"
+        if label == "decisions":
+            detail += _check_decisions_depth(parsed)
+            ok = ok and not detail
+        elif label == "league":
+            detail += _check_league_state(parsed)
+            ok = ok and not detail
         if status >= 500:
             detail += f" body={body[:200]!r}"
         verdict = "OK" if ok else "FAIL"

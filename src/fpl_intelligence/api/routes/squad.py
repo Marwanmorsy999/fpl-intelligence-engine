@@ -15,6 +15,7 @@ session, so the squad survives restarts and is shared across workers.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import threading
 import time
@@ -501,56 +502,63 @@ def _parse_pct(raw: Any) -> float | None:
         return None
 
 
-@router.get(
-    "/decisions",
-    response_model=DecisionReport,
-    responses={404: {"description": "No squad saved for this session"}},
-)
-async def get_decisions(
-    db: GetDB,
-    response: Response,
-    provider: Annotated[DecisionPredictionProvider, Depends(deps.get_prediction_provider)],
-    live_facts: bool = Query(
-        False,
-        description="Apply live structured-API fact overrides before optimizing.",
-    ),
-    session_id: str | None = Query(
-        None,
-        description="Per-user session key. REQUIRED. Reads the squad row for this session.",
-    ),
-) -> DecisionReport:
-    """Generate a personalized :class:`DecisionReport` for the stored squad.
+def _is_usable_squad(squad: SquadStateResponse | None) -> bool:
+    """A squad is usable only when it actually carries players.
 
-    ``session_id`` is REQUIRED. Returns 404 if missing or if no squad has been
-    saved for that key — never falls back to a default or another user's squad.
-
-    When ``live_facts=true`` the engine attempts to fetch hard facts from the
-    official FPL API (and any keyed provider that is enabled) and override the
-    baseline predictions accordingly. If live facts cannot be obtained the
-    request degrades gracefully to the baseline quantitative predictions and
-    still succeeds — it never fails because of an upstream API problem.
-
-    The response includes a ``players`` map with enriched details (web_name,
-    team, position, price, code, expected_points) for every player in the
-    report, so the dashboard can render photos, badges, and prices without
-    additional lookups.
+    v2.7.5-decisions-heal: the 03:20 UTC prod incident served
+    ``{"generated_at": ...}`` because an empty ``local_squad_state`` row won the
+    dual-state read and every optimizer silently produced an empty skeleton.
+    An "effective" squad without player_ids is NOT effective — callers must
+    fall back to the base row instead of optimizing nothing.
     """
-    if not session_id:
+    return squad is not None and bool(squad.player_ids)
+
+
+async def build_decisions_payload(
+    db: Session,
+    provider: DecisionPredictionProvider,
+    session_id: str,
+    live_facts: bool = False,
+) -> DecisionReport:
+    """Run the FULL decisions chain for one session (v2.7.5-decisions-heal).
+
+    Order of operations, each step guarded so the chain can never silently
+    degrade to a bare ``generated_at`` skeleton:
+
+    1. Effective squad (self-sealing local read → base fallback). When the
+       effective row is missing or carries no players, the base FPL-truth row
+       is used; when both are unusable the caller gets a 404 instead of an
+       empty report.
+    2. Target gameweek from the official clock (fallback: saved value).
+    3. Optional live-fact overrides (never fatal).
+    4. Full optimization chain via :class:`DecisionOptimizerBridge` — starting
+       XI, bench order, captain, transfer plan, chip recommendation.
+    5. Enrichment: chain provenance, squad summary, Understat xG/xA,
+       ownership, per-player details, Phase 22 depth layers.
+    6. Recommendation persistence (best-effort) and per-session caching.
+    7. Skeleton guard: a populated squad MUST produce a non-empty starting XI;
+       anything else raises loudly (surfaced as honest HTTP 503 by the route)
+       rather than returning a hollow payload.
+    """
+    service = SquadService(session=db)
+
+    # --- 1. squad resolution: effective → base → honest 404 ------------------
+    squad = service.get_effective_squad(session_id=session_id)
+    if not _is_usable_squad(squad):
+        logger.warning(
+            "decisions[%s]: effective squad empty/unusable (%s); falling back to base",
+            session_id,
+            "none" if squad is None else f"{len(squad.player_ids)} players",
+        )
+        squad = service.get_squad(session_id=session_id)
+    if not _is_usable_squad(squad):
         raise HTTPException(
             status_code=404,
             detail="No squad saved for this session",
         )
-    squad = SquadService(session=db).get_effective_squad(session_id=session_id)
-    if squad is None:
-        raise HTTPException(status_code=404, detail="No squad saved for this session")
+    assert squad is not None  # narrowed above
 
-    # Never cache responses that are specific to a session.
-    response.headers["Cache-Control"] = "no-store"
-
-    # Phase 21.1 (T2): the target gameweek follows the official FPL clock at
-    # request time — bootstrap next-deadline event, fixtures-cache fallback,
-    # then the saved squad value. The header and every downstream number use
-    # this one value.
+    # --- 2. target gameweek follows the official FPL clock --------------------
     try:
         from fpl_intelligence.sync.gameweek_clock import resolve_target_gameweek
 
@@ -558,19 +566,18 @@ async def get_decisions(
     except Exception as exc:  # noqa: BLE001 - metadata only, never fail decisions
         logger.warning("target gameweek resolution failed: %s", exc)
 
-    # v2.5.3: per-session decisions cache keyed by updated_at so a squad-push
-    # immediately invalidates stale renders. live_facts=true bypasses cache.
+    # --- v2.5.3 cache: keyed by updated_at so squad-pushes invalidate ----------
     if not live_facts:
         cache_key = _decisions_cache_key(session_id, squad.updated_at, squad.gameweek)
         with _decisions_cache_lock:
             cached = _decisions_cache.get(cache_key)
         if cached is not None:
-            # Return a copy so callers cannot mutate the cached entry.
             try:
                 return cached.model_copy(deep=True)  # type: ignore[attr-defined]
             except Exception:
                 return cached
 
+    # --- 3/4. optional live facts + full optimization chain -------------------
     applied_overrides: list = []
     if live_facts:
         try:
@@ -586,6 +593,15 @@ async def get_decisions(
 
     bridge = DecisionOptimizerBridge(provider=effective_provider)
     report = bridge.generate_decisions(squad)
+
+    # --- 7. skeleton guard -----------------------------------------------------
+    if squad.player_ids and not report.starting_xi:
+        raise RuntimeError(
+            "decisions chain produced an empty starting XI for a populated "
+            f"squad ({len(squad.player_ids)} players) — refusing to serve a "
+            "hollow report"
+        )
+
     report.meta["live_facts_applied"] = len(applied_overrides)
     report.meta["player_positions"] = squad.player_positions or {}
     report.meta["live_fact_sources"] = sorted({o.source.value for o in applied_overrides})
@@ -649,6 +665,54 @@ async def get_decisions(
         except Exception:
             pass
     return report
+
+
+@router.get(
+    "/decisions",
+    response_model=DecisionReport,
+    responses={404: {"description": "No squad saved for this session"}},
+)
+async def get_decisions(
+    db: GetDB,
+    response: Response,
+    provider: Annotated[DecisionPredictionProvider, Depends(deps.get_prediction_provider)],
+    live_facts: bool = Query(
+        False,
+        description="Apply live structured-API fact overrides before optimizing.",
+    ),
+    session_id: str | None = Query(
+        None,
+        description="Per-user session key. REQUIRED. Reads the squad row for this session.",
+    ),
+) -> DecisionReport:
+    """Generate a personalized :class:`DecisionReport` for the stored squad.
+
+    v2.7.5-decisions-heal: the entire chain lives in
+    :func:`build_decisions_payload` (effective→base squad fallback, official
+    clock, optimizer bridge, player enrichment, depth layers). This wrapper
+    only owns transport concerns: ``no-store`` caching and converting an
+    unexpected internal failure into an HONEST 503 payload — never a bare
+    500 and never a skeleton report.
+    """
+    if not session_id:
+        raise HTTPException(status_code=404, detail="No squad saved for this session")
+    # Never cache responses that are specific to a session.
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        return await build_decisions_payload(db, provider, session_id, live_facts=live_facts)
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001 - honest degradation, never a bare 500
+        with contextlib.suppress(Exception):
+            db.rollback()
+        logger.exception("GET /decisions failed for %s; serving honest failure", session_id)
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Decisions engine could not be computed right now "
+                f"({type(exc).__name__}); retry shortly."
+            ),
+        ) from exc
 
 
 def _resolve_chain_meta(

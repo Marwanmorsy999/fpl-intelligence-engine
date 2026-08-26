@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
@@ -106,3 +108,66 @@ async def health(db: GetDB) -> dict[str, str]:
         db_status = f"error: {exc}"
         status = "degraded"
     return {"status": status, "db": db_status, "version": __version__}
+
+
+# --------------------------------------------------------------------------- #
+# v2.7.5-decisions-heal — NEVER-500 safety net for the league + decisions
+# surfaces.
+#
+# The v2.7.4 in-handler try/except only covers failures raised INSIDE the
+# route body. A transient DB-connect failure inside the ``get_db`` dependency
+# (or any other dependency) raises BEFORE the handler runs and used to escape
+# as a raw 500 — exactly the /league outage observed at 03:20 UTC. This
+# catch-all handler sits at ServerErrorMiddleware level, so it intercepts
+# dependency-stage explosions too:
+#
+#   * /api/v1/league*      → 200 with an honest degraded payload (chips).
+#   * /api/v1/decisions*   → 503 with a truthful detail (a skeleton report is
+#                            never fabricated).
+#   * everything else      → unchanged default behavior (plain 500 text).
+# --------------------------------------------------------------------------- #
+from fastapi.responses import JSONResponse, PlainTextResponse  # noqa: E402
+
+
+def _never_500_handler_factory() -> Any:
+
+    async def handler(request: Any, exc: Exception) -> Any:
+        path = request.url.path
+        diag = f"{type(exc).__name__}: {exc}"
+        if path.startswith("/api/v1/league"):
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "session_id": request.query_params.get("session_id", ""),
+                    "status": "degraded",
+                    "leagues": [],
+                    "selected": None,
+                    "needs_picker": False,
+                    "note": (
+                        "league data unavailable right now — render failed "
+                        f"({type(exc).__name__}); retry or press Refresh"
+                    ),
+                    "diag": diag,
+                    "honest_notes": [
+                        "League page could not be computed right now — "
+                        "showing a degraded state rather than failing."
+                    ],
+                },
+            )
+        if path.startswith("/api/v1/decisions"):
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "detail": (
+                        "Decisions engine could not be computed right now "
+                        f"({type(exc).__name__}); retry shortly."
+                    ),
+                    "diag": diag,
+                },
+            )
+        return PlainTextResponse("Internal Server Error", status_code=500)
+
+    return handler
+
+
+app.add_exception_handler(Exception, _never_500_handler_factory())
