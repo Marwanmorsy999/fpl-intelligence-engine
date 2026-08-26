@@ -91,14 +91,13 @@ def main() -> int:
     return 0
 
 
-def _normalize_version_rows(url: str, cfg: "Config") -> bool:
+def _normalize_version_rows(url: str, cfg: Config) -> bool:
     """Collapse duplicate ``alembic_version`` rows to the head-most one.
 
     Returns True when a known revision row was kept (and the rest removed).
     """
-    from sqlalchemy import create_engine, text
-
     from alembic.script import ScriptDirectory
+    from sqlalchemy import create_engine, text
 
     script_dir = ScriptDirectory.from_config(cfg)
     order = [rev.revision for rev in script_dir.walk_revisions()]  # head-first
