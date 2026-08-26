@@ -4,7 +4,6 @@
   "buildCommand": "pip install . && python scripts/deploy_migrate.py",
   "functions": {
     "api/index.py": {
-        "runtime": "@vercel/python@8.0.0",
       "includeFiles": "{src/**,migrations/**,config/**,data/seed/**,data/set_piece_takers.json,alembic.ini,pyproject.toml,requirements.txt}",
       "excludeFiles": "{data/cache/**,data/raw/**,data/processed/**,tests/**,docs/**,audit/**,supabase/**,scripts/**,.github/**,.kilo/**,.mypy_cache/**,.pytest_cache/**,.ruff_cache/**,**/__pycache__/**}",
       "regions": ["cdg1"],
