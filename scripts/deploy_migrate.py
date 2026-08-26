@@ -67,11 +67,71 @@ def main() -> int:
                 print(f"deploy_migrate heal FAILED: {exc2}", file=sys.stderr)
                 return 2
             print("deploy_migrate: drift healed, stamped to head")
+        elif "overlaps" in str(exc):
+            # Bookkeeping corruption: alembic_version holds multiple rows, so
+            # every upgrade/stamp request trips an overlap check before any
+            # SQL runs. Keep only the head-most KNOWN revision and retry —
+            # schema objects are untouched.
+            if not _normalize_version_rows(url, cfg):
+                print(
+                    "deploy_migrate FAILED: could not normalise corrupted "
+                    f"alembic_version rows ({msg})",
+                    file=sys.stderr,
+                )
+                return 2
+            try:
+                command.upgrade(cfg, "head")
+            except Exception as exc3:  # noqa: BLE001
+                print(f"deploy_migrate FAILED after repair: {exc3}", file=sys.stderr)
+                return 2
         else:
             print(f"deploy_migrate FAILED: {msg}", file=sys.stderr)
             return 2
     print("deploy_migrate: OK")
     return 0
+
+
+def _normalize_version_rows(url: str, cfg: "Config") -> bool:
+    """Collapse duplicate ``alembic_version`` rows to the head-most one.
+
+    Returns True when a known revision row was kept (and the rest removed).
+    """
+    from sqlalchemy import create_engine, text
+
+    from alembic.script import ScriptDirectory
+
+    script_dir = ScriptDirectory.from_config(cfg)
+    order = [rev.revision for rev in script_dir.walk_revisions()]  # head-first
+    rank = {rev: i for i, rev in enumerate(order)}
+
+    engine = create_engine(url)
+    try:
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "CREATE TABLE IF NOT EXISTS alembic_version ("
+                    "version_num VARCHAR(32) NOT NULL)"
+                )
+            )
+            rows = [r[0] for r in conn.execute(text("SELECT version_num FROM alembic_version"))]
+            if len(rows) <= 1:
+                return False
+            keep = min((r for r in rows if r in rank), key=lambda r: rank[r], default=None)
+            if keep is None:
+                return False
+            drop = [r for r in rows if r != keep]
+            for stale in drop:
+                conn.execute(
+                    text("DELETE FROM alembic_version WHERE version_num = :v"),
+                    {"v": stale},
+                )
+            print(
+                f"deploy_migrate: alembic_version had {len(rows)} rows; kept "
+                f"{keep!r}, removed {drop}"
+            )
+            return True
+    finally:
+        engine.dispose()
 
 
 def _create_missing_tables(url: str) -> None:
