@@ -14,6 +14,10 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from alembic.config import Config
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
