@@ -294,7 +294,9 @@ async def _league_overview_impl(
     # --- 0. auto-detected leagues (cached rows; live discovery on miss) ------
     leagues = stored_entry_leagues(db, session_id)
     detection_note = ""
-    if not leagues:
+    # v2.7.6-session-guard: only cast to int when the id is actually numeric —
+    # a "None" session must degrade to no-league, never raise ValueError.
+    if not leagues and str(session_id).strip().isdigit():
         try:
             discovered = await asyncio.wait_for(
                 fetch_entry_leagues(int(session_id)), timeout=8.0
@@ -577,7 +579,8 @@ async def league_refresh(
     from fpl_intelligence.leagues.service import stored_entry_leagues as _stored  # noqa: PLC0415
 
     leagues = _stored(db, body.session_id)
-    if not leagues:
+    # v2.7.6-session-guard: skip live discovery for non-numeric session ids.
+    if not leagues and str(body.session_id).strip().isdigit():
         try:
             discovered = await asyncio.wait_for(
                 fetch_entry_leagues(int(body.session_id)), timeout=8.0

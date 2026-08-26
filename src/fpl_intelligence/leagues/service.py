@@ -420,6 +420,16 @@ def upsert_entry_leagues(db: Session, entry_id: int, leagues: list[dict[str, Any
 def stored_entry_leagues(db: Session, entry_id: int) -> list[dict[str, Any]]:
     from fpl_intelligence.leagues.models import EntryLeagueDB
 
+    # v2.7.6-session-guard: callers pass the raw ``session_id`` string, which
+    # can arrive as "None"/empty/garbage from the frontend. Degrade to an
+    # empty list instead of crashing on int("None").
+    if (
+        not entry_id
+        or str(entry_id) == "None"
+        or not str(entry_id).strip().isdigit()
+    ):
+        return []
+
     rows = db.execute(
         select(EntryLeagueDB)
         .where(EntryLeagueDB.entry_id == int(entry_id))

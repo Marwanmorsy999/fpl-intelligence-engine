@@ -459,6 +459,9 @@ async def live_matchday(
     squad_players: list[dict[str, Any]] = []
     picks_payload: dict[str, Any] | None = None
     try:
+        # v2.7.6-session-guard: never build an entry URL from a non-numeric id.
+        if not str(session_id).strip().isdigit():
+            raise ValueError("session_id is not a numeric FPL entry id")
         chain, _ttl = _chain("picks")
         picks_payload = await chain.fetch(
             f"/api/entry/{int(session_id)}/event/{gameweek}/picks/"
