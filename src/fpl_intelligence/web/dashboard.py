@@ -43,9 +43,11 @@ _PAGES: dict[str, str] = {
     "/targets": "targets.html",  # Phase 25 Gate 0 — T2 alpha engine
     "/planner": "planner.html",  # Phase 25 Gate 0 — T3 horizon planner
     "/transfers": "transfers.html",  # Phase 27 Gate 0 — T1 transfer desk
+    "/help": "help.html",  # Phase 3.4 — onboarding & FAQ
 }
 
 #: Whitelisted shared assets servable under /static (no directory traversal).
+#: Phase 3 adds lib/*: fetch-with-timeout, idb-cache, onboarding.
 _STATIC_FILES = {
     "app.css",
     "tokens.css",
@@ -60,6 +62,15 @@ _STATIC_FILES = {
     "icon-512.png",
 }
 
+#: Phase 3.1/3.3/3.4 — standalone browser libraries under /static/lib/.
+#: Served via /static/lib/{name}; kept separate from the flat whitelist above
+#: so legacy asset paths keep their exact shape (and contracts stay identical).
+_LIB_FILES = {
+    "fetch-with-timeout.js",
+    "idb-cache.js",
+    "onboarding.js",
+}
+
 
 def _register_dashboard_routes() -> None:
     @router.get("/static/{asset_name}", include_in_schema=False)
@@ -68,6 +79,13 @@ def _register_dashboard_routes() -> None:
         if asset_name not in _STATIC_FILES:
             raise HTTPException(status_code=404, detail="Not found")
         return FileResponse(_STATIC_DIR / asset_name)
+
+    @router.get("/static/lib/{lib_name}", include_in_schema=False)
+    async def serve_static_lib(lib_name: str) -> FileResponse:
+        """Phase 3 — serve whitelisted lib/ modules only."""
+        if lib_name not in _LIB_FILES:
+            raise HTTPException(status_code=404, detail="Not found")
+        return FileResponse(_STATIC_DIR / "lib" / lib_name)
 
     def _page_handler(filename: str):
         async def _serve() -> FileResponse:

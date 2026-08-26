@@ -106,22 +106,36 @@ def _domain_squad_from_payload(squad_payload) -> tuple[SquadState, dict]:
     return domain, {"rules": rules}
 
 def _baseline_xpts(provider, domain: SquadState, gw: int, baseline_positions: dict[int, int] | None) -> dict[str, Any]:  # noqa: E501
-    """Estimate baseline XI xPTS for gw using current squad's players."""
+    """Estimate baseline XI xPTS for gw using current squad's players.
+
+    Fix 1.3: only include players with a real xPTS prediction (> 0) in the
+    sorted set so that missing-catalog players (xPTS=0) don't dilute the
+    baseline.  Also filter to at most 11 for the top11 selection.  The captain
+    double uses the highest-xPTS starter (not zero).
+    """
     try:
-        # Use XI optimizer to pick best 11? Simpler: pick top 11 by expected points
-        # Get predictions for the 15
         preds = provider.get_squad_predictions(list(domain.squad_players), [gw])
         gw_preds = preds.get(gw, {})
         if not gw_preds:
             return {"xpts": 0.0, "detail": "no predictions"}
-        # sort 15 by xpts
-        sorted_pids = sorted(gw_preds.keys(), key=lambda p: gw_preds[p].expected_points, reverse=True)  # noqa: E501
+        # Only keep players present in the squad; skip zero/missing predictions.
+        squad_set = set(int(p) for p in domain.squad_players)
+        valid_pids = [
+            pid for pid in gw_preds
+            if int(pid) in squad_set and gw_preds[pid].expected_points > 0
+        ]
+        if not valid_pids:
+            # Fallback: include all squad players even with zero xPTS
+            valid_pids = [pid for pid in gw_preds if int(pid) in squad_set]
+        # Sort descending by xPTS and take the best 11
+        sorted_pids = sorted(valid_pids, key=lambda p: gw_preds[p].expected_points, reverse=True)
         top11 = sorted_pids[:11]
         baseline = sum(gw_preds[pid].expected_points for pid in top11)
-        # captain double
+        # Add captain double (highest-xPTS starter, only when xPTS > 0)
         if top11:
-            baseline += max(gw_preds[pid].expected_points for pid in top11)
-        # rely on distribution? use simple sum
+            cap_xpts = max(gw_preds[pid].expected_points for pid in top11)
+            if cap_xpts > 0:
+                baseline += cap_xpts
         return {"xpts": round(float(baseline), 2), "top11": top11}
     except Exception as exc:
         logger.warning("baseline xpts failed gw%s: %s", gw, exc)

@@ -204,15 +204,20 @@ def _install_chains(monkeypatch, bootstrap=None, picks=None, live=None, fail=())
 
 
 class TestCronConsolidation:
-    def test_exactly_one_cron(self):
+    def test_at_most_two_crons(self):
+        """Allow the daily job + the transfer-detection cron (Fix 1.2 adds it)."""
         config = json.loads(VERCEL_JSON.read_text(encoding="utf-8"))
-        assert len(config.get("crons", [])) == 1
+        assert 1 <= len(config.get("crons", [])) <= 2
 
-    def test_single_cron_targets_daily_at_0610(self):
+    def test_daily_cron_present(self):
         config = json.loads(VERCEL_JSON.read_text(encoding="utf-8"))
-        cron = config["crons"][0]
-        assert cron["path"] == "/api/v1/admin/daily"
-        assert cron["schedule"] == "10 6 * * *"
+        paths = [c["path"] for c in config.get("crons", [])]
+        assert "/api/v1/admin/daily" in paths
+
+    def test_daily_cron_schedule(self):
+        config = json.loads(VERCEL_JSON.read_text(encoding="utf-8"))
+        daily = next(c for c in config["crons"] if c["path"] == "/api/v1/admin/daily")
+        assert daily["schedule"] == "10 6 * * *"
 
     def test_no_legacy_cron_paths_remain(self):
         raw = VERCEL_JSON.read_text(encoding="utf-8")

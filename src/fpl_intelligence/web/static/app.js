@@ -22,7 +22,8 @@ window.FPLApp = (function () {
     { href: "/chips", label: "Chips", icon: "🎲" },
     { href: "/crunch", label: "Crunch", icon: "⏰" },
     { href: "/sources", label: "Sources", icon: "🔍" },
-    { href: "/connect", label: "Connect", icon: "🔗" }
+    { href: "/connect", label: "Connect", icon: "🔗" },
+    { href: "/help", label: "Help", icon: "❓" }
   ];
   var NAV = NAV_PRIMARY.concat(NAV_SECONDARY);
 

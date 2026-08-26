@@ -13,6 +13,8 @@
 <link rel="stylesheet" href="/static/tokens.css">
 <link rel="stylesheet" href="/static/components.css">
 <link rel="stylesheet" href="/static/app.css">
+<!-- Phase 3.1 — bounded fetch timeouts for the live poll -->
+<script src="/static/lib/fetch-with-timeout.js"></script>
 <script src="/static/app.js"></script>
 <style>
   @keyframes pulse-live { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
@@ -71,6 +73,11 @@
     </div>
 
     <div id="note" class="card note-card"><span class="small note-text"></span></div>
+
+    <!-- Phase 3.1 — honest "stale" state for the live feed -->
+    <div id="staleCard" class="stale-feed" data-testid="stale-feed" hidden>
+      <p>🕒 Live feed is stale (<span id="staleAge"></span> mins old). Points may not reflect current match status.</p>
+    </div>
   </div>
 
   <div class="live-main">
@@ -162,6 +169,15 @@ document.addEventListener("DOMContentLoaded", function () {
     $("note").style.display = data.note ? "block" : "none";
     if (data.note) $("note").querySelector("span").textContent = data.note;
 
+    /* Phase 3.1 — honest stale state. Snapshot fallback OR age > 90 min. */
+    var staleCard = $("staleCard");
+    var ageMins = Math.round((data.data_age_seconds || 0) / 60);
+    var isStale = !!data.stale_snapshot || (data.data_age_seconds || 0) > 90 * 60;
+    if (staleCard) {
+      staleCard.hidden = !isStale;
+      if (isStale) $("staleAge").textContent = String(Math.max(0, ageMins));
+    }
+
     $("liveBadge").style.display = "inline-block";
     var badgeHot = data.live_mode && !data.gw_finished;
     $("liveBadge").className = "live-badge" + (badgeHot ? "" : " cold");
@@ -234,12 +250,14 @@ document.addEventListener("DOMContentLoaded", function () {
       $("benchBox").innerHTML = "";
       return;
     }
-    fetch("/api/v1/live?session_id=" + encodeURIComponent(sess.key), { cache: "no-store" })
+    FPLHttp.fetchWithTimeout("/api/v1/live?session_id=" + encodeURIComponent(sess.key), { cache: "no-store" }, 8000)
       .then(function (res) { return res.ok ? res.json() : res.json().then(function (b) { throw new Error(b.detail || res.status); }); })
       .then(render)
       .catch(function (err) {
         $("xiBox").innerHTML = '<p class="muted small">' + FPLApp.esc(err.message || "Load failed.") + '</p>';
         $("benchBox").innerHTML = "";
+        var staleCard = $("staleCard");
+        if (staleCard) staleCard.hidden = true;
       });
   }
 

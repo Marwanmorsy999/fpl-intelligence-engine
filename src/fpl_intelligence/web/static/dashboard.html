@@ -14,7 +14,10 @@
 <link rel="stylesheet" href="/static/tokens.css">
 <link rel="stylesheet" href="/static/components.css">
 <link rel="stylesheet" href="/static/app.css">
-<!-- Phase 20.0 — shared chrome + persistent session module -->
+<!-- Phase 3.1/3.3/3.4 — bounded timeouts, IndexedDB caching, first-visit tour -->
+<script src="/static/lib/fetch-with-timeout.js"></script>
+<script src="/static/lib/idb-cache.js"></script>
+<script src="/static/lib/onboarding.js"></script>
 <script src="/static/app.js"></script>
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #0a1120; }
@@ -481,9 +484,16 @@ async function checkHealth() {
 
 async function loadPlayers() {
   if (ALL_PLAYERS.length) { return; }
-  var res = await fetch(API + "/api/v1/players");
-  if (!res.ok) { throw new Error("Player list unavailable (" + res.status + ")"); }
-  ALL_PLAYERS = await res.json();
+  /* Phase 3.3 — 24h IndexedDB cache for the heavy player list. If IndexedDB
+     is unavailable or the cache is cold we fall back to a bounded network call
+     (FPLCache never lets a storage failure crash the page). */
+  var cached = await FPLCache.getCachedPredictions("players:v1", function () {
+    return FPLHttp.fetchWithTimeout(API + "/api/v1/players", {}, 7000).then(function (res) {
+      if (!res.ok) { throw new Error("Player list unavailable (" + res.status + ")"); }
+      return res.json();
+    });
+  });
+  ALL_PLAYERS = Array.isArray(cached) ? cached : [];
   PLAYER_NAMES = Object.fromEntries(ALL_PLAYERS.map(function (p) { return [p.id, p.web_name]; }));
 }
 
@@ -739,7 +749,7 @@ var ALPHA_BY_PID = {};
 
 function loadAlphaChips() {
   if (!CURRENT_SESSION_ID) return Promise.resolve();
-  return fetch(API + "/api/v1/targets?session_id=" + encodeURIComponent(CURRENT_SESSION_ID))
+  return FPLHttp.fetchWithTimeout(API + "/api/v1/targets?session_id=" + encodeURIComponent(CURRENT_SESSION_ID), {}, 7000)
     .then(function (r) { return r.ok ? r.json() : null; })
     .catch(function () { return null; })
     .then(function (data) {
@@ -1224,28 +1234,104 @@ function renderPriceStrip() {
     });
 }
 
-function renderReport(report) {  LAST_REPORT = report;
-  SIM_OUT = {};
-  renderSummary(report);
-  renderChip(report);
-  renderChainBanner(report);
-  renderPitch(report);
-  renderBench(report);
-  renderSimulator();
-  renderDifferentials(report);
-  renderCaptain(report);
-  renderCaptainCompare(report);
-  renderTransfers(report);
-  renderWatchlist(report);
-  renderAnalyst(report);
-  renderDataSources();
-  loadPhase20Overlays();
+/* ---------- Fix 1.1: error card — never blank, always recoverable ---------- */
+function showTabErrorCard(err) {
+  var msg = (err && (err.message || String(err))) || "Unknown rendering error";
+  console.error("[decisions:renderReport]", err);
+  var box = $("results");
+  if (!box) return;
+  box.innerHTML =
+    '<div class="fg-card rounded-2xl p-6 shadow-xl mb-8 text-center">' +
+    '<div class="text-3xl mb-3">⚠️</div>' +
+    '<h3 class="text-lg font-bold text-red-400 mb-2">Decisions failed to load</h3>' +
+    '<p class="text-sm text-slate-400 mb-4">' + esc(msg) + '</p>' +
+    '<div class="flex gap-3 justify-center">' +
+    '<button class="btn-primary" onclick="location.reload()" type="button">↻ Retry</button>' +
+    '<button class="btn-ghost" onclick="' +
+      'document.getElementById(\'results\').innerHTML=\'\';' +
+      'document.getElementById(\'results\').style.display=\'none\';' +
+      'document.getElementById(\'inputSection\').style.display=\'block\'' +
+    '" type="button">Dismiss</button>' +
+    '</div></div>';
+  box.style.display = "block";
+  box.classList.add("hidden-children");
+}
+
+function renderReport(report) {
+  try {
+    LAST_REPORT = report;
+    SIM_OUT = {};
+    renderSummary(report);
+    renderChip(report);
+    renderChainBanner(report);
+    renderPitch(report);
+    renderBench(report);
+    renderSimulator();
+    renderDifferentials(report);
+    renderCaptain(report);
+    renderCaptainCompare(report);
+    renderTransfers(report);
+    renderWatchlist(report);
+    renderAnalyst(report);
+    renderDataSources();
+    loadPhase20Overlays();
+    renderPriceStrip();
+  } catch (err) {
+    showTabErrorCard(err);
+  }
 }
 
 /* ---------- Phase 20.0 overlays: fixture strips + news flags ---------- */
+/* Phase 3.1: News Radar now has strict timeouts + honest loading/error/empty
+   states with a Retry button instead of spinning forever. Fixture strips stay
+   enhancement-only but their fetch is also bounded so a hang can't stall the
+   page. */
+function renderNewsRadarError(msg) {
+  var box = $("newsRadarBox");
+  if (!box) return;
+  box.innerHTML =
+    '<div class="card error-state" role="alert">' +
+    "<p>⚠️ " + esc(msg || "News Radar failed to load.") + "</p>" +
+    '<button id="newsRetryBtn" class="btn" type="button" aria-label="Retry loading News Radar">Retry</button>' +
+    "</div>";
+  var retry = $("newsRetryBtn");
+  if (retry) retry.addEventListener("click", loadNewsRadar);
+}
+
+function loadNewsRadar() {
+  var box = $("newsRadarBox");
+  if (!box) return;
+  /* Honest loading state — never a permanent spinner. */
+  box.innerHTML = '<p class="text-slate-400 text-sm">Checking headlines…</p>';
+  var sessionKey = encodeURIComponent(CURRENT_SESSION_ID || "");
+  var url = API + "/api/v1/news/radar?session_id=" + sessionKey;
+  FPLHttp.fetchWithTimeout(url, { cache: "no-store" }, 7000)
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (radar) {
+      if (!radar) { renderNewsRadarError("News Radar returned no data."); return; }
+      NEWS_FLAGS = {};
+      (radar.news_flags || []).forEach(function (f) {
+        NEWS_FLAGS[f.player_id] = { headline: f.headline, time: f.time, url: f.url };
+      });
+      repaintStrips();
+      if (!(radar.news_flags || []).length) {
+        box.innerHTML = '<p class="text-slate-500 text-sm">No BBC headlines match your squad right now.</p>';
+      } else {
+        box.innerHTML = (radar.news_flags || []).map(function (f) {
+          return '<div class="row"><div><a class="news-flag" style="max-width:none;white-space:normal" href="' + esc(f.url || "#") + '" target="_blank" rel="noopener">📰 ' + esc(f.headline) + "</a>"
+            + '<div class="text-xs text-slate-500 mt-1">' + esc(f.web_name) + " · " + esc((f.time || "").slice(0, 16).replace("T", " ")) + "</div></div></div>";
+        }).join("");
+      }
+    })
+    .catch(function (err) {
+      renderNewsRadarError(err && err.message ? err.message : "News Radar failed to load.");
+    });
+}
+
 function loadPhase20Overlays() {
   if (!CURRENT_SESSION_ID) return;
-  fetch(API + "/api/v1/fixtures/scan?session_id=" + encodeURIComponent(CURRENT_SESSION_ID))
+  loadNewsRadar();
+  FPLHttp.fetchWithTimeout(API + "/api/v1/fixtures/scan?session_id=" + encodeURIComponent(CURRENT_SESSION_ID), { cache: "no-store" }, 7000)
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (scan) {
       if (!scan || !scan.players) return;
@@ -1254,28 +1340,6 @@ function loadPhase20Overlays() {
       repaintStrips();
     })
     .catch(function () { /* strips are enhancement-only */ });
-  fetch(API + "/api/v1/news/radar?session_id=" + encodeURIComponent(CURRENT_SESSION_ID))
-    .then(function (r) { return r.ok ? r.json() : null; })
-    .then(function (radar) {
-      if (!radar) return;
-      NEWS_FLAGS = {};
-      (radar.news_flags || []).forEach(function (f) {
-        NEWS_FLAGS[f.player_id] = { headline: f.headline, time: f.time, url: f.url };
-      });
-      repaintStrips();
-      var box = $("newsRadarBox");
-      if (box) {
-        if (!(radar.news_flags || []).length) {
-          box.innerHTML = '<p class="text-slate-500 text-sm">No BBC headlines match your squad right now.</p>';
-        } else {
-          box.innerHTML = (radar.news_flags || []).map(function (f) {
-            return '<div class="row"><div><a class="news-flag" style="max-width:none;white-space:normal" href="' + esc(f.url || "#") + '" target="_blank" rel="noopener">📰 ' + esc(f.headline) + "</a>"
-              + '<div class="text-xs text-slate-500 mt-1">' + esc(f.web_name) + " · " + esc((f.time || "").slice(0, 16).replace("T", " ")) + "</div></div></div>";
-          }).join("");
-        }
-      }
-    })
-    .catch(function () { /* flags are enhancement-only */ });
 }
 
 function repaintStrips() {
@@ -1419,33 +1483,42 @@ function renderAnalyst(report) {
 function renderDataSources() {
   var box = $("dataSourcesBox");
   box.innerHTML = '<p class="text-slate-400 text-sm">Checking data sources…</p>';
-  fetch(API + "/api/v1/data-sources").then(function (r) { return r.ok ? r.json() : null; }).then(function (data) {
-    if (!data || !data.sources) { box.innerHTML = '<p class="text-slate-500 text-sm">Source status unavailable.</p>'; return; }
-    var sources = data.sources;
-    var rows = [];
-    function row(key, label) {
-      var s = sources[key] || {};
-      var status = s.status || "unknown";
-      var dot = (status === "ok" || status === "live" || status === "enabled") ? "ok"
-        : (status === "blocked" || status === "outage" || status === "off") ? "bad" : "";
-      var detailText = s.detail || "";
-      rows.push('<div class="flex items-center justify-between py-2 border-b border-slate-700/40 last:border-0">'
-        + '<div><span class="text-sm font-semibold text-slate-200">' + esc(label) + "</span>"
-        + (detailText ? '<div class="text-xs text-slate-500">' + esc(detailText) + "</div>" : "") + "</div>"
-        + (dot ? '<span class="pill ' + dot + '">' + esc(status) + "</span>" : '<span class="pill">' + esc(status) + "</span>")
-        + "</div>");
-    }
-    row("fpl_import", "FPL Import");
-    row("odds_api", "Odds API (market check)");
-    row("understat", "Understat (xG/xA)");
-    row("weather", "Weather (Open-Meteo)");
-    row("pl_photos", "PL Photos & Badges");
-    row("llm", "AI Analyst (LLM)");
-    var asof = data.as_of ? '<div class="mt-2 text-xs text-slate-600">Updated: ' + esc(data.as_of) + "</div>" : "";
-    box.innerHTML = '<div class="space-y-1">' + rows.join("") + "</div>" + asof;
-  }).catch(function () {
-    box.innerHTML = '<p class="text-slate-500 text-sm">Source status unavailable.</p>';
-  });
+  FPLHttp.fetchWithTimeout(API + "/api/v1/data-sources", {}, 7000)
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (data) {
+      if (!data || !data.sources) {
+        box.innerHTML = '<p class="text-slate-500 text-sm">Source status unavailable.</p>';
+        return;
+      }
+      var sources = data.sources;
+      var rows = [];
+      function row(key, label) {
+        var s = sources[key] || {};
+        var status = s.status || "unknown";
+        var dot = (status === "ok" || status === "live" || status === "enabled") ? "ok"
+          : (status === "blocked" || status === "outage" || status === "off") ? "bad" : "";
+        var detailText = s.detail || "";
+        rows.push('<div class="flex items-center justify-between py-2 border-b border-slate-700/40 last:border-0">'
+          + '<div><span class="text-sm font-semibold text-slate-200">' + esc(label) + "</span>"
+          + (detailText ? '<div class="text-xs text-slate-500">' + esc(detailText) + "</div>" : "") + "</div>"
+          + (dot ? '<span class="pill ' + dot + '">' + esc(status) + "</span>" : '<span class="pill">' + esc(status) + "</span>")
+          + "</div>");
+      }
+      row("fpl_import", "FPL Import");
+      row("odds_api", "Odds API (market check)");
+      row("understat", "Understat (xG/xA)");
+      row("weather", "Weather (Open-Meteo)");
+      row("pl_photos", "PL Photos & Badges");
+      row("llm", "AI Analyst (LLM)");
+      var asof = data.as_of ? '<div class="mt-2 text-xs text-slate-600">Updated: ' + esc(data.as_of) + "</div>" : "";
+      box.innerHTML = '<div class="space-y-1">' + rows.join("") + "</div>" + asof;
+    })
+    .catch(function (err) {
+      box.innerHTML =
+        '<div class="card error-state" role="alert"><p>⚠️ ' +
+        esc((err && err.message) || "Data source status failed to load.") +
+        '</p></div>';
+    });
 }
 
 /* ---------- Demo squad (no FPL account needed) ---------- */
@@ -1890,6 +1963,11 @@ function boot() {
   FPLApp.renderNav("/dashboard");
   try { updateSourceChip(); } catch (e) {}
   renderPriceStrip();
+  /* Phase 3.4 — first-visit tour (auto-starts once per browser, skips missing
+     targets silently, Esc/Finish/Next all keyboard reachable). */
+  if (document.getElementById("fplTourHost") === null) {
+    try { FPLTour.autoStart(document); } catch (e) { /* tour is enhancement-only */ }
+  }
   /* Wire up event listeners */
   $("analyzeBtn").addEventListener("click", analyze);
   $("teamId").addEventListener("keydown", function (e) {

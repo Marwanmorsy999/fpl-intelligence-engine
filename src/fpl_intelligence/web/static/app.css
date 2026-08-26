@@ -391,3 +391,86 @@ table.data th, table.data td { font-variant-numeric: tabular-nums; }
 .sync-ribbon[style*="display: none"], .exec-ribbon[style*="display: none"] { display: block !important; }
 #syncRibbon { display: block !important; } /* v2.5.5 ribbon-always */
 
+/* ============================================================================
+   Phase 3.2 — Typography, contrast & honest-state components
+   ============================================================================ */
+
+/* Type scale (aligned to tokens): body 16px, data 14px, headers 18px+ */
+:root {
+  --text-primary: #f9fafb;   /* white-ish for dark mode */
+  --text-secondary: #a3aec1; /* light grey (AA on #0B0F19) */
+  --text-muted: #6b7280;     /* WCAG-AA muted (not lighter) */
+  --font-body-size: 16px;
+  --font-data-size: 14px;
+  --font-header-size: 18px;
+}
+body { font-size: var(--font-body-size); color: var(--text-primary); }
+h1, h2, h3 { font-size: var(--font-header-size); font-weight: 600; color: var(--text-primary); }
+
+/* Phase 3.2 — honest empty/error/loading state cards */
+.card.error-state {
+  background: rgba(239,68,68,.08);
+  border: 1px solid rgba(239,68,68,.4);
+  color: var(--text-primary);
+}
+.card.error-state p { margin: 0 0 12px; color: var(--text-primary); }
+.card.empty-state { color: var(--text-muted); }
+.loading-skeleton { color: var(--text-muted); min-height: 80px; display: flex; align-items: center; }
+
+/* Phase 3.1 — "live feed is stale" greyed-out card */
+.stale-feed {
+  background: rgba(148,163,184,.06);
+  border: 1px solid var(--line);
+  color: var(--text-secondary);
+  margin-bottom: 14px;
+}
+.stale-feed p { margin: 0; color: var(--text-muted); }
+
+/* Phase 3.2 — hover/keyboard metric tooltip (display-only: never intercepts clicks) */
+.metric-tip { position: relative; border-bottom: 1px dotted var(--color-accent, #38bdf8); cursor: help; outline-offset: 3px; }
+.metric-tip::after {
+  content: attr(data-tip);
+  position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 90;
+  width: min(280px, 72vw); box-sizing: border-box;
+  background: #1a2335; color: #f1f5f9;
+  border: 1px solid var(--color-line-strong); border-radius: 10px;
+  padding: 10px 12px; font-size: 13px; line-height: 1.45;
+  box-shadow: 0 8px 24px rgba(0,0,0,.45);
+  opacity: 0; pointer-events: none; transition: opacity .18s ease;
+}
+.metric-tip:hover::after, .metric-tip:focus-visible::after { opacity: 1; }
+
+/* Phase 3.2 — chart tooltips: hover only, never pinned */
+.chart-tooltip { pointer-events: none; opacity: 0; transition: opacity .2s ease; }
+.chart-container:hover .chart-tooltip, .chart-container:focus-within .chart-tooltip { opacity: 1; }
+
+/* Phase 3.4 — first-visit tour overlay */
+.tour-backdrop { position: fixed; inset: 0; z-index: 950; background: rgba(2,6,17,.55); }
+.tour-card {
+  position: fixed; z-index: 960; bottom: 24px; left: 50%; transform: translateX(-50%);
+  width: min(560px, 92vw); box-sizing: border-box;
+  background: var(--color-surface); border: 1px solid var(--color-line-strong);
+  border-radius: 16px; padding: 18px 20px;
+  box-shadow: 0 16px 48px rgba(0,0,0,.6);
+}
+.tour-step-label { margin: 0 0 6px; font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--color-accent); font-weight: 700; }
+.tour-text { margin: 0 0 14px; font-size: 15px; line-height: 1.5; color: var(--text-primary); }
+.tour-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.tour-actions button { min-height: 44px; }
+.tour-actions .btn-ghost { color: #cbd5e1; border: 1px dashed var(--color-line-strong); background: transparent; border-radius: 10px; padding: 8px 14px; font-weight: 700; cursor: pointer; }
+.tour-actions .btn-ghost:disabled { opacity: .45; cursor: not-allowed; }
+.tour-highlight { position: relative; outline: 3px dashed var(--color-accent, #38bdf8); outline-offset: 4px; z-index: 945; }
+
+/* Phase 3.2 — responsive navigation breakpoint raised to 1100px.
+   The pre-existing bottom-tab bar (+ More sheet) is our hamburger menu: full
+   labels collapse to icon/short labels below 1100px so the top bar never clips
+   on mid-size screens, and the pattern already ships keyboard/DOM a11y. */
+@media (max-width: 1100px) {
+  .topnav-inner .navlink { display: none; }
+  .topnav-inner .brand { margin-right: 8px; }
+  .bottomnav { display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; background: rgba(11,15,25,.98); border-top: 1px solid var(--line); }
+  body { padding-bottom: var(--bottom-nav-height, 64px); }
+}
+@media (min-width: 1101px) {
+  .bottomnav { display: none; }
+}

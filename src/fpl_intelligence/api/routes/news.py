@@ -167,6 +167,56 @@ def _player_rows(db: Session, pids: list[int]) -> list[tuple[int, str, str, str]
     return out
 
 
+# ---------------------------------------------------------------------------
+# Phase 3.1 — GET /news/bbc-rss
+#
+# Raw headlines (no squad matching) as a JSON array of
+# ``{title, link, pubDate}``. The feed is fetched SERVER-SIDE only (the BBC
+# blocks cross-origin browser reads, which is what used to hang the old client
+# path); this endpoint reuses :func:`_cached_items` so radar and raw share one
+# pipeline (in-memory -> materialized news_cache table -> live fetch with an
+# 8s httpx timeout and DB write-back), plus its own 15-minute serialization
+# cache so repeated page loads never re-serialize or rate-limit.
+# ---------------------------------------------------------------------------
+
+BBC_RSS_TTL_SECONDS = 15 * 60
+
+_rss_lock = threading.Lock()
+_rss_cache: tuple[float, list[dict[str, str]]] | None = None
+
+
+@router.get("/bbc-rss")
+async def get_bbc_rss() -> dict[str, Any]:
+    """Server-side BBC Sport FPL/football RSS -> JSON array of headlines."""
+    global _rss_cache
+
+    now_mono = time.monotonic()
+    with _rss_lock:
+        if _rss_cache is not None and now_mono - _rss_cache[0] < BBC_RSS_TTL_SECONDS:
+            items = _rss_cache[1]
+        else:
+            items = None
+
+    if items is None:
+        try:
+            news_items = await _cached_items()
+        except Exception as exc:  # noqa: BLE001 — degrade honestly, never 500
+            logger.warning("bbc-rss build failed: %s", exc)
+            news_items = []
+        items = [
+            {
+                "title": item.title,
+                "link": item.link,
+                "pubDate": item.published,
+            }
+            for item in news_items
+        ]
+        with _rss_lock:
+            _rss_cache = (time.monotonic(), items)
+
+    return {"items": items, "count": len(items)}
+
+
 @router.get("/radar")
 async def news_radar(
     db: GetDB,

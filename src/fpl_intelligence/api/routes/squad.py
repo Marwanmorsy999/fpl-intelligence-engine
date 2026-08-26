@@ -643,6 +643,14 @@ async def build_decisions_payload(
     except Exception as exc:  # noqa: BLE001 - depth layers are enhancements
         logger.warning("decision-depth enrichment failed: %s", exc)
 
+    # --- Phase 2 math & model upgrades (ensemble CI, transfer EV, captain ---
+    # confidence, differentials, price moves, injury risk). Purely additive
+    # under ``report.meta['phase2']`` and never fatal.
+    try:
+        await _attach_phase2_insights(db, report, squad, ownership_map)
+    except Exception as exc:  # noqa: BLE001 - Phase 2 insights are enhancements
+        logger.warning("phase2 insights failed (non-fatal): %s", exc)
+
     # Phase 19.0 — persist this gameweek's calls so /track-record can grade
     # them once real results are ingested. Best-effort: tracking must never
     # break the decisions response.
@@ -1079,6 +1087,208 @@ class FromFplRequest(BaseModel):
         description="Your FPL Manager Entry ID (the number in your FPL team URL).",
         examples=[1234567],
     )
+
+
+# --------------------------------------------------------------------------- #
+# Phase 2 — math & model upgrades (meta['phase2'] enrichment).
+# --------------------------------------------------------------------------- #
+
+
+async def _attach_phase2_insights(
+    db: Session,
+    report: DecisionReport,
+    squad: SquadStateResponse,
+    ownership_map: dict[int, float],
+) -> None:
+    """Compute Phase 2 insights onto ``report.meta['phase2']`` (never fatal).
+
+    Everything reads materialized tables plus the committed seed catalog —
+    no live network. Each sub-analysis stays independent so a missing table
+    degrades its own section only, per the Phase 2 Safety rule.
+    """
+    from sqlalchemy import select
+
+    from fpl_intelligence.db.models import Player, PlayerGameweekPerformance
+    from fpl_intelligence.models.captaincy import captain_confidence_detail
+    from fpl_intelligence.models.ensemble_xpts import (
+        calculate_ensemble_xpts,
+        collect_player_inputs,
+    )
+    from fpl_intelligence.prediction.live_provider import load_player_catalog
+    from fpl_intelligence.sync.materialized_models import (
+        ElementFactDB,
+        PredictionCurrentDB,
+    )
+    from fpl_intelligence.tools.differentials import find_differentials
+    from fpl_intelligence.tools.injury_risk import calculate_injury_risk
+    from fpl_intelligence.tools.price_predictor import predict_price_changes
+    from fpl_intelligence.tools.transfer_ev import get_top_transfers
+
+    gameweek = int(report.gameweek)
+    horizon = list(range(gameweek, gameweek + 5))
+    xpts_all = _prediction_rows(db, gameweek)
+
+    # --- multi-GW horizon predictions {element: {gw: {"mean": m}}} -----------
+    horizon_preds: dict[int, dict[int, dict[str, float]]] = {}
+    for element_id, gw, pts in db.execute(
+        select(
+            PredictionCurrentDB.element_id,
+            PredictionCurrentDB.gameweek,
+            PredictionCurrentDB.expected_points,
+        ).where(PredictionCurrentDB.gameweek.in_(horizon))
+    ).all():
+        horizon_preds.setdefault(int(element_id), {})[int(gw)] = {
+            "mean": float(pts)
+        }
+
+    phase2: dict[str, Any] = {"model": "ensemble_v1", "gameweek": gameweek}
+    squad_ids = {int(p) for p in squad.player_ids}
+
+    # --- market rows for the tools (£m prices converted from tenth-units) ----
+    catalog = load_player_catalog()
+    latest_transfers: dict[int, tuple[int | None, int | None]] = {}
+    for el, tin, tout in db.execute(
+        select(
+            Player.fpl_element_id,
+            PlayerGameweekPerformance.transfers_in,
+            PlayerGameweekPerformance.transfers_out,
+        )
+        .join(
+            PlayerGameweekPerformance,
+            PlayerGameweekPerformance.player_id == Player.id,
+        )
+        .where(Player.fpl_element_id.isnot(None))
+        .order_by(PlayerGameweekPerformance.gameweek_id.desc())
+        .limit(5000)
+    ).all():
+        if int(el) not in latest_transfers:
+            latest_transfers[int(el)] = (tin, tout)
+
+    def _market_row(el: int) -> dict[str, Any]:
+        row = dict(catalog.get(int(el), {}) or {})
+        tin, tout = latest_transfers.get(int(el), (None, None))
+        row.update({"id": int(el), "transfers_in": tin, "transfers_out": tout})
+        # Unit normalisation: tools speak £m floats, the catalog speaks
+        # tenth-units. A sane £m price never exceeds 20, anything bigger is
+        # unmistakably tenths.
+        raw_cost = row.get("now_cost", row.get("price"))
+        try:
+            cost = float(raw_cost) if raw_cost is not None else None
+        except (TypeError, ValueError):
+            cost = None
+        if cost is not None:
+            row["now_cost"] = round(cost / 10.0, 2) if cost > 20 else round(cost, 2)
+        return row
+
+    all_market = [_market_row(el) for el in sorted(set(catalog) | set(latest_transfers))]
+
+    # --- 2.4 differentials ----------------------------------------------------
+    current_preds = {el: {gameweek: {"mean": v}} for el, v in xpts_all.items()}
+    phase2["differentials"] = find_differentials(
+        all_market, current_preds, gameweek, exclude_ids=squad_ids
+    )
+
+    # --- 2.5 price-change predictions ----------------------------------------
+    phase2["price_changes"] = predict_price_changes(all_market, limit=15)
+
+    # --- 2.2 transfer EV (bank-limited search over materialized horizon) -----
+    try:
+        bank_millions = float(getattr(squad, "bank", 0.0) or 0.0)
+    except (TypeError, ValueError):
+        bank_millions = 0.0
+    phase2["transfer_ev"] = {
+        "horizon_gws": horizon,
+        "bank": round(bank_millions, 1),
+        "top": get_top_transfers(squad, bank_millions, all_market, horizon_preds),
+    }
+
+    # --- element -> internal-id map + fact table for the watched players -----
+    from types import SimpleNamespace
+
+    from fpl_intelligence.models.ensemble_xpts import get_points_history
+
+    watch_ids = (
+        set(report.starting_xi)
+        | ({int(report.captain.player_id)} if report.captain else set())
+        or set(squad_ids)
+    )
+    id_map: dict[int, int] = {}
+    minutes_by_el: dict[int, float] = {}
+    if watch_ids:
+        for el, pid in db.execute(
+            select(Player.fpl_element_id, Player.id).where(
+                Player.fpl_element_id.in_(watch_ids)
+            )
+        ).all():
+            if el is not None:
+                id_map[int(el)] = int(pid)
+        for el, minutes in db.execute(
+            select(ElementFactDB.element_id, ElementFactDB.minutes).where(
+                ElementFactDB.element_id.in_(watch_ids)
+            )
+        ).all():
+            minutes_by_el[int(el)] = float(minutes or 0.0)
+
+    # --- 2.1 ensemble xPTS (with confidence interval) for the starting XI ----
+    ensemble: dict[str, Any] = {}
+    for el in sorted(watch_ids):
+        internal = id_map.get(el)
+        data = collect_player_inputs(db, internal) if internal else {}
+        data["baseline_xpts"] = xpts_all.get(el)
+        # FDR per element is not materialized yet → factor drops out honestly
+        # and weights renormalise inside the model.
+        stub = SimpleNamespace(fixture_difficulty=None)
+        ensemble[str(el)] = calculate_ensemble_xpts(stub, gameweek, data)
+
+    # --- 2.3 captain confidence (dynamic replacement for the static 70%) ----
+    captain_id = int(report.captain.player_id) if report.captain else None
+    ranked = sorted(
+        ((int(el), float(xpts_all.get(el, 0.0))) for el in report.starting_xi),
+        key=lambda t: (-t[1], t[0]),
+    )
+    top_el = (
+        captain_id
+        if captain_id is not None and any(e == captain_id for e, _ in ranked)
+        else (ranked[0][0] if ranked else None)
+    )
+    second_xpts = next((v for e, v in ranked if e != top_el), None)
+    detail: dict[str, Any] = {
+        "score": 50.0,
+        "complete": False,
+        "note": "no starting XI predictions available",
+    }
+    if top_el is not None and top_el in xpts_all:
+        internal = id_map.get(top_el)
+        hist = get_points_history(db, internal) if internal else []
+        recent5 = hist[-5:]
+        detail = captain_confidence_detail(
+            SimpleNamespace(
+                xpts=xpts_all.get(top_el),
+                fixture_difficulty=None,  # not materialized yet — drops out
+                form_avg=sum(recent5) / len(recent5) if recent5 else None,
+                season_avg=sum(hist) / len(hist) if hist else None,
+                selected_by_percent=ownership_map.get(top_el),
+            ),
+            SimpleNamespace(xpts=second_xpts),
+            gameweek,
+        )
+    detail["top_pick"] = top_el
+    phase2["captain_confidence"] = detail
+
+    # --- 2.6 injury / suspension risk over the same watchlist -----------------
+    phase2["injury_risk"] = [
+        calculate_injury_risk(
+            SimpleNamespace(
+                id=el,
+                web_name=(catalog.get(el, {}) or {}).get("web_name"),
+                minutes_played=minutes_by_el.get(el),
+            )
+        )
+        for el in sorted(watch_ids)
+    ]
+
+    phase2["ensemble_xpts"] = ensemble
+    report.meta["phase2"] = phase2
 
 
 def _build_sync_status(result: Any, entry_id: int) -> str:
