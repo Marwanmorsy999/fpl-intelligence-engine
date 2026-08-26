@@ -11,14 +11,10 @@
       "maxDuration": 60
     }
   },
-  "crons": [
+    "crons": [
     {
       "path": "/api/v1/admin/daily",
       "schedule": "10 6 * * *"
-    },
-    {
-      "path": "/api/v1/admin/detect-transfers",
-      "schedule": "0 12 * * *"
     }
   ],
   "rewrites": [

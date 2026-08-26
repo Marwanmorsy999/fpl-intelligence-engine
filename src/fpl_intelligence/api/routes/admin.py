@@ -2427,22 +2427,28 @@ async def daily_endpoint(
 
 
 # --------------------------------------------------------------------------- #
-# Fix 1.2 — Transfer auto-detection endpoint (called by 6h Vercel cron).
-# Polls /api/entry/{id}/transfers/ for all active sessions and re-imports
-# the squad when the transfer list differs from what was last stored.
+# Fix 1.2 / Phase 4.1 - Transfer auto-detection.
+#
+# Polls /api/entry/{id}/transfers/ for all active sessions and re-imports the
+# squad when the transfer list differs from what was last stored. The core loop
+# lives in detect_transfers_poll() so the HTTP endpoint below AND the GitHub
+# Actions sync job (scripts/gha_sync.py) share ONE implementation - never two
+# copies of the same logic.
 # --------------------------------------------------------------------------- #
 
+async def detect_transfers_poll(
+    db: Session,
+    settings: Any,
+    *,
+    entry_limit: int = 5,
+    max_seconds: float = 20.0,
+) -> list[dict[str, Any]]:
+    """Run the transfer-detection loop against ``db``; return per-session report.
 
-@router.get("/admin/detect-transfers")
-@router.post("/admin/detect-transfers")
-async def detect_transfers_endpoint(
-    _: None = Depends(_require_cron_auth),
-) -> dict:
-    """Poll FPL transfer history for all active sessions and re-import squads.
-
-    Runs every 6 h via Vercel Cron. When a session's current FPL transfer
-    count differs from the saved squad's free_transfers baseline, a silent
-    re-import is triggered. Maximum 5 sessions per run (25s budget).
+    Idempotent and safe under concurrency: each session is re-imported and
+    committed individually (one failure cannot abort the run), and a hard
+    ``max_seconds`` wall-clock cap bounds total runtime so a slow upstream can
+    never stall a cron or worker indefinitely.
     """
     import asyncio
     import time as _time
@@ -2452,57 +2458,68 @@ async def detect_transfers_endpoint(
     from fpl_intelligence.squad.models_db import SquadStateDB
     from fpl_intelligence.squad.service import SquadService
 
-    db = SessionLocal()
-    started = datetime.now(UTC)
-    results: list[dict] = []
-    settings = get_settings()
+    results: list[dict[str, Any]] = []
+    rows = db.execute(
+        select(SquadStateDB.session_id, SquadStateDB.updated_at)
+        .where(SquadStateDB.session_id.regexp_match(r"^\d+$"))
+        .order_by(SquadStateDB.updated_at.desc())
+        .limit(entry_limit)
+    ).all()
 
-    try:
-        rows = db.execute(
-            select(SquadStateDB.session_id, SquadStateDB.updated_at)
-            .where(SquadStateDB.session_id.regexp_match(r"^\d+$"))
-            .order_by(SquadStateDB.updated_at.desc())
-            .limit(5)
-        ).all()
+    egress = FplEgressChain(
+        settings.fpl_base_url,
+        timeout=settings.egress_strategy_timeout,
+        cache_ttl=60.0,
+    )
+    importer = FplSquadImporter(egress=egress)
 
-        egress = FplEgressChain(
-            settings.fpl_base_url,
-            timeout=settings.egress_strategy_timeout,
-            cache_ttl=60.0,
-        )
-        importer = FplSquadImporter(egress=egress)
+    for session_id, _updated_at in rows:
+        if _time.monotonic() > max_seconds:
+            break
+        entry_id_str = str(session_id).strip()
+        if not entry_id_str.isdigit():
+            continue
+        entry_id = int(entry_id_str)
+        try:
+            result = await asyncio.wait_for(
+                importer.build_squad_from_entry(entry_id, db),
+                timeout=8.0,
+            )
+            saved = SquadService(session=db).set_squad(
+                result.squad, session_id=entry_id_str
+            )
+            from fpl_intelligence.api.routes.squad import (  # noqa: PLC0415
+                _invalidate_decisions_cache,
+            )
 
-        for session_id, updated_at in rows:
-            if _time.monotonic() > 20.0:  # hard 20s cap
-                break
-            entry_id_str = str(session_id).strip()
-            if not entry_id_str.isdigit():
-                continue
-            entry_id = int(entry_id_str)
-            try:
-                result = await asyncio.wait_for(
-                    importer.build_squad_from_entry(entry_id, db),
-                    timeout=8.0,
-                )
-                saved = SquadService(session=db).set_squad(
-                    result.squad, session_id=entry_id_str
-                )
-                from fpl_intelligence.api.routes.squad import (  # noqa: PLC0415
-                    _invalidate_decisions_cache,
-                )
-
-                _invalidate_decisions_cache(entry_id_str)
-                db.commit()
-                results.append({
+            _invalidate_decisions_cache(entry_id_str)
+            db.commit()
+            results.append(
+                {
                     "session_id": entry_id_str,
                     "ok": True,
                     "gameweek": result.gameweek,
                     "players": len(saved.player_ids),
-                })
-            except Exception as exc:  # noqa: BLE001 — per-session isolation
-                db.rollback()
-                results.append({"session_id": entry_id_str, "ok": False, "error": str(exc)[:80]})
+                }
+            )
+        except Exception as exc:  # noqa: BLE001 - per-session isolation
+            db.rollback()
+            results.append(
+                {"session_id": entry_id_str, "ok": False, "error": str(exc)[:80]}
+            )
+    return results
 
+
+@router.get("/admin/detect-transfers")
+@router.post("/admin/detect-transfers")
+async def detect_transfers_endpoint(
+    _: None = Depends(_require_cron_auth),
+) -> dict:
+    """Run transfer auto-detection (GitHub Actions sync or manual trigger)."""
+    db = SessionLocal()
+    started = datetime.now(UTC)
+    try:
+        results = await detect_transfers_poll(db, get_settings())
         return JSONResponse(
             status_code=200,
             content={

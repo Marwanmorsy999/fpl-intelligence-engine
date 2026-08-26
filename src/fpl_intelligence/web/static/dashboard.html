@@ -670,6 +670,7 @@ async function syncNow() {
     // Fallback: still restore
     restoreBtn();
   } catch (e) {
+    window.reportError && window.reportError(e, "league-refresh");
     showError(e.message);
     if (banner) { banner.style.display = "none"; }
     if (stickyWrap) { stickyWrap.style.display = "none"; }
@@ -1324,6 +1325,7 @@ function loadNewsRadar() {
       }
     })
     .catch(function (err) {
+      window.reportError && window.reportError(err, "news-radar");
       renderNewsRadarError(err && err.message ? err.message : "News Radar failed to load.");
     });
 }

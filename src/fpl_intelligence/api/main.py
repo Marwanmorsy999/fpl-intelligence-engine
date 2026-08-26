@@ -1,5 +1,7 @@
 from typing import Any
 
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
@@ -29,11 +31,22 @@ from fpl_intelligence.api.routes.sync import router as sync_router
 from fpl_intelligence.api.routes.targets import router as targets_router
 from fpl_intelligence.api.routes.telegram import router as telegram_router
 from fpl_intelligence.api.routes.transfers import router as transfers_router
+from fpl_intelligence.api.cache import EdgeCachePolicyMiddleware
 from fpl_intelligence.common.logging import silence_credential_leaking_loggers
 from fpl_intelligence.config import get_settings
 from fpl_intelligence.web.dashboard import router as dashboard_router
 
 settings = get_settings()
+
+# Phase 4.4 — Sentry error tracking (free 5k errors/mo). Boot is guarded so the
+# app runs perfectly when SENTRY_DSN is absent; the SDK only activates when a
+# DSN is configured. traces_sample_rate=0.1 keeps volume well inside the free
+# tier's monthly allowance.
+_sentry_dsn = os.environ.get("SENTRY_DSN", "").strip()
+if _sentry_dsn:
+    import sentry_sdk  # noqa: PLC0415 - optional dependency, imported lazily
+
+    sentry_sdk.init(dsn=_sentry_dsn, traces_sample_rate=0.1)
 
 # Phase 15.0 — fail fast when a production deployment would serve the hardcoded
 # StaticPredictionProvider stub (fake 5.5 xPTS for every player). This is the
@@ -67,6 +80,12 @@ if _cors_origins:
         allow_headers=["*"],
     )
 
+# Phase 4.3 — central edge-Cache-Control contract (Cloudflare honours these on
+# the free plan; no paid rules required). Registered outermost so every readable
+# API response picks up its policy. Session/personal endpoints are labelled
+# "private, no-store" and are never cached at the edge.
+app.add_middleware(EdgeCachePolicyMiddleware)
+
 app.include_router(intelligence_router, prefix="/api/v1")
 app.include_router(players_router, prefix="/api/v1")
 app.include_router(squad_router, prefix="/api/v1")
@@ -79,6 +98,10 @@ app.include_router(sync_router, prefix="/api/v1")
 app.include_router(crests_router, prefix="/api/v1")
 app.include_router(fixtures_router, prefix="/api/v1")
 app.include_router(news_router, prefix="/api/v1")
+# STEP 0 / Phase 4.3 — also serve the news endpoints at their documented bare
+# paths (/news/bbc-rss, /news/radar) alongside the /api/v1-prefixed ones. The
+# news router is intentionally mounted twice so both URLs validate.
+app.include_router(news_router)
 app.include_router(drawer_router, prefix="/api/v1")
 app.include_router(assistant_router, prefix="/api/v1")
 app.include_router(live_router, prefix="/api/v1")
@@ -134,6 +157,14 @@ def _never_500_handler_factory() -> Any:
     async def handler(request: Any, exc: Exception) -> Any:
         path = request.url.path
         diag = f"{type(exc).__name__}: {exc}"
+        # Phase 4.4 — report the unhandled exception to Sentry when configured.
+        if _sentry_dsn:
+            try:
+                import sentry_sdk  # noqa: PLC0415,PLC2701
+
+                sentry_sdk.capture_exception(exc)
+            except Exception:  # noqa: BLE001 — Sentry must never break the API
+                pass
         if path.startswith("/api/v1/league"):
             return JSONResponse(
                 status_code=200,
