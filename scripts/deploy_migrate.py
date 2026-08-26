@@ -49,10 +49,70 @@ def main() -> int:
         print("deploy_migrate: alembic upgrade head")
         command.upgrade(cfg, "head")
     except Exception as exc:  # noqa: BLE001 — deploy must stop on failure
-        print(f"deploy_migrate FAILED: {type(exc).__name__}: {exc}", file=sys.stderr)
-        return 2
+        msg = f"{type(exc).__name__}: {exc}"
+        # Prod drift pattern: the schema is AHEAD of alembic_version (tables
+        # created by create_all or manual DDL). "already exists"-class
+        # failures mean exactly that. Repair = (1) create every model table
+        # still missing (idempotent; this is what heals e.g. 0021), then
+        # (2) align the version bookkeeping with reality.
+        if "already exists" in str(exc) or "DuplicateTable" in msg or "DuplicateColumn" in msg:
+            print(
+                "deploy_migrate: schema ahead of alembic_version "
+                f"({msg.splitlines()[0][:160]}) — healing drift"
+            )
+            try:
+                _create_missing_tables(url)
+                command.stamp(cfg, "head")
+            except Exception as exc2:  # noqa: BLE001
+                print(f"deploy_migrate heal FAILED: {exc2}", file=sys.stderr)
+                return 2
+            print("deploy_migrate: drift healed, stamped to head")
+        else:
+            print(f"deploy_migrate FAILED: {msg}", file=sys.stderr)
+            return 2
     print("deploy_migrate: OK")
     return 0
+
+
+def _create_missing_tables(url: str) -> None:
+    """Idempotently create any model tables missing from the database."""
+    sys.path.insert(0, str(_REPO_ROOT / "src"))
+
+    from sqlalchemy import create_engine, inspect
+
+    # Register EVERY ORM table on the shared metadata (mirrors
+    # migrations/env.py plus the runtime-created league/transfer/price/push
+    # models so a drift heal never skips a table the app expects).
+    from fpl_intelligence.availability import models as _availability_models  # noqa: F401,PLC0415
+    from fpl_intelligence.db.base import Base  # noqa: PLC0415
+    from fpl_intelligence.leagues import models as _league_models  # noqa: F401,PLC0415
+    from fpl_intelligence.live_intelligence import models as _live_models  # noqa: F401,PLC0415
+    from fpl_intelligence.notifications.webpush import (  # noqa: F401,PLC0415
+        NotificationLogDB as _NotificationLogDB,
+    )
+    from fpl_intelligence.prices.models import (  # noqa: F401,PLC0415
+        PriceMoveDB as _PriceMoveDB,
+    )
+    from fpl_intelligence.squad import models_db as _squad_models  # noqa: F401,PLC0415
+    from fpl_intelligence.sync import materialized_models as _materialized  # noqa: F401,PLC0415
+    from fpl_intelligence.sync import models as _sync_models  # noqa: F401,PLC0415
+    from fpl_intelligence.transfers import models as _transfer_models  # noqa: F401,PLC0415
+
+    engine = create_engine(url)
+    try:
+        insp = inspect(engine)
+        existing = set(insp.get_table_names())
+        missing = [
+            t for t in Base.metadata.sorted_tables if t.name not in existing
+        ]
+        if missing:
+            names = ", ".join(t.name for t in missing)
+            print(f"deploy_migrate: creating missing tables: {names}")
+            Base.metadata.create_all(engine, tables=missing)
+        else:
+            print("deploy_migrate: no missing model tables")
+    finally:
+        engine.dispose()
 
 
 if __name__ == "__main__":
