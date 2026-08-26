@@ -5,12 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FPL Intelligence — Decisions</title>
 <link rel="icon" href="data:,">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#0f172a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="/static/tokens.css">
+<link rel="stylesheet" href="/static/components.css">
 <link rel="stylesheet" href="/static/app.css">
-<!-- Phase 20.0 — shared chrome + persistent session module -->
+<!-- Phase 3.1/3.3/3.4 — bounded timeouts, IndexedDB caching, first-visit tour -->
+<script src="/static/lib/fetch-with-timeout.js"></script>
+<script src="/static/lib/idb-cache.js"></script>
+<script src="/static/lib/onboarding.js"></script>
 <script src="/static/app.js"></script>
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #0a1120; }
@@ -77,8 +84,56 @@
   .budget-ok { background: #22c55e; }
   .budget-warn { background: #f59e0b; }
   .budget-over { background: #ef4444; }
+  /* Phase 22 (D4) what-if toggle on starter cards */
+  .sim-toggle { position: absolute; bottom: -9px; left: 50%; transform: translateX(-50%); z-index: 3;
+    border: 1px solid #334155; background: #0b1526; color: #94a3b8; font-size: 0.58rem; font-weight: 800;
+    padding: 1px 7px; border-radius: 999px; cursor: pointer; line-height: 1.5; }
+  .sim-toggle:hover { color: #e2e8f0; border-color: #64748b; }
+  .sim-toggle.out { background: #450a0a; border-color: #b91c1c; color: #f87171; }
   @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
   .anim-in { animation: fadeUp .35s ease both; }
+  /* Phase 25 Gate 1 (U4) — accessibility floors: contrast-safe slate tones,
+     underlined in-paragraph links, drawer heading at the right level. */
+  .text-slate-500, .text-slate-400 { color: #8b95a7 !important; }
+  .text-slate-600 { color: #7d879b !important; }
+  footer a, p a, td a, li a { text-decoration: underline; }
+  .drawer h2 { margin: 0 0 2px; font-size: 20px; color: #fff; }
+  .manual-form-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:0.7rem; }
+  .hidden { display:none !important; }
+  /* v2.6.1 — Decisions grid: outer wrap + inner #results grid, no horizontal scroll */
+  html, body { overflow-x: hidden; }
+  .wrap--decisions { box-sizing: border-box; max-width: 1080px; }
+  @media (min-width: 768px) {
+    .wrap--decisions > header,
+    .wrap--decisions > #inputSection,
+    .wrap--decisions > #manualEntry,
+    .wrap--decisions > #results { grid-column: 1 / -1; }
+    #results:not(.hidden) {
+      display: grid;
+      grid-template-columns: 60% 1fr;
+      gap: var(--space-6, 24px);
+      align-items: start;
+    }
+    #results:not(.hidden) #demoBanner,
+    #results:not(.hidden) #teamName,
+    #results:not(.hidden) #chipSlot,
+    #results:not(.hidden) > .flex,
+    #results:not(.hidden) #chainBanner,
+    #results:not(.hidden) #summaryBar { grid-column: 1 / -1; }
+    #results:not(.hidden) .decisions-main { grid-column: 1; min-width: 0; }
+    #results:not(.hidden) .decisions-rail { grid-column: 2; min-width: 0; display: flex; flex-direction: column; gap: var(--space-6, 24px); }
+    #results:not(.hidden) .decisions-bottom { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6, 24px); }
+  }
+  @media (min-width: 768px) and (max-width: 1199px) {
+    #results:not(.hidden) { grid-template-columns: 1fr 1fr; }
+    #results:not(.hidden) .decisions-bottom { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 767px) {
+    #results:not(.hidden) { display: block; }
+    #results:not(.hidden) .decisions-bottom { display: block; }
+    .pitch, .decisions-main, .decisions-rail, .decisions-bottom { min-width: 0; max-width: 100%; }
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  }
 </style>
 </head>
 <body class="text-slate-200 min-h-screen antialiased">
@@ -87,8 +142,29 @@
      The server-rendered markup below is replaced by FPLApp.renderNav at boot,
      which also mounts the persistent session chip. -->
 <div id="topnav"></div>
+<!-- v2.7.3-dual-state — Refresh League Data ribbon: ALWAYS visible; demo/no-session -> disabled + hint -->
+<div id="syncRibbon" class="sync-ribbon" data-testid="sync-ribbon">
+  <div class="sync-ribbon__inner">
+    <button id="syncNowBtn" class="btn-primary" type="button" data-testid="sync-now-btn">↻ Refresh League Data</button>
+    <span id="syncHint" data-testid="sync-ribbon-hint" class="small hidden">Analyze your team to enable Refresh League Data</span>
+    <span class="faint small ml-auto">Refresh pulls rival standings & picks via masks — your local squad is never overwritten</span>
+  </div>
+  <div id="syncBannerSticky" class="hidden" role="status" aria-live="polite" data-testid="sync-banner-sticky">
+    <div id="syncBannerStickyInner" class="banner banner--success"></div>
+  </div>
+</div>
 
-<div class="max-w-4xl mx-auto px-4 py-8">
+  <!-- v2.5.7 — "What FPL sees" debug card (collapsible) -->
+  <details id="fplViewCard" class="fg-card rounded-2xl p-4 shadow-xl mb-8 anim-in hidden">
+    <summary class="cursor-pointer select-none flex items-center gap-3 text-sm font-semibold text-sky-400">
+      <span>🔍</span>
+      <span>What FPL sees</span>
+      <span class="ml-auto text-slate-500">Click to expand</span>
+    </summary>
+    <div id="fplViewContent" class="mt-4 space-y-3 text-sm text-slate-300 font-mono hidden"></div>
+  </details>
+
+  <div class="wrap wrap--decisions">
 
   <!-- ======= Header ======= -->
   <header class="flex flex-wrap items-center gap-3 mb-8 anim-in">
@@ -99,9 +175,9 @@
     </div>
     <span class="text-xs font-bold px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-600 text-slate-300">Season 2026/27</span>
     <span id="healthPill" class="pill">● Checking…</span>
-    <span id="sourceChip" class="pill source" style="display:none"></span>
-    <span id="demoChip" class="pill demo" style="display:none">DEMO</span>
-    <button id="startOverBtn" class="btn-ghost" style="display:none" type="button">Start Over</button>
+    <span id="sourceChip" class="pill source hidden"></span>
+    <span id="demoChip" class="pill demo hidden">DEMO</span>
+    <button id="startOverBtn" class="btn-ghost hidden" type="button">Start Over</button>
   </header>
 
   <!-- ======= Input ======= -->
@@ -114,39 +190,40 @@
     </div>
     <div class="flex flex-wrap items-center gap-3 mt-4">
       <button id="toggleManualBtn" class="btn-ghost" type="button">Enter Squad Manually</button>
-      <button id="retrySyncBtn" class="btn-ghost" type="button" style="display:none; border-color:#38bdf8; color:#bae6fd;">🔄 Try Again</button>
+      <button id="retrySyncBtn" class="btn-ghost hidden" type="button">🔄 Try Again</button>
       <details class="ml-auto text-slate-500 text-sm">
         <summary class="cursor-pointer select-none">Developer Tools</summary>
         <button id="demoBtn" class="btn-ghost mt-2" type="button">Try a Demo Team</button>
       </details>
     </div>
-    <div id="status" class="mt-4 text-sky-300 text-sm font-semibold" role="status" aria-live="polite" style="display:none"></div>
-    <div id="error" class="mt-4 bg-red-950/70 border border-red-700 text-red-200 rounded-xl px-4 py-3 text-sm font-semibold" role="alert" aria-live="assertive" style="display:none"></div>
+    <div id="syncBanner" class="mt-3 hidden rounded-xl border border-emerald-700 bg-emerald-950/40 px-4 py-2 text-sm font-semibold text-emerald-200" role="status" aria-live="polite" data-testid="sync-banner"></div>
+    <div id="status" class="mt-4 text-sky-300 text-sm font-semibold hidden" role="status" aria-live="polite"></div>
+    <div id="error" class="mt-4 bg-red-950/70 border border-red-700 text-red-200 rounded-xl px-4 py-3 text-sm font-semibold hidden" role="alert" aria-live="assertive"></div>
   </section>
 
   <!-- ======= Manual Squad Entry ======= -->
-  <section id="manualEntry" class="fg-card rounded-2xl p-6 shadow-xl mb-8" style="display:none">
+  <section id="manualEntry" class="fg-card rounded-2xl p-6 shadow-xl mb-8 hidden">
     <h2 class="text-lg font-bold text-sky-400 mb-1">Manual Squad Entry</h2>
     <p class="text-slate-400 text-sm mb-4">Pick 2 GK · 5 DEF · 5 MID · 3 FWD, then choose your captain and vice.</p>
     <div id="pickCounter" class="mb-3 text-sm font-semibold"></div>
     <div id="budgetTracker" class="mb-4">
       <div class="flex justify-between text-xs text-slate-400 mb-1"><span>Total spend</span><span id="budgetText">£0.0m / £100.0m</span></div>
-      <div class="budget-bar"><div id="budgetFill" class="budget-fill budget-ok" style="width:0%"></div></div>
+      <div class="budget-bar"><div id="budgetFill" class="budget-fill budget-ok"></div></div>
     </div>
-    <div id="manualForm" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:0.7rem;"></div>
+    <div id="manualForm" class="manual-form-grid"></div>
     <div class="flex flex-wrap gap-4 mt-4">
       <div class="flex-1 min-w-[180px]">
         <label class="text-xs text-slate-400 block mb-1 font-semibold">Captain</label>
         <div class="autocomplete-wrap" id="capWrap">
           <input id="manualCap" type="text" class="input-dark" placeholder="Type to search your 15 players…" autocomplete="off" />
-          <div id="capList" class="autocomplete-list" style="display:none"></div>
+          <div id="capList" class="autocomplete-list hidden"></div>
         </div>
       </div>
       <div class="flex-1 min-w-[180px]">
         <label class="text-xs text-slate-400 block mb-1 font-semibold">Vice-Captain</label>
         <div class="autocomplete-wrap" id="viceWrap">
           <input id="manualVice" type="text" class="input-dark" placeholder="Type to search your 15 players…" autocomplete="off" />
-          <div id="viceList" class="autocomplete-list" style="display:none"></div>
+          <div id="viceList" class="autocomplete-list hidden"></div>
         </div>
       </div>
     </div>
@@ -154,10 +231,18 @@
   </section>
 
   <!-- ======= Results ======= -->
-  <section id="results" aria-live="polite" style="display:none">
-    <div id="demoBanner" class="mb-4 bg-amber-950/70 border border-amber-600 text-amber-200 rounded-xl px-4 py-3 text-sm font-semibold" style="display:none">⚠️ You are viewing a DEMO squad, not your real team.</div>
+  <section id="results" aria-live="polite" class="hidden">
+    <div id="demoBanner" class="mb-4 bg-amber-950/70 border border-amber-600 text-amber-200 rounded-xl px-4 py-3 text-sm font-semibold hidden">⚠️ You are viewing a DEMO squad, not your real team.</div>
     <p id="teamName" class="text-slate-400 text-sm mb-4 font-semibold"></p>
     <div id="chipSlot" class="mb-6"></div>
+
+    <!-- Phase 24 M2 — share / export toolbar -->
+    <div class="flex flex-wrap gap-2 mb-4">
+      <button id="shareBtn" class="btn-ghost" type="button" data-testid="share-btn">🔗 Share</button>
+      <button id="exportSquadBtn" class="btn-ghost" type="button" data-testid="export-squad-btn">⬇ Squad CSV</button>
+      <button id="exportBriefBtn" class="btn-ghost" type="button" data-testid="export-brief-btn">⬇ Brief .txt</button>
+      <span id="shareStatus" class="faint small self-center"></span>
+    </div>
 
     <!-- Chain provenance banner: honest disclosure of the prediction source -->
     <div id="chainBanner" class="mb-6"></div>
@@ -165,46 +250,69 @@
     <!-- Squad Summary Bar -->
     <div id="summaryBar" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8"></div>
 
-    <!-- Pitch View -->
-    <h2 class="text-lg font-bold text-sky-400 mb-1">Recommended Starting 11</h2>
-    <p class="text-xs text-slate-500 mb-3">C = Captain (2× points) · VC = Vice-Captain · Hover any card for details</p>
-    <div id="pitch" class="pitch px-3 py-4 mb-8">
-      <div class="pitch-mid"></div>
-      <div class="pitch-circle"></div>
-      <div id="pitchRows" class="relative"></div>
+    <div class="decisions-main">
+      <!-- Pitch View -->
+      <h2 class="text-lg font-bold text-sky-400 mb-1">Recommended Starting 11</h2>
+      <p class="text-xs text-slate-500 mb-3">C = Captain (2× points) · VC = Vice-Captain · Hover any card for details</p>
+      <div id="pitch" class="pitch px-3 py-4 mb-8">
+        <div class="pitch-mid"></div>
+        <div class="pitch-circle"></div>
+        <div id="pitchRows" class="relative"></div>
+      </div>
+
+      <!-- Bench Strip -->
+      <h2 class="text-lg font-bold text-sky-400 mb-3">Bench <span class="text-slate-500 text-sm font-medium">(auto-sub order)</span></h2>
+      <div id="benchStrip" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6"></div>
+
+      <!-- Phase 22 (D4) what-if simulator -->
+      <div id="simulatorBar" class="fg-card rounded-2xl p-4 shadow-xl mb-8 hidden"></div>
+
+      <!-- Phase 22 (D1) differential picks -->
+      <h2 class="text-lg font-bold text-sky-400 mb-3">Differential Picks <span class="text-slate-500 text-sm font-medium">(high xPTS, low ownership)</span></h2>
+      <div id="differentialStrip" class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8"><p class="text-slate-500 text-sm">Loading…</p></div>
+
+      <!-- Phase 23 (L3) price moves strip -->
+      <h2 class="text-lg font-bold text-sky-400 mb-3">Today's Risers / Fallers</h2>
+      <div id="priceStrip" class="fg-card rounded-2xl p-4 shadow-xl mb-8"><p class="text-slate-500 text-sm">Loading…</p></div>
+
+      <!-- Transfers -->
+      <h2 class="text-lg font-bold text-sky-400 mb-3">Transfer Recommendations</h2>
+      <div id="transferBox" class="fg-card rounded-2xl p-5 shadow-xl mb-6"></div>
+
+      <!-- Data Sources -->
+      <h2 class="text-lg font-bold text-sky-400 mb-3">Data Sources</h2>
+      <div id="dataSourcesBox" class="fg-card rounded-2xl p-5 shadow-xl mb-8"></div>
     </div>
 
-    <!-- Bench Strip -->
-    <h2 class="text-lg font-bold text-sky-400 mb-3">Bench <span class="text-slate-500 text-sm font-medium">(auto-sub order)</span></h2>
-    <div id="benchStrip" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8"></div>
+    <div class="decisions-rail">
+      <!-- Captain Spotlight -->
+      <h2 class="text-lg font-bold text-sky-400 mb-3">Captain Spotlight</h2>
+      <div id="captainHero" class="fg-card rounded-2xl p-5 shadow-xl mb-6"></div>
+      <!-- Phase 22 (D3) armband comparison cards + vice EV line -->
+      <div id="captainCompare" class="mb-8"></div>
 
-    <!-- Captain Spotlight -->
-    <h2 class="text-lg font-bold text-sky-400 mb-3">Captain Spotlight</h2>
-    <div id="captainHero" class="fg-card rounded-2xl p-5 shadow-xl mb-8"></div>
+      <!-- Phase 22 (D2) transfer watchlist (even when the verdict is roll) -->
+      <div id="watchlistBox" class="fg-card rounded-2xl p-5 shadow-xl mb-8 hidden"></div>
+    </div>
 
-    <!-- Transfers -->
-    <h2 class="text-lg font-bold text-sky-400 mb-3">Transfer Recommendations</h2>
-    <div id="transferBox" class="fg-card rounded-2xl p-5 shadow-xl mb-8"></div>
-
-    <!-- AI Analyst -->
-    <h2 class="text-lg font-bold text-sky-400 mb-3">AI Analyst</h2>
-    <div id="analystBox" class="fg-card rounded-2xl p-5 shadow-xl mb-8"></div>
-
-    <!-- Phase 20.0 — BBC News Radar flags -->
-    <h2 class="text-lg font-bold text-sky-400 mb-3">News Radar <span class="text-slate-500 text-sm font-medium">(BBC Sport)</span></h2>
-    <div id="newsRadarBox" class="fg-card rounded-2xl p-5 shadow-xl mb-8"><p class="text-slate-500 text-sm">Checking headlines…</p></div>
-
-    <!-- Data Sources -->
-    <h2 class="text-lg font-bold text-sky-400 mb-3">Data Sources</h2>
-    <div id="dataSourcesBox" class="fg-card rounded-2xl p-5 shadow-xl mb-8"></div>
+    <div class="decisions-bottom">
+      <section>
+        <h2 class="text-lg font-bold text-sky-400 mb-3">AI Analyst</h2>
+        <div id="analystBox" class="fg-card rounded-2xl p-5 shadow-xl mb-8"></div>
+      </section>
+      <section>
+        <h2 class="text-lg font-bold text-sky-400 mb-3">News Radar <span class="text-slate-500 text-sm font-medium">(BBC Sport)</span></h2>
+        <div id="newsRadarBox" class="fg-card rounded-2xl p-5 shadow-xl mb-8"><p class="text-slate-500 text-sm">Checking headlines…</p></div>
+      </section>
+    </div>
   </section>
 
   <!-- ======= Phase 20.0 player drawer (deep analysis) ======= -->
   <div id="drawerBackdrop" class="drawer-backdrop" onclick="closeDrawer()"></div>
   <aside id="drawer" class="drawer" aria-label="Player deep analysis">
     <button class="drawer-close" onclick="closeDrawer()" type="button" aria-label="Close">×</button>
-    <h3 id="drawerTitle">Player</h3>
-    <p class="faint small" style="margin:0 0 10px">Deep analysis · click any card on the pitch to open</p>
+    <h2 id="drawerTitle">Player</h2>
+    <p class="faint small mb-2.5">Deep analysis · click any card on the pitch to open</p>
     <div id="drawerBody"></div>
   </aside>
 
@@ -306,11 +414,33 @@ function updateSourceChip() {
   var chip = $("sourceChip");
   var demoChip = $("demoChip");
   var startOver = $("startOverBtn");
-  if (CURRENT_SESSION_ID && CURRENT_SOURCE) {
+  var syncNow = $("syncNowBtn");
+  var ribbon = $("syncRibbon");
+  var hint = $("syncHint");
+  var tgl = $("syncNextGwToggle");
+  var hasSession = !!(CURRENT_SESSION_ID && CURRENT_SOURCE);
+  var isDemo = CURRENT_SOURCE === "demo";
+  var shouldEnable = hasSession && !isDemo;
+  // v2.5.5 — ribbon ALWAYS visible
+  if (ribbon) ribbon.style.display = "block";
+  if (syncNow) {
+    syncNow.style.display = "inline-block";
+    syncNow.disabled = !shouldEnable;
+    if (!shouldEnable) {
+      syncNow.setAttribute("aria-disabled", "true");
+      syncNow.title = "Analyze your team to enable Refresh League Data";
+    } else {
+      syncNow.removeAttribute("aria-disabled");
+      syncNow.title = "";
+    }
+  }
+  if (hint) hint.style.display = shouldEnable ? "none" : "inline";
+  if (tgl) tgl.disabled = !shouldEnable;
+  if (hasSession) {
     chip.style.display = "inline-flex";
     chip.textContent = CURRENT_SOURCE_LABEL;
     startOver.style.display = "inline-block";
-    if (CURRENT_SOURCE === "demo") {
+    if (isDemo) {
       demoChip.style.display = "inline-flex";
     } else {
       demoChip.style.display = "none";
@@ -334,6 +464,10 @@ function startOver() {
   $("teamId").value = "";
   $("demoBanner").style.display = "none";
   $("demoChip").style.display = "none";
+  var sb = $("syncBanner"); if (sb) { sb.style.display = "none"; sb.textContent = ""; }
+  var sbs = $("syncBannerSticky"); if (sbs) { sbs.style.display = "none"; }
+  var sbsi = $("syncBannerStickyInner"); if (sbsi) { sbsi.textContent = ""; }
+  var tgl = $("syncNextGwToggle"); if (tgl) { tgl.checked = false; }
   updateSourceChip();
   /* Start Over is the only clear path back to the entry screen. */
   $("inputSection").style.display = "block";
@@ -350,9 +484,16 @@ async function checkHealth() {
 
 async function loadPlayers() {
   if (ALL_PLAYERS.length) { return; }
-  var res = await fetch(API + "/api/v1/players");
-  if (!res.ok) { throw new Error("Player list unavailable (" + res.status + ")"); }
-  ALL_PLAYERS = await res.json();
+  /* Phase 3.3 — 24h IndexedDB cache for the heavy player list. If IndexedDB
+     is unavailable or the cache is cold we fall back to a bounded network call
+     (FPLCache never lets a storage failure crash the page). */
+  var cached = await FPLCache.getCachedPredictions("players:v1", function () {
+    return FPLHttp.fetchWithTimeout(API + "/api/v1/players", {}, 7000).then(function (res) {
+      if (!res.ok) { throw new Error("Player list unavailable (" + res.status + ")"); }
+      return res.json();
+    });
+  });
+  ALL_PLAYERS = Array.isArray(cached) ? cached : [];
   PLAYER_NAMES = Object.fromEntries(ALL_PLAYERS.map(function (p) { return [p.id, p.web_name]; }));
 }
 
@@ -401,7 +542,7 @@ async function analyze() {
         + "<div>Last attempt: " + esc(nowStr) + "</div>"
         + "<div>Egress: <span class='text-red-400'>blocked</span> — direct + allorigins + corsproxy"
         + ($("teamId").value ? " + your proxy" : "") + " all failed</div>"
-        + "<div>Next retry: daily 06:30 UTC · we will Telegram you on success.</div>"
+        + "<div>Next retry: daily 06:10 cron · we will Telegram you on success.</div>"
         + "</div>"
         + '<div class="mt-2 text-xs text-slate-400">Meanwhile: press 🔄 Try Again above, or '
         + '<button id="manualCta" class="underline text-sky-400 font-semibold" type="button">Enter Squad Manually</button>.</div>';
@@ -435,6 +576,7 @@ async function analyze() {
     $("teamName").textContent = (data.entry_name ? data.entry_name + " · " : "") + "Gameweek " + data.gameweek;
     $("status").innerHTML = "Squad imported — running the numbers…" + syncNote;
     await renderFromApi();
+    await loadFplView();
   } catch (e) {
     showError(e.message);
     $("status").style.display = "none";
@@ -472,11 +614,66 @@ async function retrySync() {
     $("teamName").textContent = (data.entry_name ? data.entry_name + " · " : "") + "Gameweek " + data.gameweek;
     setStatus("Synced — running the numbers…");
     await renderFromApi();
+    await loadFplView();
   } catch (e) {
     showError(e.message);
     $("status").style.display = "none";
   } finally {
     btn.disabled = false;
+  }
+}
+
+/* v2.5.6 — Dashboard Sync now (async job: 202 + poll, never dies, 25s cap, warm retry) */
+async function syncNow() {
+  // v2.7.3-dual-state: Refresh League Data — only pulls rival standings/picks via masks, never overwrites local_squad.
+  var btn = $("syncNowBtn");
+  var banner = $("syncBanner");
+  var stickyWrap = $("syncBannerSticky");
+  var stickyInner = $("syncBannerStickyInner");
+  if (!CURRENT_SESSION_ID || CURRENT_SOURCE === "demo") { showError("Analyze your team to enable Refresh League Data"); return; }
+  hideMessages();
+  if (banner) { banner.style.display = "none"; banner.textContent = ""; }
+  if (stickyWrap) { stickyWrap.style.display = "none"; }
+  if (stickyInner) { stickyInner.textContent = ""; }
+  btn.disabled = true;
+  var origText = btn.textContent;
+  btn.textContent = "Refreshing\u2026";
+  var shouldEnableFinally = !!(CURRENT_SESSION_ID && CURRENT_SOURCE !== "demo");
+  function restoreBtn() {
+    btn.disabled = !shouldEnableFinally;
+    btn.textContent = origText;
+    var h = $("syncHint"); if (h) h.style.display = shouldEnableFinally ? "none" : "inline";
+    var tg = $("syncNextGwToggle"); if (tg) tg.disabled = !shouldEnableFinally;
+  }
+  try {
+    var url = API + "/api/v1/league/refresh";
+    var res = await fetch(url, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({session_id: CURRENT_SESSION_ID}) });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok && res.status !== 202) {
+      throw new Error(data.detail || data.note || ("Refresh failed (" + res.status + ")"));
+    }
+    if (data && (data.status === "ok" || data.status === "refreshing")) {
+      var bannerText = data.status === "ok"
+        ? ("League refreshed ✓ — " + (data.league_name || "standings") + " standings updated. Trajectory & Alpha now reflect rival data.")
+        : (data.note || "Refreshing… reload in a moment.");
+      if (banner) { banner.textContent = bannerText; banner.style.display = "block"; }
+      if (stickyWrap && stickyInner) { stickyInner.textContent = bannerText; stickyWrap.style.display = "block"; }
+      setStatus(bannerText);
+      // No squad overwrite — just confirm local squad still drives math; optionally refresh fpl view for display
+      await loadFplView();
+      restoreBtn();
+      return;
+    }
+    if (data && data.status === "error") {
+      throw new Error(data.note || "Refresh failed");
+    }
+    // Fallback: still restore
+    restoreBtn();
+  } catch (e) {
+    showError(e.message);
+    if (banner) { banner.style.display = "none"; }
+    if (stickyWrap) { stickyWrap.style.display = "none"; }
+    restoreBtn();
   }
 }
 
@@ -487,7 +684,7 @@ async function renderFromApi() {
     return;
   }
   var url = API + "/api/v1/decisions?session_id=" + encodeURIComponent(CURRENT_SESSION_ID);
-  var res = await fetch(url);
+  var res = await fetch(url, {cache: 'no-store'});
   if (!res.ok) {
     var body = await res.json().catch(function () { return {}; });
     /* On 404 with no squad, clear the stale session and show empty state. */
@@ -500,13 +697,69 @@ async function renderFromApi() {
   }
   var report = await res.json();
   renderReport(report);
+  loadAlphaChips().then(function () {
+    /* Re-render chips once Alpha values arrive (no-op when unavailable). */
+    if (LAST_REPORT) { renderReport(LAST_REPORT); }
+  });
   $("results").style.display = "block";
+}
+
+/* v2.5.7 — Load and render "What FPL sees" debug card */
+async function loadFplView() {
+  if (!CURRENT_SESSION_ID) return;
+  var card = $("fplViewCard");
+  var content = $("fplViewContent");
+  if (!card || !content) return;
+  try {
+    var res = await fetch(API + "/api/v1/squad/fpl-view?session_id=" + encodeURIComponent(CURRENT_SESSION_ID), {cache: 'no-store'});
+    if (!res.ok) {
+      card.style.display = "none";
+      return;
+    }
+    var data = await res.json();
+    card.style.display = "block";
+
+    // Format picks_current
+    var pc = data.picks_current;
+    var pn = data.picks_next;
+    var currentIdsStr = pc.ids.length ? pc.ids.join(", ") : "(empty)";
+    var nextIdsStr = (pn.status === 200 && pn.ids.length) ? pn.ids.join(", ") : (pn.status === 404 ? "NOT FOUND (404)" : "ERROR (" + pn.status + ")");
+    var histLine = data.fpl_history && data.fpl_history.note
+      ? '<div><span class="text-amber-400">FPL history:</span> ' + esc(data.fpl_history.note) + '</div>'
+      : "";
+
+    content.innerHTML =
+      '<div><span class="text-sky-400">FPL current GW:</span> ' + data.current_event + '</div>' +
+      '<div><span class="text-sky-400">GW' + pc.gw + ' lineup:</span> ' + currentIdsStr + '</div>' +
+      '<div><span class="text-sky-400">GW' + pn.gw + ' lineup:</span> ' + nextIdsStr + '</div>' +
+      histLine +
+      '<div class="text-slate-500 text-xs mt-2">Entry: ' + esc(data.entry_summary.name || '—') + ' · last_deadline_bank: ' + (data.entry_summary.last_deadline_bank_tenths ? '£' + (data.entry_summary.last_deadline_bank_tenths/10).toFixed(1) + 'm' : '—') + ' · last_deadline_transfers: ' + (data.entry_summary.last_deadline_total_transfers ?? '—') + '</div>';
+  } catch (e) {
+    card.style.display = "none";
+  }
 }
 
 /* ---------- Rendering: player cards, pitch, bench ---------- */
 var FIXTURE_RUNS = {};   /* pid -> next-5 runs (from /fixtures/scan) */
 var NEWS_FLAGS = {};     /* pid -> {headline,time,url} (from /news/radar) */
 var LAST_REPORT = null;
+/* Phase 25 Gate 1 (U2): Alpha chip per squad player, best-effort from
+   /api/v1/targets — absent values simply render no chip. */
+var ALPHA_BY_PID = {};
+
+function loadAlphaChips() {
+  if (!CURRENT_SESSION_ID) return Promise.resolve();
+  return FPLHttp.fetchWithTimeout(API + "/api/v1/targets?session_id=" + encodeURIComponent(CURRENT_SESSION_ID), {}, 7000)
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .catch(function () { return null; })
+    .then(function (data) {
+      if (!data || !data.targets) return;
+      ALPHA_BY_PID = {};
+      data.targets.forEach(function (t) {
+        if (t.user_owns && t.alpha != null) { ALPHA_BY_PID[t.player_id] = t.alpha; }
+      });
+    });
+}
 
 function newsFlagHTML(pid) {
   var f = NEWS_FLAGS[pid];
@@ -540,6 +793,11 @@ function playerCard(pid, report) {
       return r.opponent + (r.is_home ? "(H)" : "(A)") + r.difficulty;
     }).join(" ");
   }
+  /* Phase 22 (D1): ownership disclosure moves into the tooltip + drawer
+     (Phase 25 U2 progressive disclosure: card = name/team/price/xPTS/Alpha). */
+  if (p.ownership != null) {
+    tip += " · " + Number(p.ownership).toFixed(1) + "% owned";
+  }
   /* xG/xA lines ONLY for Understat-matched players (never fabricated). */
   var xaStr = (p.xg != null && p.xa != null)
     ? '<div class="price-tag">xG ' + Number(p.xg).toFixed(2) + ' · xA ' + Number(p.xa).toFixed(2) + "</div>"
@@ -555,6 +813,20 @@ function playerCard(pid, report) {
     if (bb.weather_term && bb.weather_term !== 0) { parts.push("weather " + Number(bb.weather_term).toFixed(2)); }
     if (parts.length) { bdStr = '<div class="price-tag" style="color:#7dd3fc">' + parts.join(" · ") + "</div>"; }
   }
+  /* Phase 25 Gate 1 (U2): ownership/xG/breakdown/fixture/news chips live in
+     the drawer; the card shows ONLY name, team badge, price, xPTS and the
+     Alpha chip (when the targets engine has one). */
+  var alphaChip = ALPHA_BY_PID[pid] != null
+    ? '<span class="alpha-chip num ' + (ALPHA_BY_PID[pid] >= 0 ? "pos" : "neg") +
+      '" title="Alpha = (xPTS − pos avg) × (1 − ownership)">' +
+      (ALPHA_BY_PID[pid] > 0 ? "+" : "") + Number(ALPHA_BY_PID[pid]).toFixed(2) + "</span>"
+    : "";
+  var simBtn = "";
+  if (LAST_REPORT && (report.starting_xi || []).indexOf(pid) !== -1) {
+    /* Phase 22 (D4): per-starter "doesn't play" toggle. */
+    simBtn = '<button class="sim-toggle' + (SIM_OUT[pid] ? " out" : "") + '" type="button" title="What-if: mark as not playing"'
+      + ' data-sim-pid="' + pid + '">' + (SIM_OUT[pid] ? "✕ out" : "±") + "</button>";
+  }
   return '<div class="' + cls + '" title="' + tip + '" data-player-id="' + pid + '" role="button" tabindex="0">'
     + badgeHTML(p.team)
     + (isC ? '<span class="role-badge c" title="Captain">C</span>' : "")
@@ -563,10 +835,8 @@ function playerCard(pid, report) {
     + '<div class="web-name">' + esc(p.web_name || ("Player " + pid)) + "</div>"
     + '<div class="price-tag">' + fmtPrice(p.price) + "</div>"
     + '<span class="xpts-tag" title="' + esc(xpTip) + '">xPTS ' + fmtXp(p.expected_points) + "</span>"
-    + xaStr
-    + bdStr
-    + FPLApp.fixtureStripHTML(runs)
-    + newsFlagHTML(pid)
+    + alphaChip
+    + simBtn
     + "</div>";
 }
 
@@ -607,7 +877,181 @@ function renderBench(report) {
     : '<p class="text-slate-500 text-sm col-span-full">No bench information available.</p>';
 }
 
+/* ---------- Phase 22 decision-depth rendering ---------- */
+var SIM_OUT = {};  /* starter pid -> true when toggled "doesn't play" */
+
+function xpOf(pid) {
+  if (!LAST_REPORT || !LAST_REPORT.players) { return 0; }
+  var p = LAST_REPORT.players[String(pid)];
+  return p && p.expected_points != null ? Number(p.expected_points) : 0;
+}
+
+function simulateAutoSubs() {
+  /* FPL auto-sub rules: bench order priority, GK only replaces GK, and the
+     resulting XI must be a valid formation (GK1 · DEF>=3 · MID>=2 · FWD>=1). */
+  var report = LAST_REPORT;
+  if (!report) { return null; }
+  var outIds = Object.keys(SIM_OUT).map(Number).filter(function (pid) {
+    return (report.starting_xi || []).indexOf(pid) !== -1;
+  });
+  var remaining = (report.starting_xi || []).filter(function (pid) { return !SIM_OUT[pid]; });
+  var benchPool = (report.bench_order || []).filter(function (pid) { return !SIM_OUT[pid]; });
+  function pos(p) { return posOf(p, report); }
+  function valid(counts) {
+    var def = counts[2] || 0, mid = counts[3] || 0, fwd = counts[4] || 0;
+    return (counts[1] === 1) && def >= 3 && mid >= 2 && fwd >= 1 && (def + mid + fwd) === 10;
+  }
+  var subs = [];
+  function search(outIdx, poolLeft, picks) {
+    if (outIdx === outIds.length) {
+      var counts = {};
+      remaining.forEach(function (pid) { counts[pos(pid)] = (counts[pos(pid)] || 0) + 1; });
+      picks.forEach(function (pair) { counts[pos(pair.sub)] = (counts[pos(pair.sub)] || 0) + 1; });
+      return valid(counts) ? picks : null;
+    }
+    for (var i = 0; i < poolLeft.length; i++) {
+      var cand = poolLeft[i];
+      if (pos(outIds[outIdx]) === 1 && pos(cand) !== 1) { continue; }   /* GK↔GK only */
+      if (pos(outIds[outIdx]) !== 1 && pos(cand) === 1) { continue; }   /* GK never outfield */
+      var nextPicks = picks.concat([{ out: outIds[outIdx], sub: cand }]);
+      var found = search(outIdx + 1,
+        poolLeft.slice(0, i).concat(poolLeft.slice(i + 1)), nextPicks);
+      if (found) { return found; }
+    }
+    return null;
+  }
+  subs = search(0, benchPool.slice(), []) || [];
+  var newXI = remaining.concat(subs.map(function (p) { return p.sub; }));
+  var oldTotal = (report.starting_xi || []).reduce(function (s, pid) { return s + xpOf(pid); }, 0);
+  var newTotal = newXI.reduce(function (s, pid) { return s + xpOf(pid); }, 0);
+  return { subs: subs, new_xi: newXI, old_total: oldTotal, new_total: newTotal, delta: newTotal - oldTotal };
+}
+
+function renderSimulator() {
+  var box = $("simulatorBar");
+  if (!LAST_REPORT) { box.style.display = "none"; return; }
+  var sim = simulateAutoSubs();
+  if (!sim || !(sim.subs.length)) { box.style.display = "none"; return; }
+  box.style.display = "block";
+  var sign = sim.delta >= 0 ? "+" : "";
+  var color = sim.delta >= 0 ? "text-emerald-400" : "text-red-400";
+  var rows = sim.subs.map(function (p) {
+    return '<div class="flex items-center gap-2 text-sm py-1 border-t border-slate-700/40 first:border-0">'
+      + '<span class="text-red-400 font-semibold">' + esc(nameOf(p.out, LAST_REPORT)) + "</span>"
+      + '<span class="text-slate-500">→ replaced by</span>'
+      + '<span class="text-sky-300 font-semibold">' + esc(nameOf(p.sub, LAST_REPORT)) + "</span>"
+      + '<span class="text-slate-500 text-xs">(bench order)</span></div>';
+  }).join("");
+  box.innerHTML =
+    '<div class="flex flex-wrap items-center gap-x-3 gap-y-1">'
+    + '<div><div class="text-xs uppercase tracking-wide text-sky-400 font-bold">What-if simulator</div>'
+    + '<div class="text-xs text-slate-500">Click ± on any starter to mark him as not playing — autosubs follow FPL rules</div></div>'
+    + '<button id="simResetBtn" type="button" class="btn-ghost" style="padding:0.35rem 0.8rem;margin-left:auto">Reset</button>'
+    + "</div>"
+    + rows
+    + '<div class="mt-2 text-sm font-bold ' + color + '">New XI xPTS '
+    + Number(sim.new_total).toFixed(1) + " (" + sign + Number(sim.delta).toFixed(1)
+    + " vs original " + Number(sim.old_total).toFixed(1) + ")</div>";
+  var resetBtn = $("simResetBtn");
+  if (resetBtn) {
+    resetBtn.addEventListener("click", function () {
+      SIM_OUT = {};
+      renderSimulator();
+      renderPitch(LAST_REPORT);
+    });
+  }
+}
+
+function renderDifferentials(report) {
+  var box = $("differentialStrip");
+  var picks = (report.meta && report.meta.differential_picks) || [];
+  if (!picks.length) {
+    box.innerHTML = '<p class="text-slate-500 text-sm">No differential data yet — needs materialized xPTS plus ownership facts.</p>';
+    return;
+  }
+  box.innerHTML = picks.map(function (d) {
+    var fixture = d.next_fixture ? esc(d.next_fixture) : "—";
+    var own = d.ownership_pct != null ? Number(d.ownership_pct).toFixed(1) + "%" : "–";
+    return '<div class="rounded-xl border border-indigo-500/40 bg-indigo-950/30 p-3" data-testid="differential-pick">'
+      + '<div class="flex items-center justify-between"><span class="font-bold text-white text-sm">' + esc(d.web_name) + "</span>"
+      + '<span class="pill ok">diff +' + Number(d.differential_score) + "</span></div>"
+      + '<div class="text-xs text-slate-400 mt-1">xPTS ' + Number(d.xpts).toFixed(1)
+      + " · " + own + " owned · " + fixture
+      + (d.price != null ? " · £" + Number(d.price).toFixed(1) + "m" : "") + "</div>"
+      + '<div class="text-xs text-slate-500">xPTS rank #' + d.xpts_rank + " vs ownership rank #" + d.ownership_rank + "</div>"
+      + "</div>";
+  }).join("");
+}
+
+function renderCaptainCompare(report) {
+  var box = $("captainCompare");
+  var cc = report.meta && report.meta.captain_comparison;
+  if (!cc || !(cc.cards || []).length) { box.innerHTML = ""; return; }
+  var cardsHtml = (cc.cards || []).map(function (c) {
+    var own = c.ownership_pct != null ? Number(c.ownership_pct).toFixed(1) + "% owned" : "";
+    var fx = c.next_fixture ? esc(c.next_fixture) : "";
+    var badge = c.is_captain ? '<span class="pill ok" style="margin-left:6px">ARM</span>' : "";
+    /* Phase 23 (C4): every number is labelled — "xPTS 6.6", "gap +0.6". */
+    var xptsLabel = c.xpts_label || ("xPTS " + Number(c.xpts).toFixed(1));
+    var sp = c.set_pieces || {};
+    var spChips = "";
+    if (sp.penalty) spChips += '<span class="setpiece-chip">🥅 Pen</span>';
+    if (sp.corners) spChips += '<span class="setpiece-chip">🚩 Corner</span>';
+    if (sp.free_kicks) spChips += '<span class="setpiece-chip">🎯 FK</span>';
+    if (spChips) spChips = '<div style="margin-top:4px">' + spChips + '</div>';
+    return '<div class="rounded-xl border p-3 ' + (c.is_captain ? "border-yellow-500/50 bg-yellow-950/20" : "border-slate-600/40 bg-slate-900/40") + '" data-testid="captain-card">'
+      + '<div class="flex items-center justify-between"><span class="font-bold text-white text-sm">' + esc(c.web_name) + badge + "</span>"
+      + '<span class="num font-extrabold ' + (c.is_captain ? "text-yellow-400" : "text-sky-300") + '" data-xpts-label>' + esc(xptsLabel) + "</span></div>"
+      + '<div class="text-xs text-slate-400 mt-1">' + [own, fx].filter(Boolean).join(" · ") + "</div>"
+      + spChips
+      + (c.blank_note ? '<div class="text-xs text-slate-500 mt-1">' + esc(c.blank_note) + "</div>" : "")
+      + "</div>";
+  }).join("");
+  box.innerHTML =
+    '<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">' + cardsHtml + "</div>"
+    + (cc.vice ? '<p class="mt-3 text-sm text-sky-300/90" data-testid="vice-ev-line">🛡 ' + esc(cc.vice.line) + "</p>" : "");
+}
+
+function renderWatchlist(report) {
+  var box = $("watchlistBox");
+  var wl = report.meta && report.meta.transfer_watchlist;
+  if (!wl || !wl.positions) { box.style.display = "none"; return; }
+  var sections = Object.keys(wl.positions).filter(function (k) {
+    return (wl.positions[k] || []).length;
+  });
+  if (!sections.length) { box.style.display = "none"; return; }
+  var verdictTxt = wl.verdict && wl.verdict !== "roll"
+    ? "Even with the recommended move, keep these alternatives ranked:"
+    : "The math says roll — but these are the best-ranked IN candidates per needed position:";
+  var html = '<div class="text-sm text-slate-400 mb-3">' + esc(verdictTxt) + "</div>";
+  sections.forEach(function (label) {
+    html += '<div class="mb-3"><div class="text-xs uppercase tracking-wide text-sky-400 font-bold mb-1">' + esc(label) + "</div>";
+    html += wl.positions[label].map(function (item, idx) {
+      return '<div class="row" data-testid="watchlist-item"><div><strong>' + (idx + 1) + ". " + esc(item.web_name) + "</strong>"
+        + '<div class="faint small">' + esc(item.reason) + "</div></div></div>";
+    }).join("");
+    html += "</div>";
+  });
+  box.innerHTML = html;
+  box.style.display = "block";
+}
+
 /* ---------- Rendering: captain spotlight + transfer cards ---------- */
+/* Phase 23 (C1): ONE market-check renderer for the whole app — the shared
+   backend payload (chain.market_check.detail) is rendered verbatim so the
+   Decisions banner, Captain Spotlight and Sources page can never drift. */
+function marketCheckHTML(chain) {
+  if (!chain || !chain.market_check) return "";
+  var mc = chain.market_check;
+  var mcOn = mc.enabled === true && Number(mc.fixtures_matched || 0) > 0;
+  if (mcOn) {
+    var txt = mc.detail || ("matched " + mc.fixtures_matched + "/" + mc.fixtures_matched + " fixtures");
+    return '<p class="mt-2 text-sm text-emerald-300/90" data-market-check>📈 Market check agrees · ' + esc(txt) + "</p>";
+  }
+  var body = mc.reason || mc.detail || "no fixtures matched yet";
+  return '<p class="mt-2 text-sm text-slate-500" data-market-check>' + esc("📈 Market check: " + body) + "</p>";
+}
+
 function renderCaptain(report) {
   var box = $("captainHero");
   var c = report.captain;
@@ -631,17 +1075,8 @@ function renderCaptain(report) {
   /* Chain-note context for the captain: market check + weather ONLY when present. */
   var chain = report.meta && report.meta.chain;
   if (chain) {
+    html += marketCheckHTML(chain);
     var notes = chain.notes || {};
-    var mcOn = chain.market_check && chain.market_check.enabled === true
-      && Number(chain.market_check.fixtures_matched || 0) > 0;
-    if (mcOn) {
-      html += '<p class="mt-2 text-sm text-emerald-300/90">📈 Market check agrees (' + chain.market_check.fixtures_matched + " fixtures)</p>";
-    } else if (chain.market_check) {
-      /* Off, or matched zero fixtures — never claim agreement without data. */
-      var reason = chain.market_check.reason
-        || (Number(chain.market_check.fixtures_matched || 0) === 0 ? "no fixtures matched yet" : "unavailable");
-      html += '<p class="mt-2 text-sm text-slate-500">📈 Market check: ' + esc(reason) + "</p>";
-    }
     if (notes.weather_severe_fixtures != null && notes.weather_severe_fixtures !== 0) {
       html += '<p class="mt-2 text-sm text-amber-300/90">🌧 Severe-weather fixtures: ' + notes.weather_severe_fixtures + "</p>";
     }
@@ -737,7 +1172,8 @@ function renderChainBanner(report) {
     + (chain.covered_players != null ? '<div><div class="chain-label">Players covered</div><div class="chain-quality">' + chain.covered_players + "</div></div>" : "")
     + "</div>";
   /* Notes row: market check + weather, ONLY when the data actually exists.
-     Phase 19.0: baseline form cutoff ("through GW{n}") when present. */
+     Phase 19.0: baseline form cutoff ("through GW{n}") when present.
+     Phase 23 (C1): market check text comes from the shared renderer. */
   var notes = chain.notes || {};
   var noteLines = [];
   if (notes.through_gw != null && typeof notes.through_gw === "number") {
@@ -749,14 +1185,18 @@ function renderChainBanner(report) {
   if (notes.understat_players_matched != null) {
     noteLines.push('<span class="chain-note">Understat matched: ' + notes.understat_players_matched + " players</span>");
   }
-  var mcOn = chain.market_check && chain.market_check.enabled === true
-    && Number(chain.market_check.fixtures_matched || 0) > 0;
-  if (!chain.market_check || !mcOn) {
-    var mcReason = (chain.market_check && chain.market_check.reason)
-      || "no fixtures matched yet";
-    noteLines.push('<span class="chain-note no">📈 Market check: ' + esc(mcReason) + "</span>");
-  } else {
-    noteLines.push('<span class="chain-note ok">📈 Market check: agrees · ' + chain.market_check.fixtures_matched + " fixtures</span>");
+  var mcHTML = marketCheckHTML(chain);
+  if (mcHTML) {
+    var mcOn = chain.market_check && chain.market_check.enabled === true
+      && Number(chain.market_check.fixtures_matched || 0) > 0;
+    noteLines.push(
+      '<span class="chain-note ' + (mcOn ? "ok" : "no") + '">'
+      + esc("📈 Market check: "
+        + (mcOn
+          ? "agrees · " + (chain.market_check.detail || (chain.market_check.fixtures_matched + " fixtures"))
+          : (chain.market_check.reason || "no fixtures matched yet")))
+      + "</span>"
+    );
   }
   if (notes.weather_severe_fixtures != null && notes.weather_severe_fixtures !== 0
       && !(Array.isArray(notes.weather_severe_fixtures) && notes.weather_severe_fixtures.length === 0)) {
@@ -768,24 +1208,130 @@ function renderChainBanner(report) {
   slot.innerHTML = html;
 }
 
+/* ---------- Phase 23 (L3): Today's risers / fallers strip ---------- */
+function renderPriceStrip() {
+  var box = $("priceStrip");
+  if (!box) return;
+  fetch(API + "/api/v1/prices/moves?limit=5")
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .catch(function () { return null; })
+    .then(function (data) {
+      if (!data) { box.innerHTML = '<p class="text-slate-500 text-sm">Price data unavailable.</p>'; return; }
+      if (!data.has_data) {
+        box.innerHTML = '<p class="text-slate-500 text-sm" data-testid="price-strip-empty">' + esc(data.note || "No price moves yet.") + "</p>";
+        return;
+      }
+      function card(c, up) {
+        return '<div class="rounded-xl border p-3 ' + (up ? "border-emerald-500/40 bg-emerald-950/30" : "border-red-500/40 bg-red-950/30") + '" data-testid="price-move-card">'
+          + '<div class="flex items-center justify-between"><span class="font-bold text-white text-sm">' + esc(c.web_name) + "</span>"
+          + '<span class="num font-extrabold ' + (up ? "text-emerald-400" : "text-red-400") + '">' + (up ? "▲" : "▼") + " " + esc(c.label) + "</span></div>"
+          + '<div class="text-xs text-slate-400 mt-1">now ' + esc(c.new_cost) + "</div></div>";
+      }
+      box.innerHTML = '<div class="grid grid-cols-2 sm:grid-cols-5 gap-3">'
+        + (data.risers || []).map(function (c) { return card(c, true); }).join("")
+        + (data.fallers || []).map(function (c) { return card(c, false); }).join("")
+        + "</div>";
+    });
+}
+
+/* ---------- Fix 1.1: error card — never blank, always recoverable ---------- */
+function showTabErrorCard(err) {
+  var msg = (err && (err.message || String(err))) || "Unknown rendering error";
+  console.error("[decisions:renderReport]", err);
+  var box = $("results");
+  if (!box) return;
+  box.innerHTML =
+    '<div class="fg-card rounded-2xl p-6 shadow-xl mb-8 text-center">' +
+    '<div class="text-3xl mb-3">⚠️</div>' +
+    '<h3 class="text-lg font-bold text-red-400 mb-2">Decisions failed to load</h3>' +
+    '<p class="text-sm text-slate-400 mb-4">' + esc(msg) + '</p>' +
+    '<div class="flex gap-3 justify-center">' +
+    '<button class="btn-primary" onclick="location.reload()" type="button">↻ Retry</button>' +
+    '<button class="btn-ghost" onclick="' +
+      'document.getElementById(\'results\').innerHTML=\'\';' +
+      'document.getElementById(\'results\').style.display=\'none\';' +
+      'document.getElementById(\'inputSection\').style.display=\'block\'' +
+    '" type="button">Dismiss</button>' +
+    '</div></div>';
+  box.style.display = "block";
+  box.classList.add("hidden-children");
+}
+
 function renderReport(report) {
-  LAST_REPORT = report;
-  renderSummary(report);
-  renderChip(report);
-  renderChainBanner(report);
-  renderPitch(report);
-  renderBench(report);
-  renderCaptain(report);
-  renderTransfers(report);
-  renderAnalyst(report);
-  renderDataSources();
-  loadPhase20Overlays();
+  try {
+    LAST_REPORT = report;
+    SIM_OUT = {};
+    renderSummary(report);
+    renderChip(report);
+    renderChainBanner(report);
+    renderPitch(report);
+    renderBench(report);
+    renderSimulator();
+    renderDifferentials(report);
+    renderCaptain(report);
+    renderCaptainCompare(report);
+    renderTransfers(report);
+    renderWatchlist(report);
+    renderAnalyst(report);
+    renderDataSources();
+    loadPhase20Overlays();
+    renderPriceStrip();
+  } catch (err) {
+    showTabErrorCard(err);
+  }
 }
 
 /* ---------- Phase 20.0 overlays: fixture strips + news flags ---------- */
+/* Phase 3.1: News Radar now has strict timeouts + honest loading/error/empty
+   states with a Retry button instead of spinning forever. Fixture strips stay
+   enhancement-only but their fetch is also bounded so a hang can't stall the
+   page. */
+function renderNewsRadarError(msg) {
+  var box = $("newsRadarBox");
+  if (!box) return;
+  box.innerHTML =
+    '<div class="card error-state" role="alert">' +
+    "<p>⚠️ " + esc(msg || "News Radar failed to load.") + "</p>" +
+    '<button id="newsRetryBtn" class="btn" type="button" aria-label="Retry loading News Radar">Retry</button>' +
+    "</div>";
+  var retry = $("newsRetryBtn");
+  if (retry) retry.addEventListener("click", loadNewsRadar);
+}
+
+function loadNewsRadar() {
+  var box = $("newsRadarBox");
+  if (!box) return;
+  /* Honest loading state — never a permanent spinner. */
+  box.innerHTML = '<p class="text-slate-400 text-sm">Checking headlines…</p>';
+  var sessionKey = encodeURIComponent(CURRENT_SESSION_ID || "");
+  var url = API + "/api/v1/news/radar?session_id=" + sessionKey;
+  FPLHttp.fetchWithTimeout(url, { cache: "no-store" }, 7000)
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (radar) {
+      if (!radar) { renderNewsRadarError("News Radar returned no data."); return; }
+      NEWS_FLAGS = {};
+      (radar.news_flags || []).forEach(function (f) {
+        NEWS_FLAGS[f.player_id] = { headline: f.headline, time: f.time, url: f.url };
+      });
+      repaintStrips();
+      if (!(radar.news_flags || []).length) {
+        box.innerHTML = '<p class="text-slate-500 text-sm">No BBC headlines match your squad right now.</p>';
+      } else {
+        box.innerHTML = (radar.news_flags || []).map(function (f) {
+          return '<div class="row"><div><a class="news-flag" style="max-width:none;white-space:normal" href="' + esc(f.url || "#") + '" target="_blank" rel="noopener">📰 ' + esc(f.headline) + "</a>"
+            + '<div class="text-xs text-slate-500 mt-1">' + esc(f.web_name) + " · " + esc((f.time || "").slice(0, 16).replace("T", " ")) + "</div></div></div>";
+        }).join("");
+      }
+    })
+    .catch(function (err) {
+      renderNewsRadarError(err && err.message ? err.message : "News Radar failed to load.");
+    });
+}
+
 function loadPhase20Overlays() {
   if (!CURRENT_SESSION_ID) return;
-  fetch(API + "/api/v1/fixtures/scan?session_id=" + encodeURIComponent(CURRENT_SESSION_ID))
+  loadNewsRadar();
+  FPLHttp.fetchWithTimeout(API + "/api/v1/fixtures/scan?session_id=" + encodeURIComponent(CURRENT_SESSION_ID), { cache: "no-store" }, 7000)
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (scan) {
       if (!scan || !scan.players) return;
@@ -794,28 +1340,6 @@ function loadPhase20Overlays() {
       repaintStrips();
     })
     .catch(function () { /* strips are enhancement-only */ });
-  fetch(API + "/api/v1/news/radar?session_id=" + encodeURIComponent(CURRENT_SESSION_ID))
-    .then(function (r) { return r.ok ? r.json() : null; })
-    .then(function (radar) {
-      if (!radar) return;
-      NEWS_FLAGS = {};
-      (radar.news_flags || []).forEach(function (f) {
-        NEWS_FLAGS[f.player_id] = { headline: f.headline, time: f.time, url: f.url };
-      });
-      repaintStrips();
-      var box = $("newsRadarBox");
-      if (box) {
-        if (!(radar.news_flags || []).length) {
-          box.innerHTML = '<p class="text-slate-500 text-sm">No BBC headlines match your squad right now.</p>';
-        } else {
-          box.innerHTML = (radar.news_flags || []).map(function (f) {
-            return '<div class="row"><div><a class="news-flag" style="max-width:none;white-space:normal" href="' + esc(f.url || "#") + '" target="_blank" rel="noopener">📰 ' + esc(f.headline) + "</a>"
-              + '<div class="text-xs text-slate-500 mt-1">' + esc(f.web_name) + " · " + esc((f.time || "").slice(0, 16).replace("T", " ")) + "</div></div></div>";
-          }).join("");
-        }
-      }
-    })
-    .catch(function () { /* flags are enhancement-only */ });
 }
 
 function repaintStrips() {
@@ -866,19 +1390,13 @@ function renderDrawerBody(d) {
   }
   html += "</div>";
 
-  /* Last-5 form bars */
+  /* Last-5 form — Phase 25 Gate 1 (U2): inline SVG sparkline replaces the
+     bulky bars; values stay readable in the aria-label and labels row. */
   html += '<div class="section-h">Last 5 gameweeks</div>';
   if (d.form_bars && d.form_bars.length) {
-    var maxPts = Math.max.apply(null, d.form_bars.map(function (b) { return b.points || 0; }).concat([2]));
-    html += '<div class="form-bars">' + d.form_bars.map(function (b) {
-      var hPct = Math.max(((b.points || 0) / maxPts) * 100, 8);
-      return '<div style="flex:1;display:flex;flex-direction:column;align-items:center">'
-        + '<div class="form-bar" style="height:' + hPct + '%" data-testid="form-bar"><span>' + (b.points != null ? b.points : "-") + "</span></div>"
-        + "</div>";
-    }).join("") + "</div>";
-    html += '<div style="display:flex">' + d.form_bars.map(function (b) {
-      return '<div class="form-bar-label">GW' + (b.gw != null ? b.gw : "?") + "</div>";
-    }).join("") + "</div>";
+    var pts = d.form_bars.map(function (b) { return b.points; });
+    var gws = d.form_bars.map(function (b) { return "GW" + (b.gw != null ? b.gw : "?"); });
+    html += '<div data-testid="form-spark">' + FPLApp.sparklineSVG(pts, gws) + "</div>";
   } else {
     html += '<p class="faint small">No finished-gameweek history available yet.</p>';
   }
@@ -925,6 +1443,16 @@ function renderDrawerBody(d) {
   } else {
     html += '<div class="section-h">BBC news</div><p class="faint small">No matching headlines.</p>';
   }
+  /* Phase 24 C2 — set-piece chips */
+  html += '<div class="section-h">Set pieces</div><div data-testid="drawer-setpieces">';
+  var sp = d.set_pieces || {};
+  if (sp.penalty) html += '<span class="setpiece-chip" data-testid="setpiece-penalty">🥅 Penalty taker</span>';
+  if (sp.corners) html += '<span class="setpiece-chip" data-testid="setpiece-corners">🚩 Corner taker</span>';
+  if (sp.free_kicks) html += '<span class="setpiece-chip" data-testid="setpiece-freekick">🎯 Free-kick taker</span>';
+  if (!sp.penalty && !sp.corners && !sp.free_kicks) {
+    html += sp.unknown ? '<span class="faint small">unknown — not in curated set-piece map</span>' : '<span class="faint small">not a designated taker</span>';
+  }
+  html += "</div>";
   return html;
 }
 
@@ -939,12 +1467,14 @@ function closeDrawer() {
 function renderAnalyst(report) {
   var box = $("analystBox");
   if (!CURRENT_SESSION_ID) { box.innerHTML = ""; return; }
-  box.innerHTML = '<p class="text-slate-400 text-sm">Analyzing your squad…</p>';
+  /* Phase 21.1 (T3): the endpoint reads the pre-generated brief — this card
+     resolves in one round-trip, never a long LLM wait. */
+  box.innerHTML = '<p class="text-slate-400 text-sm">Reading pre-generated analysis…</p>';
   var url = API + "/api/v1/analyst/summary?session_id=" + encodeURIComponent(CURRENT_SESSION_ID);
   fetch(url).then(function (r) { return r.ok ? r.json() : null; }).then(function (data) {
     if (!data) { box.innerHTML = '<p class="text-slate-500 text-sm">Analyst unavailable.</p>'; return; }
     box.innerHTML = '<p class="text-slate-200 text-sm leading-relaxed">' + esc(data.summary || "No summary available.") + "</p>"
-      + (data.model ? '<p class="mt-2 text-xs text-slate-500">Model: ' + esc(data.model) + "</p>" : "");
+      + (data.model ? '<p class="mt-2 text-xs text-slate-500">Source: ' + esc(data.model) + (data.generated_at ? " · generated " + esc(String(data.generated_at).slice(0, 16).replace("T", " ")) : "") + "</p>" : "");
   }).catch(function () {
     box.innerHTML = '<p class="text-slate-500 text-sm">Analyst temporarily unavailable.</p>';
   });
@@ -953,33 +1483,42 @@ function renderAnalyst(report) {
 function renderDataSources() {
   var box = $("dataSourcesBox");
   box.innerHTML = '<p class="text-slate-400 text-sm">Checking data sources…</p>';
-  fetch(API + "/api/v1/data-sources").then(function (r) { return r.ok ? r.json() : null; }).then(function (data) {
-    if (!data || !data.sources) { box.innerHTML = '<p class="text-slate-500 text-sm">Source status unavailable.</p>'; return; }
-    var sources = data.sources;
-    var rows = [];
-    function row(key, label) {
-      var s = sources[key] || {};
-      var status = s.status || "unknown";
-      var dot = (status === "ok" || status === "live" || status === "enabled") ? "ok"
-        : (status === "blocked" || status === "outage" || status === "off") ? "bad" : "";
-      var detailText = s.detail || "";
-      rows.push('<div class="flex items-center justify-between py-2 border-b border-slate-700/40 last:border-0">'
-        + '<div><span class="text-sm font-semibold text-slate-200">' + esc(label) + "</span>"
-        + (detailText ? '<div class="text-xs text-slate-500">' + esc(detailText) + "</div>" : "") + "</div>"
-        + (dot ? '<span class="pill ' + dot + '">' + esc(status) + "</span>" : '<span class="pill">' + esc(status) + "</span>")
-        + "</div>");
-    }
-    row("fpl_import", "FPL Import");
-    row("odds_api", "Odds API (market check)");
-    row("understat", "Understat (xG/xA)");
-    row("weather", "Weather (Open-Meteo)");
-    row("pl_photos", "PL Photos & Badges");
-    row("llm", "AI Analyst (LLM)");
-    var asof = data.as_of ? '<div class="mt-2 text-xs text-slate-600">Updated: ' + esc(data.as_of) + "</div>" : "";
-    box.innerHTML = '<div class="space-y-1">' + rows.join("") + "</div>" + asof;
-  }).catch(function () {
-    box.innerHTML = '<p class="text-slate-500 text-sm">Source status unavailable.</p>';
-  });
+  FPLHttp.fetchWithTimeout(API + "/api/v1/data-sources", {}, 7000)
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (data) {
+      if (!data || !data.sources) {
+        box.innerHTML = '<p class="text-slate-500 text-sm">Source status unavailable.</p>';
+        return;
+      }
+      var sources = data.sources;
+      var rows = [];
+      function row(key, label) {
+        var s = sources[key] || {};
+        var status = s.status || "unknown";
+        var dot = (status === "ok" || status === "live" || status === "enabled") ? "ok"
+          : (status === "blocked" || status === "outage" || status === "off") ? "bad" : "";
+        var detailText = s.detail || "";
+        rows.push('<div class="flex items-center justify-between py-2 border-b border-slate-700/40 last:border-0">'
+          + '<div><span class="text-sm font-semibold text-slate-200">' + esc(label) + "</span>"
+          + (detailText ? '<div class="text-xs text-slate-500">' + esc(detailText) + "</div>" : "") + "</div>"
+          + (dot ? '<span class="pill ' + dot + '">' + esc(status) + "</span>" : '<span class="pill">' + esc(status) + "</span>")
+          + "</div>");
+      }
+      row("fpl_import", "FPL Import");
+      row("odds_api", "Odds API (market check)");
+      row("understat", "Understat (xG/xA)");
+      row("weather", "Weather (Open-Meteo)");
+      row("pl_photos", "PL Photos & Badges");
+      row("llm", "AI Analyst (LLM)");
+      var asof = data.as_of ? '<div class="mt-2 text-xs text-slate-600">Updated: ' + esc(data.as_of) + "</div>" : "";
+      box.innerHTML = '<div class="space-y-1">' + rows.join("") + "</div>" + asof;
+    })
+    .catch(function (err) {
+      box.innerHTML =
+        '<div class="card error-state" role="alert"><p>⚠️ ' +
+        esc((err && err.message) || "Data source status failed to load.") +
+        '</p></div>';
+    });
 }
 
 /* ---------- Demo squad (no FPL account needed) ---------- */
@@ -1363,6 +1902,7 @@ async function saveManual() {
 function showEntryScreen(message) {
   if (message) { showError(message); }
   $("inputSection").style.display = "block";
+  try { updateSourceChip(); } catch (e) {}
 }
 
 function restoreSession(session, report) {
@@ -1387,9 +1927,47 @@ function restoreSession(session, report) {
   $("results").style.display = "block";
 }
 
+function shareDecisions(){
+  if (!LAST_REPORT) { $("shareStatus").textContent = "No decisions to share yet."; return; }
+  var brief = "FPL GW"+LAST_REPORT.gameweek+" · Captain "+ (function(){ var c=LAST_REPORT.captain; if(!c) return "—"; var p=(LAST_REPORT.players||{})[String(c.player_id)]; return p? p.web_name : ("#"+c.player_id); })() + " ("+FPLApp.fmtPts(LAST_REPORT.captain?LAST_REPORT.captain.expected_points:"—")+" xPTS) · XI "+ (LAST_REPORT.starting_xi||[]).slice(0,4).map(function(pid){ var p=(LAST_REPORT.players||{})[String(pid)]; return p?p.web_name:pid; }).join(", ")+"…";
+  var url = window.location.href;
+  FPLApp.shareOrCopy({title:"FPL Intelligence GW"+LAST_REPORT.gameweek, text:brief, url:url}).then(function(r){
+    if(r && r.copied) $("shareStatus").textContent = "Link copied ✓";
+    else if(r && r.notSupported) $("shareStatus").textContent = "share not supported — copied to clipboard";
+    else $("shareStatus").textContent = "";
+    if(FPLApp.shareNotSupported()) $("shareStatus").textContent = "share not supported — copied to clipboard";
+    setTimeout(function(){ $("shareStatus").textContent=""; }, 2500);
+  });
+}
+function exportSquadCsv(){
+  if (!LAST_REPORT || !LAST_REPORT.players) { $("shareStatus").textContent="No squad to export"; return; }
+  var rows = Object.keys(LAST_REPORT.players).map(function(pid){
+    var p=LAST_REPORT.players[pid];
+    return [p.id, p.web_name, p.price!=null?Number(p.price).toFixed(1):"", p.expected_points!=null?Number(p.expected_points).toFixed(1):""];
+  });
+  FPLApp.exportCsv("squad.csv", rows, ["element_id","web_name","price","xPTS"]);
+  $("shareStatus").textContent="squad.csv downloaded";
+  setTimeout(function(){ $("shareStatus").textContent=""; },1500);
+}
+function exportBriefTxt(){
+  if (!LAST_REPORT) { $("shareStatus").textContent="No brief to export"; return; }
+  var txt = ["FPL Intelligence — Gameweek "+LAST_REPORT.gameweek+" brief","Generated "+new Date().toLocaleString(),"", "Captain: "+(function(){var c=LAST_REPORT.captain; if(!c) return "—"; var p=(LAST_REPORT.players||{})[String(c.player_id)]; return (p?p.web_name:c.player_id)+" · xPTS "+FPLApp.fmtPts(c.expected_points)+" — "+(c.main_reason||"");})(), "", "Starting XI: "+(LAST_REPORT.starting_xi||[]).map(function(pid){ var p=(LAST_REPORT.players||{})[String(pid)]; return p?p.web_name:pid; }).join(", "), "Bench: "+(LAST_REPORT.bench_order||[]).map(function(pid){ var p=(LAST_REPORT.players||{})[String(pid)]; return p?p.web_name:pid; }).join(", "), ""];
+  if(LAST_REPORT.transfer_plan) txt.push("Transfers: "+(LAST_REPORT.transfer_plan.main_reason||"")+" (gain +"+Number(LAST_REPORT.transfer_plan.expected_gain).toFixed(1)+")");
+  if(LAST_REPORT.chip_recommendation && LAST_REPORT.chip_recommendation.chip_name) txt.push("Chip: "+LAST_REPORT.chip_recommendation.chip_name+" — "+(LAST_REPORT.chip_recommendation.main_reason||""));
+  FPLApp.exportTxt("brief.txt", txt.join("\n"));
+  $("shareStatus").textContent="brief.txt downloaded";
+  setTimeout(function(){ $("shareStatus").textContent=""; },1500);
+}
 function boot() {
   checkHealth();
   FPLApp.renderNav("/dashboard");
+  try { updateSourceChip(); } catch (e) {}
+  renderPriceStrip();
+  /* Phase 3.4 — first-visit tour (auto-starts once per browser, skips missing
+     targets silently, Esc/Finish/Next all keyboard reachable). */
+  if (document.getElementById("fplTourHost") === null) {
+    try { FPLTour.autoStart(document); } catch (e) { /* tour is enhancement-only */ }
+  }
   /* Wire up event listeners */
   $("analyzeBtn").addEventListener("click", analyze);
   $("teamId").addEventListener("keydown", function (e) {
@@ -1399,9 +1977,24 @@ function boot() {
   $("toggleManualBtn").addEventListener("click", toggleManual);
   $("saveManualBtn").addEventListener("click", saveManual);
   $("retrySyncBtn").addEventListener("click", retrySync);
+  var _sn = $("syncNowBtn"); if(_sn) _sn.addEventListener("click", syncNow);
   $("startOverBtn").addEventListener("click", startOver);
+  var _sb = $("shareBtn"); if(_sb) _sb.addEventListener("click", shareDecisions);
+  var _es = $("exportSquadBtn"); if(_es) _es.addEventListener("click", exportSquadCsv);
+  var _eb = $("exportBriefBtn"); if(_eb) _eb.addEventListener("click", exportBriefTxt);
   /* Drawer: one delegated listener covers pitch, bench and future cards. */
   document.addEventListener("click", function (e) {
+    var sim = e.target.closest(".sim-toggle");
+    if (sim) {
+      e.stopPropagation();
+      e.preventDefault();
+      var pid2 = parseInt(sim.getAttribute("data-sim-pid"), 10);
+      SIM_OUT[pid2] = !SIM_OUT[pid2];
+      if (!SIM_OUT[pid2]) { delete SIM_OUT[pid2]; }
+      renderSimulator();
+      renderPitch(LAST_REPORT);
+      return;
+    }
     var card = e.target.closest(".player-card[data-player-id]");
     if (card) { openDrawer(parseInt(card.getAttribute("data-player-id"), 10)); }
   });

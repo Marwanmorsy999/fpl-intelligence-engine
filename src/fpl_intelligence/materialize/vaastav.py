@@ -35,8 +35,13 @@ _FETCH_TIMEOUT_SECONDS = 20.0
 
 
 def gw_url(season_code: str, gameweek: int) -> str:
-    """URL of one gameweek's results CSV."""
-    return f"{VAASTAV_RAW_BASE}/{season_code}/gw/{int(gameweek)}.csv"
+    """URL of one gameweek's results CSV.
+
+    Phase 21.1 fix: the repo layout is ``data/{season}/gws/gw{N}.csv`` — the
+    previous ``gw/{n}.csv`` path 404'd for every gameweek, silently disabling
+    the vaastav cross-check.
+    """
+    return f"{VAASTAV_RAW_BASE}/{season_code}/gws/gw{int(gameweek)}.csv"
 
 
 def fixtures_url(season_code: str) -> str:
@@ -60,6 +65,9 @@ async def fetch_text(url: str) -> str | None:
         logger.warning("materialize fetch failed %s: %s", url, exc)
         return None
     if response.status_code == 404:
+        # Phase 21.1: log the exact miss so Sources/incident reviews can see
+        # precisely which season/gameweek upstream has not published yet.
+        logger.info("vaastav not published (404): %s", url)
         return None
     if response.status_code != 200 or not response.text.strip():
         logger.warning("materialize fetch unexpected %s for %s", response.status_code, url)
@@ -157,6 +165,8 @@ def parse_players_raw_csv(text: str) -> dict[int, dict[str, Any]]:
             "minutes": _opt_int(row.get("minutes")),
             "selected_by_percent": (row.get("selected_by_percent") or "").strip() or None,
             "cost_change_event": _opt_int(row.get("cost_change_event")),
+            # Phase 23 (L3): absolute price in £0.1m units for the price engine.
+            "now_cost": _opt_int(row.get("now_cost")),
             "status": (row.get("status") or "").strip() or None,
             "news": (row.get("news") or "").strip()[:500] or None,
         }

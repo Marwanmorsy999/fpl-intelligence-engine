@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>League — FPL Intelligence</title>
+<link rel="icon" href="data:,">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#0f172a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/tokens.css">
+<link rel="stylesheet" href="/static/components.css">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/app.js"></script>
+<style>
+  html, body { overflow-x: hidden; }
+  .wrap--league { min-width: 0; overflow-x: hidden; }
+  .league-header, .league-main, .league-rail { min-width: 0; }
+  .wrap--league > .league-header { grid-column: 1 / -1; }
+  #statusLine { margin: 10px 0; }
+  #pickerBox { display: none; margin: 10px 0; }
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table.data { min-width: 520px; }
+  #contentBox, #leagueRail { min-width: 0; }
+  .captain-insight { color: #93c5fd; }
+  .refresh-row { margin-top: 14px; }
+</style>
+</head>
+<body>
+<div id="topnav"></div>
+<div class="wrap wrap--league">
+
+  <div class="league-header">
+    <h1 class="page-title">League</h1>
+    <p class="muted small">Your mini-league, auto-detected from your FPL entry — standings, rival ownership heat and your projected edge. Zero config.</p>
+    <div id="statusLine" class="muted small"></div>
+    <div id="pickerBox"></div>
+  </div>
+  <div id="trajectorySection" class="card" hidden data-testid="trajectory-section" style="grid-column:1/-1; margin-bottom:var(--space-4)">
+    <div class="section-h" style="margin-top:0">Projected League Rank — next 3 GWs</div>
+    <div id="trajectoryChart" data-testid="trajectory-chart" style="min-height:160px"></div>
+    <p id="trajectoryInsight" class="small" data-testid="trajectory-insight" style="margin:10px 0 4px; font-weight:600"></p>
+    <p id="trajectoryHow" class="faint small"></p>
+    <p id="trajectoryNote" class="faint small"></p>
+  </div>
+  <div id="fomoSection" class="card" data-testid="fomo-section" style="grid-column:1/-1">
+    <div class="section-h" style="margin-top:0">FOMO & Regret</div>
+    <p class="faint small">Post-GW grading: did you capture Alpha and follow the engine's captain?</p>
+    <div id="fomoContent"><p class="faint small">Loading…</p></div>
+  </div>
+
+  <div class="league-main"><div id="contentBox"><p class="faint">Loading your league…</p></div></div>
+  <div class="league-rail" id="leagueRail"></div>
+
+</div>
+<script>
+"use strict";
+document.addEventListener("DOMContentLoaded", function () {
+  FPLApp.renderNav("/league");
+  var $ = function (id) { return document.getElementById(id); };
+
+  function esc(s) { return FPLApp.esc(s); }
+
+  function cacheChip(seconds) {
+    if (seconds == null) return "";
+    var mins = Math.round(Number(seconds) / 60);
+    return '<span class="pill' + (mins <= 10 ? " ok" : "") + '" data-testid="cache-chip">cache ' +
+      (mins >= 1 ? mins + " min old" : "fresh") + "</span>";
+  }
+
+  function picker(data, sessionKey) {
+    var box = $("pickerBox");
+    box.style.display = "block";
+    box.innerHTML =
+      '<div class="card"><div class="small muted" style="margin-bottom:6px">You belong to several classic leagues — pick one (remembered):</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px">' +
+      (data.leagues || []).map(function (l) {
+        return '<button class="pill" data-testid="league-option" data-lid="' + l.league_id + '" style="cursor:pointer;border:none">' +
+          esc(l.name) + (l.member_count ? " · " + l.member_count + " managers" : "") + "</button>";
+      }).join("") + "</div></div>";
+    Array.prototype.forEach.call(box.querySelectorAll("[data-lid]"), function (btn) {
+      btn.addEventListener("click", function () {
+        fetch("/api/v1/league/select", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id: sessionKey, league_id: Number(btn.getAttribute("data-lid")) })
+        }).then(function () { load(sessionKey, true); });
+      });
+    });
+  }
+
+  function render(data, sessionKey) {
+    $("statusLine").innerHTML = cacheChip(data.cache_age_seconds) +
+      (data.detection_note ? ' <span class="faint small">' + esc(data.detection_note) + "</span>" : "");
+    if (data.needs_picker && (data.leagues || []).length > 1) {
+      picker(data, sessionKey);
+      /* Still render the default (private classic league, globals skipped) below the picker. */
+    } else {
+      $("pickerBox").style.display = "none";
+    }
+
+    var box = $("contentBox");
+    var rail = document.getElementById("leagueRail");
+    if (data.status === "refreshing") {
+      box.innerHTML = '<p class="muted small" data-testid="refreshing-note">Refreshing league data… this takes a few seconds — reload in a moment.</p>';
+      if (rail) rail.innerHTML = "";
+      return;
+    }
+    if (!data.selected || !data.league_name) {
+      box.innerHTML = '<p class="faint small">' + esc(data.note || "No league detected yet.") + "</p>";
+      if (rail) rail.innerHTML = "";
+      return;
+    }
+    var header = '<div class="section-h">' + esc(data.league_name || "League") +
+      (data.member_count ? ' <span class="faint small">(' + data.member_count + " managers)</span>" : "") + "</div>";
+
+    /* --- standings mini-table ------------------------------------------- */
+    var st = data.standings_top || [];
+    var standingsHTML = "";
+    if (st.length) {
+      standingsHTML += header + '<div class="card table-wrap" data-testid="standings-table"><div class="table-wrap"><table class="data"><thead><tr><th>#</th><th>Manager</th><th class="num">GW</th><th class="num">Total</th></tr></thead><tbody>' +
+        st.map(function (r) {
+          var mine = String(r.entry_id) === sessionKey;
+          return "<tr" + (mine ? ' style="background:#134e4a"' : "") + "><td>" + esc(r.rank) + "</td><td>" +
+            (mine ? "<strong>YOU · </strong>" : "") + esc(r.entry_name) + "</td><td class=\"num\">" + esc(r.gw_points ?? "–") + '</td><td class="num">' + esc(r.total ?? "–") + "</td></tr>";
+        }).join("") + "</tbody></table></div>";
+      if (data.your_rank) {
+        standingsHTML += '<p class="small" data-testid="your-rank-line">You are ranked <strong>#' + esc(data.your_rank) + "</strong>" +
+          (data.gap_to_top3 != null ? " · gap to top-3: <strong>" + (data.gap_to_top3 > 0 ? "+" : "") + data.gap_to_top3 + " pts</strong>" : "") + "</p>";
+      }
+      standingsHTML += "</div>";
+    } else {
+      standingsHTML += header;
+    }
+
+    /* --- ownership heat --------------------------------------------------- */
+    var railHTML = "";
+    var ins = data.ownership_insights || [];
+    if (ins.length) {
+      railHTML += '<div class="section-h">Rival ownership heat</div><div class="card" data-testid="ownership-heat">' +
+        ins.map(function (i) {
+          return '<div class="row"><div>' + esc(i.line) + "</div></div>";
+        }).join("") + "</div>";
+    }
+    var diffs = data.your_differentials || [];
+    if (diffs.length) {
+      railHTML += '<div class="card" data-testid="my-differentials"><div class="row"><div><strong>Your differentials:</strong> ' +
+        diffs.map(function (d) { return esc(d.web_name); }).join(", ") + " — owned by none of the top rivals.</div></div></div>";
+    }
+
+    /* --- projected edge ---------------------------------------------------- */
+    var edge = data.projected_edge || {};
+    if (edge.lines && edge.lines.length) {
+      railHTML += '<div class="section-h">Projected edge (xPTS vs rivals)</div><div class="card" data-testid="projected-edge">' +
+        '<div class="row"><div>Your XI xPTS: <strong class="num">' + Number(edge.your_xpts).toFixed(1) + "</strong></div></div>" +
+        edge.lines.slice(0, 5).map(function (l) {
+          var color = l.gap > 0 ? "#6ee7b7" : (l.gap < 0 ? "#fca5a5" : "#94a3b8");
+          return '<div class="row"><div style="color:' + color + '"><strong>' + esc(l.line) + "</strong></div></div>";
+        }).join("") +
+        (data.recommended_xi_source === "fielded-starters"
+          ? '<p class="faint small">Edge uses your fielded starters until the engine stores a recommended XI.</p>'
+          : "") +
+        "</div>";
+    }
+    var capInsight = data.captain_insight;
+    if (capInsight) {
+      railHTML += '<p class="small captain-insight" data-testid="captain-insight">🧢 ' + esc(capInsight.line) + "</p>";
+    }
+
+    (data.honest_notes || []).forEach(function (n) {
+      railHTML += '<p class="faint small">⚠️ ' + esc(n) + "</p>";
+    });
+
+    railHTML += '<div class="refresh-row"><button id="refreshBtn" class="btn" type="button">Refresh league data</button></div>';
+
+    box.innerHTML = standingsHTML;
+    if (rail) rail.innerHTML = railHTML;
+    var rb = document.getElementById("refreshBtn");
+    if (rb) {
+      rb.addEventListener("click", function () {
+        load(sessionKey, true);
+        $("contentBox").innerHTML = '<p class="muted small">Refreshing…</p>';
+        if (rail) rail.innerHTML = "";
+      });
+    }
+  }
+
+  function renderTrajectory(data){
+    var sec=$("trajectorySection"), chart=$("trajectoryChart"), insight=$("trajectoryInsight"), how=$("trajectoryHow"), note=$("trajectoryNote");
+    if(!data||data.status!=="ok"||!data.series||!data.series.length){ if(sec) sec.hidden=true; return; }
+    sec.hidden=false;
+    // Build SVG line chart: x= GW steps (0..3), y= rank (1 best) OR cumulative points?
+    // Spec: "Projected League Rank line chart" — so y is rank. Invert so 1 top.
+    var hGws = data.horizon_gws||[];
+    var steps = hGws.length+1; // includes now
+    var labels = ["Now"].concat(hGws.map(function(g){ return "GW"+g; }));
+    var w=520,h=180,padL=36,padR=12,padT=14,padB=28;
+    var maxRank = data.series.length;
+    // ranks data: data.ranks[step][entry_id] = rank
+    var colors={};
+    var palette=["#38bdf8","#fbbf24","#4ade80","#f87171","#a78bfa"];
+    data.series.forEach(function(s,i){ colors[s.entry_id]=palette[i%palette.length]; if(s.is_you) colors[s.entry_id]="#00FF94"; });
+    // Build polylines per entry
+    var svg='<svg viewBox="0 0 '+w+' '+h+'" width="100%" height="'+h+'" role="img" aria-label="Projected rank over next 3 GWs" data-testid="trajectory-svg" style="background:var(--color-surface); border-radius:10px; border:1px solid var(--color-line)">';
+
+    // grid lines
+    for(var r=1;r<=maxRank;r++){
+      var y = padT + ((r-1)/(Math.max(1,maxRank-1))) * (h-padT-padB);
+      svg+='<line x1="'+padL+'" x2="'+(w-padR)+'" y1="'+y+'" y2="'+y+'" stroke="rgba(148,163,184,0.12)" stroke-dasharray="4 4"/>';
+      svg+='<text x="'+(padL-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="10" fill="#8b95a7">#'+r+'</text>';
+    }
+    // x labels
+    labels.forEach(function(lbl, idx){
+      var x = padL + (idx/(steps-1))*(w-padL-padR);
+      svg+='<text x="'+x+'" y="'+(h-8)+'" text-anchor="middle" font-size="10" fill="#a3aec1">'+esc(lbl)+'</text>';
+    });
+    data.series.forEach(function(s){
+      var pts = data.ranks.map(function(rm){ return rm[s.entry_id]; });
+      var coords = pts.map(function(rank, idx){
+        var x = padL + (idx/(steps-1))*(w-padL-padR);
+        var y = padT + ((rank-1)/(Math.max(1,maxRank-1))) * (h-padT-padB);
+        return x+","+y;
+      }).join(" ");
+      var col = colors[s.entry_id];
+      var dash = s.is_you ? "" : ' stroke-dasharray="6 3"';
+      svg+='<polyline fill="none" stroke="'+col+'" stroke-width="'+(s.is_you?3:2)+'" points="'+coords+'"'+dash+'/>';
+      // dots
+      pts.forEach(function(rank, idx){
+        var x = padL + (idx/(steps-1))*(w-padL-padR);
+        var y = padT + ((rank-1)/(Math.max(1,maxRank-1))) * (h-padT-padB);
+        svg+='<circle cx="'+x+'" cy="'+y+'" r="'+(s.is_you?5:3)+'" fill="'+col+'" stroke="#0B0F19" stroke-width="1.5"/>';
+      });
+    });
+    // legend
+    var legendY = padT+6;
+    var legendX = w-padR-120;
+    // background for legend
+    svg+='<rect x="'+(legendX-6)+'" y="2" width="126" height="'+(data.series.length*14+8)+'" rx="8" fill="rgba(11,15,25,0.85)" stroke="rgba(148,163,184,0.15)"/>';
+    data.series.forEach(function(s, i){
+      var y = 10 + i*14;
+      svg+='<rect x="'+legendX+'" y="'+y+'" width="10" height="10" rx="2" fill="'+colors[s.entry_id]+'"/>';
+      svg+='<text x="'+(legendX+14)+'" y="'+(y+9)+'" font-size="10" fill="#e6ebf4">'+esc(s.label.slice(0,14))+'</text>';
+    });
+    svg+='</svg>';
+    chart.innerHTML=svg;
+    insight.textContent = data.insight||"";
+    how.textContent = data.how_computed||"";
+    note.textContent = data.partial_note||"";
+  }
+
+  function loadTrajectory(sessionKey){
+    fetch("/api/v1/league/trajectory?session_id="+encodeURIComponent(sessionKey))
+      .then(function(r){ return r.ok?r.json():null; })
+      .catch(function(){ return null; })
+      .then(function(d){ if(d) renderTrajectory(d); });
+  }
+
+  function loadFomo(sessionKey){
+    var fomoHost = document.getElementById("fomoContent");
+    if(!fomoHost) return;
+    fetch("/api/v1/league/fomo?session_id="+encodeURIComponent(sessionKey))
+      .then(function(r){ return r.ok?r.json():null; })
+      .catch(function(){ return null; })
+      .then(function(d){
+        if(!d||d.status==="unavailable"||d.status==="no-recommendations"){ fomoHost.innerHTML='<p class="faint small">'+esc(d&&d.note||"Not enough history to grade FOMO yet.")+'</p>'; return; }
+        var html='';
+        if(d.alpha_capture){
+          html+='<div class="stat"><div class="stat-label">Alpha Capture Rate</div><div class="stat-value num">'+(d.alpha_capture.rate!=null?Math.round(d.alpha_capture.rate*100)+"%":"–")+'</div><div class="stat-sub">'+esc(d.alpha_capture.line||"")+'</div></div>';
+        }
+        if(d.captain_regret){
+          html+='<div class="card" data-testid="captain-regret"><strong class="small">Cost of Ignoring Math</strong><p class="small">'+esc(d.cost_line||d.captain_regret.line||"")+'</p><p class="faint small">'+esc(d.captain_regret.how_computed||"")+'</p></div>';
+        }
+        if(d.cost_line){
+          html+='<p class="small" data-testid="fomo-cost-line" style="font-weight:700; color:var(--color-warn)">'+esc(d.cost_line)+'</p>';
+        }
+        fomoHost.innerHTML = html||'<p class="faint small">No FOMO data yet.</p>';
+      });
+  }
+
+  function load(sessionKey, forceRefresh) {
+    var url = "/api/v1/league?session_id=" + encodeURIComponent(sessionKey) + (forceRefresh ? "&refresh=true" : "");
+    fetch(url)
+      .then(function (r) { return r.ok ? r.json() : r.json().then(function (b) { throw new Error(b.detail || r.status); }); })
+      .then(function (data) { render(data, sessionKey); loadTrajectory(sessionKey); loadFomo(sessionKey); })
+      .catch(function (err) {
+        $("contentBox").innerHTML = '<p class="faint">' + esc(err.message || "League unavailable.") + "</p>";
+        var _rail = document.getElementById("leagueRail"); if (_rail) _rail.innerHTML = "";
+      });
+  }
+
+  FPLApp.session.bootstrap({
+    onReady: function (session) { load(session.key, false); },
+    onNoSession: function () {
+      $("contentBox").innerHTML =
+        '<span class="pill warn">No saved session</span> <span class="muted small">— open ' +
+        '<a href="/dashboard">Decisions</a>, enter your FPL ID once, and your leagues are auto-detected here.</span>';
+      var _rail2 = document.getElementById("leagueRail"); if (_rail2) _rail2.innerHTML = "";
+    },
+    onError: function (msg) {
+      $("contentBox").innerHTML = '<p class="faint">' + esc(msg || "Could not load.") + "</p>";
+      var _rail3 = document.getElementById("leagueRail"); if (_rail3) _rail3.innerHTML = "";
+    }
+  });
+});
+</script>
+</body>
+</html>

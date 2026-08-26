@@ -1,0 +1,22 @@
+{
+  "1": {"penalty": 12, "corners": 12, "free_kicks": 12},
+  "2": {"penalty": 55, "corners": 41, "free_kicks": 41},
+  "3": {"penalty": 78, "corners": 68, "free_kicks": 68},
+  "4": {"penalty": 106, "corners": 95, "free_kicks": 95},
+  "5": {"penalty": 121, "corners": 121, "free_kicks": 122},
+  "6": {"penalty": 154, "corners": 154, "free_kicks": 154},
+  "7": {"penalty": 186, "corners": 188, "free_kicks": 188},
+  "8": {"penalty": 208, "corners": 208, "free_kicks": 208},
+  "9": {"penalty": 236, "corners": 209, "free_kicks": 236},
+  "10": {"penalty": 569, "corners": 261, "free_kicks": 261},
+  "11": {"penalty": 295, "corners": 286, "free_kicks": 286},
+  "12": {"penalty": 313, "corners": 315, "free_kicks": 313},
+  "13": {"penalty": 335, "corners": 260, "free_kicks": 260},
+  "14": {"penalty": 379, "corners": 366, "free_kicks": 366},
+  "15": {"penalty": 411, "corners": 398, "free_kicks": 398},
+  "16": {"penalty": 426, "corners": 426, "free_kicks": 426},
+  "17": {"penalty": 453, "corners": 453, "free_kicks": 453},
+  "18": {"penalty": 480, "corners": 480, "free_kicks": 480},
+  "19": {"penalty": 512, "corners": 515, "free_kicks": 515},
+  "20": {"penalty": 542, "corners": 543, "free_kicks": 543}
+}

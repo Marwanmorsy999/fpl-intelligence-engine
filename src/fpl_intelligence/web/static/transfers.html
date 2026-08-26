@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transfer Planner — FPL Intelligence</title>
+<link rel="icon" href="data:,">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#0B0F19">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/tokens.css">
+<link rel="stylesheet" href="/static/components.css">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/app.js"></script>
+<style>
+  html, body { overflow-x: hidden; }
+  .transfers-head { display:flex; align-items:center; gap:var(--space-2); flex-wrap:wrap; }
+  .transfers-summary { display:flex; gap:var(--space-3); flex-wrap:wrap; margin:var(--space-3) 0; align-items:center; }
+  .desk-grid { display:grid; grid-template-columns:1fr 340px; gap:var(--space-5); align-items:start; }
+  @media (max-width:880px){ .desk-grid{ grid-template-columns:1fr; } }
+  .squad-bank { display:flex; gap:var(--space-2); flex-wrap:wrap; margin:var(--space-3) 0; }
+  .squad-grid-transfer { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:var(--space-3); }
+  .transfer-tile { cursor:grab; user-select:none; border:1px solid var(--color-line); border-radius:var(--radius-lg); padding:10px 12px; background:var(--color-surface); transition:border-color .15s, transform .15s; min-height:64px; }
+  .transfer-tile:hover{ border-color:var(--color-line-strong); transform:translateY(-1px); }
+  .transfer-tile.dragging{ opacity:.45; }
+  .transfer-tile.selected-out{ border-color:var(--color-neg-border); background:var(--color-neg-weak); box-shadow:0 0 0 2px var(--color-neg-border); }
+  .transfer-tile.selected-in{ border-color:var(--color-pos-border); background:var(--color-pos-weak); box-shadow:0 0 0 2px var(--color-pos-border); }
+  .stage-panel { border:1px dashed var(--color-line-strong); border-radius:var(--radius-lg); padding:var(--space-4); background:var(--color-surface-2); min-height:120px; display:flex; flex-direction:column; gap:var(--space-2); }
+  .stage-row { display:flex; gap:var(--space-2); align-items:center; flex-wrap:wrap; }
+  .stage-slot { flex:1; min-width:140px; border:1px solid var(--color-line); border-radius:10px; padding:10px; background:var(--color-surface); min-height:56px; display:flex; align-items:center; justify-content:center; text-align:center; }
+  .stage-slot.filled{ border-color:var(--color-accent); background:var(--color-accent-weak); }
+  .stage-slot.drop-active{ border-color:var(--color-accent); box-shadow:0 0 0 3px var(--color-accent-weak); }
+  .staged-label{ font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--color-warn); border:1px solid var(--color-warn-border); background:var(--color-warn-weak); padding:4px 8px; border-radius:999px; display:inline-flex; }
+  .shadow-metrics { margin-top:var(--space-3); }
+  .shadow-metrics table.data { min-width:520px; }
+  .valuation-box { background:var(--color-surface-3); border:1px solid var(--color-line); border-radius:12px; padding:var(--space-3); }
+  .hit-chip{ display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; font-size:13px; font-weight:700; border:1px solid var(--color-line); }
+  .hit-chip.exec{ border-color:var(--color-pos-border); background:var(--color-pos-weak); color:var(--color-pos); }
+  .hit-chip.avoid{ border-color:var(--color-neg-border); background:var(--color-neg-weak); color:var(--color-neg); }
+  .targets-search { position:relative; }
+  .search-results { max-height:260px; overflow-y:auto; border:1px solid var(--color-line); border-radius:10px; margin-top:6px; background:var(--color-surface); }
+  .search-item{ padding:8px 10px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; border-bottom:1px solid var(--color-line); }
+  .search-item:last-child{ border-bottom:none; }
+  .search-item:hover{ background:var(--color-surface-3); }
+  .execute-row{ display:flex; gap:var(--space-2); align-items:center; flex-wrap:wrap; margin-top:var(--space-3); }
+</style>
+</head>
+<body>
+<div id="topnav"></div>
+<div class="wrap">
+  <div class="transfers-head">
+    <h1 class="page-title">Transfer Planner
+      <span id="gwHeader" class="pill">Gameweek —</span>
+    </h1>
+    <span id="stagedLabel" class="staged-label" hidden data-testid="staged-label">Preview Mode — changes not yet saved</span>
+  </div>
+  <p class="muted small">What-If Simulator — drag a squad player to OUT, pick a target for IN. The engine instantly recomputes Alpha, xPTS and captaincy for the Shadow Squad. Make this move on FPL, then save here to update your local math.</p>
+
+  <div id="statusLine"></div>
+
+  <div class="transfers-summary" data-testid="squad-summary">
+    <span id="bankPill" class="pill" data-testid="bank-pill">Bank —</span>
+    <span id="ftPill" class="pill" data-testid="ft-pill">FTs —</span>
+    <span id="valuePill" class="pill">Value —</span>
+  </div>
+
+  <div class="desk-grid">
+    <div>
+      <div class="section-h">Current squad — drag or click to swap</div>
+      <div id="squadGrid" class="squad-grid-transfer" data-testid="squad-grid"></div>
+
+      <div class="section-h" style="margin-top:var(--space-6)">Targets — search to pick IN</div>
+      <div class="targets-search">
+        <input id="targetSearch" class="input" placeholder="Search targets (e.g. Saka, Haaland)" autocomplete="off" data-testid="target-search">
+        <div id="searchResults" class="search-results" hidden data-testid="search-results"></div>
+      </div>
+      <div id="targetsList" style="margin-top:var(--space-3); display:grid; gap:var(--space-2); grid-template-columns:repeat(auto-fill,minmax(180px,1fr))"></div>
+    </div>
+
+    <div>
+      <div class="section-h">Stage transfer</div>
+      <div class="stage-panel" data-testid="stage-panel">
+        <div class="stage-row">
+          <div style="flex:1">
+            <div class="faint small" style="margin-bottom:4px">OUT</div>
+            <div id="outSlot" class="stage-slot" data-slot="out" data-testid="out-slot">Drop or click a squad player</div>
+          </div>
+          <span style="font-weight:800; color:var(--color-text-faint)">→</span>
+          <div style="flex:1">
+            <div class="faint small" style="margin-bottom:4px">IN</div>
+            <div id="inSlot" class="stage-slot" data-slot="in" data-testid="in-slot">Search & pick a target</div>
+          </div>
+        </div>
+        <button id="stageBtn" class="btn" type="button" disabled data-testid="stage-transfer-btn">Stage Transfer</button>
+        <div id="stageActions" style="display:flex; gap:8px; margin-top:4px">
+          <button id="clearStageBtn" class="btn-ghost" type="button" data-testid="clear-stage-btn">Clear</button>
+        </div>
+      </div>
+
+      <div id="valuationBox" class="valuation-box" hidden data-testid="valuation-box">
+        <div class="section-h" style="margin-top:0">FT Valuation</div>
+        <div id="valuationLine" class="small"></div>
+        <div id="valuationPerGw" class="faint small" style="margin-top:6px"></div>
+        <div id="hitChipHost" style="margin-top:10px"></div>
+      </div>
+
+      <div id="shadowBox" class="card shadow-metrics" hidden data-testid="shadow-metrics">
+        <div class="section-h" style="margin-top:0">Shadow Squad — Alpha · xPTS · Captaincy</div>
+        <p class="faint small">Recalculated against staged squad. Labelled STAGED.</p>
+        <div class="table-wrap"><table class="data" id="shadowTable"><thead><tr><th>Player</th><th class="num">xPTS</th><th class="num">Alpha</th></tr></thead><tbody id="shadowTbody"></tbody></table></div>
+        <div id="captainDelta" class="small" style="margin-top:8px"></div>
+        <div id="xiDelta" class="small muted" style="margin-top:4px"></div>
+      </div>
+
+      <div class="execute-row">
+        <a id="viewOnFplBtn" class="btn" href="https://fantasy.premierleague.com/transfers" target="_blank" rel="noopener" data-testid="view-on-fpl-btn">View on FPL</a>
+        <button id="saveLocalBtn" class="btn-primary" type="button" data-testid="save-local-btn" title="Save staged IN/OUT to your local squad — no FPL fetch">Save to Local Squad</button>
+        <span id="executeStatus" class="small"></span>
+      </div>
+      <p class="faint small" style="margin-top:6px" data-testid="fpl-hint">Make this move on FPL, then save here to update your local math.</p>
+    </div>
+  </div>
+
+  <details class="card" style="margin-top:var(--space-6)">
+    <summary>How this is computed</summary>
+    <p class="muted small" style="margin-bottom:0">FT Valuation = Σ(xPTS_IN − xPTS_OUT) over next 3 GWs from predictions_current − hit cost (−4 per extra transfer beyond free). Missing GWs excluded. Shadow metrics recompute Alpha (xPTS − position avg) × (1 − ownership) for the staged 15.</p>
+  </details>
+</div>
+<script>
+"use strict";
+document.addEventListener("DOMContentLoaded", function(){
+  FPLApp.renderNav("/transfers");
+  var $ = function(id){ return document.getElementById(id); };
+  var esc = FPLApp.esc;
+  var session = FPLApp.session.read();
+  var squad = null;
+  var stagedOut = null;
+  var stagedIn = null;
+  var targetsCache = [];
+
+  function setPills(){
+    if(!squad) return;
+    $("bankPill").textContent = "Bank £" + Number(squad.bank).toFixed(1) + "m";
+    $("ftPill").textContent = squad.free_transfers + " FT" + (squad.free_transfers===1?"":"s") + " remaining";
+    var val = squad.player_prices ? Object.values(squad.player_prices).reduce(function(a,b){return a+Number(b||0);},0)+Number(squad.bank) : null;
+    $("valuePill").textContent = val!=null ? "Value £"+val.toFixed(1)+"m" : "Value —";
+    var gw = squad.gameweek || squad.picks_gw || "—";
+    $("gwHeader").textContent = "Gameweek " + gw;
+  }
+
+  function tile(pid, name, pos, price, team){
+    var posNames = {1:"GK",2:"DEF",3:"MID",4:"FWD"};
+    var selectedOut = stagedOut===pid ? ' selected-out':'';
+    return '<div class="transfer-tile" draggable="true" data-player-id="'+pid+'" data-testid="transfer-tile" data-role="squad-player">'+
+      '<div style="display:flex; justify-content:space-between; align-items:center; gap:8px">'+
+        '<strong>'+esc(name)+'</strong><span class="pill">'+(posNames[pos]||pos||"")+'</span></div>'+
+      '<div class="faint small">'+esc(team||"")+' · £'+Number(price||0).toFixed(1)+'m</div>'+
+      '<div class="faint small">#'+pid+'</div></div>';
+  }
+
+  function renderSquad(){
+    if(!squad) { $("squadGrid").innerHTML='<p class="faint small">No squad saved — open <a href="/dashboard">Decisions</a> first.</p>'; return; }
+    fetch("/api/v1/players").then(function(r){return r.ok?r.json():[];}).catch(function(){return [];}).then(function(players){
+      var byId={}; players.forEach(function(p){ byId[p.fpl_element_id!=null?p.fpl_element_id:p.id]=p.web_name; });
+      // fallback to squad names when players endpoint thin
+      $("squadGrid").innerHTML = (squad.player_ids||[]).map(function(pid){
+        var name = byId[pid] || ("Player "+pid);
+        var pos = (squad.player_positions||{})[pid];
+        var price = (squad.player_prices||{})[pid];
+        var team = (squad.player_teams||{})[pid];
+        return tile(pid, name, pos, price, team);
+      }).join("");
+      bindSquadTiles();
+      FPLApp.hydrateCrests(document);
+    });
+  }
+
+  function bindSquadTiles(){
+    document.querySelectorAll('[data-player-id]').forEach(function(el){
+      el.addEventListener("dragstart", function(ev){ el.classList.add("dragging"); ev.dataTransfer.setData("text/plain", el.getAttribute("data-player-id")); });
+      el.addEventListener("dragend", function(){ el.classList.remove("dragging"); });
+      el.addEventListener("click", function(){
+        var pid = Number(el.getAttribute("data-player-id"));
+        // click-to-swap: first click OUT, if OUT already set then set if shift? Simplify: toggles OUT
+        if(stagedOut===pid){ stagedOut=null; } else { stagedOut=pid; }
+        renderStageSlots();
+        updateStageBtn();
+      });
+    });
+  }
+
+  function renderStageSlots(){
+    var outSlot=$("outSlot"), inSlot=$("inSlot");
+    if(stagedOut!=null){
+      // resolve name
+      var nameOut = "Player "+stagedOut;
+      // try cache from squad
+      outSlot.textContent = nameOut;
+      outSlot.classList.add("filled");
+      // attempt to enrich via targetsCache or will be overwritten after valuation fetch
+      fetch("/api/v1/players").then(function(r){return r.ok?r.json():[];}).then(function(ps){
+        var hit = ps.find(function(p){ return (p.fpl_element_id||p.id)==stagedOut; });
+        if(hit) outSlot.textContent = hit.web_name;
+      }).catch(function(){});
+    } else {
+      outSlot.textContent="Drop or click a squad player";
+      outSlot.classList.remove("filled");
+    }
+    if(stagedIn!=null){
+      var t = targetsCache.find(function(x){ return x.player_id===stagedIn; });
+      var nameIn = t ? t.web_name : ("Player "+stagedIn);
+      inSlot.textContent = nameIn;
+      inSlot.classList.add("filled");
+    } else {
+      inSlot.textContent="Search & pick a target";
+      inSlot.classList.remove("filled");
+    }
+  }
+
+  function updateStageBtn(){
+    $("stageBtn").disabled = !(stagedIn!=null && stagedOut!=null);
+  }
+
+  // Drop zones
+  ["outSlot","inSlot"].forEach(function(id){
+    var el=$(id);
+    el.addEventListener("dragover", function(ev){ ev.preventDefault(); el.classList.add("drop-active"); });
+    el.addEventListener("dragleave", function(){ el.classList.remove("drop-active"); });
+    el.addEventListener("drop", function(ev){
+      ev.preventDefault(); el.classList.remove("drop-active");
+      var pid = Number(ev.dataTransfer.getData("text/plain"));
+      if(!pid) return;
+      if(id==="outSlot"){
+        if((squad.player_ids||[]).indexOf(pid)===-1) return;
+        stagedOut=pid;
+      } else {
+        // inSlot drop of target from search list — targets are not draggable from squad, so allow any id
+        // If dropping a squad id into IN, ignore
+        if((squad.player_ids||[]).indexOf(pid)!==-1) return;
+        stagedIn=pid;
+      }
+      renderStageSlots(); updateStageBtn();
+    });
+  });
+
+  // Search
+  var searchTimer=null;
+  $("targetSearch").addEventListener("input", function(){
+    var q = $("targetSearch").value.trim().toLowerCase();
+    clearTimeout(searchTimer);
+    if(q.length<2){ $("searchResults").hidden=true; return; }
+    searchTimer=setTimeout(function(){ doSearch(q); }, 180);
+  });
+
+  function doSearch(q){
+    var sessKey = session ? session.key : "";
+    var url = "/api/v1/targets?limit=30&show_all=true" + (sessKey ? "&session_id="+encodeURIComponent(sessKey):"");
+    fetch(url).then(function(r){ return r.ok? r.json():null; }).then(function(data){
+      if(!data||!data.targets){ $("searchResults").hidden=true; return; }
+      targetsCache = data.targets;
+      var filtered = targetsCache.filter(function(t){ return String(t.web_name).toLowerCase().indexOf(q)!==-1; }).slice(0,8);
+      if(!filtered.length){ $("searchResults").hidden=true; return; }
+      $("searchResults").innerHTML = filtered.map(function(t){
+        return '<div class="search-item" data-pid="'+t.player_id+'" data-testid="target-option"><span><strong>'+esc(t.web_name)+'</strong> <span class="pill">'+esc(t.position)+'</span> £'+Number(t.price).toFixed(1)+'</span><span class="faint small">α '+ (t.alpha!=null?Number(t.alpha).toFixed(2):"–")+'</span></div>';
+      }).join("");
+      $("searchResults").hidden=false;
+      $("searchResults").querySelectorAll("[data-pid]").forEach(function(n){
+        n.addEventListener("click", function(){
+          stagedIn = Number(n.getAttribute("data-pid"));
+          renderStageSlots(); updateStageBtn();
+          $("searchResults").hidden=true;
+          $("targetSearch").value = n.querySelector("strong").textContent;
+        });
+        // make draggable so it can be dropped into inSlot via HTML5 drag
+        n.draggable=true;
+        n.addEventListener("dragstart", function(ev){ ev.dataTransfer.setData("text/plain", n.getAttribute("data-pid")); });
+      });
+    });
+  }
+  // Also render quick list below search for discoverability
+  function loadQuickTargets(){
+    var sessKey = session ? session.key : "";
+    var url = "/api/v1/targets?limit=12" + (sessKey ? "&session_id="+encodeURIComponent(sessKey):"");
+    fetch(url).then(function(r){return r.ok?r.json():null;}).then(function(data){
+      if(!data||!data.targets) return;
+      targetsCache = data.targets;
+      $("targetsList").innerHTML = data.targets.slice(0,12).map(function(t){
+        return '<div class="transfer-tile" draggable="true" data-pid="'+t.player_id+'" data-testid="target-tile" style="cursor:grab"><strong>'+esc(t.web_name)+'</strong> <span class="pill">'+esc(t.position)+'</span><div class="faint small">£'+Number(t.price).toFixed(1)+' · xPTS '+Number(t.xpts).toFixed(1)+' · α '+(t.alpha!=null?Number(t.alpha).toFixed(2):"–")+'</div><div class="faint small">#'+t.player_id+'</div></div>';
+      }).join("");
+      $("targetsList").querySelectorAll("[data-pid]").forEach(function(n){
+        n.addEventListener("click", function(){ stagedIn=Number(n.getAttribute("data-pid")); renderStageSlots(); updateStageBtn(); });
+        n.addEventListener("dragstart", function(ev){ ev.dataTransfer.setData("text/plain", n.getAttribute("data-pid")); });
+      });
+    });
+  }
+
+  $("stageBtn").addEventListener("click", function(){
+    if(stagedIn==null || stagedOut==null) return;
+    stageTransfer();
+  });
+  $("clearStageBtn").addEventListener("click", function(){ stagedIn=null; stagedOut=null; renderStageSlots(); updateStageBtn(); $("valuationBox").hidden=true; $("shadowBox").hidden=true; $("stagedLabel").hidden=true; $("executeStatus").textContent=""; });
+
+  function stageTransfer(){
+    if(!session||!session.key){ $("statusLine").innerHTML='<span class="pill bad">No session — save your squad first.</span>'; return; }
+    var sessKey = session.key;
+    $("statusLine").innerHTML='<span class="pill">Staging…</span>';
+    // Parallel fetches: valuation + shadow (planner-only — no push)
+    var valUrl = "/api/v1/transfers/valuation?session_id="+encodeURIComponent(sessKey)+"&element_in="+stagedIn+"&element_out="+stagedOut;
+    var shadUrl = "/api/v1/transfers/shadow?session_id="+encodeURIComponent(sessKey)+"&element_in="+stagedIn+"&element_out="+stagedOut;
+    Promise.all([fetch(valUrl).then(function(r){return r.json();}), fetch(shadUrl).then(function(r){return r.json();})]).then(function(results){
+      var valData = results[0], shadData = results[1];
+      renderValuation(valData);
+      renderShadow(shadData);
+      $("stagedLabel").hidden=false;
+      $("statusLine").innerHTML='<span class="pill ok">Staged — shadow squad ready</span>';
+    }).catch(function(err){ $("statusLine").innerHTML='<span class="pill bad">'+esc(err.message||"Stage failed")+"</span>"; });
+  }
+
+  function renderValuation(data){
+    var box=$("valuationBox"), line=$("valuationLine"), perGw=$("valuationPerGw"), host=$("hitChipHost");
+    if(!data||!data.valuation){ box.hidden=true; return; }
+    var v=data.valuation, ha=data.hit_analysis;
+    box.hidden=false;
+    line.innerHTML = '<span class="pill ok" data-testid="ft-valuation">FT Valuation: Net EV '+(v.net_ev>0?"+":"")+Number(v.net_ev).toFixed(1)+' pts</span> <span class="faint small">gross '+Number(v.gross_ev).toFixed(1)+' · gaps '+(v.gaps&&v.gaps.length?v.gaps.join(","):"none")+'</span>';
+    perGw.textContent = (v.per_gw||[]).map(function(r){ return 'GW'+r.gw+': '+(r.delta!=null?(r.delta>0?"+":"")+Number(r.delta).toFixed(1):"–"); }).join(" · ") || v.note || "";
+    if(ha){
+      var chipCls = ha.recommendation==="EXECUTE" ? "exec" : (ha.recommendation==="AVOID" ? "avoid" : "");
+      host.innerHTML = '<span class="hit-chip '+chipCls+'" data-testid="hit-cost-chip">'+esc(ha.chip_text)+'</span>';
+    } else {
+      host.innerHTML='';
+    }
+  }
+
+  function renderShadow(data){
+    var box=$("shadowBox");
+    if(!data||data.status!=="ok"||!data.shadow){ box.hidden=true; return; }
+    box.hidden=false;
+    var sh = data.shadow;
+    var rows = Object.keys(sh.metrics||{}).map(function(pid){
+      var m = sh.metrics[pid];
+      // resolve name
+      var name = "Player "+pid;
+      var t = targetsCache.find(function(x){ return String(x.player_id)===String(pid); });
+      if(t) name=t.web_name;
+      return '<tr data-testid="shadow-row"><td>'+esc(name)+' <span class="faint small">#'+pid+'</span></td><td class="num">'+ (m.xpts!=null?Number(m.xpts).toFixed(1):"–") +'</td><td class="num">'+ (m.alpha!=null?(m.alpha>0?"+":"")+Number(m.alpha).toFixed(2):'<span class="pill faint-chip">unavailable</span>') +'</td></tr>';
+    }).join("");
+    // ensure staged IN row highlighted
+    $("shadowTbody").innerHTML = rows || '<tr><td colspan="3" class="faint small">No metrics</td></tr>';
+    var cap = data.captain_delta;
+    if(cap){
+      $("captainDelta").innerHTML = cap.changed ? '<span class="pill warn" data-testid="captain-delta">Captaincy shifts: #'+cap.current_captain+' → #'+cap.shadow_captain+'</span>' : '<span class="pill ok" data-testid="captain-delta">Captaincy unchanged: #'+cap.current_captain+'</span>';
+    } else {
+      $("captainDelta").textContent='';
+    }
+    $("xiDelta").textContent = sh.xi_delta!=null ? "XI xPTS delta: "+(sh.xi_delta>0?"+":"")+Number(sh.xi_delta).toFixed(1) : "";
+  }
+
+  // v2.7.3-dual-state: Save to Local Squad — pure DB write, no FPL fetch.
+  // Hint: "Make this move on FPL, then save here to update your local math."
+  function saveLocal(){
+    if(!session||!session.key){ $("statusLine").innerHTML='<span class="pill bad">No session — save your squad first.</span>'; return; }
+    if(stagedIn==null||stagedOut==null){ $("statusLine").innerHTML='<span class="pill bad">Pick OUT and IN first.</span>'; return; }
+    var btn=$("saveLocalBtn"); var prev=btn.textContent; btn.disabled=true; btn.textContent="Saving…";
+    $("statusLine").innerHTML='<span class="pill">Saving to local squad…</span>';
+    fetch("/api/v1/transfers/save-local",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({session_id:session.key,element_in:stagedIn,element_out:stagedOut})})
+      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok,body:j}; }); })
+      .then(function(res){
+        if(!res.ok){ $("statusLine").innerHTML='<span class="pill bad">'+esc(res.body.detail||"Save failed")+"</span>"; return; }
+        $("statusLine").innerHTML='<span class="pill ok">Local squad saved ✓ — trajectory & Alpha now use this XI</span>';
+        $("executeStatus").textContent="Local squad updated. Refresh /dashboard or /league to see new math.";
+        // reload effective squad so pills + grid reflect local change
+        return fetch("/api/v1/squad?session_id="+encodeURIComponent(session.key)).then(function(r){return r.ok?r.json():null;}).then(function(s){
+          if(s){ squad=s; setPills(); renderSquad(); }
+        });
+      }).catch(function(err){ $("statusLine").innerHTML='<span class="pill bad">'+esc(err.message||"Save failed")+"</span>"; })
+      .finally(function(){ btn.disabled=false; btn.textContent=prev; });
+  }
+  var _slb=$("saveLocalBtn"); if(_slb) _slb.addEventListener("click", saveLocal);
+  // Also support POST /squad/local — same semantics, kept for API symmetry
+  // v2.7.2-planner-only: no execute logic. View on FPL is a plain link (href above).
+
+  // bootstrap session
+  FPLApp.session.bootstrap({
+    onReady: function(sess){
+      session=sess;
+      // load squad
+      fetch("/api/v1/squad?session_id="+encodeURIComponent(sess.key)).then(function(r){return r.ok?r.json():null;}).then(function(s){
+        if(!s) { $("statusLine").innerHTML='<span class="pill warn">No squad saved — <a href="/dashboard">import your team</a> first.</span>'; renderSquad(); return; }
+        squad=s;
+        setPills();
+        renderSquad();
+        loadQuickTargets();
+      });
+    },
+    onNoSession: function(){
+      $("statusLine").innerHTML='<span class="pill warn">No saved session — open <a href="/dashboard">Decisions</a>, enter your FPL ID once.</span>';
+      renderSquad();
+      loadQuickTargets();
+    },
+    onError: function(msg){
+      $("statusLine").innerHTML='<span class="pill bad">'+esc(msg||"Load failed")+"</span>";
+    }
+  });
+  // if session already from read
+  if(!session){
+    var tmp=FPLApp.session.read();
+    if(tmp){ session=tmp; }
+  }
+});
+</script>
+</body>
+</html>

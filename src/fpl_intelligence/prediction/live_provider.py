@@ -56,6 +56,7 @@ from fpl_intelligence.data_providers.understat import (
     build_stats_from_row,
 )
 from fpl_intelligence.optimization.provider import PlayerPrediction
+from fpl_intelligence.prediction.market_check import format_market_detail
 
 logger = logging.getLogger(__name__)
 
@@ -101,31 +102,14 @@ PROXY_XPTS_MAX = 13.0
 
 #: FPL team-name variants -> canonical The-Odds-API style names. Applied to
 #: whatever name the DB gives us so h2h books match without hardcoding ids.
-_TEAM_NAME_ALIASES: dict[str, str] = {
-    "man city": "Manchester City",
-    "man utd": "Manchester United",
-    "manchester utd": "Manchester United",
-    "spurs": "Tottenham Hotspur",
-    "nott'm forest": "Nottingham Forest",
-    "nottm forest": "Nottingham Forest",
-    "wolves": "Wolverhampton Wanderers",
-    "brighton": "Brighton & Hove Albion",
-    "bournemouth": "AFC Bournemouth",
-    "west ham": "West Ham United",
-    "newcastle": "Newcastle United",
-    "leeds": "Leeds United",
-    "sunderland": "Sunderland",
-    "burnley": "Burnley",
-    "fulham": "Fulham",
-    "everton": "Everton",
-}
+#: Phase 21.1: the table lives in data_providers.team_aliases and now covers
+#: abbreviations ("MCI") too — re-exported here for backward compatibility.
+from fpl_intelligence.data_providers.team_aliases import canonical_team_name  # noqa: E402
 
 
 def _normalise_team_name(name: str | None) -> str:
     """Map an FPL display team name onto bookmaker-style naming."""
-    raw = (name or "").strip()
-    low = raw.lower()
-    return _TEAM_NAME_ALIASES.get(low, raw)
+    return canonical_team_name(name)
 
 
 def _clamp(value: float, lo: float, hi: float) -> float:
@@ -144,6 +128,7 @@ class LabeledPlayerPrediction(PlayerPrediction):
 
     source: str = ""
     data_quality: str = ""
+    breakdown: dict[str, float] | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -189,6 +174,8 @@ def load_player_catalog(
             "position": int(row["position"]) if row.get("position") is not None else 0,
             "team": int(row["team"]) if row.get("team") is not None else 0,
             "team_short": teams.get(int(row["team"]) if row.get("team") is not None else 0, ""),
+            # Phase 22 (D1): ownership share for the selected-by chips.
+            "selected_by_percent": row.get("selected_by_percent"),
         }
     return catalog
 
@@ -211,8 +198,8 @@ class ChainLevel:
     #: free-form provenance notes (run id, row counts, disabled signals...)
     notes: dict[str, Any] = field(default_factory=dict)
     #: Optional per-player estimate extras for the proxy level:
-    #: ``{player_id: {"minutes": .., "start": .., "conf": .., "compl": ..}}``
-    per_player: dict[int, dict[str, float]] = field(default_factory=dict)
+    #: ``{player_id: {"minutes": .., "start": .., "conf": .., "compl": .., "breakdown": {}}}``
+    per_player: dict[int, dict[str, Any]] = field(default_factory=dict)
 
     def meta(self) -> dict[str, Any]:
         return {
@@ -407,11 +394,31 @@ def _baseline_points_for_gameweek(db: Session, gameweek: int) -> ChainLevel | No
     if not points:
         return None
 
-    # Coverage gate: the level must explain a meaningful fraction of the
-    # ingested player universe before it is published — thin history falls
-    # through to the transparent proxy instead of serving sparse numbers.
+    # Phase 21.1 fix: every consumer of chain points (optimizer, drawer,
+    # materialized writer, ledger) keys by OFFICIAL FPL element id — translate
+    # the internal Player.id keys here so the baseline level speaks the same
+    # language as the proxy/backtest levels. Unmapped internal ids are dropped
+    # rather than mis-keyed (which silently served 0.0 xPTS after GW1 landed).
     from fpl_intelligence.db.models import Player
 
+    id_to_element = {
+        int(row[0]): int(row[1])
+        for row in db.execute(
+            select(Player.id, Player.fpl_element_id)
+        ).all()
+        if row[0] is not None and row[1] is not None
+    }
+    points = {
+        id_to_element[int(pid)]: value
+        for pid, value in points.items()
+        if int(pid) in id_to_element
+    }
+    if not points:
+        return None
+
+    # Coverage gate: the level must explain a meaningful fraction of the
+    # ingested player universe before it is published ? thin history falls
+    # through to the transparent proxy instead of serving sparse numbers.
     universe = int(db.scalar(select(func.count(Player.id))) or 0)
     coverage = (len(points) / universe) if universe > 0 else 0.0
     if coverage < BASELINE_COVERAGE_THRESHOLD:
@@ -496,6 +503,49 @@ def _team_names(db: Session) -> dict[int, str]:
     except Exception:  # noqa: BLE001 - names are enrichment, never a dependency
         return {}
     return {int(tid): str(name) for tid, name in rows}
+
+
+def _shared_market_off(reason: str) -> dict[str, Any]:
+    """Honest off-state for the shared market-check payload."""
+    from fpl_intelligence.prediction.market_check import disabled_market_status
+
+    return disabled_market_status(reason)
+
+
+def _shared_market_payload(
+    db: Session,
+    gameweek: int,
+    fixtures: list[dict[str, int]],
+    snapshot: Any,
+) -> dict[str, Any]:
+    """Phase 23 (C1): compute the canonical market check for the chain notes.
+
+    Uses the SAME :func:`compute_market_status` the Sources probe runs, with
+    the same short+full team-name resolution, so Decisions, Captain Spotlight
+    and Sources render one identical sentence.
+    """
+    from fpl_intelligence.prediction.market_check import (
+        compute_market_status,
+        official_id_names_map,
+    )
+
+    try:
+        id_to_names = official_id_names_map(db)
+    except Exception:  # noqa: BLE001 — status reporting never breaks scoring
+        id_to_names = {}
+    rows = [
+        (gameweek, fx["home_team_id"], fx["away_team_id"]) for fx in fixtures
+    ]
+    status = compute_market_status(rows, id_to_names, snapshot.matched_event_names())
+    payload: dict[str, Any] = {
+        "enabled": bool(status["fixtures_matched"] > 0),
+        "fixtures_matched": status["fixtures_matched"],
+        "detail": status["detail"],
+        "unmatched": status["unmatched"],
+    }
+    if not payload["enabled"]:
+        payload["reason"] = "no fixtures matched yet"
+    return payload
 
 
 def _market_probs_for_fixtures(
@@ -651,19 +701,22 @@ def _proxy_points_for_gameweek(
 
     team_names = _team_names(db)
 
-    def _fetch_market() -> tuple[dict[int, float], list[dict[str, Any]]]:
-        if odds is None or not odds.enabled or not fixtures:
-            return {}, []
+    def _fetch_market() -> tuple[dict[int, float], list[dict[str, Any]], dict[str, Any]]:
+        """(favourite probs, bump detail, shared market-check payload)."""
+        if odds is None or not odds.enabled:
+            return {}, [], _shared_market_off("THE_ODDS_API_KEY not set")
+        if not fixtures:
+            return {}, [], _shared_market_off("no fixtures matched yet")
         _t0 = time.perf_counter()
         try:
             snapshot = odds.fetch_epl_odds()
             if snapshot is not None:
                 probs, detail = _market_probs_for_fixtures(fixtures, team_names, snapshot.matches)
-                return probs, detail
+                return probs, detail, _shared_market_payload(db, gameweek, fixtures, snapshot)
         except Exception:  # noqa: BLE001 - graceful degradation contract
             pass
         logger.warning("proxy market fetch %.3fs (degraded)", time.perf_counter() - _t0)
-        return {}, []
+        return {}, [], _shared_market_off("odds fetch failed")
 
     def _fetch_weather() -> tuple[dict[int, float], list[str]]:
         if not fixtures:
@@ -677,10 +730,16 @@ def _proxy_points_for_gameweek(
     with ThreadPoolExecutor(max_workers=2) as executor:
         market_future = executor.submit(_fetch_market)
         weather_future = executor.submit(_fetch_weather)
-        market_probs, market_detail = market_future.result()
+        market_probs, market_detail, market_status = market_future.result()
         weather_adj, weather_reasons = weather_future.result()
     logger.info("proxy enrichment total %.3fs", time.perf_counter() - _t0)
     notes["market_fixtures_matched"] = len(market_detail)
+    # Phase 23 (C1): the canonical shared payload — byte-identical to Sources.
+    # _fetch_market always returns either a computed status or an honest off
+    # state, so the banner/spotlight/sources can never drift apart.
+    notes["market_check"] = (
+        market_status if isinstance(market_status, dict) else _shared_market_off("")
+    )
     notes["weather_severe_fixtures"] = weather_reasons
 
     # --- Understat per-90 context (offline snapshot; latest season wins) --------
@@ -916,15 +975,61 @@ class LivePredictionProvider:
         return self._catalog
 
     def understat_index(self) -> dict[str, dict[str, Any]]:
-        """Name-indexed Understat snapshot rows (latest season wins)."""
+        """Name-indexed Understat snapshot rows (latest season wins).
+
+        Phase 21.1 (T5): rows persisted by a successful masked refresh
+        (``provider_refresh``) merge OVER the committed seed so 2026/27 xG/xA
+        reaches the chain without redeploying the bundle.
+        """
         if self._understat_index is None:
             try:
                 snapshot = UnderstatConnector.load_snapshot(self._understat_path)
                 self._understat_index = UnderstatConnector.snapshot_player_index(snapshot)
+                self._merge_understat_refresh(self._understat_index)
             except Exception as exc:  # noqa: BLE001 - xG is enrichment only
                 logger.warning("Understat index unavailable: %s", exc)
                 self._understat_index = {}
         return self._understat_index
+
+    def _merge_understat_refresh(self, index: dict[str, dict[str, Any]]) -> None:
+        """Overlay the DB-stored refresh payload (best-effort, never raises).
+
+        A missing table must ROLL BACK before returning — otherwise the
+        request's Postgres transaction stays aborted and every later query in
+        the request fails with InFailedSqlTransaction.
+        """
+        try:
+            from sqlalchemy import text
+
+            from fpl_intelligence.sync.materialized_models import ProviderRefreshDB
+
+            # Self-sealing DDL: deployments on alembic <0019 get the table on
+            # first use instead of erroring into an aborted transaction.
+            self.session.execute(
+                text(
+                    "CREATE TABLE IF NOT EXISTS provider_refresh ("
+                    " source VARCHAR(60) PRIMARY KEY,"
+                    " season_label VARCHAR(40),"
+                    " player_count INTEGER NOT NULL DEFAULT 0,"
+                    " payload JSONB NOT NULL DEFAULT '[]'::jsonb,"
+                    " fetched_at TIMESTAMP WITH TIME ZONE NOT NULL)"
+                )
+            )
+            row = self.session.scalar(
+                select(ProviderRefreshDB).where(ProviderRefreshDB.source == "understat")
+            )
+        except Exception as exc:  # noqa: BLE001 — table may be absent pre-migration
+            self.session.rollback()
+            logger.debug("provider_refresh read skipped: %s", exc)
+            return
+        if row is None or not isinstance(row.payload, list):
+            return
+        for raw in row.payload:
+            if not isinstance(raw, dict):
+                continue
+            name = str(raw.get("player_name") or "").strip().lower()
+            if name and raw.get("xG") is not None:
+                index[name] = raw
 
     def _get_odds(self) -> OddsApiConnector | None:
         if self._odds_connector is None and self._odds_error is None:
@@ -978,30 +1083,54 @@ class LivePredictionProvider:
             return None
 
         points: dict[int, float] = {}
-        per_player: dict[int, dict[str, float]] = {}
+        per_player: dict[int, dict[str, Any]] = {}
         for row in rows:
             pid = int(row.element_id)
             points[pid] = float(row.expected_points)
-            extras: dict[str, float] = {"conf": 0.75, "compl": 0.85}
+            extras: dict[str, Any] = {"conf": 0.75, "compl": 0.85}
             if row.minutes_estimate is not None:
                 extras["minutes"] = float(row.minutes_estimate)
             if row.start_prob is not None:
                 extras["start"] = float(row.start_prob)
+            if isinstance(row.breakdown, dict) and row.breakdown:
+                extras["breakdown"] = {k: float(v) for k, v in row.breakdown.items()}
             per_player[pid] = extras
+
+        notes: dict[str, Any] = {
+            "computed_at": max(r.computed_at for r in rows).isoformat(),
+            "origin": "daily materialize cron (06:10 UTC)",
+        }
+        # Phase 23 (C1): the materialized fast path never fetches odds, so it
+        # serves the PERSISTED canonical market-check payload — the exact
+        # object the Sources probe computed via compute_market_status.
+        try:
+            from fpl_intelligence.prediction.market_check import load_cached_payload
+
+            stored = load_cached_payload(self.session)
+            if isinstance(stored, dict) and stored.get("detail"):
+                notes["market_check"] = {
+                    "enabled": bool(stored.get("enabled")),
+                    "fixtures_matched": int(stored.get("fixtures_matched") or 0),
+                    "detail": str(stored.get("detail") or ""),
+                    "unmatched": list(stored.get("unmatched") or []),
+                }
+                if not stored.get("enabled"):
+                    notes["market_check"]["reason"] = "no fixtures matched yet"
+        except Exception:  # noqa: BLE001 — status is enrichment, never required
+            pass
 
         return ChainLevel(
             source=SOURCE_MATERIALIZED,
             data_quality=QUALITY_MATERIALIZED,
             points=points,
             covered=len(points),
-            notes={
-                "computed_at": max(r.computed_at for r in rows).isoformat(),
-                "origin": "daily materialize cron (06:10 UTC)",
-            },
+            notes=notes,
             per_player=per_player,
         )
 
-    def resolve_chain(self, gameweek: int) -> PredictionChainResult:
+    def resolve_chain(
+        self, gameweek: int, *, skip_materialized: bool = False
+    ) -> PredictionChainResult:
         """Run every level best-first and return the full chain outcome.
 
         Raises :class:`PredictionUnavailableError` when no level can
@@ -1021,7 +1150,9 @@ class LivePredictionProvider:
         # Phase 20.1 — materialized fast path: the daily cron already ran the
         # full chain; serve it from one indexed query with zero network I/O.
         # This is what keeps every prod data call under 2s.
-        materialized = self._materialized_level(gameweek)
+        materialized = (
+            None if skip_materialized else self._materialized_level(gameweek)
+        )
         if materialized is not None and materialized.points:
             result = PredictionChainResult(
                 gameweek=gameweek, levels=[materialized], resolved=materialized
@@ -1142,7 +1273,7 @@ class LivePredictionProvider:
                 else:
                     continue  # truly uncovered — omit rather than invent
 
-            predictions[pid] = _make_prediction(
+            pred = _make_prediction(
                 pid,
                 result.gameweek,
                 float(xp),
@@ -1153,6 +1284,15 @@ class LivePredictionProvider:
                 confidence=float(extras.get("conf", defaults["conf"])),
                 data_completeness=float(extras.get("compl", defaults["compl"])),
             )
+            # v2.3.2: propagate breakdown terms so materialized and proxy levels
+            # both render the four-chip decomposition in the drawer.
+            bd = extras.get("breakdown")
+            if isinstance(bd, dict) and bd:
+                try:
+                    pred.breakdown = {k: float(v) for k, v in bd.items()}
+                except Exception:
+                    pred.breakdown = None
+            predictions[pid] = pred
         return predictions
 
     # -- DecisionPredictionProvider protocol -------------------------------------
@@ -1184,13 +1324,19 @@ class LivePredictionProvider:
             result[gw] = self._label_predictions(chain_result, wanted_ids)
         return result
 
-    def get_all_predictions(self, gameweek: int) -> dict[int, PlayerPrediction]:
+    def get_all_predictions(
+        self, gameweek: int, *, skip_materialized: bool = False
+    ) -> dict[int, PlayerPrediction]:
         """Serve every player the chain can speak for in ``gameweek``.
 
         Used by the chip simulator (Free Hit / Wildcard) to rank the full pool.
         The universe is the seed catalog extended with any players known to the
         database — the same set the proxy level scores. Players no level covers
         are absent rather than invented.
+
+        ``skip_materialized`` lets the daily precompute recompute the inline
+        chain instead of re-serving (and thereby immortalising) its own
+        previous output.
         """
         catalog = self.player_catalog()
         try:
@@ -1204,7 +1350,9 @@ class LivePredictionProvider:
         universe = sorted(set(catalog.keys()) | db_ids)
         if not universe:
             return {}
-        chain_result = self.resolve_chain(int(gameweek))
+        chain_result = self.resolve_chain(
+            int(gameweek), skip_materialized=skip_materialized
+        )
         return self._label_predictions(chain_result, universe)
 
     def get_fixture_count(self, player_id: int, gameweek: int) -> int:
@@ -1261,31 +1409,54 @@ class LivePredictionProvider:
             self.resolve_chain(gameweek)
         assert self.last_result is not None  # narrow for type-checkers
         meta = self.last_result.meta()
+        # Phase 23 (C1): the proxy level now stores the SHARED market-check
+        # payload (same compute_market_status the Sources probe runs), so the
+        # Decisions banner and Captain Spotlight render byte-identical text.
         if self._odds_error:
-            meta["market_check"] = {"enabled": False, "reason": self._odds_error}
-        else:
-            # Find the proxy level in the chain to report market_check status.
-            proxy_level = next(
-                (lvl for lvl in self.last_result.levels if lvl.source == SOURCE_PROXY),
-                None,
+            from fpl_intelligence.prediction.market_check import (
+                disabled_market_status,
             )
-            if proxy_level is not None:
-                matched = proxy_level.notes.get("market_fixtures_matched")
+
+            meta["market_check"] = disabled_market_status(self._odds_error)
+        else:
+            # Phase 23 (C1): BOTH the live proxy level and the materialized
+            # fast path carry the shared payload (the latter reads the one
+            # persisted by the Sources probe), so every surface agrees.
+            shared = None
+            for lvl in self.last_result.levels:
+                candidate = lvl.notes.get("market_check")
+                if isinstance(candidate, dict) and candidate.get("detail"):
+                    shared = candidate
+                    break
+            if shared is not None:
+                meta["market_check"] = dict(shared)
+            else:
+                proxy_level = next(
+                    (lvl for lvl in self.last_result.levels if lvl.source == SOURCE_PROXY),
+                    None,
+                )
+                matched = (
+                    proxy_level.notes.get("market_fixtures_matched")
+                    if proxy_level
+                    else None
+                )
                 if matched:
                     meta["market_check"] = {
                         "enabled": True,
                         "fixtures_matched": matched,
+                        "detail": format_market_detail(
+                            matched=matched,
+                            total=matched,
+                            gameweek=gameweek,
+                            unmatched=[],
+                        ),
                     }
                 else:
-                    # Proxy ran but matched zero fixtures — report honestly
-                    # instead of "agrees (0 fixtures)" (E4).
-                    meta["market_check"] = {
-                        "enabled": False,
-                        "reason": "no fixtures matched yet",
-                    }
-            else:
-                meta["market_check"] = {
-                    "enabled": False,
-                    "reason": "no fixtures matched yet",
-                }
+                    from fpl_intelligence.prediction.market_check import (
+                        disabled_market_status,
+                    )
+
+                    meta["market_check"] = disabled_market_status(
+                        "no fixtures matched yet"
+                    )
         return meta

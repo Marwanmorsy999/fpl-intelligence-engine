@@ -22,7 +22,7 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from fpl_intelligence.db.models import (
@@ -38,7 +38,13 @@ from fpl_intelligence.sync.models import (
     RecommendationDB,
     SyncLivePointDB,
 )
-from fpl_intelligence.sync.scoring import compute_calibration, score_captain, score_transfer
+from fpl_intelligence.sync.scoring import (
+    NEUTRAL,
+    compute_calibration,
+    score_captain,
+    score_transfer,
+    score_xi,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -204,7 +210,16 @@ def ingest_history_gameweek(
             )
             stored += 1
         else:
+            # Phase 21.1 fix: the update path previously refreshed only
+            # total_points/payload — minutes/bonus/goals/assists kept whatever
+            # a prior (possibly cross-season) writer had stored, silently
+            # zeroing the form features built from this table.
             existing.total_points = total_points
+            existing.minutes = _opt_int(el.get("minutes"))
+            existing.bonus = _opt_int(el.get("bonus"))
+            existing.goals_scored = _opt_int(el.get("goals_scored"))
+            existing.assists = _opt_int(el.get("assists"))
+            existing.xgi = _opt_float(el.get("xgi") or el.get("expected_goal_involvements"))
             existing.payload = payload
             existing.source = source
             existing.ingested_at = _now()
@@ -237,7 +252,13 @@ def ingest_history_gameweek(
                     )
                     mirrored += 1
                 else:
+                    # Phase 21.1 fix: refresh the full stat set, not just
+                    # points/bonus — stale cross-season minutes otherwise
+                    # poison the minutes_share in the baseline model.
+                    perf.minutes = _opt_int(el.get("minutes")) or perf.minutes
                     perf.total_points = total_points
+                    perf.goals_scored = _opt_int(el.get("goals_scored")) or perf.goals_scored
+                    perf.assists = _opt_int(el.get("assists")) or perf.assists
                     if el.get("bonus") is not None:
                         perf.bonus = int(el["bonus"])
                     mirrored += 1
@@ -419,8 +440,45 @@ def record_recommendations(
     return created
 
 
-def score_pending_recommendations(db: Session, *, up_to_gameweek: int) -> int:
-    """Auto-score unscored recommendations whose gameweek has actuals."""
+def _user_xi_for_gameweek(db: Session, session_key: str, gameweek: int) -> list[int]:
+    """The user's actually-fielded XI for one gameweek (first 11 synced picks).
+
+    The squad-push bookmarklet/Apps-Script trigger preserves FPL pick-slot
+    order, so slots 1-11 of the squad snapshot whose ``gameweek`` matches the
+    recommendation ARE the fielded XI. Returns ``[]`` when no matching
+    snapshot exists — callers then grade NEUTRAL with an honest reason rather
+    than leaving the row pending.
+    """
+    from fpl_intelligence.squad.models_db import SquadStateDB
+
+    try:
+        row = db.scalar(
+            select(SquadStateDB).where(SquadStateDB.session_id == str(session_key))
+        )
+    except Exception:  # noqa: BLE001 - grading never crashes on read errors
+        return []
+    if row is None or not isinstance(row.squad_json, dict):
+        return []
+    squad = row.squad_json
+    if int(squad.get("gameweek") or 0) != int(gameweek):
+        return []
+    ids = [int(p) for p in (squad.get("player_ids") or [])]
+    return ids[:11]
+
+
+def score_pending_recommendations(
+    db: Session,
+    *,
+    up_to_gameweek: int,
+    user_xi_resolver: Any | None = None,
+) -> int:
+    """Auto-score unscored recommendations whose gameweek has actuals.
+
+    Phase 23 (C2): a row is NEVER left pending once its gameweek's results
+    are ingested. When the math cannot produce a signed delta (missing
+    actuals for a referenced player, unknown user XI) the row is graded
+    NEUTRAL with an explicit reason instead.
+    """
     pending = db.execute(
         select(RecommendationDB).where(
             RecommendationDB.scored_at.is_(None),
@@ -440,6 +498,13 @@ def score_pending_recommendations(db: Session, *, up_to_gameweek: int) -> int:
     for gw, element_id, pts in rows:
         actuals_by_gw.setdefault(int(gw), {})[int(element_id)] = int(pts or 0)
 
+    resolve_xi = user_xi_resolver or (
+        lambda key, gw: _user_xi_for_gameweek(db, key, gw)
+    )
+
+    def _unscoreable(reason: str) -> dict[str, Any]:
+        return {"verdict": NEUTRAL, "delta": 0, "reason": reason}
+
     scored_count = 0
     now = _now()
     for rec in pending:
@@ -451,6 +516,10 @@ def score_pending_recommendations(db: Session, *, up_to_gameweek: int) -> int:
                 [int(p) for p in rec.detail.get("alternatives", [])],
                 actual,
             )
+            if result is None:
+                result = _unscoreable(
+                    "unscoreable: captain or alternative results missing"
+                )
         elif rec.rec_type == "transfer":
             hit = int(rec.detail.get("hit_cost", 0) or 0)
             result = score_transfer(
@@ -459,14 +528,32 @@ def score_pending_recommendations(db: Session, *, up_to_gameweek: int) -> int:
                 actual,
                 hit_cost=hit,
             )
+            if result is None:
+                result = _unscoreable(
+                    "unscoreable: transfer-in/out results missing"
+                )
         elif rec.rec_type == "chip":
             # Chips are graded qualitatively until per-chip replay exists;
             # mark scored without inventing a delta.
-            result = {"verdict": "neutral", "delta": 0}
+            result = {
+                "verdict": NEUTRAL,
+                "delta": 0,
+                "reason": "chip graded qualitatively — no per-chip replay yet",
+            }
         elif rec.rec_type == "xi":
-            # XI scoring needs the user's actually-fielded XI; skip silently
-            # unless picks were synced for that exact gameweek (future work).
-            continue
+            user_xi = list(resolve_xi(rec.session_key, rec.gameweek)) or []
+            result = score_xi(
+                [int(p) for p in rec.subject.get("xi", [])], user_xi, actual
+            )
+            if result is None:
+                result = _unscoreable(
+                    "unscoreable: "
+                    + (
+                        "no synced squad snapshot for this gameweek"
+                        if not user_xi
+                        else "some XI players have no ingested results"
+                    )
+                )
         if result is None:
             continue
         rec.score = result
@@ -476,24 +563,94 @@ def score_pending_recommendations(db: Session, *, up_to_gameweek: int) -> int:
     return scored_count
 
 
+def _element_name_map(db: Session) -> dict[int, str]:
+    """FPL element id -> web name, DB-first with the committed seed fallback.
+
+    Track-record cards must read "Captain: Haaland", never "Captain #352" —
+    so every id referenced by a recommendation is resolved through the player
+    table and, for rows not yet mirrored, the bootstrap seed catalog.
+    """
+    names: dict[int, str] = {}
+    for element_id, web_name in db.execute(
+        select(Player.fpl_element_id, Player.web_name)
+    ).all():
+        if element_id is not None and web_name:
+            names[int(element_id)] = str(web_name)
+    if len(names) >= 100:
+        return names
+    try:
+        from fpl_intelligence.prediction.live_provider import load_player_catalog
+
+        for element_id, row in load_player_catalog().items():
+            web_name = str(row.get("web_name") or "")
+            if web_name and int(element_id) not in names:
+                names[int(element_id)] = web_name
+    except Exception as exc:  # noqa: BLE001 - display-only fallback
+        logger.debug("seed-catalog name fallback failed: %s", exc)
+    return names
+
+
 def track_record_payload(db: Session, session_key: str) -> dict[str, Any]:
-    """Full track-record read model for one entry."""
+    """Full track-record read model for one entry (with resolved names)."""
     recs = db.execute(
         select(RecommendationDB)
         .where(RecommendationDB.session_key == session_key)
         .order_by(RecommendationDB.gameweek.desc(), RecommendationDB.created_at.desc())
     ).scalars().all()
+    names = _element_name_map(db)
+
+    def _nm(pid: Any) -> str | None:
+        try:
+            return names.get(int(pid))
+        except (TypeError, ValueError):
+            return None
+
     cards: list[dict[str, Any]] = []
     for r in recs:
+        score = dict(r.score) if r.score else None
+        subject = dict(r.subject) if r.subject else {}
+        detail = dict(r.detail) if r.detail else {}
+
+        # Phase 21.1: human-readable names on every card and score line.
+        if r.rec_type == "captain":
+            cap_name = _nm(subject.get("captain_id"))
+            if cap_name:
+                subject["captain_name"] = cap_name
+            if score is not None:
+                cap_name = _nm(score.get("captain")) or cap_name
+                alt_name = _nm(score.get("best_alternative"))
+                if cap_name:
+                    score["captain_name"] = cap_name
+                if alt_name:
+                    score["alternative_name"] = alt_name
+        elif r.rec_type == "transfer":
+            in_names = [n for n in (_nm(p) for p in subject.get("transfers_in") or []) if n]
+            out_names = [n for n in (_nm(p) for p in subject.get("transfers_out") or []) if n]
+            if in_names:
+                subject["transfers_in_names"] = in_names
+            if out_names:
+                subject["transfers_out_names"] = out_names
+            if score is not None:
+                s_in = [n for n in (_nm(p) for p in score.get("transfers_in") or []) if n]
+                s_out = [n for n in (_nm(p) for p in score.get("transfers_out") or []) if n]
+                if s_in:
+                    score["transfers_in_names"] = s_in
+                if s_out:
+                    score["transfers_out_names"] = s_out
+        elif r.rec_type == "xi":
+            xi_names = [n for n in (_nm(p) for p in subject.get("xi") or []) if n]
+            if xi_names:
+                subject["xi_names"] = xi_names
+
         cards.append(
             {
                 "gameweek": r.gameweek,
                 "rec_type": r.rec_type,
-                "subject": r.subject,
-                "detail": r.detail,
+                "subject": subject,
+                "detail": detail,
                 "created_at": r.created_at.isoformat() if r.created_at else None,
                 "scored": r.scored_at is not None,
-                "score": r.score,
+                "score": score,
             }
         )
     graded = [c["score"] for c in cards if c["score"]]
@@ -516,10 +673,31 @@ def track_record_payload(db: Session, session_key: str) -> dict[str, Any]:
 
 
 def calibration_snapshot(db: Session) -> dict[str, Any]:
-    """Aggregate predicted-vs-actual pairs across the whole ledger."""
+    """Aggregate predicted-vs-actual pairs plus the open forecast arms.
+
+    Phase 23 (C3): "arms" are gameweeks whose per-player forecasts are
+    already stored in the ledger but whose results have not been ingested yet
+    (``actual IS NULL``). The Sources page renders them as
+    "calibration arms: GW{n} forecasts stored" with a hint until graded.
+    """
     rows = db.execute(
         select(PredictionLedgerDB.predicted, PredictionLedgerDB.actual).where(
             PredictionLedgerDB.actual.is_not(None)
         )
     ).all()
-    return compute_calibration([(float(p), int(a)) for p, a in rows])
+    payload = compute_calibration([(float(p), int(a)) for p, a in rows])
+    arm_rows = db.execute(
+        select(
+            PredictionLedgerDB.gameweek,
+            func.count(),
+        )
+        .where(PredictionLedgerDB.actual.is_(None))
+        .group_by(PredictionLedgerDB.gameweek)
+        .order_by(PredictionLedgerDB.gameweek)
+    ).all()
+    payload["forecast_arms"] = [
+        {"gameweek": int(gw), "rows": int(n), "graded": False}
+        for gw, n in arm_rows
+        if n
+    ]
+    return payload

@@ -58,6 +58,11 @@ class SquadStateCreate(BaseModel):
     gameweek: int = Field(
         ..., gt=0, description="Current FPL gameweek.", examples=[_SQUAD_EXAMPLE["gameweek"]]
     )
+    picks_gw: int | None = Field(
+        default=None,
+        description="Which gameweek the picks were fetched from (current_event vs next GW). "
+        "When None, equals gameweek. v2.5.3 records the truth GW.",
+    )
     player_positions: dict[int, int] | None = Field(
         default=None,
         description="Optional mapping of player_id -> position_code (1=GK, 2=DEF, 3=MID, 4=FWD).",
@@ -162,6 +167,9 @@ class PlayerDetail(BaseModel):
     #: xPTS breakdown: base(price) + xG/xA term + market term + weather term.
     #: ``None`` when the resolved chain level does not produce a breakdown.
     xpts_breakdown: dict[str, float] | None = None
+    #: Phase 22 (D1) — share of managers owning this player ("selected by").
+    #: ``None`` when no materialized fact or seed row carries it.
+    ownership: float | None = None
 
 
 class DecisionReport(BaseModel):
@@ -179,6 +187,56 @@ class DecisionReport(BaseModel):
     #: Includes web_name, team, position, price, code, and expected_points.
     players: dict[str, PlayerDetail] = Field(default_factory=dict)
     meta: dict[str, Any] = Field(default_factory=dict)
+
+
+class FplViewPicks(BaseModel):
+    """FPL picks payload for a specific gameweek."""
+
+    gw: int
+    ids: list[int]
+    status: int  # 200 or 404
+
+
+class FplViewEntrySummary(BaseModel):
+    """Entry summary with last-deadline info."""
+
+    name: str | None = None
+    id: int | None = None
+    current_event: int
+    last_deadline_bank: int | None = None
+    last_deadline_total_transfers: int | None = None
+    last_deadline_bank_tenths: int | None = None
+
+
+class FplViewHistory(BaseModel):
+    """Official ``/entry/{id}/history/`` row for the target gameweek.
+
+    v2.6.0 — the cross-check signal: FPL's own per-gameweek transfer count.
+    When FPL has not written a row for the target GW yet (GW unfinished),
+    ``event_transfers`` is ``None`` and the newest available row is exposed so
+    the UI can show what FPL actually recorded instead of guessing.
+    """
+
+    gw: int
+    event_transfers: int | None = None
+    event_transfers_cost: int | None = None
+    #: Newest history row that exists (may be an earlier GW when the target
+    #: GW has no row yet).
+    latest_event: int | None = None
+    latest_event_transfers: int | None = None
+    #: Human sentence rendered verbatim in the fpl-view card, e.g.
+    #: "FPL history: 1 transfer made for GW2".
+    note: str
+
+
+class FplViewResponse(BaseModel):
+    """Raw FPL truth via egress masks - no mutation, no guessing."""
+
+    current_event: int
+    picks_current: FplViewPicks
+    picks_next: FplViewPicks
+    entry_summary: FplViewEntrySummary
+    fpl_history: FplViewHistory | None = None
 
 
 class FromFplResponse(BaseModel):
@@ -206,4 +264,14 @@ class FromFplResponse(BaseModel):
     sync_status: str | None = Field(
         default=None,
         description="Human-readable sync status when the import was queued.",
+    )
+    #: Phase 25 (T1) — transfer inferred by diffing squad snapshots on sync.
+    #: ``None`` when nothing changed or no prior snapshot exists.
+    detected_transfer: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Snapshot-diffed transfer banner payload: {element_in, element_out,"
+            " name_in, name_out, gameweek}. Populated when this sync changed "
+            "the roster."
+        ),
     )

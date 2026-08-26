@@ -155,7 +155,7 @@
   ],
   "meta": {
     "fetched_from": "https://fantasy.premierleague.com/api/bootstrap-static/",
-    "generated_at": "2026-08-22T01:46:53.708240+00:00",
+    "generated_at": "2026-08-24T02:59:11.494021+00:00",
     "season_code": "2026-27"
   },
   "players": [
@@ -166,6 +166,7 @@
       "now_cost": 60,
       "position": 1,
       "second_name": "Raya Mart\u00edn",
+      "selected_by_percent": "37.8",
       "team": 1,
       "web_name": "Raya"
     },
@@ -176,6 +177,7 @@
       "now_cost": 50,
       "position": 1,
       "second_name": "Arrizabalaga Revuelta",
+      "selected_by_percent": "0.1",
       "team": 1,
       "web_name": "Arrizabalaga"
     },
@@ -186,6 +188,7 @@
       "now_cost": 50,
       "position": 1,
       "second_name": "Meslier",
+      "selected_by_percent": "0.0",
       "team": 1,
       "web_name": "Meslier"
     },
@@ -196,6 +199,7 @@
       "now_cost": 80,
       "position": 2,
       "second_name": "dos Santos Magalh\u00e3es",
+      "selected_by_percent": "29.6",
       "team": 1,
       "web_name": "Gabriel"
     },
@@ -206,6 +210,7 @@
       "now_cost": 65,
       "position": 2,
       "second_name": "Timber",
+      "selected_by_percent": "0.1",
       "team": 1,
       "web_name": "J.Timber"
     },
@@ -216,6 +221,7 @@
       "now_cost": 60,
       "position": 2,
       "second_name": "Saliba",
+      "selected_by_percent": "0.3",
       "team": 1,
       "web_name": "Saliba"
     },
@@ -226,6 +232,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Lewis-Skelly",
+      "selected_by_percent": "0.7",
       "team": 1,
       "web_name": "Lewis-Skelly"
     },
@@ -236,6 +243,7 @@
       "now_cost": 55,
       "position": 2,
       "second_name": "Calafiori",
+      "selected_by_percent": "40.3",
       "team": 1,
       "web_name": "Calafiori"
     },
@@ -246,6 +254,7 @@
       "now_cost": 55,
       "position": 2,
       "second_name": "Hincapi\u00e9",
+      "selected_by_percent": "1.7",
       "team": 1,
       "web_name": "Hincapie"
     },
@@ -256,6 +265,7 @@
       "now_cost": 55,
       "position": 2,
       "second_name": "White",
+      "selected_by_percent": "5.1",
       "team": 1,
       "web_name": "White"
     },
@@ -266,6 +276,7 @@
       "now_cost": 55,
       "position": 2,
       "second_name": "Mosquera",
+      "selected_by_percent": "6.2",
       "team": 1,
       "web_name": "Mosquera"
     },
@@ -276,6 +287,7 @@
       "now_cost": 95,
       "position": 3,
       "second_name": "Saka",
+      "selected_by_percent": "10.0",
       "team": 1,
       "web_name": "Saka"
     },
@@ -286,6 +298,7 @@
       "now_cost": 75,
       "position": 3,
       "second_name": "Rice",
+      "selected_by_percent": "17.9",
       "team": 1,
       "web_name": "Rice"
     },
@@ -296,6 +309,7 @@
       "now_cost": 65,
       "position": 3,
       "second_name": "Eze",
+      "selected_by_percent": "2.0",
       "team": 1,
       "web_name": "Eze"
     },
@@ -306,6 +320,7 @@
       "now_cost": 65,
       "position": 3,
       "second_name": "\u00d8degaard",
+      "selected_by_percent": "9.6",
       "team": 1,
       "web_name": "\u00d8degaard"
     },
@@ -316,6 +331,7 @@
       "now_cost": 65,
       "position": 3,
       "second_name": "Madueke",
+      "selected_by_percent": "0.3",
       "team": 1,
       "web_name": "Madueke"
     },
@@ -326,6 +342,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Merino Zaz\u00f3n",
+      "selected_by_percent": "0.7",
       "team": 1,
       "web_name": "Merino"
     },
@@ -336,6 +353,7 @@
       "now_cost": 65,
       "position": 3,
       "second_name": "Martinelli Silva",
+      "selected_by_percent": "0.2",
       "team": 1,
       "web_name": "Martinelli"
     },
@@ -346,6 +364,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Zubimendi Ib\u00e1\u00f1ez",
+      "selected_by_percent": "1.1",
       "team": 1,
       "web_name": "Zubimendi"
     },
@@ -356,6 +375,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Dowman",
+      "selected_by_percent": "0.1",
       "team": 1,
       "web_name": "Dowman"
     },
@@ -366,6 +386,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "N\u00f8rgaard",
+      "selected_by_percent": "0.1",
       "team": 9,
       "web_name": "N\u00f8rgaard"
     },
@@ -376,6 +397,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Nwaneri",
+      "selected_by_percent": "0.0",
       "team": 1,
       "web_name": "Nwaneri"
     },
@@ -386,6 +408,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Ferreira Vieira",
+      "selected_by_percent": "0.0",
       "team": 1,
       "web_name": "F\u00e1bio Vieira"
     },
@@ -396,6 +419,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Nelson",
+      "selected_by_percent": "0.0",
       "team": 1,
       "web_name": "Nelson"
     },
@@ -406,6 +430,7 @@
       "now_cost": 75,
       "position": 4,
       "second_name": "Gy\u00f6keres",
+      "selected_by_percent": "8.4",
       "team": 1,
       "web_name": "Gy\u00f6keres"
     },
@@ -416,6 +441,7 @@
       "now_cost": 75,
       "position": 4,
       "second_name": "Havertz",
+      "selected_by_percent": "6.3",
       "team": 1,
       "web_name": "Havertz"
     },
@@ -426,6 +452,7 @@
       "now_cost": 60,
       "position": 4,
       "second_name": "Fernando de Jesus",
+      "selected_by_percent": "0.4",
       "team": 1,
       "web_name": "G.Jesus"
     },
@@ -436,6 +463,7 @@
       "now_cost": 50,
       "position": 1,
       "second_name": "Mart\u00ednez Romero",
+      "selected_by_percent": "4.4",
       "team": 2,
       "web_name": "Martinez"
     },
@@ -446,6 +474,7 @@
       "now_cost": 45,
       "position": 1,
       "second_name": "Bizot",
+      "selected_by_percent": "0.1",
       "team": 2,
       "web_name": "M.Bizot"
     },
@@ -456,6 +485,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Digne",
+      "selected_by_percent": "0.1",
       "team": 2,
       "web_name": "Digne"
     },
@@ -466,6 +496,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Konsa Ngoyo",
+      "selected_by_percent": "12.3",
       "team": 1,
       "web_name": "Konsa"
     },
@@ -476,6 +507,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Cash",
+      "selected_by_percent": "8.7",
       "team": 2,
       "web_name": "Cash"
     },
@@ -486,6 +518,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Mings",
+      "selected_by_percent": "0.4",
       "team": 2,
       "web_name": "Mings"
     },
@@ -496,6 +529,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Torres",
+      "selected_by_percent": "0.5",
       "team": 2,
       "web_name": "Pau"
     },
@@ -506,6 +540,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Bogarde",
+      "selected_by_percent": "0.1",
       "team": 2,
       "web_name": "Bogarde"
     },
@@ -516,6 +551,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Maatsen",
+      "selected_by_percent": "0.8",
       "team": 2,
       "web_name": "Maatsen"
     },
@@ -526,6 +562,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Lindel\u00f6f",
+      "selected_by_percent": "0.3",
       "team": 2,
       "web_name": "Lindel\u00f6f"
     },
@@ -536,6 +573,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Garc\u00eda",
+      "selected_by_percent": "1.8",
       "team": 2,
       "web_name": "A.Garc\u00eda"
     },
@@ -546,6 +584,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Nedeljkovic",
+      "selected_by_percent": "0.3",
       "team": 2,
       "web_name": "Nedeljkovic"
     },
@@ -556,6 +595,7 @@
       "now_cost": 75,
       "position": 3,
       "second_name": "Rogers",
+      "selected_by_percent": "24.3",
       "team": 6,
       "web_name": "Rogers"
     },
@@ -566,6 +606,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Buend\u00eda Stati",
+      "selected_by_percent": "1.3",
       "team": 2,
       "web_name": "Buend\u00eda"
     },
@@ -576,6 +617,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Guessand",
+      "selected_by_percent": "0.0",
       "team": 8,
       "web_name": "Guessand"
     },
@@ -586,6 +628,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Tielemans",
+      "selected_by_percent": "2.6",
       "team": 16,
       "web_name": "Tielemans"
     },
@@ -596,6 +639,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Bailey",
+      "selected_by_percent": "0.2",
       "team": 2,
       "web_name": "Bailey"
     },
@@ -606,6 +650,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "McGinn",
+      "selected_by_percent": "3.2",
       "team": 2,
       "web_name": "McGinn"
     },
@@ -616,6 +661,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Barkley",
+      "selected_by_percent": "0.2",
       "team": 2,
       "web_name": "Barkley"
     },
@@ -626,6 +672,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Kamara",
+      "selected_by_percent": "0.4",
       "team": 2,
       "web_name": "Kamara"
     },
@@ -636,6 +683,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Onana",
+      "selected_by_percent": "0.0",
       "team": 2,
       "web_name": "Onana"
     },
@@ -646,6 +694,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Iling-Junior",
+      "selected_by_percent": "0.0",
       "team": 2,
       "web_name": "Iling Jr"
     },
@@ -656,6 +705,7 @@
       "now_cost": 45,
       "position": 3,
       "second_name": "Burrowes",
+      "selected_by_percent": "0.7",
       "team": 2,
       "web_name": "Burrowes"
     },
@@ -666,6 +716,7 @@
       "now_cost": 45,
       "position": 3,
       "second_name": "Hemmings",
+      "selected_by_percent": "0.7",
       "team": 2,
       "web_name": "George Hemmings"
     },
@@ -676,6 +727,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "da Rocha dos Santos",
+      "selected_by_percent": "0.0",
       "team": 2,
       "web_name": "Alysson"
     },
@@ -686,6 +738,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Manzambi",
+      "selected_by_percent": "0.2",
       "team": 2,
       "web_name": "Manzambi"
     },
@@ -696,6 +749,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Gomes",
+      "selected_by_percent": "0.1",
       "team": 2,
       "web_name": "Gomes"
     },
@@ -706,6 +760,7 @@
       "now_cost": 80,
       "position": 4,
       "second_name": "Watkins",
+      "selected_by_percent": "10.1",
       "team": 2,
       "web_name": "Watkins"
     },
@@ -716,6 +771,7 @@
       "now_cost": 55,
       "position": 4,
       "second_name": "Abraham",
+      "selected_by_percent": "0.1",
       "team": 2,
       "web_name": "Abraham"
     },
@@ -726,6 +782,7 @@
       "now_cost": 45,
       "position": 1,
       "second_name": "Petrovi\u0107",
+      "selected_by_percent": "3.3",
       "team": 3,
       "web_name": "Petrovi\u0107"
     },
@@ -736,6 +793,7 @@
       "now_cost": 40,
       "position": 1,
       "second_name": "Forster",
+      "selected_by_percent": "3.2",
       "team": 3,
       "web_name": "Forster"
     },
@@ -746,6 +804,7 @@
       "now_cost": 40,
       "position": 1,
       "second_name": "Dennis",
+      "selected_by_percent": "0.2",
       "team": 3,
       "web_name": "Dennis"
     },
@@ -756,6 +815,7 @@
       "now_cost": 55,
       "position": 2,
       "second_name": "Hill",
+      "selected_by_percent": "0.9",
       "team": 3,
       "web_name": "Hill"
     },
@@ -766,6 +826,7 @@
       "now_cost": 55,
       "position": 2,
       "second_name": "Truffert",
+      "selected_by_percent": "4.4",
       "team": 3,
       "web_name": "Truffert"
     },
@@ -776,6 +837,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Diakit\u00e9",
+      "selected_by_percent": "0.2",
       "team": 3,
       "web_name": "Diakit\u00e9"
     },
@@ -786,6 +848,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Milosavljevic",
+      "selected_by_percent": "0.0",
       "team": 3,
       "web_name": "Milosavljevi\u0107"
     },
@@ -796,6 +859,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Smith",
+      "selected_by_percent": "0.1",
       "team": 3,
       "web_name": "Smith"
     },
@@ -806,6 +870,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Araujo Z\u00fa\u00f1iga",
+      "selected_by_percent": "0.0",
       "team": 3,
       "web_name": "J.Araujo"
     },
@@ -816,6 +881,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Soler Barreto",
+      "selected_by_percent": "0.2",
       "team": 3,
       "web_name": "Soler"
     },
@@ -826,6 +892,7 @@
       "now_cost": 65,
       "position": 3,
       "second_name": "Simpl\u00edcio Rocha",
+      "selected_by_percent": "2.8",
       "team": 3,
       "web_name": "Rayan"
     },
@@ -836,6 +903,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Tavernier",
+      "selected_by_percent": "1.7",
       "team": 3,
       "web_name": "Tavernier"
     },
@@ -846,6 +914,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Scott",
+      "selected_by_percent": "1.5",
       "team": 3,
       "web_name": "Scott"
     },
@@ -856,6 +925,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Kluivert",
+      "selected_by_percent": "1.2",
       "team": 3,
       "web_name": "Kluivert"
     },
@@ -866,6 +936,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Cook",
+      "selected_by_percent": "0.2",
       "team": 3,
       "web_name": "Cook"
     },
@@ -876,6 +947,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Gannon-Doak",
+      "selected_by_percent": "0.1",
       "team": 3,
       "web_name": "Gannon-Doak"
     },
@@ -886,6 +958,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Adams",
+      "selected_by_percent": "0.2",
       "team": 3,
       "web_name": "Adams"
     },
@@ -896,6 +969,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Brooks",
+      "selected_by_percent": "0.0",
       "team": 3,
       "web_name": "Brooks"
     },
@@ -906,6 +980,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Christie",
+      "selected_by_percent": "0.0",
       "team": 3,
       "web_name": "Christie"
     },
@@ -916,6 +991,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "T\u00f3th",
+      "selected_by_percent": "0.0",
       "team": 3,
       "web_name": "T\u00f3th.A"
     },
@@ -926,6 +1002,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Adli",
+      "selected_by_percent": "0.0",
       "team": 3,
       "web_name": "Adli"
     },
@@ -936,6 +1013,7 @@
       "now_cost": 75,
       "position": 3,
       "second_name": "Kroupi",
+      "selected_by_percent": "0.4",
       "team": 3,
       "web_name": "Kroupi.Jr"
     },
@@ -946,6 +1024,7 @@
       "now_cost": 60,
       "position": 4,
       "second_name": "de Lima Barbosa",
+      "selected_by_percent": "2.5",
       "team": 3,
       "web_name": "Evanilson"
     },
@@ -956,6 +1035,7 @@
       "now_cost": 55,
       "position": 4,
       "second_name": "\u00dcnal",
+      "selected_by_percent": "0.0",
       "team": 3,
       "web_name": "Enes \u00dcnal"
     },
@@ -966,6 +1046,7 @@
       "now_cost": 60,
       "position": 4,
       "second_name": "Rodr\u00edguez",
+      "selected_by_percent": "0.1",
       "team": 3,
       "web_name": "Rodr\u00edguez"
     },
@@ -976,6 +1057,7 @@
       "now_cost": 50,
       "position": 1,
       "second_name": "Kelleher",
+      "selected_by_percent": "6.0",
       "team": 4,
       "web_name": "Kelleher"
     },
@@ -986,6 +1068,7 @@
       "now_cost": 45,
       "position": 1,
       "second_name": "Valdimarsson",
+      "selected_by_percent": "0.1",
       "team": 4,
       "web_name": "Valdimarsson"
     },
@@ -996,6 +1079,7 @@
       "now_cost": 55,
       "position": 2,
       "second_name": "Collins",
+      "selected_by_percent": "1.9",
       "team": 4,
       "web_name": "Collins"
     },
@@ -1006,6 +1090,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "van den Berg",
+      "selected_by_percent": "0.1",
       "team": 4,
       "web_name": "Van den Berg"
     },
@@ -1016,6 +1101,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Lewis-Potter",
+      "selected_by_percent": "0.6",
       "team": 4,
       "web_name": "Lewis-Potter"
     },
@@ -1026,6 +1112,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Ajer",
+      "selected_by_percent": "3.6",
       "team": 4,
       "web_name": "Ajer"
     },
@@ -1036,6 +1123,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Kayode",
+      "selected_by_percent": "4.3",
       "team": 4,
       "web_name": "Kayode"
     },
@@ -1046,6 +1134,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Henry",
+      "selected_by_percent": "0.3",
       "team": 4,
       "web_name": "Henry"
     },
@@ -1056,6 +1145,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Hickey",
+      "selected_by_percent": "0.1",
       "team": 4,
       "web_name": "Hickey"
     },
@@ -1066,6 +1156,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Pinnock",
+      "selected_by_percent": "0.1",
       "team": 4,
       "web_name": "Pinnock"
     },
@@ -1076,6 +1167,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Ji-soo",
+      "selected_by_percent": "0.0",
       "team": 4,
       "web_name": "Ji-soo"
     },
@@ -1086,6 +1178,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Schuster",
+      "selected_by_percent": "0.2",
       "team": 4,
       "web_name": "Schuster"
     },
@@ -1096,6 +1189,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Schade",
+      "selected_by_percent": "3.6",
       "team": 4,
       "web_name": "Schade"
     },
@@ -1106,6 +1200,7 @@
       "now_cost": 65,
       "position": 3,
       "second_name": "Ouattara",
+      "selected_by_percent": "1.2",
       "team": 4,
       "web_name": "O.Dango"
     },
@@ -1116,6 +1211,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Damsgaard",
+      "selected_by_percent": "0.6",
       "team": 4,
       "web_name": "Damsgaard"
     },
@@ -1126,6 +1222,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Jensen",
+      "selected_by_percent": "0.2",
       "team": 4,
       "web_name": "Jensen"
     },
@@ -1136,6 +1233,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Janelt",
+      "selected_by_percent": "0.2",
       "team": 4,
       "web_name": "Janelt"
     },
@@ -1146,6 +1244,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Milambo",
+      "selected_by_percent": "0.0",
       "team": 4,
       "web_name": "Milambo"
     },
@@ -1156,6 +1255,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Freitas Gouveia Carvalho",
+      "selected_by_percent": "0.0",
       "team": 4,
       "web_name": "Carvalho"
     },
@@ -1166,6 +1266,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Henderson",
+      "selected_by_percent": "0.0",
       "team": 6,
       "web_name": "Henderson"
     },
@@ -1176,6 +1277,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Yarmoliuk",
+      "selected_by_percent": "1.3",
       "team": 4,
       "web_name": "Yarmoliuk"
     },
@@ -1186,6 +1288,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Dasilva",
+      "selected_by_percent": "0.0",
       "team": 4,
       "web_name": "Dasilva"
     },
@@ -1196,6 +1299,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Onyeka",
+      "selected_by_percent": "0.2",
       "team": 7,
       "web_name": "Onyeka"
     },
@@ -1206,6 +1310,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Anthony",
+      "selected_by_percent": "0.2",
       "team": 4,
       "web_name": "Anthony"
     },
@@ -1216,6 +1321,7 @@
       "now_cost": 80,
       "position": 4,
       "second_name": "Nascimento Rodrigues",
+      "selected_by_percent": "17.2",
       "team": 4,
       "web_name": "Thiago"
     },
@@ -1226,6 +1332,7 @@
       "now_cost": 45,
       "position": 4,
       "second_name": "Furo",
+      "selected_by_percent": "0.9",
       "team": 4,
       "web_name": "Furo"
     },
@@ -1236,6 +1343,7 @@
       "now_cost": 55,
       "position": 4,
       "second_name": "Wilson",
+      "selected_by_percent": "0.4",
       "team": 4,
       "web_name": "Wilson"
     },
@@ -1246,6 +1354,7 @@
       "now_cost": 45,
       "position": 1,
       "second_name": "Verbruggen",
+      "selected_by_percent": "21.6",
       "team": 5,
       "web_name": "Verbruggen"
     },
@@ -1256,6 +1365,7 @@
       "now_cost": 45,
       "position": 1,
       "second_name": "Rushworth",
+      "selected_by_percent": "1.2",
       "team": 7,
       "web_name": "Rushworth"
     },
@@ -1266,6 +1376,7 @@
       "now_cost": 40,
       "position": 1,
       "second_name": "Steele",
+      "selected_by_percent": "4.1",
       "team": 5,
       "web_name": "Steele"
     },
@@ -1276,6 +1387,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "van Hecke",
+      "selected_by_percent": "10.5",
       "team": 19,
       "web_name": "Van Hecke"
     },
@@ -1286,6 +1398,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Kad\u0131o\u011flu",
+      "selected_by_percent": "2.8",
       "team": 5,
       "web_name": "F.Kad\u0131o\u011flu"
     },
@@ -1296,6 +1409,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Boscagli",
+      "selected_by_percent": "0.2",
       "team": 5,
       "web_name": "Boscagli"
     },
@@ -1306,6 +1420,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "De Cuyper",
+      "selected_by_percent": "2.8",
       "team": 5,
       "web_name": "De Cuyper"
     },
@@ -1316,6 +1431,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Dunk",
+      "selected_by_percent": "1.1",
       "team": 5,
       "web_name": "Dunk"
     },
@@ -1326,6 +1442,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Coppola",
+      "selected_by_percent": "0.0",
       "team": 5,
       "web_name": "Coppola"
     },
@@ -1336,6 +1453,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "dos Santos de Paulo",
+      "selected_by_percent": "0.1",
       "team": 5,
       "web_name": "Igor"
     },
@@ -1346,6 +1464,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Loureiro da Costa",
+      "selected_by_percent": "0.0",
       "team": 5,
       "web_name": "Costinha"
     },
@@ -1356,6 +1475,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Svoboda",
+      "selected_by_percent": "0.1",
       "team": 5,
       "web_name": "Svoboda"
     },
@@ -1366,6 +1486,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Kaoru",
+      "selected_by_percent": "0.0",
       "team": 5,
       "web_name": "Mitoma"
     },
@@ -1376,6 +1497,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Minteh",
+      "selected_by_percent": "0.1",
       "team": 5,
       "web_name": "Minteh"
     },
@@ -1386,6 +1508,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Hinshelwood",
+      "selected_by_percent": "0.9",
       "team": 5,
       "web_name": "Hinshelwood"
     },
@@ -1396,6 +1519,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Gro\u00df",
+      "selected_by_percent": "14.0",
       "team": 5,
       "web_name": "Gro\u00df"
     },
@@ -1406,6 +1530,7 @@
       "now_cost": 55,
       "position": 4,
       "second_name": "Rutter",
+      "selected_by_percent": "0.9",
       "team": 5,
       "web_name": "Georginio"
     },
@@ -1416,6 +1541,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "O'Riley",
+      "selected_by_percent": "0.1",
       "team": 5,
       "web_name": "O'Riley"
     },
@@ -1426,6 +1552,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "G\u00f3mez Amarilla",
+      "selected_by_percent": "3.9",
       "team": 5,
       "web_name": "Gomez"
     },
@@ -1436,6 +1563,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Buonanotte",
+      "selected_by_percent": "0.0",
       "team": 5,
       "web_name": "Buonanotte"
     },
@@ -1446,6 +1574,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Ayari",
+      "selected_by_percent": "0.7",
       "team": 5,
       "web_name": "Ayari"
     },
@@ -1456,6 +1585,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Wieffer",
+      "selected_by_percent": "0.3",
       "team": 5,
       "web_name": "Wieffer"
     },
@@ -1466,6 +1596,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Baleba",
+      "selected_by_percent": "0.2",
       "team": 5,
       "web_name": "Baleba"
     },
@@ -1476,6 +1607,7 @@
       "now_cost": 45,
       "position": 3,
       "second_name": "Howell",
+      "selected_by_percent": "0.1",
       "team": 5,
       "web_name": "Howell"
     },
@@ -1486,6 +1618,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Watson",
+      "selected_by_percent": "0.0",
       "team": 5,
       "web_name": "Watson"
     },
@@ -1496,6 +1629,7 @@
       "now_cost": 45,
       "position": 3,
       "second_name": "Oriola",
+      "selected_by_percent": "0.3",
       "team": 5,
       "web_name": "Oriola"
     },
@@ -1506,6 +1640,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Yohanna",
+      "selected_by_percent": "0.1",
       "team": 5,
       "web_name": "Yohanna"
     },
@@ -1516,6 +1651,7 @@
       "now_cost": 60,
       "position": 4,
       "second_name": "Welbeck",
+      "selected_by_percent": "1.1",
       "team": 6,
       "web_name": "Welbeck"
     },
@@ -1526,6 +1662,7 @@
       "now_cost": 55,
       "position": 4,
       "second_name": "Tzimas",
+      "selected_by_percent": "0.0",
       "team": 5,
       "web_name": "Tzimas"
     },
@@ -1536,6 +1673,7 @@
       "now_cost": 55,
       "position": 4,
       "second_name": "Kostoulas",
+      "selected_by_percent": "0.2",
       "team": 5,
       "web_name": "Kostoulas"
     },
@@ -1546,6 +1684,7 @@
       "now_cost": 50,
       "position": 4,
       "second_name": "Ferguson",
+      "selected_by_percent": "0.0",
       "team": 5,
       "web_name": "Ferguson"
     },
@@ -1556,6 +1695,7 @@
       "now_cost": 50,
       "position": 1,
       "second_name": "Lynch S\u00e1nchez",
+      "selected_by_percent": "2.4",
       "team": 6,
       "web_name": "S\u00e1nchez"
     },
@@ -1566,6 +1706,7 @@
       "now_cost": 50,
       "position": 1,
       "second_name": "J\u00f6rgensen",
+      "selected_by_percent": "0.0",
       "team": 6,
       "web_name": "J\u00f6rgensen"
     },
@@ -1576,6 +1717,7 @@
       "now_cost": 55,
       "position": 2,
       "second_name": "James",
+      "selected_by_percent": "10.3",
       "team": 6,
       "web_name": "James"
     },
@@ -1586,6 +1728,7 @@
       "now_cost": 55,
       "position": 2,
       "second_name": "Chalobah",
+      "selected_by_percent": "0.2",
       "team": 6,
       "web_name": "Chalobah"
     },
@@ -1596,6 +1739,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Gusto",
+      "selected_by_percent": "1.2",
       "team": 6,
       "web_name": "Gusto"
     },
@@ -1606,6 +1750,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Fofana",
+      "selected_by_percent": "0.0",
       "team": 6,
       "web_name": "Fofana"
     },
@@ -1616,6 +1761,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Badiashile Mukinayi",
+      "selected_by_percent": "0.0",
       "team": 6,
       "web_name": "B.Badiashile"
     },
@@ -1626,6 +1772,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Adarabioyo",
+      "selected_by_percent": "0.2",
       "team": 6,
       "web_name": "Tosin"
     },
@@ -1636,6 +1783,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Hato",
+      "selected_by_percent": "0.5",
       "team": 6,
       "web_name": "Hato"
     },
@@ -1646,6 +1794,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Samuels Colwill",
+      "selected_by_percent": "1.6",
       "team": 6,
       "web_name": "Colwill"
     },
@@ -1656,6 +1805,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Sarr",
+      "selected_by_percent": "0.1",
       "team": 6,
       "web_name": "M.Sarr"
     },
@@ -1666,6 +1816,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Acheampong",
+      "selected_by_percent": "0.3",
       "team": 6,
       "web_name": "Acheampong"
     },
@@ -1676,6 +1827,7 @@
       "now_cost": 55,
       "position": 2,
       "second_name": "Palestra",
+      "selected_by_percent": "3.0",
       "team": 6,
       "web_name": "Palestra"
     },
@@ -1686,6 +1838,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Disasi",
+      "selected_by_percent": "0.1",
       "team": 6,
       "web_name": "Disasi"
     },
@@ -1696,6 +1849,7 @@
       "now_cost": 95,
       "position": 3,
       "second_name": "Palmer",
+      "selected_by_percent": "10.7",
       "team": 6,
       "web_name": "Palmer"
     },
@@ -1706,6 +1860,7 @@
       "now_cost": 70,
       "position": 3,
       "second_name": "Fern\u00e1ndez",
+      "selected_by_percent": "5.3",
       "team": 6,
       "web_name": "Enzo"
     },
@@ -1716,6 +1871,7 @@
       "now_cost": 65,
       "position": 3,
       "second_name": "Lomba Neto",
+      "selected_by_percent": "1.4",
       "team": 6,
       "web_name": "Neto"
     },
@@ -1726,6 +1882,7 @@
       "now_cost": 65,
       "position": 3,
       "second_name": "Almeida de Oliveira Gon\u00e7alves",
+      "selected_by_percent": "1.3",
       "team": 6,
       "web_name": "Est\u00eav\u00e3o"
     },
@@ -1736,6 +1893,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Bynoe-Gittens",
+      "selected_by_percent": "0.0",
       "team": 6,
       "web_name": "Gittens"
     },
@@ -1746,6 +1904,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Caicedo Corozo",
+      "selected_by_percent": "4.0",
       "team": 6,
       "web_name": "Caicedo"
     },
@@ -1756,6 +1915,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Garnacho Ferreyra",
+      "selected_by_percent": "0.6",
       "team": 2,
       "web_name": "Garnacho"
     },
@@ -1766,6 +1926,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Lavia",
+      "selected_by_percent": "0.1",
       "team": 6,
       "web_name": "Lavia"
     },
@@ -1776,6 +1937,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Nascimento dos Santos",
+      "selected_by_percent": "1.0",
       "team": 16,
       "web_name": "Andrey Santos"
     },
@@ -1786,6 +1948,7 @@
       "now_cost": 45,
       "position": 3,
       "second_name": "Lu\u00eds Essugo",
+      "selected_by_percent": "0.2",
       "team": 6,
       "web_name": "D.Essugo"
     },
@@ -1796,6 +1959,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Quenda",
+      "selected_by_percent": "0.0",
       "team": 6,
       "web_name": "Quenda"
     },
@@ -1806,6 +1970,7 @@
       "now_cost": 75,
       "position": 4,
       "second_name": "Junqueira de Jesus",
+      "selected_by_percent": "64.0",
       "team": 6,
       "web_name": "Jo\u00e3o Pedro"
     },
@@ -1816,6 +1981,7 @@
       "now_cost": 65,
       "position": 4,
       "second_name": "Jackson",
+      "selected_by_percent": "0.4",
       "team": 6,
       "web_name": "N.Jackson"
     },
@@ -1826,6 +1992,7 @@
       "now_cost": 55,
       "position": 4,
       "second_name": "Delap",
+      "selected_by_percent": "0.5",
       "team": 6,
       "web_name": "Delap"
     },
@@ -1836,6 +2003,7 @@
       "now_cost": 50,
       "position": 4,
       "second_name": "Guiu Paz",
+      "selected_by_percent": "0.5",
       "team": 6,
       "web_name": "Marc Guiu"
     },
@@ -1846,6 +2014,7 @@
       "now_cost": 45,
       "position": 4,
       "second_name": "Mheuka",
+      "selected_by_percent": "0.4",
       "team": 6,
       "web_name": "Mheuka"
     },
@@ -1856,6 +2025,7 @@
       "now_cost": 50,
       "position": 4,
       "second_name": "Emegha",
+      "selected_by_percent": "0.2",
       "team": 6,
       "web_name": "Emegha"
     },
@@ -1866,6 +2036,7 @@
       "now_cost": 40,
       "position": 1,
       "second_name": "Dovin",
+      "selected_by_percent": "1.6",
       "team": 7,
       "web_name": "Dovin"
     },
@@ -1876,6 +2047,7 @@
       "now_cost": 45,
       "position": 1,
       "second_name": "Wilson",
+      "selected_by_percent": "0.5",
       "team": 7,
       "web_name": "Wilson"
     },
@@ -1886,6 +2058,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Thomas",
+      "selected_by_percent": "8.0",
       "team": 7,
       "web_name": "Thomas"
     },
@@ -1896,6 +2069,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Kitching",
+      "selected_by_percent": "0.7",
       "team": 7,
       "web_name": "Kitching"
     },
@@ -1906,6 +2080,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "van Ewijk",
+      "selected_by_percent": "13.6",
       "team": 7,
       "web_name": "van Ewijk"
     },
@@ -1916,6 +2091,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Dasilva",
+      "selected_by_percent": "0.9",
       "team": 7,
       "web_name": "Dasilva"
     },
@@ -1926,6 +2102,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Kesler-Hayden",
+      "selected_by_percent": "0.1",
       "team": 7,
       "web_name": "Kesler-Hayden"
     },
@@ -1936,6 +2113,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Bidwell",
+      "selected_by_percent": "0.1",
       "team": 7,
       "web_name": "Bidwell"
     },
@@ -1946,6 +2124,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Latibeaudiere",
+      "selected_by_percent": "0.0",
       "team": 7,
       "web_name": "Latibeaudiere"
     },
@@ -1956,6 +2135,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Woolfenden",
+      "selected_by_percent": "0.2",
       "team": 7,
       "web_name": "Woolfenden"
     },
@@ -1966,6 +2146,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Brau",
+      "selected_by_percent": "0.0",
       "team": 7,
       "web_name": "Brau"
     },
@@ -1976,6 +2157,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Amenda",
+      "selected_by_percent": "0.9",
       "team": 7,
       "web_name": "Amenda"
     },
@@ -1986,6 +2168,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Rudoni",
+      "selected_by_percent": "0.1",
       "team": 7,
       "web_name": "Rudoni"
     },
@@ -1996,6 +2179,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Grimes",
+      "selected_by_percent": "0.2",
       "team": 7,
       "web_name": "Grimes"
     },
@@ -2006,6 +2190,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Sakamoto",
+      "selected_by_percent": "0.1",
       "team": 7,
       "web_name": "Sakamoto"
     },
@@ -2016,6 +2201,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Mason-Clark",
+      "selected_by_percent": "0.1",
       "team": 7,
       "web_name": "Mason-Clark"
     },
@@ -2026,6 +2212,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Eccles",
+      "selected_by_percent": "0.0",
       "team": 7,
       "web_name": "Eccles"
     },
@@ -2036,6 +2223,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Torp",
+      "selected_by_percent": "0.2",
       "team": 7,
       "web_name": "Torp"
     },
@@ -2046,6 +2234,7 @@
       "now_cost": 45,
       "position": 3,
       "second_name": "Shepherd",
+      "selected_by_percent": "0.3",
       "team": 7,
       "web_name": "Shepherd"
     },
@@ -2056,6 +2245,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Tchaouna",
+      "selected_by_percent": "0.2",
       "team": 7,
       "web_name": "Tchaouna"
     },
@@ -2066,6 +2256,7 @@
       "now_cost": 45,
       "position": 3,
       "second_name": "Borges Rodrigues",
+      "selected_by_percent": "0.2",
       "team": 7,
       "web_name": "Borges Rodrigues"
     },
@@ -2076,6 +2267,7 @@
       "now_cost": 45,
       "position": 3,
       "second_name": "Andrews",
+      "selected_by_percent": "0.7",
       "team": 7,
       "web_name": "Andrews"
     },
@@ -2086,6 +2278,7 @@
       "now_cost": 55,
       "position": 4,
       "second_name": "Wright",
+      "selected_by_percent": "0.2",
       "team": 7,
       "web_name": "Wright"
     },
@@ -2096,6 +2289,7 @@
       "now_cost": 50,
       "position": 4,
       "second_name": "Thomas-Asante",
+      "selected_by_percent": "0.8",
       "team": 7,
       "web_name": "Thomas-Asante"
     },
@@ -2106,6 +2300,7 @@
       "now_cost": 50,
       "position": 4,
       "second_name": "Simms",
+      "selected_by_percent": "0.9",
       "team": 7,
       "web_name": "Simms"
     },
@@ -2116,6 +2311,7 @@
       "now_cost": 50,
       "position": 4,
       "second_name": "Markelo",
+      "selected_by_percent": "0.0",
       "team": 7,
       "web_name": "Markelo"
     },
@@ -2126,6 +2322,7 @@
       "now_cost": 45,
       "position": 4,
       "second_name": "Bassette",
+      "selected_by_percent": "0.0",
       "team": 7,
       "web_name": "Bassette"
     },
@@ -2136,6 +2333,7 @@
       "now_cost": 50,
       "position": 1,
       "second_name": "Henderson",
+      "selected_by_percent": "1.9",
       "team": 8,
       "web_name": "Henderson"
     },
@@ -2146,6 +2344,7 @@
       "now_cost": 45,
       "position": 1,
       "second_name": "Ben\u00edtez",
+      "selected_by_percent": "0.1",
       "team": 8,
       "web_name": "Benitez"
     },
@@ -2156,6 +2355,7 @@
       "now_cost": 60,
       "position": 2,
       "second_name": "Lacroix",
+      "selected_by_percent": "9.1",
       "team": 6,
       "web_name": "Lacroix"
     },
@@ -2166,6 +2366,7 @@
       "now_cost": 55,
       "position": 2,
       "second_name": "Mu\u00f1oz Mej\u00eda",
+      "selected_by_percent": "9.4",
       "team": 8,
       "web_name": "Mu\u00f1oz"
     },
@@ -2176,6 +2377,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Richards",
+      "selected_by_percent": "0.8",
       "team": 8,
       "web_name": "Richards"
     },
@@ -2186,6 +2388,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Canvot",
+      "selected_by_percent": "0.3",
       "team": 8,
       "web_name": "Canvot"
     },
@@ -2196,6 +2399,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Mitchell",
+      "selected_by_percent": "6.2",
       "team": 8,
       "web_name": "Mitchell"
     },
@@ -2206,6 +2410,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Sosa",
+      "selected_by_percent": "0.0",
       "team": 8,
       "web_name": "Sosa"
     },
@@ -2216,6 +2421,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Riad Dnanou",
+      "selected_by_percent": "0.1",
       "team": 8,
       "web_name": "Chadi Riad"
     },
@@ -2226,6 +2432,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Mingueza",
+      "selected_by_percent": "0.1",
       "team": 8,
       "web_name": "Mingueza"
     },
@@ -2236,6 +2443,7 @@
       "now_cost": 65,
       "position": 3,
       "second_name": "Sarr",
+      "selected_by_percent": "4.1",
       "team": 8,
       "web_name": "Sarr"
     },
@@ -2246,6 +2454,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Johnson",
+      "selected_by_percent": "0.2",
       "team": 9,
       "web_name": "Johnson"
     },
@@ -2256,6 +2465,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Wharton",
+      "selected_by_percent": "0.9",
       "team": 8,
       "web_name": "Wharton"
     },
@@ -2266,6 +2476,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Pino Santos",
+      "selected_by_percent": "0.2",
       "team": 8,
       "web_name": "Yeremy"
     },
@@ -2276,6 +2487,7 @@
       "now_cost": 45,
       "position": 3,
       "second_name": "Hughes",
+      "selected_by_percent": "11.8",
       "team": 8,
       "web_name": "Hughes"
     },
@@ -2286,6 +2498,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Lerma Sol\u00eds",
+      "selected_by_percent": "0.1",
       "team": 8,
       "web_name": "Lerma"
     },
@@ -2296,6 +2509,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Kamada",
+      "selected_by_percent": "0.3",
       "team": 8,
       "web_name": "Kamada"
     },
@@ -2306,6 +2520,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Devenny",
+      "selected_by_percent": "0.0",
       "team": 8,
       "web_name": "Devenny"
     },
@@ -2316,6 +2531,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Esse",
+      "selected_by_percent": "0.0",
       "team": 8,
       "web_name": "Esse"
     },
@@ -2326,6 +2542,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Fran\u00e7a de Oliveira",
+      "selected_by_percent": "0.0",
       "team": 8,
       "web_name": "M.Fran\u00e7a"
     },
@@ -2336,6 +2553,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Doucour\u00e9",
+      "selected_by_percent": "0.1",
       "team": 8,
       "web_name": "Doucour\u00e9"
     },
@@ -2346,6 +2564,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Rak-Sakyi",
+      "selected_by_percent": "0.0",
       "team": 8,
       "web_name": "J.Rak-Sakyi"
     },
@@ -2356,6 +2575,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Cardines",
+      "selected_by_percent": "0.0",
       "team": 8,
       "web_name": "Cardines"
     },
@@ -2366,6 +2586,7 @@
       "now_cost": 45,
       "position": 3,
       "second_name": "Drakes-Thomas",
+      "selected_by_percent": "0.1",
       "team": 8,
       "web_name": "Drakes-Thomas"
     },
@@ -2376,6 +2597,7 @@
       "now_cost": 60,
       "position": 4,
       "second_name": "Strand Larsen",
+      "selected_by_percent": "0.6",
       "team": 8,
       "web_name": "Strand Larsen"
     },
@@ -2386,6 +2608,7 @@
       "now_cost": 65,
       "position": 4,
       "second_name": "Mateta",
+      "selected_by_percent": "5.7",
       "team": 8,
       "web_name": "Mateta"
     },
@@ -2396,6 +2619,7 @@
       "now_cost": 55,
       "position": 4,
       "second_name": "Nketiah",
+      "selected_by_percent": "0.5",
       "team": 8,
       "web_name": "Nketiah"
     },
@@ -2406,6 +2630,7 @@
       "now_cost": 50,
       "position": 4,
       "second_name": "Uche",
+      "selected_by_percent": "0.0",
       "team": 8,
       "web_name": "Uche"
     },
@@ -2416,6 +2641,7 @@
       "now_cost": 55,
       "position": 1,
       "second_name": "Pickford",
+      "selected_by_percent": "8.3",
       "team": 9,
       "web_name": "Pickford"
     },
@@ -2426,6 +2652,7 @@
       "now_cost": 50,
       "position": 1,
       "second_name": "Travers",
+      "selected_by_percent": "0.0",
       "team": 9,
       "web_name": "Travers"
     },
@@ -2436,6 +2663,7 @@
       "now_cost": 45,
       "position": 1,
       "second_name": "King",
+      "selected_by_percent": "0.0",
       "team": 9,
       "web_name": "King"
     },
@@ -2446,6 +2674,7 @@
       "now_cost": 60,
       "position": 2,
       "second_name": "Tarkowski",
+      "selected_by_percent": "8.8",
       "team": 9,
       "web_name": "Tarkowski"
     },
@@ -2456,6 +2685,7 @@
       "now_cost": 55,
       "position": 2,
       "second_name": "Branthwaite",
+      "selected_by_percent": "1.7",
       "team": 9,
       "web_name": "Branthwaite"
     },
@@ -2466,6 +2696,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Keane",
+      "selected_by_percent": "1.6",
       "team": 9,
       "web_name": "Keane"
     },
@@ -2476,6 +2707,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "O'Brien",
+      "selected_by_percent": "0.5",
       "team": 9,
       "web_name": "O'Brien"
     },
@@ -2486,6 +2718,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Mykolenko",
+      "selected_by_percent": "1.6",
       "team": 9,
       "web_name": "Mykolenko"
     },
@@ -2496,6 +2729,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Patterson",
+      "selected_by_percent": "0.0",
       "team": 9,
       "web_name": "Patterson"
     },
@@ -2506,6 +2740,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Aznou",
+      "selected_by_percent": "0.2",
       "team": 9,
       "web_name": "Aznou"
     },
@@ -2516,6 +2751,7 @@
       "now_cost": 65,
       "position": 3,
       "second_name": "Dewsbury-Hall",
+      "selected_by_percent": "3.9",
       "team": 9,
       "web_name": "Dewsbury-Hall"
     },
@@ -2526,6 +2762,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Ndiaye",
+      "selected_by_percent": "16.0",
       "team": 9,
       "web_name": "Ndiaye"
     },
@@ -2536,6 +2773,7 @@
       "now_cost": 65,
       "position": 3,
       "second_name": "Grealish",
+      "selected_by_percent": "0.2",
       "team": 15,
       "web_name": "Grealish"
     },
@@ -2546,6 +2784,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Garner",
+      "selected_by_percent": "0.1",
       "team": 9,
       "web_name": "Garner"
     },
@@ -2556,6 +2795,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Iroegbunam",
+      "selected_by_percent": "0.0",
       "team": 9,
       "web_name": "Iroegbunam"
     },
@@ -2566,6 +2806,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "McNeil",
+      "selected_by_percent": "0.2",
       "team": 8,
       "web_name": "McNeil"
     },
@@ -2576,6 +2817,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "George",
+      "selected_by_percent": "0.3",
       "team": 9,
       "web_name": "George"
     },
@@ -2586,6 +2828,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Alcaraz Dur\u00e1n",
+      "selected_by_percent": "0.1",
       "team": 9,
       "web_name": "Alcaraz"
     },
@@ -2596,6 +2839,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Armstrong",
+      "selected_by_percent": "0.1",
       "team": 9,
       "web_name": "Armstrong"
     },
@@ -2606,6 +2850,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Dibling",
+      "selected_by_percent": "0.0",
       "team": 9,
       "web_name": "Dibling"
     },
@@ -2616,6 +2861,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "R\u00f6hl",
+      "selected_by_percent": "0.1",
       "team": 9,
       "web_name": "R\u00f6hl"
     },
@@ -2626,6 +2872,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Hackney",
+      "selected_by_percent": "0.3",
       "team": 9,
       "web_name": "Hackney"
     },
@@ -2636,6 +2883,7 @@
       "now_cost": 55,
       "position": 4,
       "second_name": "Gomes Betuncal",
+      "selected_by_percent": "2.7",
       "team": 9,
       "web_name": "Beto"
     },
@@ -2646,6 +2894,7 @@
       "now_cost": 55,
       "position": 4,
       "second_name": "Barry",
+      "selected_by_percent": "1.6",
       "team": 9,
       "web_name": "Barry"
     },
@@ -2656,6 +2905,7 @@
       "now_cost": 45,
       "position": 1,
       "second_name": "Leno",
+      "selected_by_percent": "3.1",
       "team": 10,
       "web_name": "Leno"
     },
@@ -2666,6 +2916,7 @@
       "now_cost": 40,
       "position": 1,
       "second_name": "Lecomte",
+      "selected_by_percent": "1.2",
       "team": 10,
       "web_name": "Lecomte"
     },
@@ -2676,6 +2927,7 @@
       "now_cost": 40,
       "position": 1,
       "second_name": "McNally",
+      "selected_by_percent": "0.2",
       "team": 10,
       "web_name": "McNally"
     },
@@ -2686,6 +2938,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Andersen",
+      "selected_by_percent": "0.0",
       "team": 10,
       "web_name": "Andersen"
     },
@@ -2696,6 +2949,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Robinson",
+      "selected_by_percent": "1.7",
       "team": 10,
       "web_name": "Robinson"
     },
@@ -2706,6 +2960,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Cuenca Barreno",
+      "selected_by_percent": "0.0",
       "team": 10,
       "web_name": "J.Cuenca"
     },
@@ -2716,6 +2971,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Tete",
+      "selected_by_percent": "0.3",
       "team": 10,
       "web_name": "Tete"
     },
@@ -2726,6 +2982,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Bassey",
+      "selected_by_percent": "0.8",
       "team": 10,
       "web_name": "Bassey"
     },
@@ -2736,6 +2993,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Castagne",
+      "selected_by_percent": "0.3",
       "team": 10,
       "web_name": "Castagne"
     },
@@ -2746,6 +3004,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Diop",
+      "selected_by_percent": "18.1",
       "team": 12,
       "web_name": "Diop"
     },
@@ -2756,6 +3015,7 @@
       "now_cost": 65,
       "position": 3,
       "second_name": "Wilson",
+      "selected_by_percent": "6.2",
       "team": 13,
       "web_name": "Wilson"
     },
@@ -2766,6 +3026,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Iwobi",
+      "selected_by_percent": "1.0",
       "team": 10,
       "web_name": "Iwobi"
     },
@@ -2776,6 +3037,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Smith Rowe",
+      "selected_by_percent": "0.4",
       "team": 10,
       "web_name": "Smith Rowe"
     },
@@ -2786,6 +3048,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Santos Lopes de Macedo",
+      "selected_by_percent": "0.1",
       "team": 10,
       "web_name": "Kevin"
     },
@@ -2796,6 +3059,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Bobb",
+      "selected_by_percent": "0.3",
       "team": 10,
       "web_name": "Bobb"
     },
@@ -2806,6 +3070,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Berge",
+      "selected_by_percent": "0.4",
       "team": 10,
       "web_name": "Berge"
     },
@@ -2816,6 +3081,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Cairney",
+      "selected_by_percent": "0.0",
       "team": 10,
       "web_name": "Cairney"
     },
@@ -2826,6 +3092,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Luki\u0107",
+      "selected_by_percent": "0.1",
       "team": 12,
       "web_name": "Luki\u0107"
     },
@@ -2836,6 +3103,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "King",
+      "selected_by_percent": "0.2",
       "team": 10,
       "web_name": "King"
     },
@@ -2846,6 +3114,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Sessegnon",
+      "selected_by_percent": "0.5",
       "team": 10,
       "web_name": "Sessegnon"
     },
@@ -2856,6 +3125,7 @@
       "now_cost": 45,
       "position": 3,
       "second_name": "Reed",
+      "selected_by_percent": "1.6",
       "team": 10,
       "web_name": "Reed"
     },
@@ -2866,6 +3136,7 @@
       "now_cost": 55,
       "position": 4,
       "second_name": "Muniz Carvalho",
+      "selected_by_percent": "0.6",
       "team": 10,
       "web_name": "Muniz"
     },
@@ -2876,6 +3147,7 @@
       "now_cost": 45,
       "position": 4,
       "second_name": "Kusi-Asare",
+      "selected_by_percent": "7.4",
       "team": 10,
       "web_name": "Kusi-Asare"
     },
@@ -2886,6 +3158,7 @@
       "now_cost": 40,
       "position": 1,
       "second_name": "Phillips",
+      "selected_by_percent": "1.6",
       "team": 11,
       "web_name": "Phillips"
     },
@@ -2896,6 +3169,7 @@
       "now_cost": 45,
       "position": 1,
       "second_name": "Butland",
+      "selected_by_percent": "0.1",
       "team": 11,
       "web_name": "Butland"
     },
@@ -2906,6 +3180,7 @@
       "now_cost": 40,
       "position": 1,
       "second_name": "Cartwright",
+      "selected_by_percent": "0.0",
       "team": 11,
       "web_name": "Cartwright"
     },
@@ -2916,6 +3191,7 @@
       "now_cost": 40,
       "position": 1,
       "second_name": "Lo-Tutala",
+      "selected_by_percent": "0.0",
       "team": 11,
       "web_name": "Lo-Tutala"
     },
@@ -2926,6 +3202,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Egan",
+      "selected_by_percent": "1.7",
       "team": 11,
       "web_name": "Egan"
     },
@@ -2936,6 +3213,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Hughes",
+      "selected_by_percent": "0.1",
       "team": 11,
       "web_name": "Hughes"
     },
@@ -2946,6 +3224,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Ajayi",
+      "selected_by_percent": "1.3",
       "team": 11,
       "web_name": "Ajayi"
     },
@@ -2956,6 +3235,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Coyle",
+      "selected_by_percent": "0.7",
       "team": 11,
       "web_name": "Coyle"
     },
@@ -2966,6 +3246,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Drameh",
+      "selected_by_percent": "0.1",
       "team": 11,
       "web_name": "Drameh"
     },
@@ -2976,6 +3257,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Giles",
+      "selected_by_percent": "0.8",
       "team": 11,
       "web_name": "Giles"
     },
@@ -2986,6 +3268,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Jacob",
+      "selected_by_percent": "0.0",
       "team": 11,
       "web_name": "Jacob"
     },
@@ -2996,6 +3279,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "McCarthy",
+      "selected_by_percent": "0.1",
       "team": 11,
       "web_name": "McCarthy"
     },
@@ -3006,6 +3290,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "McNair",
+      "selected_by_percent": "0.1",
       "team": 11,
       "web_name": "McNair"
     },
@@ -3016,6 +3301,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Belloumi",
+      "selected_by_percent": "0.5",
       "team": 11,
       "web_name": "Belloumi"
     },
@@ -3026,6 +3312,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Millar",
+      "selected_by_percent": "0.1",
       "team": 11,
       "web_name": "Millar"
     },
@@ -3036,6 +3323,7 @@
       "now_cost": 45,
       "position": 3,
       "second_name": "Dowell",
+      "selected_by_percent": "0.4",
       "team": 11,
       "web_name": "Dowell"
     },
@@ -3046,6 +3334,7 @@
       "now_cost": 45,
       "position": 3,
       "second_name": "Crooks",
+      "selected_by_percent": "0.7",
       "team": 11,
       "web_name": "Crooks"
     },
@@ -3056,6 +3345,7 @@
       "now_cost": 45,
       "position": 3,
       "second_name": "Slater",
+      "selected_by_percent": "3.3",
       "team": 11,
       "web_name": "Slater"
     },
@@ -3066,6 +3356,7 @@
       "now_cost": 45,
       "position": 3,
       "second_name": "Matazo",
+      "selected_by_percent": "0.0",
       "team": 11,
       "web_name": "Matazo"
     },
@@ -3076,6 +3367,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "\u00d6m\u00fcr",
+      "selected_by_percent": "0.0",
       "team": 11,
       "web_name": "\u00d6m\u00fcr"
     },
@@ -3086,6 +3378,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Kamara",
+      "selected_by_percent": "0.0",
       "team": 11,
       "web_name": "Kamara"
     },
@@ -3096,6 +3389,7 @@
       "now_cost": 45,
       "position": 3,
       "second_name": "Zambrano",
+      "selected_by_percent": "0.1",
       "team": 11,
       "web_name": "Zambrano"
     },
@@ -3106,6 +3400,7 @@
       "now_cost": 55,
       "position": 4,
       "second_name": "McBurnie",
+      "selected_by_percent": "1.5",
       "team": 11,
       "web_name": "McBurnie"
     },
@@ -3116,6 +3411,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Akintola",
+      "selected_by_percent": "0.0",
       "team": 11,
       "web_name": "Akintola"
     },
@@ -3126,6 +3422,7 @@
       "now_cost": 45,
       "position": 3,
       "second_name": "Gyabi",
+      "selected_by_percent": "0.0",
       "team": 11,
       "web_name": "Gyabi"
     },
@@ -3136,6 +3433,7 @@
       "now_cost": 45,
       "position": 4,
       "second_name": "Destan",
+      "selected_by_percent": "0.4",
       "team": 11,
       "web_name": "Destan"
     },
@@ -3146,6 +3444,7 @@
       "now_cost": 45,
       "position": 4,
       "second_name": "Burstow",
+      "selected_by_percent": "0.1",
       "team": 11,
       "web_name": "Burstow"
     },
@@ -3156,6 +3455,7 @@
       "now_cost": 45,
       "position": 1,
       "second_name": "Walton",
+      "selected_by_percent": "0.5",
       "team": 12,
       "web_name": "Walton"
     },
@@ -3166,6 +3466,7 @@
       "now_cost": 40,
       "position": 1,
       "second_name": "Palmer",
+      "selected_by_percent": "4.7",
       "team": 12,
       "web_name": "Palmer"
     },
@@ -3176,6 +3477,7 @@
       "now_cost": 40,
       "position": 1,
       "second_name": "Button",
+      "selected_by_percent": "0.5",
       "team": 12,
       "web_name": "Button"
     },
@@ -3186,6 +3488,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Kipr\u00e9",
+      "selected_by_percent": "0.7",
       "team": 12,
       "web_name": "Kipr\u00e9"
     },
@@ -3196,6 +3499,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "O'Shea",
+      "selected_by_percent": "3.5",
       "team": 12,
       "web_name": "O'Shea"
     },
@@ -3206,6 +3510,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Davis",
+      "selected_by_percent": "5.2",
       "team": 12,
       "web_name": "Davis"
     },
@@ -3216,6 +3521,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Greaves",
+      "selected_by_percent": "1.5",
       "team": 12,
       "web_name": "Greaves"
     },
@@ -3226,6 +3532,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Johnson",
+      "selected_by_percent": "0.1",
       "team": 12,
       "web_name": "Johnson"
     },
@@ -3236,6 +3543,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Furlong",
+      "selected_by_percent": "0.7",
       "team": 12,
       "web_name": "Furlong"
     },
@@ -3246,6 +3554,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "N\u00fa\u00f1ez",
+      "selected_by_percent": "0.1",
       "team": 12,
       "web_name": "N\u00fa\u00f1ez"
     },
@@ -3256,6 +3565,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Matusiwa",
+      "selected_by_percent": "0.0",
       "team": 12,
       "web_name": "Matusiwa"
     },
@@ -3266,6 +3576,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Burns",
+      "selected_by_percent": "0.0",
       "team": 12,
       "web_name": "Burns"
     },
@@ -3276,6 +3587,7 @@
       "now_cost": 45,
       "position": 3,
       "second_name": "Taylor",
+      "selected_by_percent": "0.0",
       "team": 12,
       "web_name": "Taylor"
     },
@@ -3286,6 +3598,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Clarke",
+      "selected_by_percent": "0.3",
       "team": 12,
       "web_name": "Clarke"
     },
@@ -3296,6 +3609,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Ogbene",
+      "selected_by_percent": "0.0",
       "team": 12,
       "web_name": "Ogbene"
     },
@@ -3306,6 +3620,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Fatawu",
+      "selected_by_percent": "0.2",
       "team": 12,
       "web_name": "Fatawu"
     },
@@ -3316,6 +3631,7 @@
       "now_cost": 55,
       "position": 4,
       "second_name": "Correia da Silva",
+      "selected_by_percent": "0.8",
       "team": 12,
       "web_name": "Emersonn"
     },
@@ -3326,6 +3642,7 @@
       "now_cost": 50,
       "position": 4,
       "second_name": "Hirst",
+      "selected_by_percent": "0.2",
       "team": 12,
       "web_name": "Hirst"
     },
@@ -3336,6 +3653,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Philogene",
+      "selected_by_percent": "0.2",
       "team": 12,
       "web_name": "Philogene"
     },
@@ -3346,6 +3664,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Szmodics",
+      "selected_by_percent": "0.0",
       "team": 12,
       "web_name": "Szmodics"
     },
@@ -3356,6 +3675,7 @@
       "now_cost": 50,
       "position": 4,
       "second_name": "Akpom",
+      "selected_by_percent": "0.6",
       "team": 12,
       "web_name": "Akpom"
     },
@@ -3366,6 +3686,7 @@
       "now_cost": 45,
       "position": 4,
       "second_name": "Walle Egeli",
+      "selected_by_percent": "2.3",
       "team": 12,
       "web_name": "Walle Egeli"
     },
@@ -3376,6 +3697,7 @@
       "now_cost": 50,
       "position": 4,
       "second_name": "Al-Hamadi",
+      "selected_by_percent": "0.1",
       "team": 12,
       "web_name": "Al-Hamadi"
     },
@@ -3386,6 +3708,7 @@
       "now_cost": 45,
       "position": 3,
       "second_name": "McAteer",
+      "selected_by_percent": "1.4",
       "team": 12,
       "web_name": "McAteer"
     },
@@ -3396,6 +3719,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Mehmeti",
+      "selected_by_percent": "0.1",
       "team": 12,
       "web_name": "Mehmeti"
     },
@@ -3406,6 +3730,7 @@
       "now_cost": 45,
       "position": 1,
       "second_name": "Darlow",
+      "selected_by_percent": "0.0",
       "team": 16,
       "web_name": "Darlow"
     },
@@ -3416,6 +3741,7 @@
       "now_cost": 45,
       "position": 1,
       "second_name": "Perri",
+      "selected_by_percent": "0.6",
       "team": 13,
       "web_name": "Perri"
     },
@@ -3426,6 +3752,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Bijol",
+      "selected_by_percent": "0.5",
       "team": 13,
       "web_name": "Bijol"
     },
@@ -3436,6 +3763,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Struijk",
+      "selected_by_percent": "0.2",
       "team": 5,
       "web_name": "Struijk"
     },
@@ -3446,6 +3774,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Rodon",
+      "selected_by_percent": "3.6",
       "team": 13,
       "web_name": "Rodon"
     },
@@ -3456,6 +3785,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Bogle",
+      "selected_by_percent": "0.5",
       "team": 13,
       "web_name": "Bogle"
     },
@@ -3466,6 +3796,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Gudmundsson",
+      "selected_by_percent": "0.1",
       "team": 13,
       "web_name": "Gudmundsson"
     },
@@ -3476,6 +3807,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Justin",
+      "selected_by_percent": "0.7",
       "team": 13,
       "web_name": "Justin"
     },
@@ -3486,6 +3818,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Bornauw",
+      "selected_by_percent": "0.0",
       "team": 13,
       "web_name": "Bornauw"
     },
@@ -3496,6 +3829,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Muharemovi\u0107",
+      "selected_by_percent": "3.4",
       "team": 13,
       "web_name": "Muharemovi\u0107"
     },
@@ -3506,6 +3840,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Stach",
+      "selected_by_percent": "1.2",
       "team": 13,
       "web_name": "Stach"
     },
@@ -3516,6 +3851,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Okafor",
+      "selected_by_percent": "0.5",
       "team": 13,
       "web_name": "Okafor"
     },
@@ -3526,6 +3862,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Aaronson",
+      "selected_by_percent": "0.9",
       "team": 13,
       "web_name": "Aaronson"
     },
@@ -3536,6 +3873,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Ampadu",
+      "selected_by_percent": "1.4",
       "team": 13,
       "web_name": "Ampadu"
     },
@@ -3546,6 +3884,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Longstaff",
+      "selected_by_percent": "0.1",
       "team": 13,
       "web_name": "Longstaff"
     },
@@ -3556,6 +3895,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Gelhardt",
+      "selected_by_percent": "0.0",
       "team": 11,
       "web_name": "Gelhardt"
     },
@@ -3566,6 +3906,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Gnonto",
+      "selected_by_percent": "0.0",
       "team": 13,
       "web_name": "Gnonto"
     },
@@ -3576,6 +3917,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Harrison",
+      "selected_by_percent": "0.0",
       "team": 13,
       "web_name": "Harrison"
     },
@@ -3586,6 +3928,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "James",
+      "selected_by_percent": "0.1",
       "team": 13,
       "web_name": "James"
     },
@@ -3596,6 +3939,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Gruev",
+      "selected_by_percent": "0.0",
       "team": 13,
       "web_name": "Gruev"
     },
@@ -3606,6 +3950,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Ao",
+      "selected_by_percent": "0.2",
       "team": 13,
       "web_name": "Tanaka"
     },
@@ -3616,6 +3961,7 @@
       "now_cost": 60,
       "position": 4,
       "second_name": "Calvert-Lewin",
+      "selected_by_percent": "30.5",
       "team": 13,
       "web_name": "Calvert-Lewin"
     },
@@ -3626,6 +3972,7 @@
       "now_cost": 55,
       "position": 4,
       "second_name": "Nmecha",
+      "selected_by_percent": "0.6",
       "team": 13,
       "web_name": "Nmecha"
     },
@@ -3636,6 +3983,7 @@
       "now_cost": 50,
       "position": 4,
       "second_name": "Piroe",
+      "selected_by_percent": "0.2",
       "team": 13,
       "web_name": "Piroe"
     },
@@ -3646,6 +3994,7 @@
       "now_cost": 45,
       "position": 4,
       "second_name": "Joseph Fern\u00e1ndez-Regatillo",
+      "selected_by_percent": "0.1",
       "team": 13,
       "web_name": "Mateo Joseph"
     },
@@ -3656,6 +4005,7 @@
       "now_cost": 55,
       "position": 1,
       "second_name": "Becker",
+      "selected_by_percent": "3.7",
       "team": 14,
       "web_name": "A.Becker"
     },
@@ -3666,6 +4016,7 @@
       "now_cost": 50,
       "position": 1,
       "second_name": "Mamardashvili",
+      "selected_by_percent": "0.2",
       "team": 14,
       "web_name": "Mamardashvili"
     },
@@ -3676,6 +4027,7 @@
       "now_cost": 40,
       "position": 1,
       "second_name": "Woodman",
+      "selected_by_percent": "1.1",
       "team": 14,
       "web_name": "Woodman"
     },
@@ -3686,6 +4038,7 @@
       "now_cost": 40,
       "position": 1,
       "second_name": "Pecsi",
+      "selected_by_percent": "0.0",
       "team": 14,
       "web_name": "Pecsi"
     },
@@ -3696,6 +4049,7 @@
       "now_cost": 40,
       "position": 1,
       "second_name": "Jaros",
+      "selected_by_percent": "0.0",
       "team": 14,
       "web_name": "Jaros"
     },
@@ -3706,6 +4060,7 @@
       "now_cost": 40,
       "position": 1,
       "second_name": "Davies",
+      "selected_by_percent": "0.1",
       "team": 14,
       "web_name": "Davies"
     },
@@ -3716,6 +4071,7 @@
       "now_cost": 65,
       "position": 2,
       "second_name": "van Dijk",
+      "selected_by_percent": "19.5",
       "team": 14,
       "web_name": "Virgil"
     },
@@ -3726,6 +4082,7 @@
       "now_cost": 55,
       "position": 2,
       "second_name": "Frimpong",
+      "selected_by_percent": "3.5",
       "team": 14,
       "web_name": "Frimpong"
     },
@@ -3736,6 +4093,7 @@
       "now_cost": 55,
       "position": 2,
       "second_name": "Kerkez",
+      "selected_by_percent": "3.8",
       "team": 14,
       "web_name": "Kerkez"
     },
@@ -3746,6 +4104,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Gomez",
+      "selected_by_percent": "0.0",
       "team": 14,
       "web_name": "Gomez"
     },
@@ -3756,6 +4115,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Bradley",
+      "selected_by_percent": "0.0",
       "team": 14,
       "web_name": "Bradley"
     },
@@ -3766,6 +4126,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Lucky",
+      "selected_by_percent": "0.1",
       "team": 14,
       "web_name": "Lucky"
     },
@@ -3776,6 +4137,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Jacquet",
+      "selected_by_percent": "2.4",
       "team": 14,
       "web_name": "Jacquet"
     },
@@ -3786,6 +4148,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Leoni",
+      "selected_by_percent": "0.0",
       "team": 14,
       "web_name": "Leoni"
     },
@@ -3796,6 +4159,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Tsimikas",
+      "selected_by_percent": "0.1",
       "team": 14,
       "web_name": "Tsimikas"
     },
@@ -3806,6 +4170,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Ramsay",
+      "selected_by_percent": "0.2",
       "team": 14,
       "web_name": "Ramsay"
     },
@@ -3816,6 +4181,7 @@
       "now_cost": 75,
       "position": 3,
       "second_name": "Wirtz",
+      "selected_by_percent": "12.6",
       "team": 14,
       "web_name": "Wirtz"
     },
@@ -3826,6 +4192,7 @@
       "now_cost": 70,
       "position": 3,
       "second_name": "Gakpo",
+      "selected_by_percent": "3.9",
       "team": 14,
       "web_name": "Gakpo"
     },
@@ -3836,6 +4203,7 @@
       "now_cost": 70,
       "position": 3,
       "second_name": "Szoboszlai",
+      "selected_by_percent": "42.0",
       "team": 14,
       "web_name": "Szoboszlai"
     },
@@ -3846,6 +4214,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Ngumoha",
+      "selected_by_percent": "1.2",
       "team": 14,
       "web_name": "Ngumoha"
     },
@@ -3856,6 +4225,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Chiesa",
+      "selected_by_percent": "0.1",
       "team": 14,
       "web_name": "Chiesa"
     },
@@ -3866,6 +4236,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Gravenberch",
+      "selected_by_percent": "1.9",
       "team": 14,
       "web_name": "Gravenberch"
     },
@@ -3876,6 +4247,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Mac Allister",
+      "selected_by_percent": "1.7",
       "team": 14,
       "web_name": "Mac Allister"
     },
@@ -3886,6 +4258,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Jones",
+      "selected_by_percent": "0.0",
       "team": 14,
       "web_name": "C.Jones"
     },
@@ -3896,6 +4269,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Wataru",
+      "selected_by_percent": "0.1",
       "team": 14,
       "web_name": "Endo"
     },
@@ -3906,6 +4280,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Nyoni",
+      "selected_by_percent": "0.0",
       "team": 14,
       "web_name": "Nyoni"
     },
@@ -3916,6 +4291,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Baj\u010deti\u0107 Maquieira",
+      "selected_by_percent": "0.0",
       "team": 14,
       "web_name": "Bajcetic"
     },
@@ -3926,6 +4302,7 @@
       "now_cost": 65,
       "position": 3,
       "second_name": "Munoz",
+      "selected_by_percent": "0.6",
       "team": 14,
       "web_name": "Munoz"
     },
@@ -3936,6 +4313,7 @@
       "now_cost": 45,
       "position": 3,
       "second_name": "McConnell",
+      "selected_by_percent": "0.3",
       "team": 14,
       "web_name": "McConnell"
     },
@@ -3946,6 +4324,7 @@
       "now_cost": 90,
       "position": 4,
       "second_name": "Isak",
+      "selected_by_percent": "17.0",
       "team": 14,
       "web_name": "Isak"
     },
@@ -3956,6 +4335,7 @@
       "now_cost": 75,
       "position": 4,
       "second_name": "Ekitik\u00e9",
+      "selected_by_percent": "0.2",
       "team": 14,
       "web_name": "Ekitik\u00e9"
     },
@@ -3966,6 +4346,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Koumas",
+      "selected_by_percent": "0.0",
       "team": 14,
       "web_name": "Koumas"
     },
@@ -3976,6 +4357,7 @@
       "now_cost": 45,
       "position": 4,
       "second_name": "Danns",
+      "selected_by_percent": "0.0",
       "team": 14,
       "web_name": "Danns"
     },
@@ -3986,6 +4368,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Elliott",
+      "selected_by_percent": "0.1",
       "team": 14,
       "web_name": "Elliott"
     },
@@ -3996,6 +4379,7 @@
       "now_cost": 55,
       "position": 1,
       "second_name": "Donnarumma",
+      "selected_by_percent": "8.3",
       "team": 15,
       "web_name": "Donnarumma"
     },
@@ -4006,6 +4390,7 @@
       "now_cost": 50,
       "position": 1,
       "second_name": "Trafford",
+      "selected_by_percent": "3.2",
       "team": 13,
       "web_name": "Trafford"
     },
@@ -4016,6 +4401,7 @@
       "now_cost": 45,
       "position": 1,
       "second_name": "Bettinelli",
+      "selected_by_percent": "0.0",
       "team": 15,
       "web_name": "Bettinelli"
     },
@@ -4026,6 +4412,7 @@
       "now_cost": 65,
       "position": 2,
       "second_name": "O'Reilly",
+      "selected_by_percent": "21.4",
       "team": 15,
       "web_name": "O'Reilly"
     },
@@ -4036,6 +4423,7 @@
       "now_cost": 60,
       "position": 2,
       "second_name": "Gu\u00e9hi",
+      "selected_by_percent": "17.6",
       "team": 15,
       "web_name": "Gu\u00e9hi"
     },
@@ -4046,6 +4434,7 @@
       "now_cost": 60,
       "position": 2,
       "second_name": "Nunes",
+      "selected_by_percent": "1.6",
       "team": 15,
       "web_name": "Matheus N."
     },
@@ -4056,6 +4445,7 @@
       "now_cost": 55,
       "position": 2,
       "second_name": "dos Santos Gato Alves Dias",
+      "selected_by_percent": "1.8",
       "team": 15,
       "web_name": "R\u00faben"
     },
@@ -4066,6 +4456,7 @@
       "now_cost": 55,
       "position": 2,
       "second_name": "Gvardiol",
+      "selected_by_percent": "11.6",
       "team": 15,
       "web_name": "Gvardiol"
     },
@@ -4076,6 +4467,7 @@
       "now_cost": 55,
       "position": 2,
       "second_name": "A\u00eft-Nouri",
+      "selected_by_percent": "0.9",
       "team": 15,
       "web_name": "A\u00eft-Nouri"
     },
@@ -4086,6 +4478,7 @@
       "now_cost": 55,
       "position": 2,
       "second_name": "Khusanov",
+      "selected_by_percent": "1.8",
       "team": 15,
       "web_name": "Khusanov"
     },
@@ -4096,6 +4489,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Alleyne",
+      "selected_by_percent": "0.0",
       "team": 15,
       "web_name": "Alleyne"
     },
@@ -4106,6 +4500,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Lewis",
+      "selected_by_percent": "0.2",
       "team": 15,
       "web_name": "Lewis"
     },
@@ -4116,6 +4511,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "de Oliveira Nunes dos Reis",
+      "selected_by_percent": "0.0",
       "team": 15,
       "web_name": "Vitor Reis"
     },
@@ -4126,6 +4522,7 @@
       "now_cost": 85,
       "position": 3,
       "second_name": "Semenyo",
+      "selected_by_percent": "25.9",
       "team": 15,
       "web_name": "Semenyo"
     },
@@ -4136,6 +4533,7 @@
       "now_cost": 70,
       "position": 3,
       "second_name": "Foden",
+      "selected_by_percent": "4.4",
       "team": 15,
       "web_name": "Foden"
     },
@@ -4146,6 +4544,7 @@
       "now_cost": 75,
       "position": 3,
       "second_name": "Cherki",
+      "selected_by_percent": "8.6",
       "team": 15,
       "web_name": "Cherki"
     },
@@ -4156,6 +4555,7 @@
       "now_cost": 75,
       "position": 3,
       "second_name": "Doku",
+      "selected_by_percent": "1.8",
       "team": 15,
       "web_name": "Doku"
     },
@@ -4166,6 +4566,7 @@
       "now_cost": 70,
       "position": 4,
       "second_name": "Marmoush",
+      "selected_by_percent": "1.0",
       "team": 15,
       "web_name": "Marmoush"
     },
@@ -4176,6 +4577,7 @@
       "now_cost": 65,
       "position": 3,
       "second_name": "Hernandez Cascante",
+      "selected_by_percent": "0.0",
       "team": 15,
       "web_name": "Rodrigo"
     },
@@ -4186,6 +4588,7 @@
       "now_cost": 65,
       "position": 3,
       "second_name": "Moreira de Oliveira",
+      "selected_by_percent": "0.3",
       "team": 15,
       "web_name": "Savinho"
     },
@@ -4196,6 +4599,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Reijnders",
+      "selected_by_percent": "0.1",
       "team": 15,
       "web_name": "Reijnders"
     },
@@ -4206,6 +4610,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Gonz\u00e1lez Iglesias",
+      "selected_by_percent": "0.1",
       "team": 15,
       "web_name": "N.Gonzalez"
     },
@@ -4216,6 +4621,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Kova\u010di\u0107",
+      "selected_by_percent": "0.1",
       "team": 15,
       "web_name": "Kova\u010di\u0107"
     },
@@ -4226,6 +4632,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Echeverri",
+      "selected_by_percent": "0.0",
       "team": 15,
       "web_name": "Echeverri"
     },
@@ -4236,6 +4643,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Phillips",
+      "selected_by_percent": "0.0",
       "team": 15,
       "web_name": "Phillips"
     },
@@ -4246,6 +4654,7 @@
       "now_cost": 45,
       "position": 3,
       "second_name": "Mukasa",
+      "selected_by_percent": "0.2",
       "team": 15,
       "web_name": "Mukasa"
     },
@@ -4256,6 +4665,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Monga",
+      "selected_by_percent": "0.0",
       "team": 15,
       "web_name": "Monga"
     },
@@ -4266,6 +4676,7 @@
       "now_cost": 155,
       "position": 4,
       "second_name": "Haaland",
+      "selected_by_percent": "69.1",
       "team": 15,
       "web_name": "Haaland"
     },
@@ -4276,6 +4687,7 @@
       "now_cost": 50,
       "position": 1,
       "second_name": "Lammens",
+      "selected_by_percent": "16.3",
       "team": 16,
       "web_name": "Lammens"
     },
@@ -4286,6 +4698,7 @@
       "now_cost": 45,
       "position": 1,
       "second_name": "Bay\u0131nd\u0131r",
+      "selected_by_percent": "0.0",
       "team": 16,
       "web_name": "Bayindir"
     },
@@ -4296,6 +4709,7 @@
       "now_cost": 40,
       "position": 1,
       "second_name": "Heaton",
+      "selected_by_percent": "0.1",
       "team": 16,
       "web_name": "Heaton"
     },
@@ -4306,6 +4720,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Dorgu",
+      "selected_by_percent": "1.3",
       "team": 16,
       "web_name": "Dorgu"
     },
@@ -4316,6 +4731,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "de Ligt",
+      "selected_by_percent": "0.0",
       "team": 16,
       "web_name": "De Ligt"
     },
@@ -4326,6 +4742,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Dalot Teixeira",
+      "selected_by_percent": "2.7",
       "team": 16,
       "web_name": "Dalot"
     },
@@ -4336,6 +4753,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Maguire",
+      "selected_by_percent": "17.9",
       "team": 16,
       "web_name": "Maguire"
     },
@@ -4346,6 +4764,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Mart\u00ednez",
+      "selected_by_percent": "1.4",
       "team": 16,
       "web_name": "Martinez"
     },
@@ -4356,6 +4775,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Yoro",
+      "selected_by_percent": "0.7",
       "team": 16,
       "web_name": "Yoro"
     },
@@ -4366,6 +4786,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Heaven",
+      "selected_by_percent": "0.4",
       "team": 16,
       "web_name": "Heaven"
     },
@@ -4376,6 +4797,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Mazraoui",
+      "selected_by_percent": "0.7",
       "team": 16,
       "web_name": "Mazraoui"
     },
@@ -4386,6 +4808,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Shaw",
+      "selected_by_percent": "20.9",
       "team": 16,
       "web_name": "Shaw"
     },
@@ -4396,6 +4819,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Amass",
+      "selected_by_percent": "0.2",
       "team": 16,
       "web_name": "Amass"
     },
@@ -4406,6 +4830,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Fredricson",
+      "selected_by_percent": "0.0",
       "team": 16,
       "web_name": "Fredricson"
     },
@@ -4416,6 +4841,7 @@
       "now_cost": 120,
       "position": 3,
       "second_name": "Borges Fernandes",
+      "selected_by_percent": "50.8",
       "team": 16,
       "web_name": "B.Fernandes"
     },
@@ -4426,6 +4852,7 @@
       "now_cost": 80,
       "position": 3,
       "second_name": "Mbeumo",
+      "selected_by_percent": "37.9",
       "team": 16,
       "web_name": "Mbeumo"
     },
@@ -4436,6 +4863,7 @@
       "now_cost": 80,
       "position": 3,
       "second_name": "Santos Carneiro da Cunha",
+      "selected_by_percent": "10.0",
       "team": 16,
       "web_name": "Cunha"
     },
@@ -4446,6 +4874,7 @@
       "now_cost": 70,
       "position": 3,
       "second_name": "Rashford",
+      "selected_by_percent": "1.7",
       "team": 16,
       "web_name": "Rashford"
     },
@@ -4456,6 +4885,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Mount",
+      "selected_by_percent": "0.0",
       "team": 16,
       "web_name": "Mount"
     },
@@ -4466,6 +4896,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Diallo",
+      "selected_by_percent": "1.4",
       "team": 16,
       "web_name": "Amad"
     },
@@ -4476,6 +4907,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Mainoo",
+      "selected_by_percent": "1.0",
       "team": 16,
       "web_name": "Mainoo"
     },
@@ -4486,6 +4918,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Ugarte Ribeiro",
+      "selected_by_percent": "0.0",
       "team": 16,
       "web_name": "Ugarte"
     },
@@ -4496,6 +4929,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Fletcher",
+      "selected_by_percent": "0.0",
       "team": 16,
       "web_name": "J.Fletcher"
     },
@@ -4506,6 +4940,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Lacey",
+      "selected_by_percent": "0.0",
       "team": 16,
       "web_name": "Lacey"
     },
@@ -4516,6 +4951,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Collyer",
+      "selected_by_percent": "0.0",
       "team": 16,
       "web_name": "Collyer"
     },
@@ -4526,6 +4962,7 @@
       "now_cost": 45,
       "position": 3,
       "second_name": "Mantato",
+      "selected_by_percent": "0.2",
       "team": 16,
       "web_name": "Bendito Mantato"
     },
@@ -4536,6 +4973,7 @@
       "now_cost": 45,
       "position": 3,
       "second_name": "Fletcher",
+      "selected_by_percent": "0.4",
       "team": 16,
       "web_name": "Fletcher"
     },
@@ -4546,6 +4984,7 @@
       "now_cost": 70,
       "position": 4,
       "second_name": "Sesko",
+      "selected_by_percent": "1.5",
       "team": 16,
       "web_name": "\u0160e\u0161ko"
     },
@@ -4556,6 +4995,7 @@
       "now_cost": 55,
       "position": 4,
       "second_name": "Zirkzee",
+      "selected_by_percent": "0.6",
       "team": 16,
       "web_name": "Zirkzee"
     },
@@ -4566,6 +5006,7 @@
       "now_cost": 45,
       "position": 4,
       "second_name": "Obi",
+      "selected_by_percent": "1.1",
       "team": 16,
       "web_name": "Obi"
     },
@@ -4576,6 +5017,7 @@
       "now_cost": 50,
       "position": 1,
       "second_name": "Pope",
+      "selected_by_percent": "1.4",
       "team": 17,
       "web_name": "Pope"
     },
@@ -4586,6 +5028,7 @@
       "now_cost": 45,
       "position": 1,
       "second_name": "Gillespie",
+      "selected_by_percent": "0.0",
       "team": 17,
       "web_name": "Gillespie"
     },
@@ -4596,6 +5039,7 @@
       "now_cost": 45,
       "position": 1,
       "second_name": "Jaouen",
+      "selected_by_percent": "0.0",
       "team": 17,
       "web_name": "Jaouen"
     },
@@ -4606,6 +5050,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Thiaw",
+      "selected_by_percent": "1.7",
       "team": 17,
       "web_name": "Thiaw"
     },
@@ -4616,6 +5061,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Sch\u00e4r",
+      "selected_by_percent": "0.3",
       "team": 17,
       "web_name": "Sch\u00e4r"
     },
@@ -4626,6 +5072,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Botman",
+      "selected_by_percent": "0.5",
       "team": 17,
       "web_name": "Botman"
     },
@@ -4636,6 +5083,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Burn",
+      "selected_by_percent": "2.4",
       "team": 17,
       "web_name": "Burn"
     },
@@ -4646,6 +5094,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Hall",
+      "selected_by_percent": "3.7",
       "team": 17,
       "web_name": "Hall"
     },
@@ -4656,6 +5105,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Livramento",
+      "selected_by_percent": "0.0",
       "team": 17,
       "web_name": "Livramento"
     },
@@ -4666,6 +5116,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Murphy",
+      "selected_by_percent": "0.1",
       "team": 17,
       "web_name": "A.Murphy"
     },
@@ -4676,6 +5127,7 @@
       "now_cost": 70,
       "position": 3,
       "second_name": "Guimar\u00e3es Rodriguez Moura",
+      "selected_by_percent": "3.7",
       "team": 1,
       "web_name": "Bruno G."
     },
@@ -4686,6 +5138,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Barnes",
+      "selected_by_percent": "1.1",
       "team": 17,
       "web_name": "Barnes"
     },
@@ -4696,6 +5149,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Elanga",
+      "selected_by_percent": "1.0",
       "team": 17,
       "web_name": "Elanga"
     },
@@ -4706,6 +5160,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Tonali",
+      "selected_by_percent": "4.1",
       "team": 19,
       "web_name": "Tonali"
     },
@@ -4716,6 +5171,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Ramsey",
+      "selected_by_percent": "0.4",
       "team": 17,
       "web_name": "J.Ramsey"
     },
@@ -4726,6 +5182,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Murphy",
+      "selected_by_percent": "0.2",
       "team": 17,
       "web_name": "J.Murphy"
     },
@@ -4736,6 +5193,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Apolin\u00e1rio de Lira",
+      "selected_by_percent": "0.0",
       "team": 17,
       "web_name": "Joelinton"
     },
@@ -4746,6 +5204,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Miley",
+      "selected_by_percent": "0.1",
       "team": 17,
       "web_name": "L.Miley"
     },
@@ -4756,6 +5215,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Willock",
+      "selected_by_percent": "0.1",
       "team": 17,
       "web_name": "Willock"
     },
@@ -4766,6 +5226,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Tour\u00e9",
+      "selected_by_percent": "0.3",
       "team": 17,
       "web_name": "Tour\u00e9"
     },
@@ -4776,6 +5237,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Steur",
+      "selected_by_percent": "0.1",
       "team": 17,
       "web_name": "Steur"
     },
@@ -4786,6 +5248,7 @@
       "now_cost": 60,
       "position": 4,
       "second_name": "Woltemade",
+      "selected_by_percent": "1.8",
       "team": 17,
       "web_name": "Woltemade"
     },
@@ -4796,6 +5259,7 @@
       "now_cost": 60,
       "position": 4,
       "second_name": "Wissa",
+      "selected_by_percent": "1.9",
       "team": 17,
       "web_name": "Wissa"
     },
@@ -4806,6 +5270,7 @@
       "now_cost": 60,
       "position": 4,
       "second_name": "Osula",
+      "selected_by_percent": "1.0",
       "team": 17,
       "web_name": "Osula"
     },
@@ -4816,6 +5281,7 @@
       "now_cost": 45,
       "position": 4,
       "second_name": "Neave",
+      "selected_by_percent": "0.8",
       "team": 17,
       "web_name": "Neave"
     },
@@ -4826,6 +5292,7 @@
       "now_cost": 50,
       "position": 1,
       "second_name": "Sels",
+      "selected_by_percent": "1.6",
       "team": 18,
       "web_name": "Sels"
     },
@@ -4836,6 +5303,7 @@
       "now_cost": 45,
       "position": 1,
       "second_name": "Maciel Furtado",
+      "selected_by_percent": "0.1",
       "team": 18,
       "web_name": "John"
     },
@@ -4846,6 +5314,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Williams",
+      "selected_by_percent": "9.9",
       "team": 18,
       "web_name": "N.Williams"
     },
@@ -4856,6 +5325,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Rodrigues da Silva",
+      "selected_by_percent": "0.1",
       "team": 18,
       "web_name": "Morato"
     },
@@ -4866,6 +5336,7 @@
       "now_cost": 55,
       "position": 2,
       "second_name": "Milenkovi\u0107",
+      "selected_by_percent": "2.0",
       "team": 18,
       "web_name": "Milenkovi\u0107"
     },
@@ -4876,6 +5347,7 @@
       "now_cost": 55,
       "position": 2,
       "second_name": "Costa dos Santos",
+      "selected_by_percent": "1.7",
       "team": 18,
       "web_name": "Murillo"
     },
@@ -4886,6 +5358,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Aina",
+      "selected_by_percent": "3.6",
       "team": 18,
       "web_name": "Aina"
     },
@@ -4896,6 +5369,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Paula da Cunha Filho",
+      "selected_by_percent": "0.2",
       "team": 18,
       "web_name": "Jair Cunha"
     },
@@ -4906,6 +5380,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Savona",
+      "selected_by_percent": "0.0",
       "team": 18,
       "web_name": "Savona"
     },
@@ -4916,6 +5391,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Richards",
+      "selected_by_percent": "0.3",
       "team": 18,
       "web_name": "O.Richards"
     },
@@ -4926,6 +5402,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Abbott",
+      "selected_by_percent": "0.3",
       "team": 18,
       "web_name": "Abbott"
     },
@@ -4936,6 +5413,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Netz",
+      "selected_by_percent": "0.0",
       "team": 18,
       "web_name": "Netz"
     },
@@ -4946,6 +5424,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Bindon",
+      "selected_by_percent": "0.2",
       "team": 18,
       "web_name": "Bindon"
     },
@@ -4956,6 +5435,7 @@
       "now_cost": 80,
       "position": 3,
       "second_name": "Gibbs-White",
+      "selected_by_percent": "11.4",
       "team": 18,
       "web_name": "Gibbs-White"
     },
@@ -4966,6 +5446,7 @@
       "now_cost": 65,
       "position": 3,
       "second_name": "Anderson",
+      "selected_by_percent": "7.6",
       "team": 15,
       "web_name": "Anderson"
     },
@@ -4976,6 +5457,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Hudson-Odoi",
+      "selected_by_percent": "0.3",
       "team": 18,
       "web_name": "Hudson-Odoi"
     },
@@ -4986,6 +5468,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Ndoye",
+      "selected_by_percent": "0.4",
       "team": 18,
       "web_name": "Ndoye"
     },
@@ -4996,6 +5479,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Hutchinson",
+      "selected_by_percent": "0.2",
       "team": 18,
       "web_name": "Hutchinson"
     },
@@ -5006,6 +5490,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Bakwa",
+      "selected_by_percent": "0.0",
       "team": 18,
       "web_name": "Bakwa"
     },
@@ -5016,6 +5501,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "McAtee",
+      "selected_by_percent": "0.0",
       "team": 18,
       "web_name": "McAtee"
     },
@@ -5026,6 +5512,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Dom\u00ednguez",
+      "selected_by_percent": "0.1",
       "team": 18,
       "web_name": "Dominguez"
     },
@@ -5036,6 +5523,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Sangar\u00e9",
+      "selected_by_percent": "1.1",
       "team": 18,
       "web_name": "I.Sangar\u00e9"
     },
@@ -5046,6 +5534,7 @@
       "now_cost": 45,
       "position": 3,
       "second_name": "Yates",
+      "selected_by_percent": "1.7",
       "team": 18,
       "web_name": "Yates"
     },
@@ -5056,6 +5545,7 @@
       "now_cost": 60,
       "position": 4,
       "second_name": "Wood",
+      "selected_by_percent": "1.8",
       "team": 18,
       "web_name": "Wood"
     },
@@ -5066,6 +5556,7 @@
       "now_cost": 60,
       "position": 4,
       "second_name": "Maciel da Cruz",
+      "selected_by_percent": "4.2",
       "team": 18,
       "web_name": "Igor Jesus"
     },
@@ -5076,6 +5567,7 @@
       "now_cost": 55,
       "position": 4,
       "second_name": "Awoniyi",
+      "selected_by_percent": "0.8",
       "team": 7,
       "web_name": "Awoniyi"
     },
@@ -5086,6 +5578,7 @@
       "now_cost": 55,
       "position": 4,
       "second_name": "Kalimuendo",
+      "selected_by_percent": "0.1",
       "team": 18,
       "web_name": "Kalimuendo"
     },
@@ -5096,6 +5589,7 @@
       "now_cost": 45,
       "position": 1,
       "second_name": "Vicario",
+      "selected_by_percent": "0.3",
       "team": 19,
       "web_name": "Vicario"
     },
@@ -5106,6 +5600,7 @@
       "now_cost": 40,
       "position": 1,
       "second_name": "Austin",
+      "selected_by_percent": "0.9",
       "team": 19,
       "web_name": "Austin"
     },
@@ -5116,6 +5611,7 @@
       "now_cost": 45,
       "position": 1,
       "second_name": "Kinsk\u00fd",
+      "selected_by_percent": "23.8",
       "team": 19,
       "web_name": "Kinsky"
     },
@@ -5126,6 +5622,7 @@
       "now_cost": 40,
       "position": 1,
       "second_name": "Dubravka",
+      "selected_by_percent": "19.3",
       "team": 19,
       "web_name": "Dubravka"
     },
@@ -5136,6 +5633,7 @@
       "now_cost": 60,
       "position": 2,
       "second_name": "Senesi Bar\u00f3n",
+      "selected_by_percent": "8.1",
       "team": 19,
       "web_name": "Senesi"
     },
@@ -5146,6 +5644,7 @@
       "now_cost": 55,
       "position": 2,
       "second_name": "Porro Sauceda",
+      "selected_by_percent": "15.3",
       "team": 19,
       "web_name": "Pedro Porro"
     },
@@ -5156,6 +5655,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Romero",
+      "selected_by_percent": "0.2",
       "team": 19,
       "web_name": "Romero"
     },
@@ -5166,6 +5666,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Danso",
+      "selected_by_percent": "0.2",
       "team": 19,
       "web_name": "Danso"
     },
@@ -5176,6 +5677,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Robertson",
+      "selected_by_percent": "3.9",
       "team": 19,
       "web_name": "Robertson"
     },
@@ -5186,6 +5688,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "van de Ven",
+      "selected_by_percent": "4.9",
       "team": 19,
       "web_name": "Van de Ven"
     },
@@ -5196,6 +5699,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Vu\u0161kovi\u0107",
+      "selected_by_percent": "2.5",
       "team": 5,
       "web_name": "Vuskovic"
     },
@@ -5206,6 +5710,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Spence",
+      "selected_by_percent": "0.7",
       "team": 19,
       "web_name": "Spence"
     },
@@ -5216,6 +5721,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Udogie",
+      "selected_by_percent": "0.5",
       "team": 19,
       "web_name": "Udogie"
     },
@@ -5226,6 +5732,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Phillips",
+      "selected_by_percent": "0.0",
       "team": 19,
       "web_name": "Phillips"
     },
@@ -5236,6 +5743,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Davies",
+      "selected_by_percent": "1.1",
       "team": 19,
       "web_name": "Davies"
     },
@@ -5246,6 +5754,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Byfield",
+      "selected_by_percent": "0.1",
       "team": 19,
       "web_name": "Byfield"
     },
@@ -5256,6 +5765,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Rowswell",
+      "selected_by_percent": "0.1",
       "team": 19,
       "web_name": "Rowswell"
     },
@@ -5266,6 +5776,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "de Souza Menezes",
+      "selected_by_percent": "0.3",
       "team": 19,
       "web_name": "Souza"
     },
@@ -5276,6 +5787,7 @@
       "now_cost": 65,
       "position": 3,
       "second_name": "Kudus",
+      "selected_by_percent": "0.1",
       "team": 19,
       "web_name": "Kudus"
     },
@@ -5286,6 +5798,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Simons",
+      "selected_by_percent": "0.0",
       "team": 19,
       "web_name": "Xavi"
     },
@@ -5296,6 +5809,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Tel",
+      "selected_by_percent": "0.6",
       "team": 19,
       "web_name": "Tel"
     },
@@ -5306,6 +5820,7 @@
       "now_cost": 65,
       "position": 3,
       "second_name": "Maddison",
+      "selected_by_percent": "1.4",
       "team": 19,
       "web_name": "Maddison"
     },
@@ -5316,6 +5831,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Bentancur",
+      "selected_by_percent": "0.2",
       "team": 19,
       "web_name": "Bentancur"
     },
@@ -5326,6 +5842,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Odobert",
+      "selected_by_percent": "0.0",
       "team": 19,
       "web_name": "Odobert"
     },
@@ -5336,6 +5853,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Sarr",
+      "selected_by_percent": "0.2",
       "team": 19,
       "web_name": "P.M.Sarr"
     },
@@ -5346,6 +5864,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Gallagher",
+      "selected_by_percent": "0.3",
       "team": 19,
       "web_name": "Gallagher"
     },
@@ -5356,6 +5875,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Bergvall",
+      "selected_by_percent": "0.2",
       "team": 19,
       "web_name": "Bergvall"
     },
@@ -5366,6 +5886,7 @@
       "now_cost": 65,
       "position": 3,
       "second_name": "Kulusevski",
+      "selected_by_percent": "0.0",
       "team": 19,
       "web_name": "Kulusevski"
     },
@@ -5376,6 +5897,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Gray",
+      "selected_by_percent": "0.2",
       "team": 19,
       "web_name": "Gray"
     },
@@ -5386,6 +5908,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Moore",
+      "selected_by_percent": "0.2",
       "team": 19,
       "web_name": "Moore"
     },
@@ -5396,6 +5919,7 @@
       "now_cost": 45,
       "position": 3,
       "second_name": "Olusesi",
+      "selected_by_percent": "0.9",
       "team": 19,
       "web_name": "Olusesi"
     },
@@ -5406,6 +5930,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Fernandes",
+      "selected_by_percent": "1.9",
       "team": 19,
       "web_name": "Fernandes"
     },
@@ -5416,6 +5941,7 @@
       "now_cost": 60,
       "position": 4,
       "second_name": "Solanke-Mitchell",
+      "selected_by_percent": "1.4",
       "team": 19,
       "web_name": "Solanke"
     },
@@ -5426,6 +5952,7 @@
       "now_cost": 60,
       "position": 4,
       "second_name": "de Andrade",
+      "selected_by_percent": "3.1",
       "team": 19,
       "web_name": "Richarlison"
     },
@@ -5436,6 +5963,7 @@
       "now_cost": 45,
       "position": 4,
       "second_name": "Scarlett",
+      "selected_by_percent": "1.8",
       "team": 19,
       "web_name": "Scarlett"
     },
@@ -5446,6 +5974,7 @@
       "now_cost": 50,
       "position": 1,
       "second_name": "Roefs",
+      "selected_by_percent": "4.3",
       "team": 20,
       "web_name": "Roefs"
     },
@@ -5456,6 +5985,7 @@
       "now_cost": 40,
       "position": 1,
       "second_name": "Patterson",
+      "selected_by_percent": "0.2",
       "team": 20,
       "web_name": "Patterson"
     },
@@ -5466,6 +5996,7 @@
       "now_cost": 45,
       "position": 1,
       "second_name": "Ellborg",
+      "selected_by_percent": "0.1",
       "team": 20,
       "web_name": "Ellborg"
     },
@@ -5476,6 +6007,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Ballard",
+      "selected_by_percent": "5.5",
       "team": 20,
       "web_name": "Ballard"
     },
@@ -5486,6 +6018,7 @@
       "now_cost": 55,
       "position": 2,
       "second_name": "Mukiele",
+      "selected_by_percent": "2.8",
       "team": 20,
       "web_name": "Mukiele"
     },
@@ -5496,6 +6029,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Hume",
+      "selected_by_percent": "6.8",
       "team": 20,
       "web_name": "Hume"
     },
@@ -5506,6 +6040,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Alderete",
+      "selected_by_percent": "0.5",
       "team": 20,
       "web_name": "Alderete"
     },
@@ -5516,6 +6051,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Mandava",
+      "selected_by_percent": "0.5",
       "team": 20,
       "web_name": "Reinildo"
     },
@@ -5526,6 +6062,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Seelt",
+      "selected_by_percent": "0.0",
       "team": 20,
       "web_name": "Seelt"
     },
@@ -5536,6 +6073,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Hjelde",
+      "selected_by_percent": "0.1",
       "team": 20,
       "web_name": "Hjelde"
     },
@@ -5546,6 +6084,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "O'Nien",
+      "selected_by_percent": "3.7",
       "team": 20,
       "web_name": "O'Nien"
     },
@@ -5556,6 +6095,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Masuaku",
+      "selected_by_percent": "0.2",
       "team": 20,
       "web_name": "Masuaku"
     },
@@ -5566,6 +6106,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Meunier",
+      "selected_by_percent": "0.3",
       "team": 20,
       "web_name": "Meunier"
     },
@@ -5576,6 +6117,7 @@
       "now_cost": 60,
       "position": 3,
       "second_name": "Le F\u00e9e",
+      "selected_by_percent": "9.8",
       "team": 20,
       "web_name": "E.Le F\u00e9e"
     },
@@ -5586,6 +6128,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Diarra",
+      "selected_by_percent": "0.1",
       "team": 20,
       "web_name": "Diarra"
     },
@@ -5596,6 +6139,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Xhaka",
+      "selected_by_percent": "4.5",
       "team": 20,
       "web_name": "Xhaka"
     },
@@ -5606,6 +6150,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Sadiki",
+      "selected_by_percent": "0.4",
       "team": 20,
       "web_name": "Sadiki"
     },
@@ -5616,6 +6161,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Adingra",
+      "selected_by_percent": "0.1",
       "team": 20,
       "web_name": "Adingra"
     },
@@ -5626,6 +6172,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Mundle",
+      "selected_by_percent": "0.0",
       "team": 20,
       "web_name": "Mundle"
     },
@@ -5636,6 +6183,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Rigg",
+      "selected_by_percent": "0.1",
       "team": 20,
       "web_name": "Rigg"
     },
@@ -5646,6 +6194,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Talbi",
+      "selected_by_percent": "0.2",
       "team": 20,
       "web_name": "Talbi"
     },
@@ -5656,6 +6205,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Bi",
+      "selected_by_percent": "0.0",
       "team": 20,
       "web_name": "Jocelin.T"
     },
@@ -5666,6 +6216,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Angulo",
+      "selected_by_percent": "0.1",
       "team": 20,
       "web_name": "Angulo"
     },
@@ -5676,6 +6227,7 @@
       "now_cost": 60,
       "position": 4,
       "second_name": "Brobbey",
+      "selected_by_percent": "13.9",
       "team": 20,
       "web_name": "Brobbey"
     },
@@ -5686,6 +6238,7 @@
       "now_cost": 55,
       "position": 4,
       "second_name": "Isidor",
+      "selected_by_percent": "1.0",
       "team": 20,
       "web_name": "Isidor"
     },
@@ -5696,6 +6249,7 @@
       "now_cost": 45,
       "position": 1,
       "second_name": "van Oevelen",
+      "selected_by_percent": "0.0",
       "team": 12,
       "web_name": "Van Oevelen"
     },
@@ -5706,6 +6260,7 @@
       "now_cost": 40,
       "position": 1,
       "second_name": "Matthews",
+      "selected_by_percent": "1.8",
       "team": 8,
       "web_name": "Matthews"
     },
@@ -5716,6 +6271,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Targett",
+      "selected_by_percent": "2.4",
       "team": 11,
       "web_name": "Targett"
     },
@@ -5726,6 +6282,7 @@
       "now_cost": 65,
       "position": 3,
       "second_name": "Tzolis",
+      "selected_by_percent": "25.4",
       "team": 1,
       "web_name": "Tzolis"
     },
@@ -5736,6 +6293,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Schlager",
+      "selected_by_percent": "0.1",
       "team": 18,
       "web_name": "Schlager"
     },
@@ -5746,6 +6304,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Bamba",
+      "selected_by_percent": "0.1",
       "team": 17,
       "web_name": "Bamba"
     },
@@ -5756,6 +6315,7 @@
       "now_cost": 45,
       "position": 1,
       "second_name": "Penders",
+      "selected_by_percent": "0.1",
       "team": 6,
       "web_name": "Penders"
     },
@@ -5766,6 +6326,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Anselmino",
+      "selected_by_percent": "0.0",
       "team": 6,
       "web_name": "Anselmino"
     },
@@ -5776,6 +6337,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Maeda",
+      "selected_by_percent": "0.4",
       "team": 12,
       "web_name": "Maeda"
     },
@@ -5786,6 +6348,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Morita",
+      "selected_by_percent": "0.0",
       "team": 11,
       "web_name": "Morita"
     },
@@ -5796,6 +6359,7 @@
       "now_cost": 45,
       "position": 1,
       "second_name": "Scherpen",
+      "selected_by_percent": "0.7",
       "team": 12,
       "web_name": "Scherpen"
     },
@@ -5806,6 +6370,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Sangar\u00e9",
+      "selected_by_percent": "4.4",
       "team": 4,
       "web_name": "M.Sangar\u00e9"
     },
@@ -5816,6 +6381,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Pereira de Albuquerque Tavares da Silva",
+      "selected_by_percent": "0.3",
       "team": 3,
       "web_name": "Silva"
     },
@@ -5826,6 +6392,7 @@
       "now_cost": 50,
       "position": 1,
       "second_name": "Horn\u00edcek",
+      "selected_by_percent": "0.7",
       "team": 17,
       "web_name": "Horn\u00ed\u010dek"
     },
@@ -5836,6 +6403,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Barco",
+      "selected_by_percent": "0.1",
       "team": 6,
       "web_name": "Barco"
     },
@@ -5846,6 +6414,7 @@
       "now_cost": 60,
       "position": 4,
       "second_name": "Garc\u00eda",
+      "selected_by_percent": "2.1",
       "team": 10,
       "web_name": "Gonzalo"
     },
@@ -5856,6 +6425,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Palacios",
+      "selected_by_percent": "0.2",
       "team": 10,
       "web_name": "Palacios"
     },
@@ -5866,6 +6436,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Morris Lu\u00eds",
+      "selected_by_percent": "0.1",
       "team": 12,
       "web_name": "Florentino"
     },
@@ -5876,6 +6447,7 @@
       "now_cost": 45,
       "position": 1,
       "second_name": "Tzolakis",
+      "selected_by_percent": "1.1",
       "team": 11,
       "web_name": "Tzolakis"
     },
@@ -5886,6 +6458,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "S\u00e1nchez",
+      "selected_by_percent": "0.2",
       "team": 3,
       "web_name": "Sanchez"
     },
@@ -5896,6 +6469,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Hjert\u00f8-Dahl",
+      "selected_by_percent": "0.1",
       "team": 11,
       "web_name": "Hjert\u00f8-Dahl"
     },
@@ -5906,6 +6480,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Yirenkyi",
+      "selected_by_percent": "0.3",
       "team": 7,
       "web_name": "Yirenkyi"
     },
@@ -5916,6 +6491,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Stroud",
+      "selected_by_percent": "0.1",
       "team": 11,
       "web_name": "Stroud"
     },
@@ -5926,6 +6502,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Tomiyasu",
+      "selected_by_percent": "0.4",
       "team": 8,
       "web_name": "Tomiyasu"
     },
@@ -5936,6 +6513,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Mudryk",
+      "selected_by_percent": "0.1",
       "team": 6,
       "web_name": "Mudryk"
     },
@@ -5946,6 +6524,7 @@
       "now_cost": 55,
       "position": 2,
       "second_name": "Araujo",
+      "selected_by_percent": "2.7",
       "team": 14,
       "web_name": "Araujo"
     },
@@ -5956,6 +6535,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Charles",
+      "selected_by_percent": "0.1",
       "team": 10,
       "web_name": "Charles"
     },
@@ -5966,6 +6546,7 @@
       "now_cost": 55,
       "position": 2,
       "second_name": "Diomande",
+      "selected_by_percent": "0.8",
       "team": 18,
       "web_name": "Diomande"
     },
@@ -5976,6 +6557,7 @@
       "now_cost": 55,
       "position": 4,
       "second_name": "Madjo",
+      "selected_by_percent": "0.5",
       "team": 2,
       "web_name": "Madjo"
     },
@@ -5986,6 +6568,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Chavarr\u00eda",
+      "selected_by_percent": "0.2",
       "team": 6,
       "web_name": "Chavarria"
     },
@@ -5996,6 +6579,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Hamer",
+      "selected_by_percent": "0.2",
       "team": 7,
       "web_name": "Hamer"
     },
@@ -6006,6 +6590,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Herrington",
+      "selected_by_percent": "0.7",
       "team": 11,
       "web_name": "Herrington"
     },
@@ -6016,6 +6601,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Mendy",
+      "selected_by_percent": "1.6",
       "team": 11,
       "web_name": "Mendy"
     },
@@ -6026,6 +6612,7 @@
       "now_cost": 50,
       "position": 1,
       "second_name": "Rulli",
+      "selected_by_percent": "0.0",
       "team": 15,
       "web_name": "Rulli"
     },
@@ -6036,6 +6623,7 @@
       "now_cost": 50,
       "position": 2,
       "second_name": "Khalaili",
+      "selected_by_percent": "0.1",
       "team": 8,
       "web_name": "Khalaili"
     },
@@ -6046,6 +6634,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Gourna-Douath",
+      "selected_by_percent": "0.0",
       "team": 11,
       "web_name": "Gourna-Douath"
     },
@@ -6056,6 +6645,7 @@
       "now_cost": 45,
       "position": 1,
       "second_name": "Benda",
+      "selected_by_percent": "0.1",
       "team": 18,
       "web_name": "Benda"
     },
@@ -6066,6 +6656,7 @@
       "now_cost": 55,
       "position": 3,
       "second_name": "Enciso",
+      "selected_by_percent": "0.4",
       "team": 12,
       "web_name": "Enciso"
     },
@@ -6076,6 +6667,7 @@
       "now_cost": 40,
       "position": 2,
       "second_name": "Ouattara",
+      "selected_by_percent": "1.1",
       "team": 12,
       "web_name": "Ouattara"
     },
@@ -6086,6 +6678,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Dedic",
+      "selected_by_percent": "0.3",
       "team": 17,
       "web_name": "Dedi\u0107"
     },
@@ -6096,6 +6689,7 @@
       "now_cost": 60,
       "position": 4,
       "second_name": "David",
+      "selected_by_percent": "0.3",
       "team": 5,
       "web_name": "David"
     },
@@ -6106,6 +6700,7 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Gozo",
+      "selected_by_percent": "0.0",
       "team": 8,
       "web_name": "Gozo"
     },
@@ -6116,6 +6711,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Ruggeri",
+      "selected_by_percent": "0.1",
       "team": 2,
       "web_name": "Ruggeri"
     },
@@ -6126,6 +6722,7 @@
       "now_cost": 50,
       "position": 1,
       "second_name": "Suzuki",
+      "selected_by_percent": "0.8",
       "team": 2,
       "web_name": "Suzuki"
     },
@@ -6136,6 +6733,7 @@
       "now_cost": 45,
       "position": 2,
       "second_name": "Elvedi",
+      "selected_by_percent": "0.0",
       "team": 13,
       "web_name": "Elvedi"
     },
@@ -6146,6 +6744,7 @@
       "now_cost": 50,
       "position": 4,
       "second_name": "Cherif",
+      "selected_by_percent": "0.1",
       "team": 7,
       "web_name": "Cherif"
     },
@@ -6156,8 +6755,108 @@
       "now_cost": 50,
       "position": 3,
       "second_name": "Osman",
+      "selected_by_percent": "0.0",
       "team": 5,
       "web_name": "Osman"
+    },
+    {
+      "code": 611917,
+      "first_name": "Luca",
+      "id": 601,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Williams-Barnett",
+      "selected_by_percent": "0.0",
+      "team": 19,
+      "web_name": "Williams-Barnett"
+    },
+    {
+      "code": 524180,
+      "first_name": "Cameron",
+      "id": 602,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Humphreys",
+      "selected_by_percent": "0.0",
+      "team": 12,
+      "web_name": "Humphreys"
+    },
+    {
+      "code": 643970,
+      "first_name": "Jayden",
+      "id": 603,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Lienou",
+      "selected_by_percent": "0.0",
+      "team": 13,
+      "web_name": "Lienou"
+    },
+    {
+      "code": 592740,
+      "first_name": "Alfie",
+      "id": 604,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Cresswell",
+      "selected_by_percent": "0.0",
+      "team": 13,
+      "web_name": "Cresswell"
+    },
+    {
+      "code": 611695,
+      "first_name": "Malick",
+      "id": 605,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Yalcouy\u00e9",
+      "selected_by_percent": "0.0",
+      "team": 5,
+      "web_name": "Yalcouy\u00e9"
+    },
+    {
+      "code": 569577,
+      "first_name": "Triston",
+      "id": 606,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Rowe",
+      "selected_by_percent": "0.0",
+      "team": 2,
+      "web_name": "Rowe"
+    },
+    {
+      "code": 571380,
+      "first_name": "Luka",
+      "id": 607,
+      "now_cost": 45,
+      "position": 3,
+      "second_name": "Lynch",
+      "selected_by_percent": "0.0",
+      "team": 2,
+      "web_name": "Lynch"
+    },
+    {
+      "code": 523700,
+      "first_name": "Daniel",
+      "id": 608,
+      "now_cost": 50,
+      "position": 4,
+      "second_name": "Jebbison",
+      "selected_by_percent": "0.0",
+      "team": 3,
+      "web_name": "Jebbison"
+    },
+    {
+      "code": 553746,
+      "first_name": "Leo",
+      "id": 609,
+      "now_cost": 40,
+      "position": 2,
+      "second_name": "Shahar",
+      "selected_by_percent": "0.0",
+      "team": 17,
+      "web_name": "Shahar"
     }
   ],
   "teams": [

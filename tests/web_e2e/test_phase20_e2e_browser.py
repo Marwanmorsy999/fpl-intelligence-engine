@@ -229,6 +229,10 @@ def coherent(page: Page) -> Iterator[Page]:
         for pid in ALL_IDS
     ]))
     page.route("**/api/v1/sync/**", _json_route({}))
+    page.route("**/api/v1/league**", _json_route({"your_rank": None}))
+    page.route("**/api/v1/transfers/**", _json_route({"transfers": []}))
+    page.route("**/api/v1/targets**", _json_route({"targets": []}))
+    page.route("**/api/v1/planner**", _json_route({"status": "no-squad"}))
 
     yield page
 
@@ -264,7 +268,8 @@ class TestSessionPersistence:
             typed = page.evaluate(
                 "() => document.querySelectorAll('input:not([type=hidden])')"
                 ".length && Array.from(document.querySelectorAll('input'))"
-                ".some(i => i.value && i.value.length > 0)"
+                ".some(i => i.value && i.value.length > 0"
+                " && i.value !== (JSON.parse(localStorage.getItem('fpl_session_v20')||'{}').key || ''))"
             )
             assert typed in (False, None), f"user had to type on {path}"
 
@@ -289,8 +294,11 @@ class TestDrawer:
         expect(drawer).to_have_class("drawer open")
         expect(drawer).to_contain_text("Haaland")
 
-        bars = page.locator('[data-testid="form-bar"]')
-        expect(bars).to_have_count(3)
+        # Phase 25 U2: the sparkline SVG replaced the bulky form bars.
+        spark = page.locator('[data-testid="form-spark"] svg.form-spark')
+        expect(spark).to_have_count(1)
+        dots = page.locator('[data-testid="form-spark"] circle.spark-dot')
+        assert dots.count() == 3, f"expected 3 spark points, got {dots.count()}"
         expect(drawer).to_contain_text("Next 5 fixtures")
         chips = drawer.locator(".fdr-chip")
         expect(chips.first).to_contain_text("WHU")

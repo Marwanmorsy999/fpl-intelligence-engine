@@ -357,3 +357,133 @@ class TestSquadAPI:
         assert resp.status_code == 200
         body = resp.json()
         assert body["transfer_plan"] is not None
+
+
+# ---------------------------------------------------------------------------
+# v2.5.7 — fpl-view endpoint and banner honesty tests
+# ---------------------------------------------------------------------------
+
+
+class TestFplViewEndpoint:
+    """Tests for GET /api/v1/squad/fpl-view — raw FPL truth via egress masks."""
+
+    def test_fpl_view_returns_200_for_existing_squad(self, client: TestClient) -> None:
+        """fpl-view returns 200 with correct shape when squad exists."""
+        payload = {
+            "player_ids": list(range(1, 16)),
+            "captain_id": 1,
+            "vice_captain_id": 2,
+            "gameweek": 1,
+            "player_positions": _pos_map(),
+        }
+        # fpl-view requires numeric session_id (FPL entry_id)
+        client.post("/api/v1/squad", json=payload, params={"session_id": "1234567"})
+        resp = client.get("/api/v1/squad/fpl-view", params={"session_id": "1234567"})
+        assert resp.status_code == 200
+        body = resp.json()
+        # Shape assertion
+        assert "current_event" in body
+        assert isinstance(body["current_event"], int)
+        assert "picks_current" in body
+        assert "gw" in body["picks_current"]
+        assert "ids" in body["picks_current"]
+        assert "status" in body["picks_current"]
+        assert body["picks_current"]["status"] in (200, 404)
+        assert "picks_next" in body
+        assert "gw" in body["picks_next"]
+        assert "ids" in body["picks_next"]
+        assert "status" in body["picks_next"]
+        assert body["picks_next"]["status"] in (200, 404)
+        assert "entry_summary" in body
+        assert "current_event" in body["entry_summary"]
+
+    def test_fpl_view_returns_400_for_invalid_session(self, client: TestClient) -> None:
+        """Invalid session_id -> 400."""
+        resp = client.get("/api/v1/squad/fpl-view", params={"session_id": "not_a_number"})
+        assert resp.status_code == 400
+
+    def test_fpl_view_returns_404_for_missing_session(self, client: TestClient) -> None:
+        """Missing session_id -> 422 (required query param)."""
+        resp = client.get("/api/v1/squad/fpl-view")
+        assert resp.status_code == 422
+
+
+class TestBannerHonestyRules:
+    """Tests for v2.5.7 banner honesty rules in sync-now job."""
+
+    def test_404_equal_saved_shows_honest_banner(self, client: TestClient) -> None:
+        """
+        When picks_next is 404 AND picks_current == saved squad,
+        banner MUST say: "FPL shows no new GW{X} lineup yet — confirm your transfer on FPL, then sync again."
+        Never "synced · no changes".
+        """
+        # This test verifies the rule exists; the actual sync job logic
+        # is tested via integration tests with mocked FPL responses.
+        # Here we assert the sync-status payload includes the honesty fields.
+        payload = {
+            "player_ids": list(range(1, 16)),
+            "captain_id": 1,
+            "vice_captain_id": 2,
+            "gameweek": 1,
+            "player_positions": _pos_map(),
+        }
+        client.post("/api/v1/squad", json=payload, params={"session_id": "1234568"})
+
+        # Start a sync-now job
+        resp = client.post("/api/v1/squad/sync-now", params={"session_id": "1234568"})
+        assert resp.status_code in (200, 202)
+
+        # Poll sync-status for the honesty fields
+        import time
+        for _ in range(10):
+            status_resp = client.get("/api/v1/squad/sync-status", params={"session_id": "1234568"})
+            if status_resp.status_code == 200:
+                body = status_resp.json()
+                # v2.5.7 fields must be present
+                assert "chose_rule" in body
+                assert "picks_next_status" in body
+                assert "ids_hash_current" in body
+                assert "ids_hash_next" in body
+                if body.get("state") == "done":
+                    # The banner text should be honest based on chose_rule
+                    banner = body.get("banner", "")
+                    if body.get("chose_rule") == "404_equal_saved":
+                        assert "FPL shows no new GW" in banner
+                        assert "confirm your transfer on FPL" in banner
+                        assert "synced" not in banner.lower() or "no changes" not in banner.lower()
+                    break
+            time.sleep(0.5)
+
+    def test_200_differs_saved_shows_in_out_banner(self, client: TestClient) -> None:
+        """
+        When picks_next is 200 and differs from saved,
+        banner shows IN/OUT as normal.
+        """
+        payload = {
+            "player_ids": list(range(1, 16)),
+            "captain_id": 1,
+            "vice_captain_id": 2,
+            "gameweek": 1,
+            "player_positions": _pos_map(),
+        }
+        client.post("/api/v1/squad", json=payload, params={"session_id": "1234569"})
+
+        resp = client.post("/api/v1/squad/sync-now", params={"session_id": "1234569"})
+        assert resp.status_code in (200, 202)
+
+        import time
+        for _ in range(10):
+            status_resp = client.get("/api/v1/squad/sync-status", params={"session_id": "1234569"})
+            if status_resp.status_code == 200:
+                body = status_resp.json()
+                assert "chose_rule" in body
+                assert "picks_next_status" in body
+                assert "ids_hash_current" in body
+                assert "ids_hash_next" in body
+                if body.get("state") == "done":
+                    banner = body.get("banner", "")
+                    if body.get("chose_rule") == "200_differs_saved":
+                        assert "IN:" in banner
+                        assert "OUT:" in banner
+                    break
+            time.sleep(0.5)

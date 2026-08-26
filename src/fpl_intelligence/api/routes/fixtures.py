@@ -15,6 +15,7 @@ table (official bootstrap ids), never from a hardcoded season-specific map.
 from __future__ import annotations
 
 import logging
+import os
 from datetime import UTC, datetime
 from typing import Any
 
@@ -30,7 +31,7 @@ from fpl_intelligence.fixtures.scanner import (
     average_fdr,
     easiest_team_runs,
     infer_current_gameweek,
-    next_gameweeks,
+    next_unplayed_gameweeks,
     parse_fixtures,
     player_run,
     squad_swing_score,
@@ -70,11 +71,17 @@ async def load_fixtures(db: Session) -> list[dict[str, Any]]:
     Reads ``fixtures_cache`` (written by the 06:10 cron from vaastav) so the
     request path performs ZERO live network fetches. Falls back to the egress
     chain only when no cached payload exists yet — and stores whatever it
-    fetches back into the cache for the next caller.
+    fetches back into the cache for the next caller. Under pytest the egress
+    fallback is disabled so the suite stays hermetic.
     """
     cached = load_cached_fixtures(db)
     if cached:
         return cached
+
+    import sys
+
+    if "pytest" in sys.modules or os.getenv("FPL_NO_NETWORK", "") == "1":
+        return []
 
     settings = get_settings()
     from fpl_intelligence.data_providers.fpl_egress import FplEgressChain  # noqa: PLC0415
@@ -128,9 +135,17 @@ async def fixture_scan(
     rows = parse_fixtures(await load_fixtures(db))
     if not rows:
         raise HTTPException(status_code=503, detail="No upcoming fixtures published yet.")
-    current_gw = max(infer_current_gameweek(rows), squad.gameweek)
-    horizon = next_gameweeks(rows, current_gw, PLAYER_HORIZON_GWS)
-    team_horizon = next_gameeeks_safe(rows, current_gw)
+    # Phase 21.1 (T2): the target GW follows the official FPL clock at request
+    # time; the horizon shows the next five gameweeks with UNPLAYED fixtures.
+    try:
+        from fpl_intelligence.sync.gameweek_clock import resolve_target_gameweek
+
+        target_gw = await resolve_target_gameweek(db, fallback=int(squad.gameweek))
+    except Exception:
+        target_gw = int(squad.gameweek)
+    current_gw = max(infer_current_gameweek(rows), target_gw, int(squad.gameweek))
+    horizon = next_unplayed_gameweeks(rows, current_gw, PLAYER_HORIZON_GWS)
+    team_horizon = next_unplayed_gameweeks(rows, current_gw, TEAM_HORIZON_GWS)
     team_names = _team_names(db)
     rows_by_gw: dict[int, list[Any]] = {}
     for row in rows:
@@ -196,8 +211,8 @@ async def fixture_scan(
 
 
 def next_gameeeks_safe(rows: Any, current_gw: int) -> list[int]:
-    """Team-horizon helper kept tiny for readability."""
-    return next_gameweeks(rows, current_gw, TEAM_HORIZON_GWS)
+    """Team-horizon helper kept tiny for readability (unplayed-only)."""
+    return next_unplayed_gameweeks(rows, current_gw, TEAM_HORIZON_GWS)
 
 
 def _resolve_player_names(db: Session, pids: list[int]) -> dict[int, str]:

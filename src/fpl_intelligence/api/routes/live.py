@@ -44,6 +44,83 @@ GetDB = deps.GetDB
 #: Kickoff window that flips the page into LIVE mode (hours either side).
 LIVE_WINDOW_HOURS = 2.0
 
+_LIVE_EVENT_DDL = """
+CREATE TABLE IF NOT EXISTS live_event_log (
+    id SERIAL PRIMARY KEY,
+    gameweek INTEGER NOT NULL,
+    element_id INTEGER NOT NULL,
+    event_kind VARCHAR(20) NOT NULL,
+    ordinal INTEGER NOT NULL DEFAULT 0,
+    notified_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    CONSTRAINT uq_live_event UNIQUE (gameweek, element_id, event_kind, ordinal)
+)
+"""
+
+#: Phase 23 (L4): stat fields whose increase becomes a matchday ping.
+_EVENT_KINDS = (("goals", "goal", "⚽"), ("assists", "assist", "🎯"),
+                ("red_cards", "red_card", "🟥"))
+
+
+def detect_stat_events(
+    current: dict[int, dict[str, Any]],
+    previous: dict[int, dict[str, Any]],
+    *,
+    watched_ids: set[int] | None = None,
+) -> list[dict[str, Any]]:
+    """New goals/assists/red-cards between two live-stats snapshots (pure).
+
+    Each event carries ``ordinal`` = the player's new CUMULATIVE count of that
+    stat, which doubles as the per-event dedupe key. ``points_delta`` comes
+    from the official live-points totals. Players outside ``watched_ids``
+    (e.g. rivals) are ignored.
+    """
+    events: list[dict[str, Any]] = []
+    for eid, now in current.items():
+        if watched_ids is not None and int(eid) not in watched_ids:
+            continue
+        was = previous.get(int(eid)) or {}
+        for field, kind, _emoji in _EVENT_KINDS:
+            cur_n = int(now.get(field) or 0)
+            old_n = int(was.get(field) or 0)
+            for ordinal in range(old_n + 1, cur_n + 1):
+                events.append(
+                    {
+                        "element_id": int(eid),
+                        "kind": kind,
+                        "ordinal": ordinal,
+                        "minute": int(now.get("minutes") or 0),
+                        "points_delta": round(
+                            float(now.get("points") or 0)
+                            - float(was.get("points") or 0),
+                            2,
+                        ),
+                    }
+                )
+    return events
+
+
+def event_message(
+    event: dict[str, Any],
+    name_map: dict[int, str],
+    *,
+    captain_id: int | None,
+) -> str:
+    """One honest ping line, e.g. "⚽ Haaland +6 (62') — captain delta +12".
+
+    Captain deltas double the underlying swing because the armband doubles
+    the player's points.
+    """
+    emojis = {"goal": "⚽", "assist": "🎯", "red_card": "🟥"}
+    name = name_map.get(int(event["element_id"]), f"Player {event['element_id']}")
+    delta = int(round(float(event.get("points_delta") or 0)))
+    line = f"{emojis[event['kind']]} {name} {delta:+d} ({event['minute']}')"
+    if captain_id is not None and int(captain_id) == int(event["element_id"]) \
+            and event["kind"] != "red_card":
+        line += f" — captain delta {delta * 2:+d}"
+    elif captain_id is not None and int(captain_id) == int(event["element_id"]):
+        line += " — CAPTAIN"
+    return line
+
 #: In-process cache TTLs (seconds).
 BOOTSTRAP_TTL = 600.0
 PICKS_TTL = 300.0
@@ -287,6 +364,7 @@ def _build_rows(
             "minutes": st["minutes"] if st else None,
             "goals": st["goals"] if st else None,
             "assists": st["assists"] if st else None,
+            "red_cards": st["red_cards"] if st else None,
             "bonus": st["bonus"] if st else None,
             "raw_points": raw_pts,
             "multiplier": mult,
@@ -381,6 +459,9 @@ async def live_matchday(
     squad_players: list[dict[str, Any]] = []
     picks_payload: dict[str, Any] | None = None
     try:
+        # v2.7.6-session-guard: never build an entry URL from a non-numeric id.
+        if not str(session_id).strip().isdigit():
+            raise ValueError("session_id is not a numeric FPL entry id")
         chain, _ttl = _chain("picks")
         picks_payload = await chain.fetch(
             f"/api/entry/{int(session_id)}/event/{gameweek}/picks/"
@@ -439,6 +520,7 @@ async def live_matchday(
             "goals": int(stats.get("goals_scored") or 0),
             "assists": int(stats.get("assists") or 0),
             "bonus": int(stats.get("bonus") or 0),
+            "red_cards": int(stats.get("red_cards") or 0),
             "points": _element_points(el),
         }
 
@@ -464,10 +546,64 @@ async def live_matchday(
         else {"status": "fail", "strategy": "direct", "error": espn_error}
     )
 
-    # --- 6. snapshot persistence / stale fallback --------------------------------
+    # --- 6. matchday pings + snapshot persistence / stale fallback ------------
     data_age = 0.0
     stale_snapshot = False
     assembled_ok = bool(rows_have_data(starters)) and (gw_finished or live_payload is not None)
+    pings_sent = 0
+
+    # Phase 23 (L4): diff THIS assembly vs the last stored snapshot and emit
+    # deduped goal/assist/red-card pings for fielded players.
+    if assembled_ok and squad_players:
+        try:
+            last_snap_row = db.scalar(
+                select(LiveSnapshotDB)
+                .where(LiveSnapshotDB.gameweek == gameweek)
+                .order_by(LiveSnapshotDB.id.desc())
+                .limit(1)
+            )
+            previous_stats: dict[int, dict[str, Any]] = {}
+            if last_snap_row is not None:
+                sp = last_snap_row.payload or {}
+                for r in list(sp.get("rows_all") or []) + list(sp.get("bench") or []):
+                    if isinstance(r, dict) and r.get("element_id"):
+                        previous_stats[int(r["element_id"])] = {
+                            "goals": r.get("goals"),
+                            "assists": r.get("assists"),
+                            "red_cards": r.get("red_cards"),
+                            "minutes": r.get("minutes"),
+                            "points": r.get("raw_points"),
+                        }
+            watched = {
+                int(m["element_id"])
+                for m in squad_players
+                if int(m.get("multiplier") or 0) > 0
+            }
+            current_stats = {
+                int(eid): {
+                    "goals": st["goals"],
+                    "assists": st["assists"],
+                    "red_cards": st["red_cards"],
+                    "minutes": st["minutes"],
+                    "points": st["points"],
+                }
+                for eid, st in live_stats.items()
+            }
+            events = detect_stat_events(current_stats, previous_stats, watched_ids=watched)
+            if events:
+                name_map_ping = dict(name_map)
+                captain_pid = next(
+                    (int(m["element_id"]) for m in squad_players if m.get("is_captain")),
+                    None,
+                )
+                pings_sent = _emit_matchday_pings(
+                    db, gameweek, session_id, events,
+                    name_map_ping, captain_pid,
+                )
+        except Exception as exc:  # noqa: BLE001 — pings never break the board
+            db.rollback()
+            logger.debug("matchday pings failed: %s", exc)
+
     if assembled_ok:
         try:
             db.add(
@@ -555,10 +691,76 @@ async def live_matchday(
         "data_age_seconds": round(data_age, 1),
         "stale_snapshot": stale_snapshot,
         "graded_now": graded_now,
+        "pings_sent": pings_sent,
         "track_record_url": "/track-record",
         "note": " · ".join(note_parts),
         "as_of": now_utc.isoformat(),
     }
+
+
+def _emit_matchday_pings(
+    db: Any,
+    gameweek: int,
+    session_id: str,
+    events: list[dict[str, Any]],
+    name_map: dict[int, str],
+    captain_pid: int | None,
+) -> int:
+    """Persist unseen events (per-event dedupe) and dispatch push/bell."""
+    try:
+        db.execute(text(_LIVE_EVENT_DDL))
+        db.commit()
+    except Exception as exc:  # noqa: BLE001 — sqlite tests pre-create it
+        db.rollback()
+        logger.debug("live_event_log DDL skipped: %s", exc)
+
+    from fpl_intelligence.notifications.webpush import dispatch
+
+    try:
+        seen_rows = db.execute(
+            text(
+                "SELECT element_id, event_kind, ordinal FROM live_event_log "
+                "WHERE gameweek = :gw"
+            ),
+            {"gw": int(gameweek)},
+        ).all()
+    except Exception:  # noqa: BLE001 — table may not exist yet on first run
+        db.rollback()
+        seen_rows = []
+    seen = {(int(r[0]), str(r[1]), int(r[2])) for r in seen_rows}
+    sent = 0
+    for event in events:
+        key = (int(event["element_id"]), str(event["kind"]), int(event["ordinal"]))
+        if key in seen:
+            continue
+        db.execute(
+            text(
+                "INSERT INTO live_event_log "
+                "(gameweek, element_id, event_kind, ordinal, notified_at) "
+                "VALUES (:gw, :eid, :kind, :ordinal, :at)"
+            ),
+            {
+                "gw": int(gameweek),
+                "eid": key[0],
+                "kind": key[1],
+                "ordinal": key[2],
+                "at": datetime.now(UTC),
+            },
+        )
+        message = event_message(event, name_map, captain_id=captain_pid)
+        try:
+            dispatch(
+                db,
+                session_id=str(session_id),
+                kind="goals",
+                title="Matchday ping",
+                body=message,
+                url="/live",
+            )
+        except Exception as exc:  # noqa: BLE001 — bell log already written upstream
+            logger.debug("ping dispatch failed: %s", exc)
+        sent += 1
+    return sent
 
 
 def _snapshot_payload(

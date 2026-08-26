@@ -1,11 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-  "buildCommand": "pip install .",
+  "buildCommand": "pip install . && python -m fpl_intelligence.prod_migrate",
   "functions": {
     "api/index.py": {
       "runtime": "@vercel/python@6.58.0",
-      "includeFiles": "{src/**,migrations/**,config/**,data/seed/**,alembic.ini,pyproject.toml,requirements.txt}",
+      "includeFiles": "{src/**,migrations/**,config/**,data/seed/**,data/set_piece_takers.json,alembic.ini,pyproject.toml,requirements.txt}",
       "excludeFiles": "{data/cache/**,data/raw/**,data/processed/**,tests/**,docs/**,audit/**,supabase/**,scripts/**,.github/**,.kilo/**,.mypy_cache/**,.pytest_cache/**,.ruff_cache/**,**/__pycache__/**}",
       "regions": ["cdg1"],
       "maxDuration": 60
@@ -15,6 +15,10 @@
     {
       "path": "/api/v1/admin/daily",
       "schedule": "10 6 * * *"
+    },
+    {
+      "path": "/api/v1/admin/detect-transfers",
+      "schedule": "0 12 * * *"
     }
   ],
   "rewrites": [

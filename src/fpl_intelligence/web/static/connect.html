@@ -5,18 +5,64 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Connect — FPL Intelligence</title>
 <link rel="icon" href="data:,">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#0f172a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/tokens.css">
+<link rel="stylesheet" href="/static/components.css">
 <link rel="stylesheet" href="/static/app.css">
 <script src="/static/app.js"></script>
+<style>
+  html, body { overflow-x: hidden; }
+  .wrap--wide { max-width: 1160px; }
+  .connect-lead { margin-top: 0; }
+  .sync-ribbon__inner--connect { padding: 8px var(--space-4); gap: var(--space-3); }
+  .sync-ribbon-hint { font-size: 12px; font-weight: 700; color: var(--color-warn); display: none; }
+  .sync-ribbon-hint.show { display: inline; }
+  .sync-label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--color-text-dim); cursor: pointer; user-select: none; }
+  .sync-note { margin-left: auto; font-size: 12px; }
+  .sync-banner-sticky { max-width: var(--max-width-content); margin: 0 auto; padding: 0 var(--space-4) var(--space-2); display: none; }
+  .sync-banner-sticky.show { display: block; }
+  .sync-banner-inner { background: linear-gradient(135deg,#052e16,#0a4a28); border: 1px solid #16a34a; color: #bbf7d0; border-radius: 12px; padding: 10px 14px; font-size: 14px; font-weight: 800; box-shadow: 0 6px 20px rgba(34,197,94,0.25); }
+  .token-row { display: flex; gap: var(--space-2); margin-top: var(--space-2); flex-wrap: wrap; align-items: center; }
+  .token-row .input { flex: 1 1 260px; }
+  .token-row .btn { min-height: 48px; }
+  .bm-row { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; margin-top: var(--space-2); }
+  .bm-version { margin-left: var(--space-2); font-size: 0.65rem; }
+  .bm-warn { margin: 10px 0 0; background: rgba(251,191,36,0.08); border-color: rgba(251,191,36,0.35); padding: 10px 12px; }
+  .bm-warn-title { margin: 0; color: #fde68a; font-weight: 700; }
+  .bm-list { padding-left: 18px; margin: 6px 0 12px; }
+  .bm-list--lower { margin: 12px 0 0; }
+  .apps-list, .method-list { padding-left: 18px; }
+  .apps-list { margin-top: 4px; }
+  .method-list { margin: 6px 0; }
+  .push-toggles { display: none; margin-top: var(--space-3); }
+  .push-toggles.show { display: block; }
+  .push-actions { margin-top: var(--space-3); }
+  /* ensure tables never cause page scroll */
+  .table-wrap { margin-top: var(--space-2); }
+  table.data { min-width: 520px; }
+</style>
 </head>
 <body>
 <div id="topnav"></div>
-<div class="wrap">
+<!-- v2.7.3-dual-state — Refresh League Data ribbon: ALWAYS visible on /connect (mirrors /dashboard) -->
+<div id="syncRibbon" class="sync-ribbon" data-testid="sync-ribbon">
+  <div class="sync-ribbon__inner sync-ribbon__inner--connect">
+    <button id="syncNowBtn" class="btn-primary" type="button" data-testid="sync-now-btn">↻ Refresh League Data</button>
+    <span id="syncHint" data-testid="sync-ribbon-hint" class="small sync-ribbon-hint">Analyze your team to enable Refresh League Data</span>
+    <span class="faint small sync-note">Refresh pulls rival standings & picks via masks — your local squad is never overwritten</span>
+  </div>
+  <div id="syncBannerSticky" class="sync-banner-sticky" role="status" aria-live="polite" data-testid="sync-banner-sticky">
+    <div id="syncBannerStickyInner" class="sync-banner-inner"></div>
+  </div>
+</div>
+<div class="wrap wrap--wide">
 
-  <h1 style="font-size:22px;font-weight:800;color:#fff;margin:0 0 4px">Connect your data</h1>
-  <p class="muted small" style="margin-top:0">Three independent ways keep this engine fed. All pushes authenticate with your personal <strong>SYNC_PUSH_TOKEN</strong> (Bearer header). The token is shown once in your deployment report — paste it below and into Apps Script / GitHub secrets.</p>
+  <h1 class="page-title">Connect your data</h1>
+  <p class="muted small connect-lead">Three independent ways keep this engine fed. All pushes authenticate with your personal <strong>SYNC_PUSH_TOKEN</strong> (Bearer header). The token is shown once in your deployment report — paste it below and into Apps Script / GitHub secrets.</p>
 
   <!-- ======= Sync status ======= -->
   <div class="section-h">Sync status</div>
@@ -26,38 +72,45 @@
   <div class="section-h">1 · Your token</div>
   <div class="card">
     <label class="small muted" for="tokenInput">SYNC_PUSH_TOKEN</label>
-    <div style="display:flex;gap:8px;margin-top:6px">
+    <div class="token-row">
       <input id="tokenInput" type="password" class="input" placeholder="paste the 64-hex-char token from your deployment report" autocomplete="off">
       <button id="saveTokenBtn" class="btn" type="button">Save</button>
     </div>
-    <p class="faint small" style="margin-bottom:0">Stored in this browser only (localStorage) so the bookmarklet can use it. Never sent anywhere except your own engine's push endpoint.</p>
+    <p class="faint small">Stored in this browser only (localStorage) so the bookmarklet can use it. Never sent anywhere except your own engine's push endpoint.</p>
   </div>
 
   <!-- ======= Method A: bookmarklet ======= -->
   <div class="section-h">2 · Bookmarklet — instant one-click sync (recommended)</div>
   <div class="card">
-    <ol class="muted small" style="padding-left:18px;margin:6px 0 12px">
+    <ol class="muted small bm-list">
       <li>Paste + save your token above.</li>
       <li>Drag this link to your bookmarks bar:</li>
     </ol>
-    <a id="bookmarkletLink" class="btn" href="#" onclick="return false" title="Drag me to your bookmarks bar" style="display:inline-block;text-decoration:none">⚽ Sync FPL Squad → Engine</a>
-    <button id="copyBmBtn" class="btn-ghost" type="button" style="margin-left:10px">Copy link URL</button>
-    <ol class="muted small" start="3" style="padding-left:18px;margin:12px 0 0">
+    <div class="bm-row">
+      <a id="bookmarkletLink" class="btn" href="#" onclick="return false" title="Drag me to your bookmarks bar">⚽ Sync FPL Squad → Engine <span id="bmVersion" class="pill ok bm-version">v2.5.6-async-sync</span></a>
+      <button id="copyBmBtn" class="btn-ghost" type="button">Copy link URL</button>
+    </div>
+    <p class="faint small">Bookmarklet version: <strong>v2.5.6-async-sync</strong> — please <em>re-drag</em> the button to your bookmarks bar to update from any older version.</p>
+    <div class="card bm-warn">
+      <p class="small bm-warn-title">⚠️ If FPL blocks the bookmarklet, just use the 'Sync Now' button on your dashboard instead.</p>
+      <p class="faint small">FPL's strict Content Security Policy (CSP) can block <code>javascript:</code> execution. The bookmarklet now shows “FPL blocked the sync. Please use the Sync Now button on your dashboard instead.” instead of redirecting — the dashboard Sync Now does the same dual-fetch (current + next GW) server-side.</p>
+    </div>
+    <ol class="muted small bm-list bm-list--lower" start="3">
       <li>Open <code>fantasy.premierleague.com/entry/&lt;your-id&gt;/event</code>.</li>
       <li>Click the bookmark. You'll see a success or failure alert — nothing else needed.</li>
     </ol>
-    <p class="faint small" id="bmStatus" style="margin-bottom:0"></p>
+    <p class="faint small" id="bmStatus"></p>
   </div>
 
   <!-- ======= Method B: Apps Script ======= -->
   <div class="section-h">3 · Google Apps Script fetcher — automatic daily + matchday</div>
   <div class="card">
-    <p class="muted small" style="margin-top:0">Runs on Google's infrastructure (no Cloudflare, no Vercel egress problems). Two time-triggers:</p>
-    <ul class="muted small" style="margin-top:4px">
+    <p class="muted small">Runs on Google's infrastructure (no Cloudflare, no Vercel egress problems). Two time-triggers:</p>
+    <ul class="muted small apps-list">
       <li><strong>Daily 05:00 UTC</strong> (+ manual menu item): pulls your entry + picks → <code>squad-push</code></li>
       <li><strong>Sat &amp; Sun hourly 14:00–18:00 UTC</strong>: pulls live points → <code>live-push</code></li>
     </ul>
-    <ol class="muted small" style="padding-left:18px">
+    <ol class="muted small method-list">
       <li>Go to <a href="https://script.google.com" target="_blank" rel="noopener">script.google.com</a> → New project.</li>
       <li>Paste the script below. Set <code>ENGINE_BASE</code> and <code>TOKEN</code> at the top.</li>
       <li>Add triggers: clock icon → <em>syncSquadDaily</em>, Time-driven, Day timer 5–6am. Add a second trigger for <em>syncLiveMatchday</em>, Week timer Sat+Sun 2–6pm.</li>
@@ -88,21 +141,47 @@ function syncLiveMatchday() {
   post("/api/v1/sync/live-push", { gameweek: gw, elements: els });
 }
 
-// ==== Shared helpers ====
+// ==== Shared helpers — v2.5.3 truth: fetch current + next GW, prefer latest transfer ====
 function syncSquad() {
   var entry = jget("/api/entry/" + ENTRY_ID + "/");
-  var gw = (entry.entry && entry.entry.current_event) || 1;
-  var picks = jget("/api/entry/" + ENTRY_ID + "/event/" + gw + "/picks/");
+  var currentGw = (entry.entry && entry.entry.current_event) || entry.current_event || 1;
+  var nextGw = currentGw + 1;
+  // Try to refine nextGw via bootstrap when reachable (same logic as bookmarklet).
+  try {
+    var bs = jget("/api/bootstrap-static/");
+    var evs = (bs && bs.events) || [];
+    var best = null, bestTime = null, now = Date.now();
+    for (var i = 0; i < evs.length; i++) {
+      var ev = evs[i];
+      if (!ev || !ev.deadline_time) continue;
+      var dl = Date.parse(ev.deadline_time);
+      if (isNaN(dl) || dl <= now) continue;
+      if (bestTime === null || dl < bestTime) { bestTime = dl; best = ev.id; }
+    }
+    if (best !== null && best !== currentGw) nextGw = best;
+    else if (best === currentGw) nextGw = currentGw + 1;
+  } catch (e) { /* bootstrap optional */ }
+  var picksCur = null, picksNext = null;
+  try { picksCur = jget("/api/entry/" + ENTRY_ID + "/event/" + currentGw + "/picks/"); } catch (e) { picksCur = null; }
+  try { if (nextGw && nextGw !== currentGw) picksNext = jget("/api/entry/" + ENTRY_ID + "/event/" + nextGw + "/picks/"); } catch (e) { picksNext = null; }
+  var chosen = picksCur, chosenGw = currentGw;
+  if (picksCur && picksNext) {
+    var idsCur = (picksCur.picks || []).map(function (p) { return p.element; }).sort().join(",");
+    var idsNext = (picksNext.picks || []).map(function (p) { return p.element; }).sort().join(",");
+    if (idsCur !== idsNext) { chosen = picksNext; chosenGw = nextGw; }
+  } else if (!picksCur && picksNext) { chosen = picksNext; chosenGw = nextGw; }
+  if (!chosen) throw new Error("No picks for GW" + currentGw + " nor GW" + nextGw);
   post("/api/v1/sync/squad-push", {
     entry_id: ENTRY_ID,
-    entry_name: (entry.entry && entry.entry.name) || null,
-    gameweek: gw,
-    bank: (picks.entry_history && picks.entry_history.bank) || 0,
+    entry_name: (entry.entry && entry.entry.name) || entry.name || null,
+    gameweek: chosenGw,
+    picks_gw: chosenGw,
+    bank: (chosen.entry_history && chosen.entry_history.bank) || 0,
     transfers: {
-      made: (picks.entry_history && picks.entry_history.event_transfers) || 0,
-      cost: (picks.entry_history && picks.entry_history.event_transfers_cost) || 0
+      made: (chosen.entry_history && chosen.entry_history.event_transfers) || 0,
+      cost: (chosen.entry_history && chosen.entry_history.event_transfers_cost) || 0
     },
-    picks: (picks.picks || []).map(function (p) {
+    picks: (chosen.picks || []).map(function (p) {
       return {
         element_id: p.element, position: p.position,
         element_type: p.element_type,
@@ -147,18 +226,38 @@ function onOpen() {
       .addToUi();
   } catch (e) { /* standalone script has no UI */ }
 }</pre>
-    <p class="faint small" style="margin-bottom:0">The matchday trigger reads the official <code>/api/event/{gw}/live/</code> feed from Google's IPs — which are never rate-limited like datacenter proxies.</p>
+    <p class="faint small">The matchday trigger reads the official <code>/api/event/{gw}/live/</code> feed from Google's IPs — which are never rate-limited like datacenter proxies.</p>
   </div>
 
   <!-- ======= Method C: GitHub Actions ======= -->
   <div class="section-h">4 · GitHub Actions — vaastav dataset + Understat refresh (daily 06:00 UTC)</div>
   <div class="card">
-    <ol class="muted small" style="padding-left:18px;margin:6px 0">
+    <ol class="muted small method-list">
       <li>In your GitHub repo: <em>Settings → Secrets and variables → Actions</em>.</li>
       <li>Add repository secret <code>SYNC_PUSH_TOKEN</code> = your token.</li>
       <li>The committed <code>.github/workflows/data-refresh.yml</code> runs daily at 06:00 UTC, downloads the current-season vaastav GW files + an Understat snapshot, and POSTs them to <code>/api/v1/sync/history-push</code>. Each ingestion auto-rebuilds form features and re-scores your track record.</li>
     </ol>
-    <p class="faint small" style="margin-bottom:0">Also supports <em>workflow_dispatch</em> for manual runs from the Actions tab.</p>
+    <p class="faint small">Also supports <em>workflow_dispatch</em> for manual runs from the Actions tab.</p>
+  </div>
+
+  <!-- ======= PWA install prompt (Phase 24) ======= -->
+  <div class="section-h">5 · Install as app (PWA)</div>
+  <div class="card">
+    <p class="muted small">Install FPL Intelligence as a standalone app on your phone or desktop. Theme color #0f172a, offline shell cached.</p>
+    <div id="pwaInstallHost"><p class="faint small">Install prompt appears here when your browser supports it. If already installed, you're set.</p></div>
+    <p class="faint small">If no button appears, use your browser's “Add to Home Screen” / “Install app” menu. Service worker caches the shell for offline fallback.</p>
+  </div>
+
+  <!-- ======= Notifications (Phase 23 — self-hosted web push) ======= -->
+  <div class="section-h">6 · Notifications — self-hosted web push (no external accounts)</div>
+  <div class="card" id="pushCard">
+    <p class="muted small">Enable browser notifications for goals, price moves, the weekly brief and track-record grading. The in-app 🔔 bell works regardless of this setting.</p>
+    <button id="enablePushBtn" class="btn" type="button" data-testid="enable-notifications">Enable notifications</button>
+    <span id="pushStatus" class="faint small"></span>
+    <div id="triggerToggles" class="push-toggles"></div>
+    <div class="push-actions">
+      <button id="testPushBtn" class="btn-ghost" type="button" hidden>Send test push</button>
+    </div>
   </div>
 
 </div>
@@ -167,6 +266,52 @@ function onOpen() {
 document.addEventListener("DOMContentLoaded", function () {
   FPLApp.renderNav("/connect");
   var $ = function (id) { return document.getElementById(id); };
+  // v2.7.3-dual-state — ribbon ALWAYS visible (mirrors /dashboard); demo/no-session -> disabled + hint
+  function _updateConnectRibbon() {
+    var sess = null;
+    try { sess = FPLApp.session.read(); } catch (e) { try { sess = JSON.parse(localStorage.getItem("fpl_session_v20")||"null"); } catch(e2){} }
+    var hasSession = !!(sess && sess.key);
+    var isDemo = sess && sess.source === "demo";
+    var shouldEnable = hasSession && !isDemo;
+    var rb = $("syncRibbon"); if (rb) rb.style.display = "block";
+    var btn = $("syncNowBtn"); if (btn) { btn.disabled = !shouldEnable; btn.title = shouldEnable ? "" : "Analyze your team to enable Refresh League Data"; if (!shouldEnable) btn.setAttribute("aria-disabled","true"); else btn.removeAttribute("aria-disabled"); }
+    var hint = $("syncHint"); if (hint) hint.classList.toggle("show", !shouldEnable);
+    var tgl = $("syncNextGwToggle"); if (tgl) tgl.disabled = !shouldEnable;
+  }
+  function _syncNowConnect() {
+    // v2.7.3-dual-state: Refresh League Data — only pulls rival standings/picks via masks, never overwrites local_squad.
+    var sess = null; try { sess = FPLApp.session.read(); } catch(e){}
+    if (!sess || !sess.key || sess.source === "demo") { alert("Analyze your team to enable Refresh League Data"); return; }
+    var btn = $("syncNowBtn");
+    var stickyWrap = $("syncBannerSticky"); var stickyInner = $("syncBannerStickyInner");
+    if (stickyWrap) stickyWrap.classList.remove("show"); if (stickyInner) stickyInner.textContent = "";
+    if (btn) { btn.disabled = true; btn.textContent = "Refreshing\u2026"; }
+    var url = "/api/v1/league/refresh";
+    fetch(url, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({session_id: sess.key}) }).then(function(r){
+      return r.json().catch(function(){return {};}).then(function(data){
+        if (!r.ok && r.status !== 202) throw new Error(data.detail || data.note || ("Refresh failed ("+r.status+")"));
+        if (data && (data.status === "ok" || data.status === "refreshing")) {
+          var bannerText = data.status === "ok" ? ("League refreshed ✓ — " + (data.league_name || "standings") + " updated. Trajectory & Alpha use your local squad.") : (data.note || "Refreshing…");
+          if (stickyWrap && stickyInner) { stickyInner.textContent = bannerText; stickyWrap.classList.add("show"); }
+          _updateConnectRibbon();
+          if (btn) btn.textContent = "\u21BB Refresh League Data";
+          return;
+        }
+        if (data && (data.status === "failed" || data.status === "error")) {
+          alert(data.note || data.error || "Refresh failed \u2014 please Retry.");
+          _updateConnectRibbon();
+          if (btn) { btn.disabled = false; btn.textContent = "Retry"; }
+          return;
+        }
+        _updateConnectRibbon();
+        if (btn) btn.textContent = "\u21BB Refresh League Data";
+      });
+    }).catch(function(e){ alert(e.message); _updateConnectRibbon(); if (btn) btn.textContent = "\u21BB Refresh League Data"; });
+  }
+  // wire ribbon button immediately and keep state in sync with storage events
+  try { var _snC = $("syncNowBtn"); if (_snC) _snC.addEventListener("click", _syncNowConnect); } catch(e){}
+  _updateConnectRibbon();
+  window.addEventListener("storage", _updateConnectRibbon);
 
   // --- token persistence ---------------------------------------------------
   try { $("tokenInput").value = localStorage.getItem("fpl_sync_push_token") || ""; } catch (e) {}
@@ -185,13 +330,18 @@ document.addEventListener("DOMContentLoaded", function () {
     fetch("/static/bookmarklet.js")
       .then(function (r) { return r.text(); })
       .then(function (src) {
+        // Extract version if present
+        var verMatch = src.match(/BOOKMARKLET_VERSION\s*=\s*"([^"]+)"/);
+        var ver = verMatch ? verMatch[1] : "unknown";
         src = 'window.__FPL_ENGINE_BASE__="' + window.location.origin + '";\n' + src;
         var url = "javascript:" + encodeURIComponent(src);
         $("bookmarkletLink").href = url;
         $("bookmarkletLink").removeAttribute("onclick");
+        var verEl = document.getElementById("bmVersion");
+        if (verEl) verEl.textContent = ver;
         $("bmStatus").textContent = token
-          ? "Bookmarklet ready (" + src.length + " chars). Drag the button to your bookmarks bar."
-          : "Bookmarklet ready, but no token saved yet — you'll be prompted on first use.";
+          ? "Bookmarklet ready v" + ver + " (" + src.length + " chars). Drag the button to your bookmarks bar — re-drag to update."
+          : "Bookmarklet ready v" + ver + ", but no token saved yet — you'll be prompted on first use.";
       })
       .catch(function () {
         $("bmStatus").textContent = "Could not load bookmarklet source (/static/bookmarklet.js).";
@@ -223,14 +373,139 @@ document.addEventListener("DOMContentLoaded", function () {
           '<td class="num">' + ((data.counts || {})[kind] || 0) + '</td></tr>');
       });
       $("statusCard").innerHTML =
-        '<table class="data"><thead><tr><th>Channel</th><th>Last successful push</th><th class="num">Gameweek</th><th class="num">Total</th></tr></thead><tbody>' +
-        rows.join("") + "</tbody></table>" +
-        '<p class="faint small" style="margin:10px 0 0">Server token configured: ' +
+        '<div class="table-wrap"><table class="data"><thead><tr><th>Channel</th><th>Last successful push</th><th class="num">Gameweek</th><th class="num">Total</th></tr></thead><tbody>' +
+        rows.join("") + "</tbody></table></div>" +
+        '<p class="faint small">Server token configured: ' +
         (data.token_configured ? '<span class="pill ok">yes</span>' : '<span class="pill bad">NO — set SYNC_PUSH_TOKEN env var</span>') + "</p>";
     })
     .catch(function () {
       $("statusCard").innerHTML = '<span class="faint">Status unavailable.</span>';
     });
+
+  // --- Phase 23 (L2): self-hosted web push -----------------------------------
+  var PUSH_TRIGGERS = ["goals", "prices", "brief", "graded"];
+  var LS_SUB_KEY = "fpl_push_subscription_v1";
+  var TRIGGER_LABELS = { goals: "Matchday goals / assists / red cards", prices: "Price moves", brief: "Weekly brief", graded: "Track-record grading" };
+
+  function readStoredSubscription() {
+    try { return JSON.parse(localStorage.getItem(LS_SUB_KEY) || "null"); } catch (e) { return null; }
+  }
+
+  function urlBase64ToUint8Array(base64String) {
+    var padding = "=".repeat((4 - base64String.length % 4) % 4);
+    var base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+    var raw = window.atob(base64);
+    var out = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+    return out;
+  }
+
+  function renderToggles(selected, sessionKey) {
+    var host = $("triggerToggles");
+    host.classList.add("show");
+    host.innerHTML = "<strong class='small muted'>Notify me about:</strong>" + PUSH_TRIGGERS.map(function (t) {
+      return '<label class="small muted"><input type="checkbox" data-trigger="' + t + '"' +
+        (selected[t] !== false ? " checked" : "") + "> " + TRIGGER_LABELS[t] + "</label>";
+    }).join("");
+    Array.prototype.forEach.call(host.querySelectorAll("[data-trigger]"), function (cb) {
+      cb.addEventListener("change", function () {
+        resubscribe(sessionKey);
+      });
+    });
+    $("testPushBtn").hidden = false;
+  }
+
+  function currentTriggers() {
+    var out = {};
+    Array.prototype.forEach.call($("triggerToggles").querySelectorAll("[data-trigger]"), function (cb) {
+      out[cb.getAttribute("data-trigger")] = cb.checked;
+    });
+    return out;
+  }
+
+  function resubscribe(sessionKey) {
+    var stored = readStoredSubscription();
+    if (!stored) return;
+    fetch("/api/v1/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sessionKey, endpoint: stored.endpoint, keys: stored.keys, triggers: currentTriggers() })
+    });
+  }
+
+  function subscribeBrowser(sessionKey) {
+    fetch("/api/v1/push/config")
+      .then(function (r) { return r.json(); })
+      .then(function (cfg) {
+        if (!cfg.configured) {
+          $("pushStatus").textContent = "VAPID keypair not configured on the server — set VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY.";
+          return;
+        }
+        if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+          $("pushStatus").textContent = "This browser does not support web push.";
+          return;
+        }
+        registerAndSubscribe(sessionKey, cfg.vapid_public_key);
+      });
+  }
+
+  function registerAndSubscribe(sessionKey, vapidKey) {
+    var swSource = "self.addEventListener('push',function(e){e.waitUntil(self.registration.showNotification('FPL Intelligence',{body:'Open for details'}))});self.addEventListener('notificationclick',function(e){e.notification.close();self.clients.openWindow('/')});";
+    var swBlob = new Blob([swSource], { type: "text/javascript" });
+    navigator.serviceWorker.register(URL.createObjectURL(swBlob))
+      .then(function (reg) {
+        return reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidKey)
+        });
+      })
+      .then(function (sub) {
+        var json = sub.toJSON();
+        var payload = { session_id: sessionKey, endpoint: json.endpoint, keys: json.keys, triggers: {} };
+        PUSH_TRIGGERS.forEach(function (t) { payload.triggers[t] = true; });
+        return fetch("/api/v1/push/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        }).then(function () { return json; });
+      })
+      .then(function (json) {
+        try { localStorage.setItem(LS_SUB_KEY, JSON.stringify(json)); } catch (e) {}
+        $("pushStatus").textContent = "Notifications enabled ✓";
+        renderToggles({}, sessionKey);
+      })
+      .catch(function (err) {
+        $("pushStatus").textContent = "Permission denied or unsupported (" + (err.message || err.name) + ") — the 🔔 bell still works.";
+      });
+  }
+
+  FPLApp.session.bootstrap({
+    onReady: function (session) {
+      try { _updateConnectRibbon(); } catch(e){}
+      $("enablePushBtn").addEventListener("click", function () { subscribeBrowser(session.key); });
+      $("testPushBtn").addEventListener("click", function () {
+        fetch("/api/v1/push/test?session_id=" + encodeURIComponent(session.key), { method: "POST" })
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            $("pushStatus").textContent = d.sent
+              ? "Test push sent ✓"
+              : (d.logged ? "Logged to the in-app bell" + (d.vapid_configured === false ? " (VAPID not configured)" : "") : "No subscription yet");
+            FPLApp.renderBell();
+          });
+      });
+      /* Already-subscribed browsers restore their toggles immediately. */
+      var stored = readStoredSubscription();
+      if (stored && stored.endpoint) {
+        renderToggles({}, session.key);
+        resubscribe(session.key);
+        $("pushStatus").textContent = "Notifications enabled on this browser.";
+      }
+    },
+    onNoSession: function () {
+      $("enablePushBtn").disabled = false;
+      try { _updateConnectRibbon(); } catch(e){}
+    }
+  });
 });
 </script>
 </body>

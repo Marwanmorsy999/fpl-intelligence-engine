@@ -5,10 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Live — FPL Intelligence</title>
 <link rel="icon" href="data:,">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#0f172a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/tokens.css">
+<link rel="stylesheet" href="/static/components.css">
 <link rel="stylesheet" href="/static/app.css">
+<!-- Phase 3.1 — bounded fetch timeouts for the live poll -->
+<script src="/static/lib/fetch-with-timeout.js"></script>
 <script src="/static/app.js"></script>
 <style>
   @keyframes pulse-live { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
@@ -21,44 +27,74 @@
   .flash-down { animation: flash-down 1.8s ease-out }
   .pts-col { min-width:64px;text-align:right }
   .stat-mini { font-size:11px;color:#94a3b8 }
+  html, body { overflow-x: hidden; }
+  .wrap--live { min-width: 0; overflow-x: hidden; }
+  .live-header, .live-main, .live-sidebar { min-width: 0; }
+  .wrap--live > .live-header { grid-column: 1 / -1; }
+  .live-controls { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0 12px; align-items: center; }
+  #liveBadge { display: none; }
+  #trLink { display: none; }
+  .gw-finished { color: #fde68a; }
+  .headline-card { display: none; margin-bottom: 14px; padding: 14px 18px; }
+  .headline-row { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  .headline-total { font-size: 26px; font-weight: 800; color: #fff; }
+  .headline-label { font-size: 13px; color: #94a3b8; }
+  .headline-cap { margin-left: auto; font-size: 14px; color: #e2e8f0; }
+  .note-card { display: none; margin-bottom: 16px; }
+  .note-text { color: #fde68a; }
+  .card-pad { padding: 4px 16px; }
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table.data { min-width: 520px; }
 </style>
 </head>
 <body>
 <div id="topnav"></div>
-<div class="wrap">
+<div class="wrap wrap--live">
 
-  <h1 style="font-size:22px;font-weight:800;color:#fff;margin:0 0 4px">Live matchday</h1>
-  <p class="muted small" style="margin-top:0">Your XI with official FPL live points, captain-vs-vice math and an ESPN cross-check. Polls every 90s while any Premier League match is inside its kickoff window.</p>
+  <div class="live-header">
+    <h1 class="page-title">Live matchday</h1>
+    <p class="muted small">Your XI with official FPL live points, captain-vs-vice math and an ESPN cross-check. Polls every 90s while any Premier League match is inside its kickoff window.</p>
 
-  <div style="display:flex;flex-wrap:wrap;gap:10px;margin:16px 0 12px;align-items:center">
-    <span id="liveBadge" class="live-badge cold" style="display:none">LIVE</span>
-    <span id="ageChip" class="pill" data-testid="data-age-chip" title="Age of the live data">–</span>
-    <button id="refreshBtn" class="btn" type="button">Refresh now</button>
-    <a id="trLink" href="/track-record" style="display:none" class="btn-ghost" >Track Record ↗</a>
-    <span id="gwFinishedNote" data-testid="gw-finished-note" class="small" style="color:#fde68a"></span>
-  </div>
-
-  <div id="headlineCard" class="card" style="display:none;margin-bottom:14px;padding:14px 18px" data-testid="headline-card">
-    <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
-      <span style="font-size:26px;font-weight:800;color:#fff" id="teamTotal" class="num">–</span>
-      <span style="font-size:13px;color:#94a3b8">team total (live)</span>
-      <span style="margin-left:auto;font-size:14px;color:#e2e8f0" id="capVsVice" data-testid="captain-vs-vice">–</span>
+    <div class="live-controls">
+      <span id="liveBadge" class="live-badge cold">LIVE</span>
+      <span id="ageChip" class="pill" data-testid="data-age-chip" title="Age of the live data">–</span>
+      <button id="refreshBtn" class="btn" type="button">Refresh now</button>
+      <a id="trLink" href="/track-record" class="btn-ghost">Track Record ↗</a>
+      <span id="gwFinishedNote" data-testid="gw-finished-note" class="small gw-finished"></span>
     </div>
-    <div class="stat-mini" id="headlineSub">&nbsp;</div>
+
+    <div id="headlineCard" class="card headline-card" data-testid="headline-card">
+      <div class="headline-row">
+        <span id="teamTotal" class="num headline-total">–</span>
+        <span class="headline-label">team total (live)</span>
+        <span id="capVsVice" data-testid="captain-vs-vice" class="headline-cap">–</span>
+      </div>
+      <div class="stat-mini" id="headlineSub">&nbsp;</div>
+    </div>
+
+    <div id="note" class="card note-card"><span class="small note-text"></span></div>
+
+    <!-- Phase 3.1 — honest "stale" state for the live feed -->
+    <div id="staleCard" class="stale-feed" data-testid="stale-feed" hidden>
+      <p>🕒 Live feed is stale (<span id="staleAge"></span> mins old). Points may not reflect current match status.</p>
+    </div>
   </div>
 
-  <div id="note" style="display:none;margin-bottom:16px" class="card"><span class="small warn" style="color:#fde68a"></span></div>
+  <div class="live-main">
+    <div class="section-h">Starting XI</div>
+    <div class="card card-pad table-wrap" id="xiBox"><span class="faint small">Loading…</span></div>
+  </div>
 
-  <div class="section-h">Starting XI</div>
-  <div class="card" style="padding:4px 16px" id="xiBox"><span class="faint small">Loading…</span></div>
-  <div class="section-h">Bench</div>
-  <div class="card" style="padding:4px 16px" id="benchBox"><span class="faint small">—</span></div>
+  <div class="live-sidebar">
+    <div class="section-h">Bench</div>
+    <div class="card card-pad" id="benchBox"><span class="faint small">—</span></div>
 
-  <div class="section-h">ESPN scoreboard (cross-check)</div>
-  <div class="card" style="padding:4px 16px" id="espnBox"><span class="faint small">—</span></div>
+    <div class="section-h">ESPN scoreboard (cross-check)</div>
+    <div class="card card-pad" id="espnBox"><span class="faint small">—</span></div>
 
-  <div class="section-h">Source health</div>
-  <div class="card" style="padding:4px 16px" id="maskBox"><span class="faint small">—</span></div>
+    <div class="section-h">Source health</div>
+    <div class="card card-pad" id="maskBox"><span class="faint small">—</span></div>
+  </div>
 
 </div>
 <script>
@@ -133,6 +169,15 @@ document.addEventListener("DOMContentLoaded", function () {
     $("note").style.display = data.note ? "block" : "none";
     if (data.note) $("note").querySelector("span").textContent = data.note;
 
+    /* Phase 3.1 — honest stale state. Snapshot fallback OR age > 90 min. */
+    var staleCard = $("staleCard");
+    var ageMins = Math.round((data.data_age_seconds || 0) / 60);
+    var isStale = !!data.stale_snapshot || (data.data_age_seconds || 0) > 90 * 60;
+    if (staleCard) {
+      staleCard.hidden = !isStale;
+      if (isStale) $("staleAge").textContent = String(Math.max(0, ageMins));
+    }
+
     $("liveBadge").style.display = "inline-block";
     var badgeHot = data.live_mode && !data.gw_finished;
     $("liveBadge").className = "live-badge" + (badgeHot ? "" : " cold");
@@ -205,12 +250,14 @@ document.addEventListener("DOMContentLoaded", function () {
       $("benchBox").innerHTML = "";
       return;
     }
-    fetch("/api/v1/live?session_id=" + encodeURIComponent(sess.key), { cache: "no-store" })
+    FPLHttp.fetchWithTimeout("/api/v1/live?session_id=" + encodeURIComponent(sess.key), { cache: "no-store" }, 8000)
       .then(function (res) { return res.ok ? res.json() : res.json().then(function (b) { throw new Error(b.detail || res.status); }); })
       .then(render)
       .catch(function (err) {
         $("xiBox").innerHTML = '<p class="muted small">' + FPLApp.esc(err.message || "Load failed.") + '</p>';
         $("benchBox").innerHTML = "";
+        var staleCard = $("staleCard");
+        if (staleCard) staleCard.hidden = true;
       });
   }
 

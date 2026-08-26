@@ -129,6 +129,7 @@ class SquadPushPayload(BaseModel):
     picks: list[PickItem] = Field(..., min_length=15, max_length=15)
     bank: float = 0.0
     transfers: dict[str, Any] | None = None
+    picks_gw: int | None = Field(default=None, description="v2.5.3 truth GW — when set, overrides gameweek")
 
 
 class LivePushPayload(BaseModel):
@@ -176,6 +177,10 @@ async def squad_push(payload: SquadPushPayload, db: GetDB) -> dict[str, Any]:
     /api/v1/decisions works immediately afterwards. Position codes come from
     FPL's element_type on the client side when available (picks carry
     ``element_type``), otherwise the engine resolves them from its player DB.
+
+    Fix 1.2: bank from the bookmarklet is in FPL's tenths-of-millions format
+    (e.g. 45 = £4.5m). Always divide by 10. player_prices are recomputed
+    server-side from the bootstrap catalog so team_value in the ribbon is real.
     """
     ids: list[int] = []
     captain_id = vice_id = 0
@@ -194,32 +199,81 @@ async def squad_push(payload: SquadPushPayload, db: GetDB) -> dict[str, Any]:
     if captain_id == 0:
         raise HTTPException(status_code=422, detail="payload must mark exactly one is_captain pick")
 
+    # Fix 1.2a — bank arrives in FPL tenths; convert to £m.
+    # FPL's entry_history.bank is e.g. 45 meaning £4.5m.  Values already in
+    # £m (< 20) are passed through as-is so existing correct pushes are safe.
+    raw_bank = float(payload.bank or 0)
+    bank_pounds = raw_bank / 10.0 if raw_bank >= 20 else raw_bank
+
+    # Fix 1.2b — recompute player_prices from the bootstrap catalog so the
+    # ribbon always shows real team_value instead of £100.0m / £0.0m defaults.
+    player_prices: dict[int, float] = {}
+    player_teams: dict[int, int] = {}
+    try:
+        from fpl_intelligence.prediction.live_provider import load_player_catalog  # noqa: PLC0415
+
+        catalog = load_player_catalog()
+        for pid in ids:
+            row = catalog.get(int(pid), {})
+            if row.get("price") is not None:
+                player_prices[int(pid)] = float(row["price"])
+            if row.get("team") is not None:
+                player_teams[int(pid)] = int(row["team"])
+    except Exception:  # noqa: BLE001 — enrichment only, never break the push
+        pass
+
+    # If catalog prices unavailable (empty catalog), fall back to £5.0m per
+    # player so team_value shows something honest rather than £0.0m.
+    if not player_prices:
+        player_prices = {pid: 5.0 for pid in ids}
+
+    # Recompute bank from squad value when the payload bank is zero but we
+    # now have real prices (first-time push before bookmarklet is tuned).
+    if bank_pounds == 0.0 and player_prices:
+        total_squad_price = sum(player_prices.values())
+        bank_pounds = round(max(0.0, 100.0 - total_squad_price), 1)
+
+    effective_gw = int(payload.picks_gw or payload.gameweek)
     squad = SquadStateCreate(
         player_ids=ids,
         captain_id=captain_id,
         vice_captain_id=vice_id if vice_id else ids[0],
-        bank=payload.bank,
+        bank=bank_pounds,
         free_transfers=_free_transfers_from(payload.transfers),
         chips_available=["wildcard", "free_hit", "bench_boost", "triple_captain"],
-        gameweek=payload.gameweek,
+        gameweek=effective_gw,
+        picks_gw=effective_gw,
         player_positions=positions or None,
-        player_prices=None,
-        player_teams=None,
+        player_prices=player_prices or None,
+        player_teams=player_teams or None,
         session_id=str(payload.entry_id),
     )
     saved: SquadStateResponse = SquadService(session=db).set_squad(
         squad, session_id=str(payload.entry_id)
     )
+    # Cache invalidation: bump is implicit via updated_at in the row; ensure
+    # any in-process decisions cache keyed by updated_at will miss on next fetch.
+    # The squad-push already wrote updated_at = now, so invalidate here.
+    try:
+        from fpl_intelligence.api.routes.squad import _invalidate_decisions_cache  # noqa: PLC0415
+
+        _invalidate_decisions_cache(str(payload.entry_id))
+    except Exception:
+        pass
     _log_sync(
         db,
         "squad",
         entry_id=str(payload.entry_id),
-        gameweek=payload.gameweek,
+        gameweek=effective_gw,
         detail={
             "entry_name": payload.entry_name,
             "players": len(ids),
-            "bank": payload.bank,
+            "bank": bank_pounds,
+            "bank_raw": payload.bank,
             "transfers": payload.transfers,
+            "picks_gw": effective_gw,
+            "captain": saved.captain_id,
+            "updated_at": saved.updated_at.isoformat() if saved.updated_at else None,
         },
     )
     db.commit()
@@ -227,9 +281,11 @@ async def squad_push(payload: SquadPushPayload, db: GetDB) -> dict[str, Any]:
         "ok": True,
         "session_id": str(payload.entry_id),
         "entry_name": payload.entry_name,
-        "gameweek": payload.gameweek,
+        "gameweek": effective_gw,
+        "picks_gw": effective_gw,
         "players": len(saved.player_ids),
         "captain": saved.captain_id,
+        "updated_at": saved.updated_at.isoformat() if saved.updated_at else None,
     }
 
 
@@ -331,6 +387,22 @@ async def track_record(
 async def calibration(db: GetDB) -> dict[str, Any]:
     """Predicted-vs-actual aggregate across the whole ledger."""
     return calibration_snapshot(db)
+
+
+@router.get("/target-gameweek")
+async def target_gameweek(
+    db: GetDB,
+    fallback: int = Query(1, description="Fallback when bootstrap and cache both fail."),
+) -> dict[str, Any]:
+    """Phase 23 (C6): the official-FPL next-deadline gameweek.
+
+    Bootstrap-derived (10-min in-process cache) with the fixtures-cache
+    fallback; used by page headers ("Gameweek 2") to state which gameweek
+    decisions currently apply to.
+    """
+    from fpl_intelligence.sync.gameweek_clock import resolve_target_gameweek
+
+    return {"gameweek": await resolve_target_gameweek(db, fallback=int(fallback))}
 
 
 @router.get("/live-board")

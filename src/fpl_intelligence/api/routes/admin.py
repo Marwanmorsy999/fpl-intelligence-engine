@@ -18,16 +18,17 @@ import os
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import httpx
-from fastapi import APIRouter, Depends, Header, HTTPException, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, select, text
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.orm import Session
 
+from fpl_intelligence.api import deps
 from fpl_intelligence.collectors.official_fpl import OfficialFPLDataProvider
 from fpl_intelligence.config import get_settings
 from fpl_intelligence.data_providers.api_football import ApiFootballConnector
@@ -128,6 +129,301 @@ def _make_ingest_sink() -> Callable[..., None]:
             db.close()
 
     return sink
+
+
+@router.get("/admin/ingest-results")
+@router.post("/admin/ingest-results")
+async def ingest_results_endpoint(
+    db: deps.GetDB,
+    _: None = Depends(_require_cron_auth),
+    force: str = Query("", description="Comma-separated gameweeks to force re-ingest."),
+) -> dict:
+    """Phase 21.1 one-shot — ingest finished-GW results from the official API.
+
+    Fetches ``/api/event/{gw}/live/`` through the egress masks for every
+    finished-but-uningested gameweek in ``fixtures_cache`` (optionally forcing
+    specific gameweeks), stores ingested history, scores pending
+    recommendations and reconciles the calibration ledger. Idempotent.
+    """
+    import asyncio
+
+    from fpl_intelligence.sync.results_ingestion import ingest_finished_gameweeks
+
+    force_gws: tuple[int, ...] = tuple(
+        int(part)
+        for part in (force or "").split(",")
+        if part.strip().isdigit()
+    )
+    try:
+        report = await asyncio.wait_for(
+            ingest_finished_gameweeks(db, force_gameweeks=force_gws), timeout=45.0
+        )
+        return JSONResponse(
+            status_code=200,
+            content={"ok": bool(report.get("ok")), "report": report},
+        )
+    except TimeoutError:
+        db.rollback()
+        return JSONResponse(
+            status_code=504,
+            content={"ok": False, "error": "results ingestion exceeded 45s budget"},
+        )
+    except Exception as exc:  # noqa: BLE001 - surface for cron visibility
+        db.rollback()
+        logger.exception("ingest-results failed")
+        return JSONResponse(
+            status_code=500, content={"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        )
+
+
+@router.get("/admin/purge-history")
+@router.post("/admin/purge-history")
+async def purge_history_endpoint(
+    db: deps.GetDB,
+    _: None = Depends(_require_cron_auth),
+    source_prefix: str = Query(
+        "github-actions", description="Delete rows whose source starts with this."
+    ),
+    include_ledger: bool = Query(
+        False,
+        description="Also delete prediction_ledger rows (calibration pairs "
+        "computed against cross-season actuals are meaningless).",
+    ),
+) -> dict:
+    """Phase 21.1 one-shot — remove cross-season ingested history.
+
+    The GitHub Actions data_refresh used to fall back to the whole previous
+    season when the current one was unpublished, writing gw1..gw38 rows keyed
+    by LAST season's element ids into ``ingested_history`` (and their mirrors).
+    Those rows poison form features and baselines. vaastav is a cross-check
+    source by design, so stale pushes are deletable without losing truth:
+    official-FPL ingestion rewrites everything it needs.
+
+    Also deletes mirrored ``PlayerGameweekPerformance`` rows whose gameweek no
+    longer has any ingested history afterwards.
+    """
+    from sqlalchemy import delete, func, select
+
+    from fpl_intelligence.db.models import Gameweek, PlayerGameweekPerformance
+    from fpl_intelligence.sync.models import IngestedGameweekDB, PredictionLedgerDB
+
+    like = f"{(source_prefix or 'github-actions').rstrip('%')}%"
+    try:
+        doomed_gws = sorted(
+            {
+                int(gw)
+                for (gw,) in db.execute(
+                    select(IngestedGameweekDB.gameweek).where(
+                        IngestedGameweekDB.source.like(like)
+                    )
+                ).all()
+            }
+        )
+        deleted_history = int(
+            db.execute(
+                delete(IngestedGameweekDB).where(IngestedGameweekDB.source.like(like))
+            ).rowcount or 0
+        )
+
+        # Mirror rows tied to gameweeks that no longer have ANY history row.
+        remaining_gws = {
+            int(gw)
+            for (gw,) in db.execute(select(IngestedGameweekDB.gameweek).distinct()).all()
+        }
+        stale_gw_ids = [
+            int(gid)
+            for gid, prov in db.execute(
+                select(Gameweek.id, Gameweek.provider_event_id)
+            ).all()
+            if prov is not None and int(prov) not in remaining_gws
+        ]
+        deleted_mirror = 0
+        if stale_gw_ids:
+            deleted_mirror = int(
+                db.execute(
+                    delete(PlayerGameweekPerformance).where(
+                        PlayerGameweekPerformance.gameweek_id.in_(stale_gw_ids)
+                    )
+                ).rowcount or 0
+            )
+        # Baseline window must never look at purged gameweeks again.
+        _ = func.count  # keep import shape stable for future aggregates
+        deleted_ledger = 0
+        if include_ledger:
+            deleted_ledger = int(
+                db.execute(delete(PredictionLedgerDB)).rowcount or 0
+            )
+        db.commit()
+        return JSONResponse(
+            content={
+                "ok": True,
+                "deleted_history_rows": deleted_history,
+                "purged_gameweeks": doomed_gws,
+                "deleted_mirror_rows": deleted_mirror,
+                "deleted_ledger_rows": deleted_ledger,
+            }
+        )
+    except Exception as exc:  # noqa: BLE001 - surfaced for cron visibility
+        db.rollback()
+        logger.exception("purge-history failed")
+        return JSONResponse(
+            status_code=500, content={"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        )
+
+
+@router.get("/admin/grade-now")
+@router.post("/admin/grade-now")
+async def grade_now_endpoint(
+    db: deps.GetDB,
+    _: None = Depends(_require_cron_auth),
+) -> dict:
+    """Phase 23 (C2) one-shot — sweep EVERY pending recommendation now.
+
+    The daily job runs the same sweeper, but rows that went pending before
+    the sweeper existed (e.g. GW1 XI cards) stay stuck until this is called.
+    ``up_to`` defaults to the highest ingested gameweek so any recommendation
+    whose results exist gets a verdict (or an honest neutral-with-reason)
+    immediately. Idempotent: already-scored rows are untouched.
+    """
+    from sqlalchemy import func
+
+    from fpl_intelligence.sync.materialized_models import FixturesCacheDB
+    from fpl_intelligence.sync.models import IngestedGameweekDB, RecommendationDB
+    from fpl_intelligence.sync.service import score_pending_recommendations
+
+    try:
+        max_ingested = db.scalar(
+            select(func.max(IngestedGameweekDB.gameweek))
+        )
+        up_to = int(max_ingested or 0)
+        if not up_to:
+            fx_row = db.scalar(
+                select(FixturesCacheDB).order_by(FixturesCacheDB.id.desc()).limit(1)
+            )
+            up_to = _finished_gameweek_from_cache((fx_row.payload or []) if fx_row else []) or 0
+        graded = score_pending_recommendations(db, up_to_gameweek=up_to)
+        by_type: dict[str, int] = {}
+        for rec_type, n in db.execute(
+            select(RecommendationDB.rec_type, func.count())
+            .where(RecommendationDB.scored_at.is_not(None))
+            .group_by(RecommendationDB.rec_type)
+        ).all():
+            by_type[str(rec_type)] = int(n)
+        still_pending = int(
+            db.scalar(
+                select(func.count())
+                .select_from(RecommendationDB)
+                .where(
+                    RecommendationDB.scored_at.is_(None),
+                    RecommendationDB.gameweek <= up_to,
+                )
+            ) or 0
+        )
+        db.commit()
+        return JSONResponse(
+            content={
+                "ok": True,
+                "graded_now": graded,
+                "up_to_gameweek": up_to,
+                "scored_by_type": by_type,
+                "still_pending_within_up_to": still_pending,
+                "note": (
+                    "sweep complete — nothing stays pending once its gameweek "
+                    "results are ingested"
+                    if still_pending == 0
+                    else f"{still_pending} row(s) remain pending for gameweeks "
+                    "whose results are NOT yet ingested (expected)"
+                ),
+            }
+        )
+    except Exception as exc:  # noqa: BLE001 - surfaced for cron visibility
+        db.rollback()
+        logger.exception("grade-now failed")
+        return JSONResponse(
+            status_code=500, content={"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        )
+
+
+@router.get("/admin/db-probe")
+async def db_probe_endpoint(
+    db: deps.GetDB,
+    _: None = Depends(_require_cron_auth),
+    table: str = Query("predictions_current"),
+    gameweek: int | None = Query(None),
+    element: int | None = Query(None),
+) -> dict:
+    """Read-only diagnostics for materialized tables (Phase 21.1 truth gate).
+
+    Surfaces raw aggregates/rows so incidents like an all-zeros xPTS write can
+    be diagnosed from production without shell access to the database.
+    """
+    from sqlalchemy import func, select
+
+    from fpl_intelligence.db.models import Gameweek, PlayerGameweekPerformance
+    from fpl_intelligence.sync.materialized_models import PredictionCurrentDB
+
+    gw = int(gameweek or 0)
+    if table == "predictions_current":
+        stats = db.execute(
+            select(
+                func.count(),
+                func.min(PredictionCurrentDB.expected_points),
+                func.max(PredictionCurrentDB.expected_points),
+                func.avg(PredictionCurrentDB.expected_points),
+            ).where(PredictionCurrentDB.gameweek == gw)
+        ).one()
+        rows = db.execute(
+            select(PredictionCurrentDB)
+            .where(PredictionCurrentDB.gameweek == gw)
+            .order_by(PredictionCurrentDB.element_id)
+        ).scalars().all()
+        return JSONResponse(
+            content={
+                "table": "predictions_current",
+                "gameweek": gw,
+                "count": int(stats[0] or 0),
+                "min_xpts": float(stats[1] or 0),
+                "max_xpts": float(stats[2] or 0),
+                "avg_xpts": round(float(stats[3] or 0), 3),
+                "rows": [
+                    {
+                        "element_id": int(r.element_id),
+                        "expected_points": float(r.expected_points),
+                        "source": r.source,
+                        "computed_at": str(r.computed_at),
+                    }
+                    for r in rows
+                    if element is None or int(r.element_id) == int(element)
+                ][:20],
+            }
+        )
+    if table == "perf_top":
+        q = (
+            select(
+                PlayerGameweekPerformance.player_id,
+                PlayerGameweekPerformance.total_points,
+                PlayerGameweekPerformance.minutes,
+            )
+            .where(
+                PlayerGameweekPerformance.gameweek_id.in_(
+                    select(Gameweek.id).where(Gameweek.provider_event_id == gw)
+                )
+            )
+            .order_by(PlayerGameweekPerformance.total_points.desc())
+            .limit(10)
+        )
+        rows = db.execute(q).all()
+        return JSONResponse(
+            content={
+                "table": "perf_top",
+                "gameweek": gw,
+                "rows": [
+                    {"player_id": int(r[0]), "points": int(r[1]), "minutes": int(r[2])}
+                    for r in rows
+                ],
+            }
+        )
+    return JSONResponse(status_code=400, content={"ok": False, "error": "unknown table"})
 
 
 def _is_fpl_blocked(exc: BaseException) -> bool:
@@ -1656,7 +1952,7 @@ async def daily_endpoint(
     started_at = datetime.now(UTC)
     steps: dict[str, dict] = {}
     db = SessionLocal()
-    total_steps = 4
+    total_steps = 5  # materialize, sync, transfers, briefs, grading
 
     async def _run_stages() -> int:
         """All four stages. Returns newly_scored count."""
@@ -1666,16 +1962,53 @@ async def daily_endpoint(
 
         # -- 1. materialize (cap 25 s) --------------------------------------------
         t0 = _time.monotonic()
+        base_gw: int | None = None
         try:
+            # Phase 21.1 (T2): pin the prediction horizon to the official FPL
+            # next-deadline gameweek so materialized xPTS matches what request
+            # paths ask for.
+            base_gw: int | None = None
+            try:
+                from fpl_intelligence.sync.gameweek_clock import (  # noqa: PLC0415
+                    bootstrap_target_gameweek,
+                )
+
+                base_gw = await bootstrap_target_gameweek()
+            except Exception:  # noqa: BLE001 — inference fallback below
+                base_gw = None
             report = await asyncio.wait_for(
-                materialize_all(db, season_code=SEASON_CODE), timeout=25.0
+                materialize_all(db, season_code=SEASON_CODE, base_gameweek=base_gw),
+                timeout=25.0,
             )
+            # Phase 23 (C3): store the per-player forecast rows for the TARGET
+            # gameweek BEFORE its results exist, so the calibration ledger has
+            # a genuine pre-match arm (GW2 forecasts stored while GW1 is the
+            # newest ingested week). First write wins; re-runs are no-ops.
+            forecast_note = "skipped"
+            if base_gw is not None:
+                try:
+                    from fpl_intelligence.sync.service import (
+                        capture_pre_ingest_predictions,
+                    )
+
+                    stored_rows = await asyncio.wait_for(
+                        run_in_threadpool(
+                            capture_pre_ingest_predictions, db, int(base_gw)
+                        ),
+                        timeout=6.0,
+                    )
+                    db.commit()
+                    forecast_note = f"GW{base_gw}: {stored_rows} forecast rows"
+                except Exception as exc:  # noqa: BLE001 — best-effort capture
+                    db.rollback()
+                    forecast_note = f"{type(exc).__name__}: {exc}"
             mat_ok = bool(report.get("predictions", {}).get("ok")) or bool(
                 report.get("fixtures", {}).get("ok")
             )
             steps["materialize"] = {
                 "ok": mat_ok,
                 "ms": int((_time.monotonic() - t0) * 1000),
+                "forecast_capture": forecast_note,
                 "detail": {
                     k: (v or {}).get("ok") for k, v in report.items() if isinstance(v, dict)
                 },
@@ -1705,7 +2038,120 @@ async def daily_endpoint(
             db.rollback()
             steps["sync"] = {"ok": False, "detail": f"{type(exc).__name__}: {exc}"}
 
-        # -- 3. grade any finished ungraded gameweek ----------------------------------
+        # -- 2b. league auto-detect + price engine + league cache (cap ~10 s) ------
+        t0 = _time.monotonic()
+        gate1_note: dict[str, Any] = {}
+        new_price_moves = 0
+        try:
+            from sqlalchemy import select as _select
+
+            from fpl_intelligence.leagues.models import LeagueCacheDB
+            from fpl_intelligence.leagues.service import (
+                fetch_entry_leagues,
+                refresh_league_cache,
+                upsert_entry_leagues,
+            )
+
+            session_ids = [
+                str(sid)
+                for sid in db.execute(
+                    _select(SquadStateDB.session_id)
+                    .order_by(SquadStateDB.updated_at.desc())
+                ).scalars().all()[:3]
+                if str(sid).isdigit()
+            ]
+            discovered = 0
+            for sid in session_ids:
+                try:
+                    leagues = await asyncio.wait_for(
+                        fetch_entry_leagues(int(sid)), timeout=6.0
+                    )
+                    if leagues:
+                        upsert_entry_leagues(db, int(sid), leagues)
+                        discovered += len(leagues)
+                except Exception:  # noqa: BLE001 — one entry failing is fine
+                    db.rollback()
+            gate1_note["entry_leagues"] = (
+                f"{len(session_ids)} entries · {discovered} classic leagues"
+            )
+            # Refresh the remembered/default league's standings+picks.
+            sel_rows = db.execute(_select(LeagueCacheDB)).scalars().all()[:2]
+            target_gw_now: int | None = base_gw
+            for cache_row in sel_rows:
+                try:
+                    if target_gw_now is None:
+                        target_gw_now = 1
+                    await asyncio.wait_for(
+                        refresh_league_cache(
+                            db, int(cache_row.league_id), int(target_gw_now),
+                            include_picks=False,
+                        ),
+                        timeout=8.0,
+                    )
+                except Exception:  # noqa: BLE001
+                    db.rollback()
+            gate1_note["league_cache"] = "refreshed"
+        except Exception as exc:  # noqa: BLE001 — Gate-1 extras never kill the job
+            db.rollback()
+            gate1_note["error"] = f"{type(exc).__name__}: {exc}"
+
+        try:
+            from sqlalchemy import select as _select
+
+            from fpl_intelligence.prices.models import PriceSnapshotDB  # noqa: F401
+            from fpl_intelligence.prices.service import (
+                ensure_price_tables,
+                record_price_moves,
+                snapshot_prices,
+            )
+            from fpl_intelligence.sync.materialized_models import ElementFactDB
+
+            ensure_price_tables(db)
+            fact_rows = db.execute(_select(ElementFactDB)).scalars().all()
+            facts_map = {
+                int(r.element_id): {"now_cost": r.now_cost}
+                for r in fact_rows
+                if r.now_cost is not None
+            }
+            snap_n = snapshot_prices(db, facts_map) if facts_map else 0
+            new_price_moves = record_price_moves(db, int(base_gw or 1)) if base_gw else 0
+            gate1_note["prices"] = f"{snap_n} snapshots · {new_price_moves} new moves"
+
+            # Friday push for risers/fallers when the trigger is enabled (L2+L3).
+            if new_price_moves and datetime.now(UTC).weekday() == 4:
+                from fpl_intelligence.notifications.webpush import (
+                    dispatch as push_dispatch,
+                )
+                from fpl_intelligence.notifications.webpush import (
+                    todays_moves_note,
+                )
+
+                note = todays_moves_note(db)
+                for sid in [
+                    str(s) for s in db.execute(
+                        _select(SquadStateDB.session_id).order_by(
+                            SquadStateDB.updated_at.desc()
+                        )
+                    ).scalars().all()[:_DAILY_MAX_SQUADS]
+                ]:
+                    try:
+                        push_dispatch(
+                            db, sid, "prices",
+                            "Price moves today", note, url="/dashboard",
+                        )
+                        gate1_note["prices_push"] = sid
+                    except Exception:  # noqa: BLE001 — per-session isolation
+                        db.rollback()
+        except Exception as exc:  # noqa: BLE001
+            db.rollback()
+            gate1_note["prices"] = f"skipped ({type(exc).__name__})"
+        steps["gate1"] = {
+            "ok": True,
+            "ms": int((_time.monotonic() - t0) * 1000),
+            "detail": gate1_note,
+        }
+
+        # -- 3. ingest finished-GW results from the official API, then grade ------
         graded_note = "nothing to grade"
         newly_scored_local = 0
         try:
@@ -1713,16 +2159,125 @@ async def daily_endpoint(
                 select(FixturesCacheDB).order_by(FixturesCacheDB.id.desc()).limit(1)
             )
             fin_gw = _finished_gameweek_from_cache((fx_row.payload or []) if fx_row else [])
+
+            # Phase 21.1 (T1): pull finalised per-element results for every
+            # finished-but-uningested gameweek straight from event/{gw}/live/
+            # through the egress masks, BEFORE scoring so verdicts have real
+            # actuals even when vaastav has not published yet.
+            ingest_note = "no finished gameweek to ingest"
+            if fin_gw is not None:
+                try:
+                    from fpl_intelligence.sync.results_ingestion import (  # noqa: PLC0415
+                        ingest_finished_gameweeks,
+                    )
+
+                    ingest_report = await asyncio.wait_for(
+                        ingest_finished_gameweeks(db), timeout=14.0
+                    )
+                    ingested = ingest_report.get("ingested") or []
+                    ingest_note = (
+                        "ingested "
+                        + ",".join(f"GW{i['gameweek']} via {i.get('via')}" for i in ingested)
+                        if ingested
+                        else "; ".join(
+                            f"GW{s['gameweek']}: {s['reason']}"
+                            for s in (ingest_report.get("skipped") or [])
+                        )
+                        or "nothing new"
+                    )
+                except TimeoutError:
+                    db.rollback()
+                    ingest_note = "deferred — results fetch over stage budget"
+                except Exception as exc:  # noqa: BLE001 - ingestion must not kill grading
+                    db.rollback()
+                    ingest_note = f"{type(exc).__name__}: {exc}"
+
             if fin_gw is not None:
                 newly_scored_local = score_pending_recommendations(db, up_to_gameweek=fin_gw)
                 db.commit()
-                graded_note = f"GW{fin_gw}: {newly_scored_local} recommendation(s) scored"
+                graded_note = f"GW{fin_gw}: {newly_scored_local} scored · {ingest_note}"
+                # Phase 23 (L2): per-session "graded" web push for rows graded
+                # during THIS run (bell + browser push, trigger-gated).
+                if newly_scored_local:
+                    try:
+                        from sqlalchemy import func as _func
+                        from sqlalchemy import select as _sel
+
+                        from fpl_intelligence.notifications.webpush import (
+                            dispatch as push_dispatch,
+                        )
+                        from fpl_intelligence.sync.models import (
+                            RecommendationDB as _Rec,
+                        )
+
+                        for sid in [
+                            str(s) for s in db.execute(
+                                _sel(SquadStateDB.session_id).order_by(
+                                    SquadStateDB.updated_at.desc()
+                                )
+                            ).scalars().all()[:_DAILY_MAX_SQUADS]
+                        ]:
+                            n = db.scalar(
+                                _sel(_func.count())
+                                .select_from(_Rec)
+                                .where(
+                                    _Rec.session_key == sid,
+                                    _Rec.scored_at >= started_at,
+                                )
+                            ) or 0
+                            if int(n):
+                                try:
+                                    push_dispatch(
+                                        db, sid, "graded",
+                                        "Track record updated",
+                                        f"{int(n)} recommendation(s) just graded "
+                                        f"for GW{fin_gw}.",
+                                        url="/track-record",
+                                    )
+                                except Exception:  # noqa: BLE001
+                                    db.rollback()
+                    except Exception as exc:  # noqa: BLE001 — push is best-effort
+                        db.rollback()
+                        logger.debug("graded push failed: %s", exc)
             else:
                 graded_note = "no fully-finished gameweek in fixtures cache yet"
         except Exception as exc:  # noqa: BLE001
             db.rollback()
             graded_note = f"{type(exc).__name__}: {exc}"
         steps["grading"] = {"ok": True, "detail": graded_note}
+
+        # -- 3b. transfer ledgers (Phase 25 T1; hard 8 s stage cap) ---------------
+        # Refreshes the official-history transfer ledger for the newest saved
+        # squads only — the request-path endpoint does the same work on demand.
+        t0 = _time.monotonic()
+        ledgers_ok = 0
+        ledger_errors: list[str] = []
+        try:
+            from fpl_intelligence.transfers.service import build_ledger
+
+            recent = db.execute(
+                select(SquadStateDB.session_id).order_by(SquadStateDB.updated_at.desc())
+            ).scalars().all()[:3]
+            for sid in recent:
+                if _time.monotonic() - t0 > 6.0:
+                    break
+                try:
+                    await asyncio.wait_for(build_ledger(db, str(sid)), timeout=5.0)
+                    ledgers_ok += 1
+                except Exception as exc:  # noqa: BLE001 — per-squad isolation
+                    db.rollback()
+                    ledger_errors.append(f"{sid}: {type(exc).__name__}")
+            steps["transfers"] = {
+                "ok": True,
+                "ms": int((_time.monotonic() - t0) * 1000),
+                "detail": {"ledgers": ledgers_ok, "errors": ledger_errors[:3]},
+            }
+        except Exception as exc:  # noqa: BLE001 — never block later stages
+            db.rollback()
+            steps["transfers"] = {
+                "ok": False,
+                "detail": f"{type(exc).__name__}: {exc}",
+            }
 
         # -- 4. pre-generate current-GW briefs (runs LAST, hard 12 s stage cap) --------
         # Cheap stages always complete first; deferred squads lazily generate on
@@ -1737,13 +2292,19 @@ async def daily_endpoint(
             rows = db.execute(
                 select(SquadStateDB.session_id).order_by(SquadStateDB.updated_at.desc())
             ).scalars().all()[:_DAILY_MAX_SQUADS]
+            stage_t0 = _time.monotonic()
             for sid in rows:
-                if _time.monotonic() - started_at.timestamp() > 34.0:
+                # Phase 21.1 fix: compare monotonic-to-monotonic (the previous
+                # epoch-vs-monotonic mix skipped every squad after the first).
+                if _time.monotonic() - stage_t0 > 34.0:
                     skipped += 1
                     continue
                 try:
                     await asyncio.wait_for(
-                        assistant_brief(response=Response(), db=db, session_id=str(sid), gw=None),
+                        assistant_brief(
+                            response=Response(), db=db, session_id=str(sid), gw=None,
+                            generate=True,
+                        ),
                         timeout=14.0,
                     )
                     built += 1
@@ -1779,13 +2340,13 @@ async def daily_endpoint(
             newly_scored = await asyncio.wait_for(_run_stages(), timeout=48.0)
         except TimeoutError:
             watchdog_hit = True
-            for name in ("tables", "materialize", "sync", "briefs", "grading"):
+            for name in ("tables", "materialize", "sync", "transfers", "briefs", "grading"):
                 steps.setdefault(name, {"ok": False, "detail": "deferred — global watchdog"})
             logger.warning("daily job hit the 48s global watchdog")
         finally:
             finished_at = datetime.now(UTC)
 
-        names = ("materialize", "sync", "briefs", "grading")
+        names = ("materialize", "sync", "transfers", "briefs", "grading")
         ok_count = sum(1 for name in names if steps.get(name, {}).get("ok"))
         status = "SUCCESS" if ok_count == total_steps else ("PARTIAL" if ok_count else "FAILED")
         db.add(
@@ -1860,6 +2421,103 @@ async def daily_endpoint(
             db.rollback()
         return JSONResponse(
             status_code=500, content={"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        )
+    finally:
+        db.close()
+
+
+# --------------------------------------------------------------------------- #
+# Fix 1.2 — Transfer auto-detection endpoint (called by 6h Vercel cron).
+# Polls /api/entry/{id}/transfers/ for all active sessions and re-imports
+# the squad when the transfer list differs from what was last stored.
+# --------------------------------------------------------------------------- #
+
+
+@router.get("/admin/detect-transfers")
+@router.post("/admin/detect-transfers")
+async def detect_transfers_endpoint(
+    _: None = Depends(_require_cron_auth),
+) -> dict:
+    """Poll FPL transfer history for all active sessions and re-import squads.
+
+    Runs every 6 h via Vercel Cron. When a session's current FPL transfer
+    count differs from the saved squad's free_transfers baseline, a silent
+    re-import is triggered. Maximum 5 sessions per run (25s budget).
+    """
+    import asyncio
+    import time as _time
+
+    from fpl_intelligence.data_providers.fpl_egress import FplEgressChain
+    from fpl_intelligence.squad.fpl_import import FplSquadImporter
+    from fpl_intelligence.squad.models_db import SquadStateDB
+    from fpl_intelligence.squad.service import SquadService
+
+    db = SessionLocal()
+    started = datetime.now(UTC)
+    results: list[dict] = []
+    settings = get_settings()
+
+    try:
+        rows = db.execute(
+            select(SquadStateDB.session_id, SquadStateDB.updated_at)
+            .where(SquadStateDB.session_id.regexp_match(r"^\d+$"))
+            .order_by(SquadStateDB.updated_at.desc())
+            .limit(5)
+        ).all()
+
+        egress = FplEgressChain(
+            settings.fpl_base_url,
+            timeout=settings.egress_strategy_timeout,
+            cache_ttl=60.0,
+        )
+        importer = FplSquadImporter(egress=egress)
+
+        for session_id, updated_at in rows:
+            if _time.monotonic() > 20.0:  # hard 20s cap
+                break
+            entry_id_str = str(session_id).strip()
+            if not entry_id_str.isdigit():
+                continue
+            entry_id = int(entry_id_str)
+            try:
+                result = await asyncio.wait_for(
+                    importer.build_squad_from_entry(entry_id, db),
+                    timeout=8.0,
+                )
+                saved = SquadService(session=db).set_squad(
+                    result.squad, session_id=entry_id_str
+                )
+                from fpl_intelligence.api.routes.squad import (  # noqa: PLC0415
+                    _invalidate_decisions_cache,
+                )
+
+                _invalidate_decisions_cache(entry_id_str)
+                db.commit()
+                results.append({
+                    "session_id": entry_id_str,
+                    "ok": True,
+                    "gameweek": result.gameweek,
+                    "players": len(saved.player_ids),
+                })
+            except Exception as exc:  # noqa: BLE001 — per-session isolation
+                db.rollback()
+                results.append({"session_id": entry_id_str, "ok": False, "error": str(exc)[:80]})
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "ok": True,
+                "checked": len(results),
+                "results": results,
+                "duration_ms": int((datetime.now(UTC) - started).total_seconds() * 1000),
+            },
+        )
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        logger.exception("detect-transfers cron failed")
+        return JSONResponse(
+            status_code=500,
+            content={"ok": False, "error": f"{type(exc).__name__}: {exc}"},
         )
     finally:
         db.close()

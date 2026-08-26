@@ -1,21 +1,21 @@
 """Phase 18.0 — AI Analyst summary endpoint.
 
-Produces a 3-5 sentence plain-English summary of the week's decisions
-(captain logic, transfer stance, risk flags). When at least one real LLM key
-is configured (GROQ/OPENROUTER/GEMINI) the summary is produced by the real
-provider chain in that priority order; the card labels the model that answered.
-Falls back to a deterministic template ONLY on a real failure (all providers
-exhausted) — never just because keys exist.
+Phase 21.1 rework: this is a READER. The daily cron pre-generates each
+squad's brief; the Decisions card serves that cached text (or the personal
+deterministic template instantly on a miss). No LLM call happens on-request,
+so the card can never spin longer than the round-trip.
+
+The provider-construction helpers stay exported because the assistant route
+(allowed to generate inside the cron window) and the provider audit tests
+build on them.
 """
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response
-from fastapi.concurrency import run_in_threadpool
 
 from fpl_intelligence.api import deps
 from fpl_intelligence.live_intelligence.llm_settings import (
@@ -23,7 +23,6 @@ from fpl_intelligence.live_intelligence.llm_settings import (
     load_llm_settings,
 )
 from fpl_intelligence.live_intelligence.mock_llm import MockLLMProvider
-from fpl_intelligence.live_intelligence.prompts import ANALYST_SUMMARY, LLMPrompt
 
 router = APIRouter()
 
@@ -123,81 +122,6 @@ def _captain_name(report: dict[str, Any]) -> str:
     return "No captain"
 
 
-def _unwrap_summary_text(text: str) -> str:
-    """Unwrap a JSON envelope some models add around the requested prose.
-
-    If the model answered with ``{"summary": "..."}`` (optionally fenced),
-    surface the inner string; otherwise return the text unchanged.
-    """
-    stripped = text.strip()
-    if stripped.startswith("```"):
-        stripped = stripped.strip("`").lstrip()
-        if stripped.lower().startswith("json"):
-            stripped = stripped[4:].lstrip()
-    if not (stripped.startswith("{") and stripped.endswith("}")):
-        return text.strip()
-    try:
-        parsed = json.loads(stripped)
-    except json.JSONDecodeError:
-        return text.strip()
-    inner = parsed.get("summary") if isinstance(parsed, dict) else None
-    if isinstance(inner, str) and inner.strip():
-        return inner.strip()
-    return text.strip()
-
-
-def _build_prompt(report: dict[str, Any]) -> LLMPrompt:
-    """Render the registered analyst template with this report's facts."""
-    return ANALYST_SUMMARY.render(
-        context={"gameweek": report.get("gameweek")},
-        raw_text=_render_report_text(report),
-    )
-
-
-def _render_report_text(report: dict[str, Any]) -> str:
-    """Render the decision report as the prompt's user text."""
-    captain = report.get("captain") or {}
-    transfers = report.get("transfer_plan") or {}
-    chain = (report.get("meta") or {}).get("chain") or {}
-    players = report.get("players") or {}
-
-    c_name = _captain_name(report)
-    c_pts = captain.get("expected_points")
-    c_reason = captain.get("main_reason", "")
-    c_risk = captain.get("main_risk", "")
-    c_alts = captain.get("alternatives", [])[:2]
-
-    transfer_action = transfers.get("action_type", "roll")
-    transfer_reason = transfers.get("main_reason", "")
-
-    source = chain.get("source_label", "prediction engine")
-    quality = chain.get("data_quality", "")
-
-    lines = [
-        f"Captain: {c_name} (xPTS {c_pts:.1f})" if c_pts is not None else f"Captain: {c_name}",
-        f"Captain reason: {c_reason}" if c_reason else "",
-        f"Captain risk: {c_risk}" if c_risk else "",
-    ]
-    if c_alts:
-        for alt in c_alts:
-            ap = players.get(str(alt.get("player_id", "")), {})
-            aname = ap.get("web_name", f"Player {alt.get('player_id')}")
-            margin = alt.get("margin", 0)
-            xpts = alt.get("expected_points", 0)
-            lines.append(f"Alternative: {aname} (xPTS {xpts:.1f}, margin -{margin:.2f})")
-
-    lines.append(
-        f"Transfer stance: {transfer_action} — {transfer_reason}"
-        if transfer_reason
-        else f"Transfer stance: {transfer_action}"
-    )
-    lines.append(
-        f"Prediction source: {source} ({quality})" if quality else f"Prediction source: {source}"
-    )
-
-    return "\n".join(lines)
-
-
 @router.get("/analyst/summary")
 async def analyst_summary(
     request: Request,
@@ -207,22 +131,34 @@ async def analyst_summary(
 ) -> dict[str, Any]:
     """Return a plain-English summary of the squad's week-ahead decisions.
 
-    Uses a real LLM chain (GROQ -> OPENROUTER -> GEMINI) whenever any key is
-    configured; template fallback only on a real failure. ``model`` discloses
-    which provider/model actually produced the text.
+    Phase 21.1 (T3): this endpoint is a READER. It serves the pre-generated
+    daily brief (TL;DR + section extract) when one exists and otherwise falls
+    back to the deterministic personal template instantly. No LLM call ever
+    happens on-request, so the Decisions card never spins longer than the
+    round-trip.
     """
     if not session_id:
         raise HTTPException(status_code=404, detail="No squad saved for this session")
 
+    from fpl_intelligence.api.routes.assistant import load_pregenerated_brief
     from fpl_intelligence.api.routes.squad import (  # noqa: PLC0415
         _resolve_chain_meta,
     )
     from fpl_intelligence.squad.bridge import DecisionOptimizerBridge
     from fpl_intelligence.squad.service import SquadService
+    from fpl_intelligence.sync.gameweek_clock import resolve_target_gameweek  # noqa: PLC0415
 
     squad = SquadService(session=db).get_squad(session_id=session_id)
     if squad is None:
         raise HTTPException(status_code=404, detail="No squad saved for this session")
+    gameweek = await resolve_target_gameweek(db, fallback=int(squad.gameweek))
+
+    # --- preferred path: the cron's pre-generated brief -----------------------
+    brief = load_pregenerated_brief(db, session_id, gameweek)
+    if brief is None:
+        # Fall back to the newest stored brief even when its gameweek differs —
+        # an honest slightly-stale analyst note beats a generic template.
+        brief = load_pregenerated_brief(db, session_id)
 
     bridge = DecisionOptimizerBridge(provider=deps.get_prediction_provider(db))
     report = bridge.generate_decisions(squad)
@@ -231,40 +167,63 @@ async def analyst_summary(
         report.meta["chain"] = chain_meta
 
     report_dict = report.model_dump()
+    template_summary = _template_summary(report_dict)
 
-    # P3/E5: use a real LLM when any key exists; template fallback ONLY on a
-    # real failure. The card always labels the model/chain that answered.
-    llm = _build_real_provider()
-
-    if isinstance(llm, MockLLMProvider):
-        summary = _template_summary(report_dict)
-        model = "template-fallback"
-    else:
-        prompt = _build_prompt(report_dict)
-        try:
-            raw = await run_in_threadpool(llm.complete, prompt)
-            if raw and raw.text and raw.text.strip():
-                summary = _unwrap_summary_text(raw.text)
-            else:
-                summary = _template_summary(report_dict)
-            # Label from the provider that ACTUALLY answered (fallback-aware).
-            resp_provider = getattr(raw, "provider_name", None)
-            resp_model = getattr(raw, "model_name", None)
-            if resp_provider and resp_model:
-                model = f"{resp_provider}/{resp_model}"
-            else:
-                model = _resolve_model_label(llm) or "llm"
-        except Exception as exc:  # noqa: BLE001 - never fail the endpoint
-            logger.warning("Analyst LLM failed (%s); using template.", exc)
-            summary = _template_summary(report_dict)
-            model = "template-fallback"
+    if brief:
+        summary = _summary_from_brief(brief) or template_summary
+        model = brief.get("model") or "pre-generated"
+        generated_at = brief.get("generated_at")
+        source_label = f"pre-generated{f' · {model}' if model and model != 'pre-generated' else ''}"
+        return {
+            "summary": summary,
+            "model": source_label,
+            "session_id": session_id,
+            "gameweek": int(brief.get("gameweek") or report.gameweek),
+            "cached": True,
+            "generated_at": generated_at,
+        }
 
     return {
-        "summary": summary,
-        "model": model,
+        "summary": template_summary,
+        "model": "template-fallback",
         "session_id": session_id,
         "gameweek": report.gameweek,
+        "cached": False,
+        "generated_at": None,
     }
+
+
+def _summary_from_brief(brief: dict[str, Any]) -> str | None:
+    """Compose the analyst paragraph out of the persisted brief.
+
+    Prefers the TL;DR action lines; appends the captain section body trimmed
+    to keep the card readable. Returns ``None`` when the brief carries nothing
+    usable so callers fall back to the live template.
+    """
+    actions = [
+        str(action.get("text", "")).strip()
+        for action in (brief.get("tldr") or [])
+        if isinstance(action, dict)
+    ]
+    actions = [a for a in actions if a]
+    sections = brief.get("sections") or {}
+    captain_body = ""
+    for key in ("CAPTAIN", "captain"):
+        body = sections.get(key)
+        if isinstance(body, str) and body.strip():
+            captain_body = body.strip()
+            break
+    parts: list[str] = []
+    if actions:
+        parts.append(" ".join(actions))
+    if captain_body:
+        trimmed = captain_body if len(captain_body) <= 400 else captain_body[:397] + "…"
+        parts.append(trimmed)
+    if not parts:
+        return None
+    gw = brief.get("gameweek")
+    prefix = f"GW{gw}: " if gw else ""
+    return prefix + " ".join(parts)
 
 
 def _resolve_model_label(provider: Any) -> str | None:

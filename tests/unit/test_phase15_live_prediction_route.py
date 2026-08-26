@@ -86,6 +86,10 @@ def _seed_baseline_history(db: Session) -> None:
         db.add(
             Player(
                 id=pid,
+                # Phase 21.1: the baseline level now keys by OFFICIAL element
+                # id (like every other level), so these legacy-style rows must
+                # carry their fpl_element_id for the identity mapping to hold.
+                fpl_element_id=pid,
                 first_name=f"First{pid}",
                 second_name=f"Last{pid}",
                 web_name=f"P{pid}",

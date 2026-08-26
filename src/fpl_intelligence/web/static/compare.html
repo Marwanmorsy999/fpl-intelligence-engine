@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Compare — FPL Intelligence</title>
+<link rel="icon" href="data:,">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#0f172a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/tokens.css">
+<link rel="stylesheet" href="/static/components.css">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/app.js"></script>
+<style>
+  html, body { overflow-x: hidden; }
+  .compare-lead { margin-top: 0; }
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+  @media(max-width:640px){.compare-grid{grid-template-columns:1fr}}
+  .compare-card{position:relative}
+  .autocomplete-wrap{position:relative}
+  .autocomplete-list{position:absolute;z-index:50;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:#0b1526;border:1px solid #334155;border-radius:10px;margin-top:4px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+  .autocomplete-list[hidden]{display:none !important}
+  .autocomplete-item{padding:.5rem .8rem;cursor:pointer;font-size:.85rem;color:#e2e8f0;border-bottom:1px solid #1e293b;display:flex;justify-content:space-between;align-items:center;min-height:44px}
+  .autocomplete-item:last-child{border-bottom:none}
+  .autocomplete-item:hover,.autocomplete-item.active{background:#16233c}
+  .compare-controls { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin: var(--space-4) 0; }
+  @media(max-width:640px){ .compare-controls{ grid-template-columns:1fr; } }
+  .compare-actions { display: flex; gap: var(--space-2); margin-bottom: var(--space-3); flex-wrap: wrap; align-items: center; }
+  .compare-actions .btn-ghost { min-height: 48px; }
+  .diff-wrap { margin-top: var(--space-3); }
+  .diff-wrap table.data { min-width: 520px; }
+  .compare-status { margin-top: var(--space-2); }
+</style>
+</head>
+<body>
+<div id="topnav"></div>
+<div class="wrap">
+  <h1 class="page-title">Head-to-head compare</h1>
+  <p class="muted small compare-lead">Two autocomplete dropdowns (search by name/team/pos). Side-by-side cards, diff highlights, share &amp; export.</p>
+
+  <div class="compare-controls">
+    <div class="autocomplete-wrap">
+      <label class="small muted" for="playerAInput"><strong>Player A</strong></label>
+      <input id="playerAInput" class="input" placeholder="Search name / team / pos…" autocomplete="off" data-testid="compare-a-input">
+      <div id="playerAList" class="autocomplete-list" hidden data-testid="compare-a-list"></div>
+    </div>
+    <div class="autocomplete-wrap">
+      <label class="small muted" for="playerBInput"><strong>Player B</strong></label>
+      <input id="playerBInput" class="input" placeholder="Search name / team / pos…" autocomplete="off" data-testid="compare-b-input">
+      <div id="playerBList" class="autocomplete-list" hidden data-testid="compare-b-list"></div>
+    </div>
+  </div>
+
+  <div class="compare-actions">
+    <button id="shareBtn" class="btn-ghost" type="button" data-testid="compare-share-btn">🔗 Share comparison</button>
+    <button id="exportBtn" class="btn-ghost" type="button" data-testid="compare-export-btn">⬇ Export .txt</button>
+    <span id="shareStatus" class="faint small"></span>
+  </div>
+
+  <div id="compareGrid" class="compare-grid"></div>
+  <div id="diffBox" class="card diff-wrap" hidden data-testid="compare-diff"></div>
+  <div id="statusLine" class="muted small compare-status"></div>
+</div>
+<script>
+"use strict";
+document.addEventListener("DOMContentLoaded", function () {
+  FPLApp.renderNav("/compare");
+  var $ = function (id) { return document.getElementById(id); };
+  var ALL_PLAYERS = [];
+  var selectedA = null, selectedB = null;
+  var POS_NAMES = {1:"GK",2:"DEF",3:"MID",4:"FWD"};
+  var LAST_RESP = null;
+
+  function esc(s){ return FPLApp.esc(s); }
+
+  function filterPlayers(q){
+    var s = q.toLowerCase().trim();
+    if (s.length < 1) return [];
+    return ALL_PLAYERS.filter(function(p){
+      var teamShort = p.team ? ("t"+p.team) : "";
+      var posStr = POS_NAMES[p.position] || "";
+      var priceStr = (p.price != null) ? (p.price.toFixed(1)+"m") : "";
+      return (p.web_name && p.web_name.toLowerCase().indexOf(s)!==-1) ||
+             (teamShort.indexOf(s)!==-1) ||
+             (posStr.toLowerCase().indexOf(s)!==-1) ||
+             (priceStr.indexOf(s)!==-1);
+    }).slice(0, 12);
+  }
+  function itemHTML(p){
+    var canonical = (p.fpl_element_id != null) ? p.fpl_element_id : p.id;
+    return '<div class="autocomplete-item" data-id="'+canonical+'" data-name="'+esc(p.web_name)+'"><span>'+esc(p.web_name)+' <span class="pos-badge">'+ (POS_NAMES[p.position]||"")+'</span></span><span class="team-short">T'+(p.team||"?")+' · £'+(p.price!=null?p.price.toFixed(1):"—")+'</span></div>';
+  }
+  function wire(inputEl, listEl, onPick){
+    inputEl.addEventListener("input", function(){
+      var res = filterPlayers(inputEl.value);
+      if (!res.length){ listEl.innerHTML='<div class="autocomplete-item">No matches</div>'; listEl.hidden=false; return; }
+      listEl.innerHTML = res.map(itemHTML).join("");
+      listEl.hidden=false;
+      listEl.querySelectorAll(".autocomplete-item[data-id]").forEach(function(el){
+        el.addEventListener("click", function(){
+          var pid = parseInt(el.getAttribute("data-id"),10);
+          var player = ALL_PLAYERS.find(function(p){ return (p.fpl_element_id!=null?p.fpl_element_id:p.id)===pid; });
+          inputEl.value = el.getAttribute("data-name");
+          listEl.hidden=true;
+          onPick(player, pid);
+        });
+      });
+    });
+    inputEl.addEventListener("blur", function(){ setTimeout(function(){ listEl.hidden=true; },150); });
+    inputEl.addEventListener("focus", function(){ if(inputEl.value.length>=1) inputEl.dispatchEvent(new Event("input")); });
+    inputEl.addEventListener("keydown", function(e){
+      if(e.key==="Enter"){
+        var first = listEl.querySelector(".autocomplete-item[data-id]");
+        if(first) first.click();
+      }
+    });
+  }
+
+  function loadPlayers(){
+    return fetch("/api/v1/players").then(function(r){ return r.ok ? r.json() : []; }).then(function(arr){
+      ALL_PLAYERS = arr;
+    }).catch(function(){ ALL_PLAYERS=[]; });
+  }
+
+  function fetchCompare(){
+    if (!selectedA || !selectedB) return;
+    var sess = FPLApp.session.read();
+    var qs = "?player_a="+encodeURIComponent(selectedA) + "&player_b="+encodeURIComponent(selectedB);
+    if (sess && sess.key) qs += "&session_id="+encodeURIComponent(sess.key);
+    $("statusLine").textContent = "Loading comparison…";
+    fetch("/api/v1/compare"+qs).then(function(r){
+      if(!r.ok) throw new Error("Compare failed ("+r.status+")");
+      return r.json();
+    }).then(function(data){
+      LAST_RESP = data;
+      renderCompare(data);
+      $("statusLine").textContent = "";
+    }).catch(function(err){
+      $("statusLine").textContent = err.message;
+    });
+  }
+
+  function renderCompare(data){
+    var a = data.player_a || {}, b = data.player_b || {};
+    function setPieceChips(p){
+      if(!p.set_pieces) return "";
+      var chips=[];
+      if(p.set_pieces.penalty) chips.push('<span class="setpiece-chip">🥅 Penalty taker</span>');
+      if(p.set_pieces.corners) chips.push('<span class="setpiece-chip">🚩 Corner taker</span>');
+      if(p.set_pieces.free_kicks) chips.push('<span class="setpiece-chip">🎯 Free-kick taker</span>');
+      if(!chips.length && p.set_pieces.unknown) chips.push('<span class="setpiece-chip">unknown set pieces</span>');
+      return chips.join("");
+    }
+    function formBars(bars){
+      if(!bars || !bars.length) return '<p class="faint small">No form yet</p>';
+      var max = Math.max.apply(null, bars.map(function(x){return x.points||0;}).concat([2]));
+      var barsH = '<div class="form-bars">' + bars.map(function(b){
+        var h = Math.max(((b.points||0)/max)*100, 8);
+        return '<div class="form-bar-wrap"><div class="form-bar" style="height:'+h+'%"><span>'+(b.points!=null?b.points:"-")+"</span></div></div>";
+      }).join("")+"</div>";
+      var labels = '<div class="form-bar-labels">' + bars.map(function(b){ return '<span>GW'+(b.gw||"?")+"</span>"; }).join("")+"</div>";
+      return barsH+labels;
+    }
+    function card(p){
+      var pos = POS_NAMES[p.position]||"?";
+      return '<div class="card compare-card" data-testid="compare-card-'+p.id+'">' +
+        '<div class="compare-card-head"><span class="crest" data-team="'+(p.team||0)+'">'+esc((p.web_name||"?").slice(0,3).toUpperCase())+"</span>" +
+        '<div><strong>'+esc(p.web_name||("Player "+p.id))+'</strong><div class="faint small">'+pos+' · '+(p.team_short?esc(p.team_short):"Team "+(p.team||"?"))+' · £'+(p.price!=null?Number(p.price).toFixed(1):"—")+"</div></div>" +
+        '<span class="pill ok">xPTS '+FPLApp.fmtPts(p.expected_points)+"</span></div>" +
+        '<div class="grid compare-stats">' +
+          '<div class="stat"><div class="stat-label">xG/90</div><div class="stat-value">'+(p.xg_per_90!=null?Number(p.xg_per_90).toFixed(2):"–")+"</div></div>" +
+          '<div class="stat"><div class="stat-label">xA/90</div><div class="stat-value">'+(p.xa_per_90!=null?Number(p.xa_per_90).toFixed(2):"–")+"</div></div>" +
+          '<div class="stat"><div class="stat-label">Ownership</div><div class="stat-value">'+(p.selected_by_percent?esc(p.selected_by_percent)+"%":"–")+"</div></div>" +
+          '<div class="stat"><div class="stat-label">FDR avg</div><div class="stat-value">'+(p.avg_fdr!=null?Number(p.avg_fdr).toFixed(1):"–")+"</div></div>" +
+        "</div>" +
+        '<div class="section-h">Last 5 bars</div>' + formBars(p.form_bars) +
+        '<div class="section-h">Next 5 fixtures</div>' + (p.fixture_runs && p.fixture_runs.length ? FPLApp.fixtureStripHTML(p.fixture_runs) : '<p class="faint small">—</p>') +
+        (p.news_flag ? '<div class="section-h">News</div><a class="news-flag" href="'+esc(p.news_flag.url||'#')+'" target="_blank" rel="noopener">📰 '+esc((p.news_flag.headline||"").slice(0,60))+"</a>" : '<div class="section-h">News</div><p class="faint small">No matching headlines</p>') +
+        '<div class="section-h">Set pieces</div><div>'+setPieceChips(p)+'</div>' +
+        "</div>";
+    }
+    $("compareGrid").innerHTML = card(a) + card(b);
+    FPLApp.hydrateCrests(document);
+    // diff table with sticky header
+    var diffs = data.diff || {};
+    var rows = [
+      {label:"xPTS", av: a.expected_points, bv: b.expected_points, fmt:"pts"},
+      {label:"Ownership", av: parseFloat(a.selected_by_percent)||0, bv: parseFloat(b.selected_by_percent)||0, fmt:"pct"},
+      {label:"xG/90", av: a.xg_per_90, bv: b.xg_per_90, fmt:"num"},
+      {label:"xA/90", av: a.xa_per_90, bv: b.xa_per_90, fmt:"num"},
+      {label:"Price", av: a.price, bv: b.price, fmt:"price"}
+    ];
+    var html = '<strong>Diffs</strong><div class="table-wrap"><table class="data"><thead><tr><th>Metric</th><th class="num">Player A</th><th></th><th class="num">Player B</th></tr></thead><tbody>';
+    rows.forEach(function(r){
+      var av = r.av, bv = r.bv;
+      if(av==null || bv==null) return;
+      var win = av > bv ? "A" : (bv > av ? "B" : "tie");
+      var clsA = win==="A" ? "diff-win" : (win==="B" ? "diff-lose" : "diff-tie");
+      var clsB = win==="B" ? "diff-win" : (win==="A" ? "diff-lose" : "diff-tie");
+      html += '<tr><td class="small muted">'+r.label+'</td>' +
+        '<td class="num"><span class="pill '+clsA+'" data-testid="diff-a-'+r.label+'">'+(r.fmt==="price"?"£":"")+ (av!=null?Number(av).toFixed(r.label==="Price"?1:2):"–") + (win==="A"?" ▲":"")+'</span></td>' +
+        '<td class="small">vs</td>' +
+        '<td class="num"><span class="pill '+clsB+'" data-testid="diff-b-'+r.label+'">'+(r.fmt==="price"?"£":"")+ (bv!=null?Number(bv).toFixed(r.label==="Price"?1:2):"–") + (win==="B"?" ▲":"")+'</span></td></tr>';
+    });
+    html += "</tbody></table></div>";
+    // set-piece diff note
+    if (a.set_pieces || b.set_pieces) {
+      var aHas = a.set_pieces && (a.set_pieces.penalty||a.set_pieces.corners||a.set_pieces.free_kicks);
+      var bHas = b.set_pieces && (b.set_pieces.penalty||b.set_pieces.corners||b.set_pieces.free_kicks);
+      html += '<p class="small muted">Set-piece edge: '+(aHas&&!bHas?esc(a.web_name)+" has set pieces": bHas&&!aHas?esc(b.web_name)+" has set pieces" : aHas&&bHas?"Both take set pieces":"Neither is a designated taker")+"</p>";
+    }
+    $("diffBox").innerHTML = html;
+    $("diffBox").hidden=false;
+  }
+
+  function compareTxt(data){
+    if(!data) return "No comparison yet.";
+    var a=data.player_a||{}, b=data.player_b||{};
+    var lines=["FPL Intelligence — Head-to-head compare", "Generated "+new Date().toLocaleString(), ""];
+    function pLine(p){
+      lines.push(p.web_name+" ("+ (POS_NAMES[p.position]||"?") +" · "+(p.team_short||p.team)+" · £"+(p.price!=null?Number(p.price).toFixed(1):"—")+")");
+      lines.push(" xPTS "+FPLApp.fmtPts(p.expected_points)+" · xG/90 "+(p.xg_per_90!=null?Number(p.xg_per_90).toFixed(2):"–")+" · xA/90 "+(p.xa_per_90!=null?Number(p.xa_per_90).toFixed(2):"–")+" · owned "+(p.selected_by_percent||"–"));
+      lines.push(" Fixtures: "+(p.fixture_runs||[]).map(function(r){return r.opponent+(r.is_home?"(H)":"(A)")+r.difficulty;}).join(", "));
+      lines.push("");
+    }
+    pLine(a); lines.push("vs"); lines.push(""); pLine(b);
+    lines.push("Diffs:");
+    [["xPTS",a.expected_points,b.expected_points],["Price",a.price,b.price]].forEach(function(k){
+      if(k[1]!=null && k[2]!=null) lines.push(" "+k[0]+": "+k[1]+" vs "+k[2]+ (k[1]>k[2]?" (A wins)": k[2]>k[1]?" (B wins)":" (tie)"));
+    });
+    return lines.join("\n");
+  }
+
+  $("shareBtn").addEventListener("click", function(){
+    if(!LAST_RESP){ $("shareStatus").textContent="Pick two players first."; return; }
+    var text = compareTxt(LAST_RESP).slice(0,500);
+    var url = window.location.href;
+    if (LAST_RESP.player_a && LAST_RESP.player_b) {
+      url += (url.indexOf("?")===-1?"?":"&")+"player_a="+LAST_RESP.player_a.id+"&player_b="+LAST_RESP.player_b.id;
+    }
+    FPLApp.shareOrCopy({title:"FPL Compare", text:text, url:url}).then(function(r){
+      if(r && r.copied) $("shareStatus").textContent="Link copied ✓";
+      else if(r && r.notSupported) $("shareStatus").textContent="Share not supported — link copied fallback.";
+      else $("shareStatus").textContent="";
+      setTimeout(function(){ $("shareStatus").textContent=""; },2500);
+    });
+    if (FPLApp.shareNotSupported()) { $("shareStatus").textContent="share not supported — copied to clipboard"; }
+  });
+  $("exportBtn").addEventListener("click", function(){
+    if(!LAST_RESP){ $("shareStatus").textContent="Pick two players first."; return; }
+    FPLApp.exportTxt("fpl-compare.txt", compareTxt(LAST_RESP));
+  });
+
+  loadPlayers().then(function(){
+    // pre-fill from query params or from saved squad's first two starters?
+    var params = new URLSearchParams(window.location.search);
+    var pa = params.get("player_a"), pb = params.get("player_b");
+    if(pa){ var p = ALL_PLAYERS.find(function(x){ return String(x.fpl_element_id||x.id)===String(pa); }); if(p){ selectedA=parseInt(pa,10); $("playerAInput").value=p.web_name; } }
+    if(pb){ var p2 = ALL_PLAYERS.find(function(x){ return String(x.fpl_element_id||x.id)===String(pb); }); if(p2){ selectedB=parseInt(pb,10); $("playerBInput").value=p2.web_name; } }
+    if(selectedA && selectedB) fetchCompare();
+    else {
+      // try to auto-fill with two real players from Decisions if session exists
+      var sess = FPLApp.session.read();
+      if(sess && sess.key){
+        fetch("/api/v1/decisions?session_id="+encodeURIComponent(sess.key)).then(function(r){ return r.ok?r.json():null; }).then(function(rep){
+          if(rep && rep.starting_xi && rep.starting_xi.length>=2 && !selectedA && !selectedB){
+            var pids = rep.starting_xi.slice(0,2);
+            var names = rep.players||{};
+            pids.forEach(function(pid, idx){
+              var p = ALL_PLAYERS.find(function(x){ return (x.fpl_element_id||x.id)===pid; });
+              if(p){
+                if(idx===0){ selectedA=pid; $("playerAInput").value=p.web_name; }
+                else { selectedB=pid; $("playerBInput").value=p.web_name; }
+              }
+            });
+            if(selectedA && selectedB) fetchCompare();
+          }
+        }).catch(function(){});
+      }
+    }
+  });
+
+  wire($("playerAInput"), $("playerAList"), function(player, pid){ selectedA=pid; fetchCompare(); });
+  wire($("playerBInput"), $("playerBList"), function(player, pid){ selectedB=pid; fetchCompare(); });
+});
+</script>
+</body>
+</html>

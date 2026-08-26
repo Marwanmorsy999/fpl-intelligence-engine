@@ -23,7 +23,7 @@ from fpl_intelligence.db.models import (
     Team,
     TeamExternalId,
 )
-from fpl_intelligence.squad.models_db import SquadStateDB  # noqa: F401
+from fpl_intelligence.squad.models_db import LocalSquadStateDB, SquadStateDB  # noqa: F401
 from fpl_intelligence.sync import materialized_models as _materialized_models  # noqa: F401
 from fpl_intelligence.sync import models as _sync_models  # noqa: F401
 
@@ -39,11 +39,35 @@ _SYNC_TABLES = (
 
 # Phase 20.1: register the materialized read-model tables too.
 _MATERIALIZED_TABLES = (
+    _materialized_models.AssistantBriefDB,
     _materialized_models.ElementFactDB,
     _materialized_models.FixturesCacheDB,
     _materialized_models.NewsCacheDB,
     _materialized_models.PredictionCurrentDB,
     _materialized_models.LiveSnapshotDB,
+    _materialized_models.ProviderRefreshDB,
+)
+
+# Phase 23 Gate 1: league cache, push and price tables (registered so
+# Base.metadata.create_all builds them for every in-memory test database).
+from fpl_intelligence.leagues import models as _league_models  # noqa: E402,F401
+from fpl_intelligence.notifications.webpush import (  # noqa: E402,F401
+    NotificationLogDB as _NotificationLogDB,
+)
+from fpl_intelligence.prices.models import PriceMoveDB as _PriceMoveDB  # noqa: E402,F401
+from fpl_intelligence.prices.models import PriceSnapshotDB as _PriceSnapshotDB  # noqa: E402,F401
+from fpl_intelligence.transfers import models as _transfer_models  # noqa: E402,F401
+
+_LEAGUE_TABLES = (
+    _league_models.EntryLeagueDB,  # noqa: F401
+    _league_models.LeagueCacheDB,  # noqa: F401
+    _league_models.LeagueSelectionDB,  # noqa: F401
+)
+
+# Phase 25 Gate 0: transfer ledger + squad snapshots.
+_TRANSFER_TABLES = (
+    _transfer_models.SquadSnapshotDB,  # noqa: F401
+    _transfer_models.TransferLogDB,  # noqa: F401
 )
 assert all(_SYNC_TABLES), "sync models must be importable for metadata registration"
 assert all(_MATERIALIZED_TABLES), "materialized models must be importable"

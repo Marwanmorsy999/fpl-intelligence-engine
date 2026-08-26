@@ -140,6 +140,22 @@ def next_gameweeks(
     return events[: max(count, 0)]
 
 
+def next_unplayed_gameweeks(
+    rows: Sequence[FixtureRow], current_gw: int, count: int = 5
+) -> list[int]:
+    """Phase 21.1 (T2) — next ``count`` gameweeks with at least one UNPLAYED fixture.
+
+    A gameweek whose fixtures are all finished never enters the horizon, even
+    when its event id is >= the target (e.g. a partially-played current GW
+    stays, a fully-played future GW cannot exist)."""
+    unplayed = {
+        r.event
+        for r in rows
+        if r.event >= current_gw and not r.finished
+    }
+    return sorted(unplayed)[: max(count, 0)]
+
+
 def player_run(
     team_id: int | None,
     rows_by_gw: Mapping[int, Sequence[FixtureRow]],

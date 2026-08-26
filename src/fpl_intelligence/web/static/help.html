@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Help &amp; FAQ — FPL Intelligence</title>
+<link rel="icon" href="data:,">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#0f172a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/tokens.css">
+<link rel="stylesheet" href="/static/components.css">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/app.js"></script>
+<style>
+  details.faq { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); margin-bottom: 10px; }
+  details.faq summary { cursor: pointer; font-weight: 700; color: #fff; min-height: 48px; display: flex; align-items: center; padding: 12px 16px; }
+  details.faq[open] summary { border-bottom: 1px solid var(--line); }
+  details.faq .faq-body { padding: 12px 16px; color: var(--text-dim); font-size: 16px; }
+  details.faq .faq-body code { font-family: ui-monospace, Menlo, Consolas, monospace; background: rgba(148,163,184,.12); padding: 1px 6px; border-radius: 6px; color: #cbd5e1; }
+</style>
+</head>
+<body>
+<div id="topnav"></div>
+<div class="wrap" style="max-width:720px">
+  <h1 class="page-title">Help &amp; FAQ</h1>
+  <p class="muted small">Everything you need to read your squad like an analyst. Sources: official FPL API, BBC Sport RSS (fetched server-side), Understat xG/xA and live odds where available. All numbers are labelled with their source — nothing here hides its data age.</p>
+
+  <div class="section-h">Frequently asked questions</div>
+
+  <details class="faq" open>
+    <summary>What is xPTS (expected points)?</summary>
+    <div class="faq-body">
+      A player's projected Fantasy points for the current gameweek, blended from
+      underlying stats (xG/xA), minutes estimates, fixture difficulty and market
+      signals. Focus or hover the <span class="metric-tip" tabindex="0" role="note" aria-label="Expected points explanation: base form plus xG/xA plus market term, adjusted for availability." data-tip="xPTS = base form + xG/xA term + market/odds term ± weather/availability adjustments. Full breakdown disclosed per player in the drawer.">xPTS</span> chips anywhere in the app.
+      Values are materialized daily at 06:10 UTC, so they do not recompute per request.
+    </div>
+  </details>
+
+  <details class="faq">
+    <summary>What does EV mean on transfer suggestions?</summary>
+    <div class="faq-body">
+      Expected Value: the points gained by making this transfer versus holding,
+      net of the hit cost when applicable. The Transfer Desk ranks by EV so a
+      −4 hit only shows when the expected gain beats the cost.
+    </div>
+  </details>
+
+  <details class="faq">
+    <summary>What is “alpha”?</summary>
+    <div class="faq-body">
+      Alpha measures how underpriced a player is: projected output relative to
+      price and ownership. High alpha = the market hasn't priced the player's
+      fixtures/form yet. Shown as a chip on players you own plus the Targets page.
+    </div>
+  </details>
+
+  <details class="faq">
+    <summary>How fresh is the live feed?</summary>
+    <div class="faq-body">
+      The Live page polls every 90 seconds during kickoff windows. If every
+      upstream provider stalls we serve the last stored snapshot and say so —
+      the age chip shows exactly how old the data is, and anything older than
+      90 minutes gets an explicit stale banner instead of pretending to be live.
+    </div>
+  </details>
+
+  <details class="faq">
+    <summary>Where are my numbers computed?</summary>
+    <div class="faq-body">
+      Predictions are precomputed ("materialize, don't compute per request")
+      into read-model tables, which keeps every page under two seconds. Your
+      session/squad stays keyed by your own FPL entry id. See the
+      <a href="/sources">Sources</a> page for per-source status and ages.
+    </div>
+  </details>
+
+  <details class="faq">
+    <summary>Something looks broken — what should I try first?</summary>
+    <div class="faq-body">
+      Every card now has bounded timeouts: after ~6 seconds a failed section
+      shows an honest error with a Retry button instead of spinning forever.
+      Retry first; if a whole page misbehaves press <code>Refresh now</code> /
+      hard-reload. Persistent issues: check <code>/sources</code> for provider
+      outages, then the project README issue tracker.
+    </div>
+  </details>
+
+  <div class="section-h">Documentation</div>
+  <div class="card">
+    <p class="muted small" style="margin-top:0">Project docs live in the repository:</p>
+    <ul class="small">
+      <li><a href="https://github.com/Marwanmorsy999/fpl-intelligence-engine#readme" target="_blank" rel="noopener">README &amp; quickstart ↗</a></li>
+      <li><a href="https://github.com/Marwanmorsy999/fpl-intelligence-engine/tree/main/docs" target="_blank" rel="noopener">Phase documentation index ↗</a></li>
+      <li><a href="/sources">Data-source health (this deployment)</a></li>
+    </ul>
+  </div>
+</div>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  FPLApp.renderNav("/help");
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crunch — FPL Intelligence</title>
+<link rel="icon" href="data:,">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#0f172a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/tokens.css">
+<link rel="stylesheet" href="/static/components.css">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/app.js"></script>
+<style>
+  html, body { height: 100%; margin: 0; overflow-x: hidden; }
+  body.crunch-no-scroll { overflow: hidden; height: 100vh; height: 100dvh; }
+  .crunch-wrap { height: calc(100dvh - 56px); overflow: hidden; display: flex; flex-direction: column; gap: 12px; max-width: 720px; margin: 0 auto; padding: 12px 12px calc(12px + env(safe-area-inset-bottom,0px)); box-sizing: border-box; }
+  .crunch-hero { text-align: center; padding: 8px 0 4px; }
+  .crunch-status { text-align: center; }
+  .crunch-actions { display: none; flex-direction: column; gap: 10px; }
+  .crunch-detail { display: none; }
+  .crunch-foot { text-align: center; margin-top: auto; }
+  .crunch-detail__title { font-weight: 800; color: #fff; }
+  .crunch-detail__meta { margin-top: 6px; }
+  .crunch-detail__note { margin-top: 8px; }
+  .crunch-detail__success { color: var(--color-pos); }
+  @media (max-width: 640px) {
+    .crunch-wrap { height: calc(100dvh - 48px); padding: 10px 12px calc(10px + env(safe-area-inset-bottom,0px)); }
+  }
+</style>
+</head>
+<body class="crunch-no-scroll">
+<div id="topnav"></div>
+<div class="crunch-wrap" id="crunchWrap">
+  <div class="crunch-hero">
+    <h1>Deadline Crunch</h1>
+    <p id="crunchSub" class="muted small">One screen. Three actions. No scroll.</p>
+  </div>
+  <div id="crunchStatus" class="card crunch-status"><span class="faint small">Loading your XI…</span></div>
+  <div id="crunchActions" class="crunch-actions">
+    <button id="btnConfirmXI" class="crunch-bigbtn primary" type="button" data-testid="crunch-confirm-xi">✅ Confirm XI</button>
+    <button id="btnSaveChip" class="crunch-bigbtn secondary" type="button" data-testid="crunch-save-chip">💾 Save Chip</button>
+    <button id="btnViewCaptain" class="crunch-bigbtn ghost" type="button" data-testid="crunch-view-captain">🧢 View Captain</button>
+  </div>
+  <div id="crunchDetail" class="crunch-card crunch-detail"></div>
+  <p class="faint small crunch-foot"><a href="/dashboard">Full Decisions →</a></p>
+</div>
+<script>
+"use strict";
+document.addEventListener("DOMContentLoaded", function () {
+  FPLApp.renderNav("/crunch");
+  var $ = function (id) { return document.getElementById(id); };
+  var detail = $("crunchDetail");
+  var status = $("crunchStatus");
+  var actions = $("crunchActions");
+  function show(msg){ status.innerHTML='<span class="faint small">'+FPLApp.esc(msg)+"</span>"; }
+  FPLApp.session.bootstrap({
+    onReady: function (session, report) {
+      if (!report) { show("Could not load decisions."); return; }
+      var xiNames = (report.starting_xi || []).map(function(pid){
+        var p = (report.players||{})[String(pid)];
+        return p ? p.web_name : ("#"+pid);
+      });
+      var cap = report.captain ? ((report.players||{})[String(report.captain.player_id)]||{}) : {};
+      var chip = report.chip_recommendation && report.chip_recommendation.chip_name ? report.chip_recommendation.chip_name : "none";
+      status.style.display="none";
+      actions.style.display="flex";
+      $("btnConfirmXI").addEventListener("click", function(){
+        detail.style.display="block";
+        detail.innerHTML='<strong class="crunch-detail__title">Confirmed XI ('+report.starting_xi.length+')</strong><div class="small muted crunch-detail__meta">'+FPLApp.esc(xiNames.join(" · "))+"</div>" +
+          '<p class="small crunch-detail__success crunch-detail__note">XI confirmed — check the pitch on Decisions for the visual.</p>';
+      });
+      $("btnSaveChip").addEventListener("click", function(){
+        detail.style.display="block";
+        var txt = chip && chip!=="none" ? "Engine suggests <strong>"+FPLApp.esc(chip)+"</strong> this week." : "Engine recommends <strong>save your chip</strong> this week.";
+        detail.innerHTML= txt + '<div class="small muted crunch-detail__meta">Manage chips on the /chips planner for the 8-GW horizon.</div>';
+      });
+      $("btnViewCaptain").addEventListener("click", function(){
+        detail.style.display="block";
+        detail.innerHTML='<strong class="crunch-detail__title">Captain: ' + FPLApp.esc(cap.web_name||"—") + '</strong>' +
+          '<div class="small muted">xPTS ' + FPLApp.fmtPts(cap.expected_points) + ' · ' + FPLApp.esc(cap.prediction_source||"") + "</div>" +
+          '<p class="small muted crunch-detail__meta">See captain comparison on Decisions.</p>';
+      });
+    },
+    onNoSession: function(){
+      show('No saved session — open <a href="/dashboard">Decisions</a> and enter your FPL ID once.');
+    },
+    onError: function(msg){ show(msg||"Load failed."); }
+  });
+});
+</script>
+</body>
+</html>

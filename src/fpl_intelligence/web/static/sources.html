@@ -5,24 +5,40 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sources — FPL Intelligence</title>
 <link rel="icon" href="data:,">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#0f172a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/tokens.css">
+<link rel="stylesheet" href="/static/components.css">
 <link rel="stylesheet" href="/static/app.css">
 <script src="/static/app.js"></script>
+<style>
+  html, body { overflow-x: hidden; }
+  .wrap--wide { max-width: 1160px; }
+  .sources-lead { margin-top: 0; }
+  .sources-card { padding: 4px var(--space-4); }
+  .sources-table-wrap { margin-top: var(--space-2); }
+  table.data { min-width: 520px; }
+  .source-row { display: flex; align-items: center; gap: var(--space-3); }
+  .cal-grid { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); margin-bottom: var(--space-3); }
+  .cal-note { color: #93c5fd; margin: 0 0 var(--space-2); }
+  .meta-line { margin: 10px 0 0; }
+</style>
 </head>
 <body>
 <div id="topnav"></div>
-<div class="wrap">
+<div class="wrap wrap--wide">
 
-  <h1 style="font-size:22px;font-weight:800;color:#fff;margin:0 0 4px">Data sources</h1>
-  <p class="muted small" style="margin-top:0">Live status of every external dependency — what is feeding the math right now, and what is off.</p>
+  <h1 class="page-title">Data sources</h1>
+  <p class="muted small sources-lead">Live status of every external dependency — what is feeding the math right now, and what is off.</p>
 
   <div class="section-h">External providers</div>
-  <div class="card" style="padding:4px 16px" id="sourcesBox"><span class="faint">Checking…</span></div>
+  <div class="card sources-card" id="sourcesBox"><span class="faint">Checking…</span></div>
 
   <div class="section-h">Sync pipeline (Phase 19)</div>
-  <div class="card" style="padding:4px 16px" id="syncBox"><span class="faint">Checking…</span></div>
+  <div class="card sources-card" id="syncBox"><span class="faint">Checking…</span></div>
 
   <div class="section-h">Prediction calibration</div>
   <div class="card" id="calBox"><span class="faint">Checking…</span></div>
@@ -36,7 +52,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var LABELS = {
     daily_job: "Daily job (single 06:10 UTC cron)",
     fpl_import: "FPL Import", fixtures: "Fixtures (FDR scan)", bbc_news: "BBC Sport news radar",
-    vaastav_results: "Vaastav GW results (ingested history)", predictions_materialized: "Precomputed xPTS (predictions_current)",
+    vaastav_results: "GW results (ingested history)", predictions_materialized: "Precomputed xPTS (predictions_current)",
     odds_api: "Odds API (market check)", understat: "Understat (xG/xA)",
     weather: "Weather (Open-Meteo)", pl_photos: "PL Photos & Badges", llm: "AI Analyst (LLM)"
   };
@@ -54,10 +70,10 @@ document.addEventListener("DOMContentLoaded", function () {
       var s = data.sources[key] || {};
       return '<div class="row"><div><strong>' + LABELS[key] + "</strong>" +
         (s.detail ? '<div class="faint small">' + FPLApp.esc(s.detail) + "</div>" : "") + "</div>" +
-        '<span style="margin-left:auto">' + pill(s.status || "unknown") + "</span></div>";
+        '<span class="pill-wrap">' + pill(s.status || "unknown") + "</span></div>";
     }).join("");
     $("sourcesBox").innerHTML = rows +
-      (data.as_of ? '<p class="faint small" style="margin:10px 0 0">Checked: ' + FPLApp.esc(data.as_of) + "</p>" : "");
+      (data.as_of ? '<p class="faint small meta-line">Checked: ' + FPLApp.esc(data.as_of) + "</p>" : "");
 
     /* Phase 20.4 — per-mask egress health (last status per strategy). */
     var mh = data.mask_health || [];
@@ -67,12 +83,14 @@ document.addEventListener("DOMContentLoaded", function () {
           '<div class="faint small">last ' + FPLApp.esc(String(m.last_at || "—").slice(0, 19).replace("T", " ")) +
           " · ok " + m.success_count + " / fail " + m.fail_count +
           (m.last_error ? " · " + FPLApp.esc(String(m.last_error).slice(0, 90)) : "") + "</div></div>" +
-          '<span style="margin-left:auto">' + pill(m.last_status || "unknown") + "</span></div>";
+          '<span class="pill-wrap">' + pill(m.last_status || "unknown") + "</span></div>";
       }).join("");
       var host = document.createElement("div");
       host.innerHTML =
-        '<div class="section-h" style="margin-top:18px">FPL egress masks</div>' +
-        '<div class="card" style="padding:4px 16px">' + maskRows + "</div>";
+        '<div class="section-h">FPL egress masks</div>' +
+        '<div class="card sources-card"><div class="table-wrap sources-table-wrap"><table class="data"><thead><tr><th>Strategy</th><th>Last check</th><th class="num">OK / Fail</th><th>Status</th></tr></thead><tbody>' +
+        mh.map(function(m){ return '<tr><td><strong>'+FPLApp.esc(m.strategy)+'</strong><div class="faint small">'+FPLApp.esc(String(m.last_error||"").slice(0,90))+'</div></td><td class="faint small">'+FPLApp.esc(String(m.last_at||"—").slice(0,19).replace("T"," "))+'</td><td class="num">'+m.success_count+' / '+m.fail_count+'</td><td>'+pill(m.last_status||"unknown")+'</td></tr>'; }).join("") +
+        "</tbody></table></div></div>";
       document.querySelector(".wrap").appendChild(host);
     }
   }).catch(function () { $("sourcesBox").innerHTML = '<p class="faint">unavailable</p>'; });
@@ -83,18 +101,29 @@ document.addEventListener("DOMContentLoaded", function () {
     var rows = kinds.map(function (k) {
       var l = (data.latest || {})[k];
       return '<div class="row"><div><strong>' + k + "-push</strong>" +
-        '<div class="faint small">' + (l ? new Date(l.at).toLocaleString() : "never pushed") + "</div></div>" +
-        '<span style="margin-left:auto">' + (l ? pill("ok") : pill("pending")) + "</span></div>";
+        '<div class="faint small">' + (l ? new Date(l.at).toLocaleString() : "never pushed — server-side fetch active, push optional") + "</div></div>" +
+        '<span class="pill-wrap">' + (l ? pill("ok") : pill("pending")) + "</span></div>";
     }).join("");
     $("syncBox").innerHTML = rows +
-      '<p class="faint small" style="margin:10px 0 0">Token configured server-side: ' +
+      '<p class="faint small meta-line">Server-side fetch active — push optional. ' +
+      'Sync token configured: ' +
       (data.token_configured ? "yes" : "<strong>NO</strong> — set SYNC_PUSH_TOKEN env var") + ". Setup guide on the <a href='/connect'>Connect</a> page.</p>";
   }).catch(function () { $("syncBox").innerHTML = '<p class="faint">unavailable</p>'; });
 
   fetch("/api/v1/sync/calibration").then(function (r) { return r.ok ? r.json() : null; }).then(function (cal) {
     if (!cal) { $("calBox").innerHTML = '<p class="faint">unavailable</p>'; return; }
+    /* Phase 23 (C3): calibration arms — gameweeks whose per-player forecasts
+       are stored but not yet graded. Shown with an honest hint until then. */
+    var arms = cal.forecast_arms || [];
+    var armsHTML = "";
+    if (arms.length) {
+      var armTxt = arms.map(function (a) { return "GW" + a.gameweek + " (" + a.rows + " players)"; }).join(", ");
+      armsHTML = '<p class="small cal-note">🎯 calibration arms: ' +
+        FPLApp.esc(armTxt) + " forecasts stored — grades automatically once results are ingested.</p>";
+    }
     if (!cal.count) {
-      $("calBox").innerHTML = '<p class="muted small">No reconciled predictions yet. Calibration fills in automatically once GitHub Actions ingests a gameweek after the engine has published forecasts.</p>';
+      $("calBox").innerHTML = armsHTML +
+        '<p class="muted small">No reconciled predictions yet. Calibration fills in automatically once the daily 06:10 cron ingests a gameweek after the engine has published forecasts.</p>';
       return;
     }
     var buckets = cal.buckets || {};
@@ -103,15 +132,15 @@ document.addEventListener("DOMContentLoaded", function () {
       return '<tr><td>|error| ' + label + '</td><td class="num">' + b.count + '</td><td class="num">' +
         Math.round((b.share || 0) * 100) + "%</td></tr>";
     }).join("");
-    $("calBox").innerHTML =
-      '<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-bottom:12px">' +
+    $("calBox").innerHTML = armsHTML +
+      '<div class="cal-grid">' +
         '<div class="stat"><div class="stat-label">Pairs graded</div><div class="stat-value num">' + cal.count + "</div></div>" +
         '<div class="stat"><div class="stat-label">MAE</div><div class="stat-value num">' + Number(cal.mae).toFixed(2) + "</div></div>" +
         '<div class="stat"><div class="stat-label">Bias</div><div class="stat-value num">' + (cal.bias > 0 ? "+" : "") + Number(cal.bias).toFixed(2) + "</div>" +
         '<div class="stat-sub">+ means over-predicting</div></div>' +
       "</div>" +
-      '<table class="data"><thead><tr><th>Error band</th><th class="num">Players</th><th class="num">Share</th></tr></thead><tbody>' +
-      bucketRows + "</tbody></table>";
+      '<div class="table-wrap sources-table-wrap"><table class="data"><thead><tr><th>Error band</th><th class="num">Players</th><th class="num">Share</th></tr></thead><tbody>' +
+      bucketRows + "</tbody></table></div>";
   }).catch(function () { $("calBox").innerHTML = '<p class="faint">unavailable</p>'; });
 });
 </script>

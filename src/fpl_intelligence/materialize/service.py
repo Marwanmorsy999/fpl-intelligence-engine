@@ -216,6 +216,16 @@ async def refresh_element_facts(db: Session, season_code: str) -> dict[str, Any]
     facts = parse_players_raw_csv(text)
     now = _now()
     upserted = 0
+    # Phase 23 (L3): prod DBs predate the now_cost column — self-seal it.
+    try:
+        from sqlalchemy import text as sa_text
+
+        db.execute(
+            sa_text("ALTER TABLE element_facts ADD COLUMN IF NOT EXISTS now_cost INTEGER")
+        )
+        db.commit()
+    except Exception:  # noqa: BLE001 — sqlite lacks IF NOT EXISTS on ADD COLUMN
+        db.rollback()
     for element_id, fact in facts.items():
         row = db.get(ElementFactDB, int(element_id))
         if row is None:
@@ -226,6 +236,7 @@ async def refresh_element_facts(db: Session, season_code: str) -> dict[str, Any]
         row.minutes = fact["minutes"]
         row.selected_by_percent = fact["selected_by_percent"]
         row.cost_change_event = fact["cost_change_event"]
+        row.now_cost = fact.get("now_cost")
         row.status = fact["status"]
         row.news = fact["news"]
         row.updated_at = now
@@ -237,11 +248,18 @@ async def refresh_element_facts(db: Session, season_code: str) -> dict[str, Any]
 # --------------------------------------------------------------------------- #
 # Step 5 — prediction chain -> predictions_current (next 5 GWs)
 # --------------------------------------------------------------------------- #
-async def precompute_predictions(db: Session, *, horizon: int = 5) -> dict[str, Any]:
+async def precompute_predictions(
+    db: Session, *, horizon: int = 5, base_gameweek: int | None = None
+) -> dict[str, Any]:
     """Run the full chain once per upcoming GW and persist every player.
 
     This is deliberately the expensive path: it may hit odds/weather/understat
     enrichment exactly ONCE per day. The request paths never do.
+
+    ``base_gameweek`` (Phase 21.1 T2) pins the horizon to the official FPL
+    next-deadline gameweek so ``predictions_current`` covers exactly what the
+    request paths will ask for; when omitted the fixtures-cache inference is
+    used as before.
     """
     from fastapi.concurrency import run_in_threadpool
 
@@ -252,6 +270,8 @@ async def precompute_predictions(db: Session, *, horizon: int = 5) -> dict[str, 
         return {"ok": False, "reason": "no fixtures cache yet"}
 
     current_gw = infer_current_gameweek(parse_fixtures(fixtures_row.payload))
+    if base_gameweek is not None:
+        current_gw = max(current_gw, int(base_gameweek))
     provider = get_prediction_provider(db)
 
     total_rows = 0
@@ -260,7 +280,12 @@ async def precompute_predictions(db: Session, *, horizon: int = 5) -> dict[str, 
     now = _now()
 
     def _resolve_and_store(gw: int) -> int:
-        preds = provider.get_all_predictions(gw)
+        # Phase 21.1: skip the materialized fast-path while precomputing —
+        # otherwise a bad run's zeros get re-served and re-written forever.
+        try:
+            preds = provider.get_all_predictions(gw, skip_materialized=True)
+        except TypeError:
+            preds = provider.get_all_predictions(gw)
         if not preds:
             raise RuntimeError("chain produced no predictions")
         db.execute(
@@ -322,7 +347,9 @@ async def precompute_predictions(db: Session, *, horizon: int = 5) -> dict[str, 
 # --------------------------------------------------------------------------- #
 # Orchestrator
 # --------------------------------------------------------------------------- #
-async def materialize_all(db: Session, *, season_code: str = SEASON_CODE) -> dict[str, Any]:
+async def materialize_all(
+    db: Session, *, season_code: str = SEASON_CODE, base_gameweek: int | None = None
+) -> dict[str, Any]:
     """Run every materialization step and return a combined report."""
     started = time.perf_counter()
     report: dict[str, Any] = {"season_code": season_code}
@@ -331,7 +358,7 @@ async def materialize_all(db: Session, *, season_code: str = SEASON_CODE) -> dic
     report["results"] = await ingest_vaastav_results(db, season_code)
     report["news"] = await refresh_news_cache(db)
     report["element_facts"] = await refresh_element_facts(db, season_code)
-    report["predictions"] = await precompute_predictions(db)
+    report["predictions"] = await precompute_predictions(db, base_gameweek=base_gameweek)
     report["elapsed_seconds"] = round(time.perf_counter() - started, 2)
     report["ran_at"] = _now().isoformat()
     return report

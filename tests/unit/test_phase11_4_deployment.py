@@ -118,8 +118,21 @@ def test_vercel_json_build_command_installs_the_project() -> None:
     """The build must install the package (or its pinned requirements)."""
     build = _load_vercel().get("buildCommand", "").strip()
     assert build.startswith("pip install"), f"unexpected buildCommand: {build!r}"
-    assert build.endswith(".") or "requirements.txt" in build, (
+    install_part = build.split("&&")[0].strip()
+    assert install_part.endswith(".") or "requirements.txt" in install_part, (
         f"buildCommand must install this project: {build!r}"
+    )
+
+
+def test_vercel_json_build_command_applies_migrations() -> None:
+    """v2.7.4-prod-heal: the deploy step migrates the prod DB explicitly.
+
+    The 0021 gap (missing ``local_squad_state``) 500'd /league and
+    /league/trajectory; the schema must move with the code, never behind it.
+    """
+    build = _load_vercel().get("buildCommand", "")
+    assert "python -m fpl_intelligence.prod_migrate" in build, (
+        f"buildCommand must run the migration step: {build!r}"
     )
 
 
@@ -139,9 +152,18 @@ def test_function_entrypoint_file_exists() -> None:
     assert "app" in entry.read_text(encoding="utf-8")
 
 
-def test_function_uses_the_python_runtime() -> None:
-    runtime = _function_config().get("runtime", "")
-    assert "@vercel/python" in runtime, f"unexpected runtime: {runtime!r}"
+def test_function_does_not_pin_a_broken_runtime_version() -> None:
+    """v2.7.4-prod-heal: the explicit @vercel/python@x.y.z pin is omitted.
+
+    The pinned runtime broke deploys twice (pin-version-mismatch, then a
+    peer-dependency conflict in Vercel's builder image). Vercel auto-detects
+    Python entrypoints; the pin adds no value and only couples us to
+    platform-internal builder versions.
+    """
+    fn = _function_config()
+    assert "runtime" not in fn or "@vercel/python" in str(fn.get("runtime")), (
+        f"unexpected runtime override: {fn.get('runtime')!r}"
+    )
 
 
 def test_function_pins_region_and_max_duration() -> None:
@@ -267,22 +289,21 @@ def test_admin_auth_is_environment_driven() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# .github/workflows/scheduler.yml
+# .github/workflows/scheduler.yml — Phase 20.4 contract
+#
+# vercel.json owns THE single schedule (10 6 * * * UTC → /admin/daily). The
+# workflow is a manual-dispatch trigger for the same consolidated job; no
+# scheduled crons and no legacy endpoints remain.
 # --------------------------------------------------------------------------- #
 def test_scheduler_yaml_is_valid_yaml() -> None:
     _load_scheduler()
 
 
-def test_scheduler_has_hourly_cron() -> None:
+def test_scheduler_has_no_schedule_triggers_left() -> None:
     wf = _load_scheduler()
-    crons = [s.get("cron") for s in _scheduler_on(wf).get("schedule", [])]
-    assert "0 * * * *" in crons, "hourly scheduler cron (0 * * * *) missing"
-
-
-def test_scheduler_has_ten_minute_keep_warm_cron() -> None:
-    wf = _load_scheduler()
-    crons = [s.get("cron") for s in _scheduler_on(wf).get("schedule", [])]
-    assert "*/10 * * * *" in crons, "10-minute keep-warm cron (*/10 * * * *) missing"
+    assert not _scheduler_on(wf).get("schedule"), (
+        "scheduler.yml must carry no schedule — vercel.json's single cron owns timing"
+    )
 
 
 def test_scheduler_has_workflow_dispatch() -> None:
@@ -290,27 +311,22 @@ def test_scheduler_has_workflow_dispatch() -> None:
     assert "workflow_dispatch" in _scheduler_on(wf)
 
 
-def test_scheduler_defines_run_scheduler_job() -> None:
+def test_scheduler_defines_run_daily_job() -> None:
     wf = _load_scheduler()
-    assert "run-scheduler" in wf.get("jobs", {})
+    assert "run-daily" in wf.get("jobs", {})
 
 
-def test_scheduler_defines_keep_warm_job() -> None:
+def test_run_daily_posts_to_daily_endpoint() -> None:
     wf = _load_scheduler()
-    assert "keep-warm" in wf.get("jobs", {})
-
-
-def test_run_scheduler_posts_to_admin_endpoint() -> None:
-    wf = _load_scheduler()
-    run = wf["jobs"]["run-scheduler"]["steps"][0]["run"]
+    run = wf["jobs"]["run-daily"]["steps"][0]["run"]
     lowered = run.lower()
     assert "post" in lowered
-    assert "/api/v1/admin/run-scheduler" in lowered
+    assert "/api/v1/admin/daily" in lowered
 
 
-def test_run_scheduler_sends_bearer_auth_header() -> None:
+def test_run_daily_sends_bearer_auth_header() -> None:
     wf = _load_scheduler()
-    step = wf["jobs"]["run-scheduler"]["steps"][0]
+    step = wf["jobs"]["run-daily"]["steps"][0]
     run = step["run"]
     lowered = run.lower()
     assert "authorization: bearer" in lowered
@@ -319,35 +335,8 @@ def test_run_scheduler_sends_bearer_auth_header() -> None:
     assert "secrets.cron_secret" in str(env.get("CRON_SECRET", "")).lower()
 
 
-def test_run_scheduler_uses_deploy_url_secret() -> None:
+def test_run_daily_uses_deploy_url_secret() -> None:
     wf = _load_scheduler()
-    env = wf["jobs"]["run-scheduler"]["steps"][0].get("env", {})
+    env = wf["jobs"]["run-daily"]["steps"][0].get("env", {})
     assert "VERCEL_DEPLOY_URL" in env
     assert "secrets.vercel_deploy_url" in str(env["VERCEL_DEPLOY_URL"]).lower()
-
-
-def test_keep_warm_pings_health_endpoint() -> None:
-    wf = _load_scheduler()
-    run = wf["jobs"]["keep-warm"]["steps"][0]["run"]
-    lowered = run.lower()
-    assert "health" in lowered
-    assert "/api/v1/health" in lowered
-
-
-def test_keep_warm_uses_deploy_url_secret() -> None:
-    wf = _load_scheduler()
-    env = wf["jobs"]["keep-warm"]["steps"][0].get("env", {})
-    assert "VERCEL_DEPLOY_URL" in env
-    assert "secrets.vercel_deploy_url" in str(env["VERCEL_DEPLOY_URL"]).lower()
-
-
-def test_run_scheduler_gated_to_hourly() -> None:
-    wf = _load_scheduler()
-    if_expr = str(wf["jobs"]["run-scheduler"].get("if", ""))
-    assert "0 * * * *" in if_expr
-
-
-def test_keep_warm_gated_to_ten_minutes() -> None:
-    wf = _load_scheduler()
-    if_expr = str(wf["jobs"]["keep-warm"].get("if", ""))
-    assert "*/10 * * * *" in if_expr

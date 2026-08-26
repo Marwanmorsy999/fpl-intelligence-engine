@@ -5,30 +5,78 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>My Team — FPL Intelligence</title>
 <link rel="icon" href="data:,">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#0f172a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/tokens.css">
+<link rel="stylesheet" href="/static/components.css">
 <link rel="stylesheet" href="/static/app.css">
 <script src="/static/app.js"></script>
+<style>
+  html, body { overflow-x: hidden; }
+  .wrap--team { min-width: 0; overflow-x: hidden; }
+  .team-intro, .team-main, .team-sidebar, .team-heatmap { min-width: 0; }
+  .wrap--team > .team-intro { grid-column: 1 / -1; }
+  #gwHeader { margin-left: 8px; vertical-align: middle; }
+  #syncSubLine { margin: -2px 0 10px; }
+  #metaLine { margin: 14px 0; }
+  .export-row { display: flex; gap: 8px; margin: 10px 0; align-items: center; flex-wrap: wrap; }
+  #myteamStatus { align-self: center; }
+  .view-toggle-row { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; flex-wrap: wrap; }
+  .squad-grid { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+  #squadTableView { display: none; }
+  #squadTableView.table-wrap { padding: 0; overflow-x: auto; }
+  .fixture-toggle { margin-left: 12px; }
+  .heatmap-note { margin: -6px 0 8px; }
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table.data { min-width: 520px; }
+</style>
 </head>
 <body>
 <div id="topnav"></div>
-<div class="wrap">
+<div class="wrap wrap--team">
 
-  <h1 style="font-size:22px;font-weight:800;color:#fff;margin:0 0 4px">My team</h1>
-  <p class="muted small" style="margin-top:0">Your synced squad with prices, captaincy, fixture difficulty and squad analysis — restored automatically from your saved session.</p>
+  <div class="team-intro">
+    <h1 class="page-title">My team
+      <span id="gwHeader" class="pill">Gameweek –</span>
+    </h1>
+    <p class="muted small">Your synced squad with prices, captaincy, fixture difficulty and squad analysis — restored automatically from your saved session.</p>
+    <p id="syncSubLine" class="faint small"></p>
+    <div id="metaLine" class="muted small"></div>
+    <div class="export-row"><button id="exportSquadBtn" class="btn-ghost" type="button" data-testid="myteam-export-btn">⬇ Squad CSV</button><span id="myteamStatus" class="faint small"></span></div>
+    <div id="statusLine" class="muted small"></div>
+  </div>
 
-  <div id="metaLine" class="muted small" style="margin:14px 0"></div>
-  <div id="statusLine" class="muted small"></div>
+  <div class="team-main">
+    <div class="section-h">Squad</div>
+    <div class="view-toggle-row">
+      <div class="view-toggle" role="group" aria-label="Squad view" data-testid="squad-view-toggle">
+        <button type="button" id="viewCardsBtn" class="active">Cards</button>
+        <button type="button" id="viewTableBtn">Sortable table</button>
+      </div>
+      <span class="faint small">sort by xPTS · Alpha · price · volatility</span>
+    </div>
+    <div id="squadGrid" class="grid squad-grid"></div>
+    <div id="squadTableView" class="card table-wrap"></div>
+  </div>
 
-  <div class="section-h">Squad</div>
-  <div id="squadGrid" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(210px,1fr))"></div>
+  <div class="team-sidebar">
+    <div class="section-h">Squad analysis</div>
+    <div id="squadPanel" class="card"><span class="faint small">Loads with your squad…</span></div>
+  </div>
 
-  <div class="section-h">Squad analysis</div>
-  <div id="squadPanel" class="card"><span class="faint small">Loads with your squad…</span></div>
-
-  <div class="section-h">Fixture difficulty — next 5 gameweeks</div>
-  <div id="fixtureTableBox" class="card"><span class="faint small">Scanning fixtures…</span></div>
+  <div class="team-heatmap">
+    <div class="section-h">Fixture difficulty — next 5 gameweeks
+      <span class="view-toggle fixture-toggle" role="group" aria-label="Fixture view" data-testid="fixture-view-toggle">
+        <button type="button" id="fxHeatBtn" class="active">Heatmap</button>
+        <button type="button" id="fxTableBtn">Table view</button>
+      </span>
+    </div>
+    <p class="faint small heatmap-note">Heatmap cells show opponent and FDR (green = easy, red = hard). The accessible table view stays one click away.</p>
+    <div id="fixtureTableBox" class="card table-wrap"><span class="faint small">Scanning fixtures…</span></div>
+  </div>
 
 </div>
 <script>
@@ -39,6 +87,17 @@ document.addEventListener("DOMContentLoaded", function () {
   var POS_NAMES = { 1: "GK", 2: "DEF", 3: "MID", 4: "FWD" };
   var CURRENT_SQUAD = null;
 
+  var PRICE_CHIPS = {};
+  var FORM_DATA = {};  // pid -> form_bars array from drawer
+
+  function priceChip(pid) {
+    var d = PRICE_CHIPS[pid];
+    if (!d) return "";
+    return d > 0
+      ? ' <span class="pill ok" title="Price rose today">▲</span>'
+      : ' <span class="pill bad" title="Price fell today">▼</span>';
+  }
+
   function tile(pid, squad, slotIdx, names) {
     var isC = pid === squad.captain_id;
     var isV = !isC && pid === squad.vice_captain_id;
@@ -46,18 +105,26 @@ document.addEventListener("DOMContentLoaded", function () {
     var pos = ((squad.player_positions || {})[pid]);
     var price = ((squad.player_prices || {})[pid]);
     var runs = window.__MT_FIXTURE_RUNS && window.__MT_FIXTURE_RUNS[pid];
+    var formBars = FORM_DATA[pid] || [];
+    var formHTML = "";
+    if (formBars.length) {
+      var pts = formBars.map(function(b) { return b.points; });
+      var labels = formBars.map(function(b) { return "GW" + (b.gw != null ? b.gw : "?"); });
+      formHTML = '<div data-testid="form-spark" style="margin-top:6px">' + FPLApp.sparklineSVG(pts, labels) + "</div>";
+    }
     return (
       '<div class="card" data-testid="squad-tile">' +
         '<div style="display:flex;align-items:center;gap:8px">' +
           '<span class="crest" data-team="' + (((squad.player_teams || {})[pid]) || 0) + '" style="' + "background:linear-gradient(135deg,#334155,#1e293b)" + '">' +
             FPLApp.esc(name.slice(0, 3).toUpperCase()) + "</span>" +
           "<div><strong>" + FPLApp.esc(name) + "</strong>" +
-            '<div class="faint small">' + (pos ? POS_NAMES[pos] + " · " : "") + (price != null ? "£" + Number(price).toFixed(1) + "m" : "") + "</div></div>" +
+            '<div class="faint small">' + (pos ? POS_NAMES[pos] + " · " : "") + (price != null ? "£" + Number(price).toFixed(1) + "m" : "") + priceChip(pid) + "</div></div>" +
           '<span style="margin-left:auto">' +
             (isC ? '<span class="pill warn">C×2</span>' : isV ? '<span class="pill">VC</span>' : "") +
             '<span class="faint small" style="margin-left:6px">#' + slotIdx + "</span></span>" +
         "</div>" +
         FPLApp.fixtureStripHTML(runs) +
+        formHTML +
       "</div>"
     );
   }
@@ -115,12 +182,38 @@ document.addEventListener("DOMContentLoaded", function () {
       $("fixtureTableBox").innerHTML = '<p class="faint small">Fixture scan unavailable right now.</p>';
       return;
     }
-    $("fixtureTableBox").innerHTML =
+    var gws = scan.horizon_gws || [];
+    var summary =
       '<p class="muted small" style="margin-top:0">Per-player next-5 difficulty (opponent · H/A · FDR colour). '
       + 'Squad swing score: <strong class="num">' + (scan.squad_swing_score > 0 ? "+" : "")
-      + Number(scan.squad_swing_score).toFixed(1) + '</strong> <span class="faint">(positive = easy patch)</span></p>'
-      + '<table class="data"><thead><tr><th>Player</th>'
-      + (scan.horizon_gws || []).map(function (gw) { return '<th class="num">GW' + gw + "</th>"; }).join("")
+      + Number(scan.squad_swing_score).toFixed(1) + '</strong> <span class="faint">(positive = easy patch)</span></p>';
+
+    /* U2 — colour heatmap grid: one row per player, one cell per gameweek. */
+    var gridCols = "minmax(110px,1.4fr)";
+    for (var gi = 0; gi < gws.length; gi++) { gridCols += " 44px"; }
+    gridCols += " 52px";
+    var heat = '<div class="heat-grid" data-testid="fixture-heatmap">';
+    heat += '<div class="heat-row" style="grid-template-columns:' + gridCols + '">'
+      + '<span class="faint small">Player</span>'
+      + gws.map(function (gw) { return '<span class="faint small num" style="text-align:center">GW' + gw + "</span>"; }).join("")
+      + '<span class="faint small num" style="text-align:right">FDR</span></div>';
+    scan.players.forEach(function (p) {
+      heat += '<div class="heat-row" style="grid-template-columns:' + gridCols + '" data-testid="heatmap-row">'
+        + '<span class="heat-name">' + FPLApp.esc(p.web_name)
+        + (p.is_starter ? "" : ' <span class="pill">bench</span>') + "</span>"
+        + p.runs.map(function (r) {
+            var opp = r.opponent === "—" ? "–" : r.opponent.slice(0, 3);
+            return '<div class="heat-cell" title="' + FPLApp.esc(r.opponent) + (r.is_home ? " (H)" : " (A)")
+              + ' · FDR ' + r.difficulty + '" style="background:' + FPLApp.fdrColor(r.difficulty)
+              + '">' + FPLApp.esc(opp) + " " + r.difficulty + "</div>";
+          }).join("")
+        + '<span class="num faint small" style="text-align:right">' + Number(p.avg_fdr).toFixed(1) + "</span></div>";
+    });
+    heat += "</div>";
+
+    /* Accessible table view stays available behind the toggle. */
+    var table = '<div id="fxTableView" style="display:none"><div class="table-wrap"><table class="data"><thead><tr><th>Player</th>'
+      + gws.map(function (gw) { return '<th class="num">GW' + gw + "</th>"; }).join("")
       + '<th class="num">Avg FDR</th><th class="num">Swing</th></tr></thead><tbody>'
       + scan.players.map(function (p) {
           return "<tr><td><strong>" + FPLApp.esc(p.web_name) + "</strong>"
@@ -130,10 +223,12 @@ document.addEventListener("DOMContentLoaded", function () {
                   + ' style="background:' + FPLApp.fdrColor(r.difficulty) + '">' + r.opponent + " " + r.difficulty + "</span></td>";
               }).join("")
             + '<td class="num">' + Number(p.avg_fdr).toFixed(1) + "</td>"
-            + '<td class="num" style="color:' + (p.swing > 0 ? "#6ee7b7" : p.swing < 0 ? "#fca5a5" : "#94a3b8") + '">'
+            + '<td class="num" style="color:' + (p.swing > 0 ? "var(--pos)" : p.swing < 0 ? "var(--neg)" : "#94a3b8") + '">'
             + (p.swing > 0 ? "+" : "") + p.swing.toFixed(1) + "</td></tr>";
         }).join("")
-      + "</tbody></table>"
+      + "</tbody></table></div></div>";
+
+    $("fixtureTableBox").innerHTML = summary + heat + table
       + (scan.easiest_runs && scan.easiest_runs.length
         ? '<div class="section-h" style="margin-top:18px">TRANSFER TARGETS — EASIEST TEAM RUNS (NEXT 4 GW)</div>'
           + '<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(190px,1fr))">'
@@ -144,18 +239,158 @@ document.addEventListener("DOMContentLoaded", function () {
         : "");
   }
 
+  /* U3 — sortable squad table (xPTS / Alpha / price / volatility). */
+  var SQUAD_METRICS = {};
+  var METRIC_SORT = { key: null, dir: -1 };
+
+  function renderSquadTable(squad, names) {
+    var ids = squad.player_ids || [];
+    if (!ids.length) { $("squadTableView").innerHTML = ""; return; }
+    var rows = ids.map(function (pid) {
+      var m = SQUAD_METRICS[pid] || {};
+      return {
+        pid: pid,
+        name: (names && names[pid]) || ("Player " + pid),
+        xpts: m.xpts,
+        alpha: m.alpha,
+        edge: m.edge,
+        price: squad.player_prices ? squad.player_prices[pid] : null,
+        vol: m.volatility
+      };
+    });
+    if (METRIC_SORT.key) {
+      rows.sort(function (a, b) {
+        var va = a[METRIC_SORT.key], vb = b[METRIC_SORT.key];
+        va = va === null || va === undefined ? -Infinity : Number(va);
+        vb = vb === null || vb === undefined ? -Infinity : Number(vb);
+        return (va - vb) * METRIC_SORT.dir * -1;
+      });
+    }
+    var fmt = function (v, digits, suffix) {
+      return v === null || v === undefined ? "–" : Number(v).toFixed(digits === undefined ? 1 : digits) + (suffix || "");
+    };
+    var html = '<div class="table-wrap"><table class="data"><thead><tr><th>Player</th>'
+      + '<th class="num sortable"><button type="button" data-sort-key="xpts">xPTS</button></th>'
+      + '<th class="num sortable"><button type="button" data-sort-key="alpha">Alpha</button></th>'
+      + '<th class="num sortable"><button type="button" data-sort-key="price">Price</button></th>'
+      + '<th class="num sortable"><button type="button" data-sort-key="vol">Volatility</button></th>'
+      + "</tr></thead><tbody>"
+      + rows.map(function (r) {
+          return "<tr><td><strong>" + FPLApp.esc(r.name) + "</strong></td>"
+            + '<td class="num">' + fmt(r.xpts) + "</td>"
+            + '<td class="num">' + (r.alpha !== null && r.alpha !== undefined
+                ? '<span style="color:' + (r.alpha >= 0 ? "var(--pos)" : "var(--neg)") + '">' + (r.alpha > 0 ? "+" : "") + Number(r.alpha).toFixed(2) + "</span>"
+                : (r.edge != null ? fmt(r.edge) + "*" : "–")) + "</td>"
+            + '<td class="num">' + fmt(r.price) + "</td>"
+            + '<td class="num">' + fmt(r.vol) + "</td></tr>";
+        }).join("")
+      + '</tbody></table></div><p class="faint small" style="margin:8px 0 6px">* Alpha unavailable without ownership — edge (xPTS − pos avg) shown instead.</p>';
+    $("squadTableView").innerHTML = html;
+    $("squadTableView").querySelectorAll("[data-sort-key]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var key = btn.getAttribute("data-sort-key");
+        if (METRIC_SORT.key === key) { METRIC_SORT.dir *= -1; }
+        else { METRIC_SORT.key = key; METRIC_SORT.dir = -1; }
+        if (CURRENT_SQUAD && window.__MT_NAMES) renderSquadTable(CURRENT_SQUAD, window.__MT_NAMES);
+      });
+    });
+  }
+
+  function setSquadView(table) {
+    $("viewCardsBtn").classList.toggle("active", !table);
+    $("viewTableBtn").classList.toggle("active", table);
+    $("squadGrid").style.display = table ? "none" : "";
+    $("squadTableView").style.display = table ? "" : "none";
+  }
+  function setFixtureView(table) {
+    $("fxHeatBtn").classList.toggle("active", !table);
+    $("fxTableBtn").classList.toggle("active", table);
+    var heat = document.querySelector('[data-testid="fixture-heatmap"]');
+    var tv = document.getElementById("fxTableView");
+    if (tv) { tv.style.display = table ? "" : "none"; }
+    if (heat) { heat.style.display = table ? "none" : ""; }
+  }
+
+  /* Phase 23 (C6): header states the gameweek decisions apply to plus an
+     honest sub-line about when the squad snapshot was taken. */
+  function renderHeader(sessionKey, squadGameweek) {
+    fetch("/api/v1/sync/target-gameweek?fallback=" + encodeURIComponent(squadGameweek || 1))
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; })
+      .then(function (data) {
+        var target = data && data.gameweek ? Number(data.gameweek) : (squadGameweek || null);
+        $("gwHeader").textContent = target ? "Gameweek " + target : "Gameweek –";
+      });
+    fetch("/api/v1/sync/status")
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; })
+      .then(function (status) {
+        var push = status && status.latest && status.latest.squad;
+        if (push && push.gameweek) {
+          $("syncSubLine").textContent = "squad synced during GW" + push.gameweek;
+        } else if (squadGameweek) {
+          $("syncSubLine").textContent = "squad synced during GW" + squadGameweek;
+        } else {
+          $("syncSubLine").textContent = "";
+        }
+      });
+  }
+
   function load(sessionKey) {
     $("statusLine").textContent = "";
     fetch("/api/v1/squad?session_id=" + encodeURIComponent(sessionKey))
       .then(function (res) { return res.ok ? res.json() : res.json().then(function (b) { throw new Error(b.detail || res.status); }); })
       .then(function (squad) {
         CURRENT_SQUAD = squad;
+        /* Phase 23 (L3): ▲/▼ price chips from the price engine. */
+        var ids = (squad.player_ids || []).join(",");
+        if (ids) {
+          fetch("/api/v1/prices/chips?player_ids=" + encodeURIComponent(ids))
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .catch(function () { return null; })
+            .then(function (data) {
+              if (data && data.chips) {
+                PRICE_CHIPS = {};
+                Object.keys(data.chips).forEach(function (k) { PRICE_CHIPS[k] = data.chips[k]; });
+                if (window.__MT_NAMES) render(squad, window.__MT_NAMES);
+              }
+            });
+          /* U3: sortable-table metrics (best-effort). */
+          fetch("/api/v1/targets/squad-metrics?session_id=" + encodeURIComponent(sessionKey))
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .catch(function () { return null; })
+            .then(function (data) {
+              SQUAD_METRICS = {};
+              if (data && data.metrics) {
+                Object.keys(data.metrics).forEach(function (k) {
+                  SQUAD_METRICS[Number(k)] = data.metrics[k];
+                });
+              }
+              renderSquadTable(squad, window.__MT_NAMES || {});
+            });
+        }
         fetch("/api/v1/players").then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (players) {
           var byElement = {};
           players.forEach(function (p) {
             byElement[p.fpl_element_id != null ? p.fpl_element_id : p.id] = p.web_name;
           });
           render(squad, byElement);
+          /* Fetch form bars for all squad players in parallel (best-effort). */
+          var ids = squad.player_ids || [];
+          Promise.all(ids.map(function(pid) {
+            return fetch("/api/v1/drawer/" + encodeURIComponent(pid))
+              .then(function(r) { return r.ok ? r.json() : null; })
+              .catch(function() { return null; });
+          })).then(function(results) {
+            var changed = false;
+            results.forEach(function(data, idx) {
+              if (data && data.form_bars && data.form_bars.length) {
+                FORM_DATA[ids[idx]] = data.form_bars;
+                changed = true;
+              }
+            });
+            if (changed && window.__MT_NAMES) render(squad, window.__MT_NAMES);
+          });
         });
         renderSquadPanel(squad);
         fetch("/api/v1/fixtures/scan?session_id=" + encodeURIComponent(sessionKey))
@@ -181,10 +416,20 @@ document.addEventListener("DOMContentLoaded", function () {
     $("metaLine").innerHTML = "Gameweek <strong>" + squad.gameweek + "</strong> · bank £" +
       Number(squad.bank).toFixed(1) + "m · " + squad.free_transfers + " free transfer(s)" +
       " · last updated " + (squad.updated_at ? new Date(squad.updated_at).toLocaleString() : "–");
+    renderHeader(null, squad.gameweek);
     $("squadGrid").innerHTML = (squad.player_ids || [])
       .map(function (pid, i) { return tile(pid, squad, i + 1, names); })
       .join("");
     FPLApp.hydrateCrests(document);
+    renderSquadTable(squad, names);
+  }
+
+  /* U3 — view toggles */
+  $("viewCardsBtn").addEventListener("click", function () { setSquadView(false); });
+  $("viewTableBtn").addEventListener("click", function () { setSquadView(true); });
+  if ($("fxHeatBtn") && $("fxTableBtn")) {
+    $("fxHeatBtn").addEventListener("click", function () { setFixtureView(false); });
+    $("fxTableBtn").addEventListener("click", function () { setFixtureView(true); });
   }
 
   /* Phase 20.0 — zero-typing bootstrap: no entry input on this page at all.
@@ -202,6 +447,15 @@ document.addEventListener("DOMContentLoaded", function () {
     onError: function (msg) {
       $("statusLine").innerHTML = '<span class="pill bad">' + FPLApp.esc(msg || "Load failed.") + "</span>";
     }
+  });
+  $("exportSquadBtn").addEventListener("click", function(){
+    if(!CURRENT_SQUAD){ $("myteamStatus").textContent="No squad loaded"; return; }
+    fetch("/api/v1/decisions?session_id="+encodeURIComponent(FPLApp.session.read().key)).then(function(r){return r.ok?r.json():null;}).then(function(rep){
+      if(!rep || !rep.players){ $("myteamStatus").textContent="No data"; return; }
+      var rows = Object.keys(rep.players).map(function(pid){ var p=rep.players[pid]; return [p.id, p.web_name, p.price!=null?Number(p.price).toFixed(1):"", p.expected_points!=null?Number(p.expected_points).toFixed(1):""]; });
+      FPLApp.exportCsv("squad.csv", rows, ["element_id","web_name","price","xPTS"]);
+      $("myteamStatus").textContent="squad.csv downloaded"; setTimeout(function(){ $("myteamStatus").textContent=""; },1500);
+    }).catch(function(){ $("myteamStatus").textContent="Export failed"; });
   });
 });
 </script>

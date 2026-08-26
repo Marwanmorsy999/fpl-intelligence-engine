@@ -28,6 +28,8 @@ from typing import Any
 
 import httpx
 
+from fpl_intelligence.data_providers.team_aliases import canonical_team_name
+
 logger = logging.getLogger(__name__)
 
 ODDS_API_BASE_URL = "https://api.the-odds-api.com/v4"
@@ -79,10 +81,13 @@ class MatchOdds:
         return self.away_team, self.away_win_prob
 
     def prob_for_team(self, team_name: str) -> float | None:
-        name = team_name.strip().lower()
-        if name == self.home_team.strip().lower():
+        """Phase 21.1 (T4): alias-normalised lookup ("MCI" -> Manchester City)."""
+        wanted = canonical_team_name(team_name)
+        if not wanted:
+            return None
+        if wanted == canonical_team_name(self.home_team):
             return self.home_win_prob
-        if name == self.away_team.strip().lower():
+        if wanted == canonical_team_name(self.away_team):
             return self.away_win_prob
         return None
 
@@ -110,11 +115,26 @@ class OddsSnapshot:
     requests_remaining: str | None = None
 
     def for_team(self, team_name: str) -> MatchOdds | None:
-        name = team_name.strip().lower()
+        """Alias-normalised event lookup (Phase 21.1 T4)."""
+        wanted = canonical_team_name(team_name)
+        if not wanted:
+            return None
         for match in self.matches:
-            if name in (match.home_team.strip().lower(), match.away_team.strip().lower()):
+            if wanted in (
+                canonical_team_name(match.home_team),
+                canonical_team_name(match.away_team),
+            ):
                 return match
         return None
+
+    def matched_event_names(self) -> set[str]:
+        """Canonical names covered by the current snapshot (for match audits)."""
+        names: set[str] = set()
+        for match in self.matches:
+            names.add(canonical_team_name(match.home_team))
+            names.add(canonical_team_name(match.away_team))
+        names.discard("")
+        return names
 
     def to_payload(self) -> list[dict[str, Any]]:
         return [m.to_payload() for m in self.matches]

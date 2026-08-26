@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
@@ -7,18 +9,26 @@ from fpl_intelligence.api.deps import GetDB, assert_no_static_stub_in_production
 from fpl_intelligence.api.routes.admin import router as admin_router
 from fpl_intelligence.api.routes.analyst import router as analyst_router
 from fpl_intelligence.api.routes.assistant import router as assistant_router
+from fpl_intelligence.api.routes.chips import router as chips_router
+from fpl_intelligence.api.routes.compare import router as compare_router
 from fpl_intelligence.api.routes.crests import router as crests_router
 from fpl_intelligence.api.routes.data_sources import router as data_sources_router
 from fpl_intelligence.api.routes.drawer import router as drawer_router
 from fpl_intelligence.api.routes.fixtures import router as fixtures_router
 from fpl_intelligence.api.routes.intelligence import router as intelligence_router
+from fpl_intelligence.api.routes.league import router as league_router
 from fpl_intelligence.api.routes.live import router as live_router
 from fpl_intelligence.api.routes.news import router as news_router
+from fpl_intelligence.api.routes.planner import router as planner_router
 from fpl_intelligence.api.routes.players import router as players_router
+from fpl_intelligence.api.routes.prices import router as prices_router
+from fpl_intelligence.api.routes.push import router as push_router
 from fpl_intelligence.api.routes.squad import router as squad_router
 from fpl_intelligence.api.routes.sync import BookmarkletCorsMiddleware
 from fpl_intelligence.api.routes.sync import router as sync_router
+from fpl_intelligence.api.routes.targets import router as targets_router
 from fpl_intelligence.api.routes.telegram import router as telegram_router
+from fpl_intelligence.api.routes.transfers import router as transfers_router
 from fpl_intelligence.common.logging import silence_credential_leaking_loggers
 from fpl_intelligence.config import get_settings
 from fpl_intelligence.web.dashboard import router as dashboard_router
@@ -72,6 +82,15 @@ app.include_router(news_router, prefix="/api/v1")
 app.include_router(drawer_router, prefix="/api/v1")
 app.include_router(assistant_router, prefix="/api/v1")
 app.include_router(live_router, prefix="/api/v1")
+app.include_router(league_router, prefix="/api/v1")
+app.include_router(push_router, prefix="/api/v1")
+app.include_router(prices_router, prefix="/api/v1")
+app.include_router(compare_router, prefix="/api/v1")
+app.include_router(chips_router, prefix="/api/v1")
+# Phase 25 Gate 0 — transfer ledger + alpha engine + horizon planner.
+app.include_router(transfers_router, prefix="/api/v1")
+app.include_router(targets_router, prefix="/api/v1")
+app.include_router(planner_router, prefix="/api/v1")
 
 
 @app.get("/", include_in_schema=False)
@@ -89,3 +108,66 @@ async def health(db: GetDB) -> dict[str, str]:
         db_status = f"error: {exc}"
         status = "degraded"
     return {"status": status, "db": db_status, "version": __version__}
+
+
+# --------------------------------------------------------------------------- #
+# v2.7.5-decisions-heal — NEVER-500 safety net for the league + decisions
+# surfaces.
+#
+# The v2.7.4 in-handler try/except only covers failures raised INSIDE the
+# route body. A transient DB-connect failure inside the ``get_db`` dependency
+# (or any other dependency) raises BEFORE the handler runs and used to escape
+# as a raw 500 — exactly the /league outage observed at 03:20 UTC. This
+# catch-all handler sits at ServerErrorMiddleware level, so it intercepts
+# dependency-stage explosions too:
+#
+#   * /api/v1/league*      → 200 with an honest degraded payload (chips).
+#   * /api/v1/decisions*   → 503 with a truthful detail (a skeleton report is
+#                            never fabricated).
+#   * everything else      → unchanged default behavior (plain 500 text).
+# --------------------------------------------------------------------------- #
+from fastapi.responses import JSONResponse, PlainTextResponse  # noqa: E402
+
+
+def _never_500_handler_factory() -> Any:
+
+    async def handler(request: Any, exc: Exception) -> Any:
+        path = request.url.path
+        diag = f"{type(exc).__name__}: {exc}"
+        if path.startswith("/api/v1/league"):
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "session_id": request.query_params.get("session_id", ""),
+                    "status": "degraded",
+                    "leagues": [],
+                    "selected": None,
+                    "needs_picker": False,
+                    "note": (
+                        "league data unavailable right now — render failed "
+                        f"({type(exc).__name__}); retry or press Refresh"
+                    ),
+                    "diag": diag,
+                    "honest_notes": [
+                        "League page could not be computed right now — "
+                        "showing a degraded state rather than failing."
+                    ],
+                },
+            )
+        if path.startswith("/api/v1/decisions"):
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "detail": (
+                        "Decisions engine could not be computed right now "
+                        f"({type(exc).__name__}); retry shortly."
+                    ),
+                    "diag": diag,
+                },
+            )
+        return PlainTextResponse("Internal Server Error", status_code=500)
+
+    return handler
+
+
+app.add_exception_handler(Exception, _never_500_handler_factory())
