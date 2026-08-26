@@ -79,7 +79,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    session_id = args.session_id or sys.argv_default_session()
+    session_id = args.session_id or env_default_session()
     expect_version = args.expect_version
 
     failures: list[str] = []
@@ -148,7 +148,7 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def sys_argv_default_session() -> str | None:
+def env_default_session() -> str | None:
     """Session id resolution helper ($FPL_SESSION_ID env)."""
     import os
 
