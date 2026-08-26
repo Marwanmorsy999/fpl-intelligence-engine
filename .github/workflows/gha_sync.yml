@@ -1,0 +1,34 @@
+name: Transfer Sync
+
+on:
+  # Phase 4.1 — free-tier scheduling lives in GitHub Actions (2 000 runner-minutes
+  # per month on the free plan is far cheaper than burning Vercel Cron budget).
+  # 07:30 UTC daily; well away from the 06:10 UTC daily job so the load is spread.
+  schedule:
+    - cron: "30 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  transfer-sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install .
+
+      - name: Run transfer auto-detection
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FPL_BASE_URL: ${{ secrets.FPL_BASE_URL }}
+        run: python scripts/gha_sync.py

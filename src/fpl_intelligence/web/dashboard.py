@@ -15,10 +15,12 @@ handler for the shared stylesheet/scripts.
 
 from __future__ import annotations
 
+import json
+import os
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
 from fpl_intelligence.config import get_settings
 
@@ -72,6 +74,34 @@ _LIB_FILES = {
 }
 
 
+def _sentry_browser_snippet(dsn: str) -> str:
+    """Sentry browser snippet, injected into `dashboard.html` head only when a DSN exists.
+
+    Keeps the frontend's "zero console noise" guarantee: when no DSN is
+    configured the snippet is never served, so no SDK is loaded and every
+    call-site guard (`window.reportError` / `window.Sentry?.`) is a no-op.
+    """
+    escaped = json.dumps(dsn)  # safe as a JS string literal
+    return (
+        '<script src="https://browser.sentry-cdn.com/8.41.1/bundle.tracing.es5.min.js" '
+        'crossorigin="anonymous"></script>'
+        "<script>\n"
+        f"window.FPL_SENTRY_DSN = {escaped};\n"
+        "try {\n"
+        "  if (window.Sentry) { window.Sentry.init({ dsn: window.FPL_SENTRY_DSN, tracesSampleRate: 0.1 }); }\n"
+        "} catch (e) { /* SDK init is enhancement-only */ }\n"
+        "window.reportError = function (exc, context) {\n"
+        "  try {\n"
+        "    if (window.Sentry && window.Sentry.captureException) {\n"
+        "      window.Sentry.setTag('context', String(context || '').slice(0, 80));\n"
+        "      window.Sentry.captureException(exc);\n"
+        "    }\n"
+        "  } catch (e2) { /* reporting must never throw */ }\n"
+        "};\n"
+        "</script>"
+    )
+
+
 def _register_dashboard_routes() -> None:
     @router.get("/static/{asset_name}", include_in_schema=False)
     async def serve_static(asset_name: str) -> FileResponse:
@@ -87,11 +117,24 @@ def _register_dashboard_routes() -> None:
             raise HTTPException(status_code=404, detail="Not found")
         return FileResponse(_STATIC_DIR / "lib" / lib_name)
 
+    # Phase 4.4 — read once at registration time; absent DSN => never injected.
+    _sentry_dsn_for_pages = os.environ.get("SENTRY_DSN", "").strip()
+
     def _page_handler(filename: str):
-        async def _serve() -> FileResponse:
+        # Only the primary dashboard page carries the Sentry browser snippet,
+        # and only when a DSN is actually configured.
+        if filename == "dashboard.html" and _sentry_dsn_for_pages:
+            async def _serve() -> HTMLResponse:
+                html = (_STATIC_DIR / filename).read_text(encoding="utf-8")
+                snippet = _sentry_browser_snippet(_sentry_dsn_for_pages)
+                return HTMLResponse(html.replace("</head>", snippet + "</head>", 1))
+
+            return _serve
+
+        async def _serve_file() -> FileResponse:
             return FileResponse(_STATIC_DIR / filename)
 
-        return _serve
+        return _serve_file
 
     for path, filename in _PAGES.items():
         router.get(path, include_in_schema=False)(_page_handler(filename))

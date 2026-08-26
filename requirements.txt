@@ -34,5 +34,8 @@ python-telegram-bot>=21.0,<22
 # --- self-hosted web push (Phase 23) ---
 pywebpush>=2.0,<3
 
+# --- error tracking (Phase 4.4, free 5k errors/mo) ---
+sentry-sdk>=2.20,<3
+
 # --- auth / server (prod) ---
 requests>=2.31
