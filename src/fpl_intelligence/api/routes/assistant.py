@@ -95,7 +95,8 @@ def _name_of(report: dict[str, Any], pid: int | None) -> str:
         p = players.get(str(pid)) or players.get(int(pid)) or {}
         if p.get("web_name"):
             return str(p["web_name"])
-    return f"Player {pid}"
+        return f"#{pid}"
+    return "N/A"
 
 
 def _radar_name_rows(db: Session, pids: list[int]) -> list[tuple[int, str, str, str]]:

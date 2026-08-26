@@ -69,7 +69,8 @@ a:hover { text-decoration: underline; }
 
 /* --- top navigation ------------------------------------------------------ */
 .topnav { border-bottom: 1px solid var(--line); background: rgba(11,15,25,0.92); backdrop-filter: blur(8px); position: sticky; top: 0; z-index: 40; }
-.topnav-inner { max-width: 1080px; margin: 0 auto; padding: 0 16px; display: flex; align-items: center; gap: 4px; height: 56px; }
+.topnav-inner { max-width: 1440px; margin: 0 auto; padding: 0 16px; display: flex; align-items: center; gap: 4px; height: 56px; overflow-x: auto; scrollbar-width: none; }
+.topnav-inner::-webkit-scrollbar { display: none; }
 .brand { display:flex; align-items:center; gap:10px; margin-right:20px; font-weight:800; letter-spacing:-0.01em; color:#fff; text-decoration:none; }
 .brand:hover { text-decoration:none; }
 .brand-dot { width:26px; height:26px; border-radius:8px; background:linear-gradient(135deg,#38bdf8,#34d399); display:inline-flex; align-items:center; justify-content:center; font-size:14px; }

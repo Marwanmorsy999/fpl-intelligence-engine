@@ -88,6 +88,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var CURRENT_SQUAD = null;
 
   var PRICE_CHIPS = {};
+  var FORM_DATA = {};  // pid -> form_bars array from drawer
 
   function priceChip(pid) {
     var d = PRICE_CHIPS[pid];
@@ -104,6 +105,13 @@ document.addEventListener("DOMContentLoaded", function () {
     var pos = ((squad.player_positions || {})[pid]);
     var price = ((squad.player_prices || {})[pid]);
     var runs = window.__MT_FIXTURE_RUNS && window.__MT_FIXTURE_RUNS[pid];
+    var formBars = FORM_DATA[pid] || [];
+    var formHTML = "";
+    if (formBars.length) {
+      var pts = formBars.map(function(b) { return b.points; });
+      var labels = formBars.map(function(b) { return "GW" + (b.gw != null ? b.gw : "?"); });
+      formHTML = '<div data-testid="form-spark" style="margin-top:6px">' + FPLApp.sparklineSVG(pts, labels) + "</div>";
+    }
     return (
       '<div class="card" data-testid="squad-tile">' +
         '<div style="display:flex;align-items:center;gap:8px">' +
@@ -116,6 +124,7 @@ document.addEventListener("DOMContentLoaded", function () {
             '<span class="faint small" style="margin-left:6px">#' + slotIdx + "</span></span>" +
         "</div>" +
         FPLApp.fixtureStripHTML(runs) +
+        formHTML +
       "</div>"
     );
   }
@@ -366,6 +375,22 @@ document.addEventListener("DOMContentLoaded", function () {
             byElement[p.fpl_element_id != null ? p.fpl_element_id : p.id] = p.web_name;
           });
           render(squad, byElement);
+          /* Fetch form bars for all squad players in parallel (best-effort). */
+          var ids = squad.player_ids || [];
+          Promise.all(ids.map(function(pid) {
+            return fetch("/api/v1/drawer/" + encodeURIComponent(pid))
+              .then(function(r) { return r.ok ? r.json() : null; })
+              .catch(function() { return null; });
+          })).then(function(results) {
+            var changed = false;
+            results.forEach(function(data, idx) {
+              if (data && data.form_bars && data.form_bars.length) {
+                FORM_DATA[ids[idx]] = data.form_bars;
+                changed = true;
+              }
+            });
+            if (changed && window.__MT_NAMES) render(squad, window.__MT_NAMES);
+          });
         });
         renderSquadPanel(squad);
         fetch("/api/v1/fixtures/scan?session_id=" + encodeURIComponent(sessionKey))

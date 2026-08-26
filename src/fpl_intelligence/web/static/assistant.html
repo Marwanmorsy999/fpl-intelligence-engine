@@ -186,7 +186,7 @@ document.addEventListener("DOMContentLoaded", function () {
         CURRENT_GW = Number(brief.gameweek);
         $("briefBox").innerHTML = briefCard(brief);
         $("briefMeta").textContent = "Built " + new Date().toLocaleTimeString() + " · captain " +
-          ((brief.facts_digest && brief.facts_digest.captain) || "—");
+          ((brief.facts_digest && brief.facts_digest.captain && brief.facts_digest.captain !== "Player null") ? brief.facts_digest.captain : "N/A");
         renderHistory(session.key);
       })
       .catch(function (err) {
