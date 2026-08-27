@@ -1649,7 +1649,22 @@ async def fpl_view(
     )
     importer = FplSquadImporter(egress=egress)
 
-    truth = await fetch_fpl_truth(int(session_id), importer)
+    from fpl_intelligence.squad.fpl_import import FplApiUnavailable
+
+    try:
+        truth = await fetch_fpl_truth(int(session_id), importer)
+    except FplApiUnavailable as exc:
+        # Audit 2026-08: a fully-exhausted egress chain (FPL blocks the host,
+        # every mask down, FPL_PROXY_URL unset) used to escape as a bare 500.
+        # Degrade honestly instead — this is exactly the shared-egress 403/429
+        # scenario the mask chain exists for.
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "FPL is unreachable from this deployment right now "
+                "(all egress strategies failed); retry shortly."
+            ),
+        ) from exc
 
     current_event = truth.current_event
     next_gw = truth.next_gw or current_event

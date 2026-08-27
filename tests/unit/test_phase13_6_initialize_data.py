@@ -135,10 +135,17 @@ def test_initialize_records_successful_ingestion_run(client: TestClient) -> None
         db.close()
 
 
-def test_initialize_requires_no_cron_secret(
+def test_initialize_honors_cron_secret_when_configured(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # Even with a configured CRON_SECRET the one-shot bootstrap stays open.
+    # Audit 2026-08 hardening: with CRON_SECRET configured the one-shot
+    # bootstrap demands the bearer (defense-in-depth against racing a fresh
+    # deployment). Without a configured secret (dev) it stays open.
     monkeypatch.setenv("CRON_SECRET", "secret")
+    monkeypatch.delenv("APP_ENV", raising=False)
     resp = client.post("/api/v1/admin/initialize-data")
+    assert resp.status_code == 401
+    resp = client.post(
+        "/api/v1/admin/initialize-data", headers={"Authorization": "Bearer secret"}
+    )
     assert resp.status_code == 200

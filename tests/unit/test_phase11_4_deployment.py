@@ -284,7 +284,9 @@ def test_admin_auth_is_environment_driven() -> None:
     """The cron/admin secret must come from the environment, never the config."""
     admin_route = REPO_ROOT / "src" / "fpl_intelligence" / "api" / "routes" / "admin.py"
     source = admin_route.read_text(encoding="utf-8")
-    assert 'os.environ.get("CRON_SECRET")' in source
+    # Audit 2026-08: reads via os.environ with constant-time comparison.
+    assert 'os.environ.get("CRON_SECRET"' in source
+    assert "hmac.compare_digest" in source
     assert "CRON_SECRET" not in VERCEL_JSON.read_text(encoding="utf-8")
 
 
