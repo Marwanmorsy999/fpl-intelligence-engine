@@ -92,12 +92,34 @@ def _require_cron_auth(
     Standardized on ``Authorization: Bearer <CRON_SECRET>`` — the single auth
     mechanism that Vercel Cron sends automatically. The legacy ``?secret=``
     query parameter is no longer accepted.
+
+    Hardened (audit 2026-08):
+
+    * comparison is constant-time (``hmac.compare_digest``), matching the
+      SYNC_PUSH_TOKEN gate;
+    * fail-CLOSED in production: when ``APP_ENV=production`` and
+      ``CRON_SECRET`` is unset the dependency raises instead of leaving the
+      admin surface open. Dev convenience (open when unset) is preserved for
+      non-production environments only.
     """
-    expected = os.environ.get("CRON_SECRET")
+    import hmac
+
+    expected = os.environ.get("CRON_SECRET", "").strip()
     if not expected:
-        # No secret configured: open (dev convenience). Set CRON_SECRET in prod.
+        if os.environ.get("APP_ENV", "").strip().lower() == "production":
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "CRON_SECRET is not configured on this production deployment; "
+                    "admin endpoints are disabled until it is set."
+                ),
+            )
+        # No secret configured outside production: open (dev convenience).
         return
-    if authorization != f"Bearer {expected}":
+    supplied = authorization or ""
+    if not supplied.startswith("Bearer ") or not hmac.compare_digest(
+        supplied[len("Bearer "):], expected
+    ):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
@@ -940,11 +962,12 @@ def _initialization_complete(db: Session) -> bool:
 
 
 @router.post("/admin/initialize-data")
-async def initialize_data_endpoint() -> dict:
+async def initialize_data_endpoint(_: None = Depends(_require_cron_auth)) -> dict:
     """Seed teams + prices from the committed FPL seed, exactly once.
 
-    Returns 410 after the first successful run. Unauthenticated by design: it
-    is a temporary, self-disabling one-shot bootstrap for a fresh deployment.
+    Returns 410 after the first successful run. Cron-authenticated when a
+    CRON_SECRET is configured (audit 2026-08); open only on unconfigured dev
+    deployments. Still a temporary, self-disabling one-shot bootstrap.
     """
     db = SessionLocal()
     try:
@@ -1021,11 +1044,12 @@ def _migration_applied(db: Session) -> bool:
 
 
 @router.post("/admin/migrate-fpl-code")
-async def migrate_fpl_code_endpoint() -> dict:
+async def migrate_fpl_code_endpoint(_: None = Depends(_require_cron_auth)) -> dict:
     """Add ``players.fpl_code`` and backfill it from the seed, exactly once.
 
-    Returns 410 after the first successful run. Unauthenticated by design: it
-    is a temporary, self-disabling one-shot migration for the fresh deployment.
+    Returns 410 after the first successful run. Cron-authenticated when
+    CRON_SECRET is configured (audit 2026-08); temporary, self-disabling
+    one-shot migration for the fresh deployment.
     """
     db = SessionLocal()
     try:
@@ -1091,10 +1115,14 @@ async def migrate_fpl_code_endpoint() -> dict:
 
 
 @router.get("/admin/alembic-version")
-async def alembic_version_check() -> dict:
+async def alembic_version_check(
+    _: None = Depends(_require_cron_auth),
+) -> dict:
     """Report the current alembic migration version and column presence.
 
     TEMPORARY diagnostic endpoint — remove after migration is confirmed.
+    Cron-authenticated (audit 2026-08): it discloses schema state and must
+    not be publicly readable, even though it performs no writes.
     """
     db = SessionLocal()
     try:
@@ -1108,16 +1136,23 @@ async def alembic_version_check() -> dict:
             row = db.execute(text("SELECT version_num FROM alembic_version")).first()
             version = row[0] if row else None
 
+        # Migration ids follow the zero-padded ``00NN_name`` convention, so a
+        # lexical prefix comparison is a valid ordering. The old
+        # ``version != "0016"`` check mislabelled a database that had already
+        # moved PAST 0016 (e.g. 0021) as "behind".
+        expected_prefix = "0016"
+        behind = version is None or str(version)[:4] < expected_prefix
         return {
             "ok": True,
             "alembic_version": version,
-            "expected_version": "0016_player_fpl_element_id",
-            "behind": version != "0016",
+            "expected_version": f"{expected_prefix}_player_fpl_element_id",
+            "behind": behind,
             "columns": {
                 "fpl_code": has_fpl_code,
                 "fpl_element_id": has_fpl_element_id,
             },
         }
+
     except Exception as exc:  # noqa: BLE001 - surface for visibility
         logger.exception("alembic-version check failed")
         return JSONResponse(
@@ -1159,11 +1194,12 @@ def _element_migration_applied(db: Session) -> bool:
 
 
 @router.post("/admin/migrate-fpl-element-id")
-async def migrate_fpl_element_id_endpoint() -> dict:
+async def migrate_fpl_element_id_endpoint(_: None = Depends(_require_cron_auth)) -> dict:
     """Add ``players.fpl_element_id`` and backfill it, exactly once.
 
-    Returns 410 after the first successful run. Unauthenticated by design: it
-    is a temporary, self-disabling one-shot migration for the deployment.
+    Returns 410 after the first successful run. Cron-authenticated when
+    CRON_SECRET is configured (audit 2026-08); temporary, self-disabling
+    one-shot migration for the deployment.
     """
     db = SessionLocal()
     try:
@@ -1280,11 +1316,12 @@ def _reseed_applied(db: Session) -> bool:
 
 
 @router.post("/admin/reseed-fpl-codes")
-async def reseed_fpl_codes_endpoint() -> dict:
+async def reseed_fpl_codes_endpoint(_: None = Depends(_require_cron_auth)) -> dict:
     """Replay the bootstrap seed so every player gets their real FPL code.
 
-    Returns 410 after the first successful run. Unauthenticated by design:
-    temporary, self-disabling one-shot for the fresh deployment.
+    Returns 410 after the first successful run. Cron-authenticated when
+    CRON_SECRET is configured (audit 2026-08); temporary, self-disabling
+    one-shot for the fresh deployment.
     """
     db = SessionLocal()
     try:
@@ -1428,11 +1465,12 @@ def _sync_migration_applied(db: Session) -> bool:
 
 
 @router.post("/admin/migrate-sync-tables")
-async def migrate_sync_tables_endpoint() -> dict:
+async def migrate_sync_tables_endpoint(_: None = Depends(_require_cron_auth)) -> dict:
     """Create the five Phase 19 sync tables; idempotent DDL.
 
-    Returns 410 after the first successful run. Unauthenticated by design:
-    temporary, self-disabling one-shot migration for the deployment.
+    Returns 410 after the first successful run. Cron-authenticated when
+    CRON_SECRET is configured (audit 2026-08); temporary, self-disabling
+    one-shot migration for the deployment.
     """
     db = SessionLocal()
     try:
@@ -1683,11 +1721,12 @@ def _materialized_migration_applied(db: Session) -> bool:
 
 
 @router.post("/admin/migrate-materialized-tables")
-async def migrate_materialized_tables_endpoint() -> dict:
+async def migrate_materialized_tables_endpoint(_: None = Depends(_require_cron_auth)) -> dict:
     """Create the four Phase 20.1 read-model tables; idempotent DDL.
 
-    Returns 410 after the first successful run. Unauthenticated by design:
-    temporary, self-disabling one-shot migration for the deployment.
+    Returns 410 after the first successful run. Cron-authenticated when
+    CRON_SECRET is configured (audit 2026-08); temporary, self-disabling
+    one-shot migration for the deployment.
     """
     db = SessionLocal()
     try:
@@ -1800,14 +1839,15 @@ def _bootstrap_materialized_applied(db: Session) -> bool:
 
 
 @router.post("/admin/bootstrap-materialized")
-async def bootstrap_materialized_endpoint() -> dict:
+async def bootstrap_materialized_endpoint(_: None = Depends(_require_cron_auth)) -> dict:
     """Phase 20.1 — one-shot incident recovery: populate the read models NOW.
 
     Runs :func:`materialize_all` once so the deployed engine serves warm data
     immediately instead of waiting for the 06:10 cron. Self-disabling: returns
     410 after its first successful run (same pattern as the migration hotfixes).
-    Unauthenticated by design: temporary, one-shot, and only writes derived
-    cache tables from public sources.
+    Cron-authenticated when CRON_SECRET is configured (audit 2026-08);
+    temporary, one-shot, and only writes derived cache tables from public
+    sources.
     """
     db = SessionLocal()
     try:

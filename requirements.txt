@@ -27,6 +27,10 @@ rich>=13.9,<14
 # --- numerics (models) ---
 numpy>=1.26,<3
 scipy>=1.11,<2
+# Imported by fpl_intelligence.prediction.minutes (IsotonicRegression /
+# RandomForestClassifier / LogisticRegression). Was previously undeclared,
+# breaking `pip install .` deployments that exercise the baseline pipeline.
+scikit-learn>=1.3,<2
 
 # --- telegram bot (Phase 10.2) ---
 python-telegram-bot>=21.0,<22

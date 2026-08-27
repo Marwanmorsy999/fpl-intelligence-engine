@@ -52,11 +52,28 @@ async def handle_webhook(update_json: dict[str, Any], secret: str | None) -> dic
 
     Returns a result dict with ``ok`` and, on failure, an ``error`` detail so
     callers (and cron/manual testers) can see what went wrong.
+
+    Hardened (audit 2026-08): constant-time comparison, and fail-CLOSED in
+    production — when ``TELEGRAM_WEBHOOK_SECRET`` is unset while a bot token
+    IS configured, the webhook refuses updates instead of accepting anyone
+    who knows the URL. (Dev without a secret keeps the old permissive path
+    only outside production.)
     """
-    expected = os.environ.get("TELEGRAM_WEBHOOK_SECRET")
-    if expected and secret != expected:
-        logger.warning("Telegram webhook secret mismatch; rejecting update.")
-        return {"ok": False, "error": "secret mismatch"}
+    import hmac
+
+    expected = os.environ.get("TELEGRAM_WEBHOOK_SECRET", "").strip()
+    if expected:
+        if not secret or not hmac.compare_digest(str(secret), expected):
+            logger.warning("Telegram webhook secret mismatch; rejecting update.")
+            return {"ok": False, "error": "secret mismatch"}
+    elif (
+        os.environ.get("APP_ENV", "").strip().lower() == "production"
+        and os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    ):
+        logger.warning(
+            "Telegram webhook rejecting update: TELEGRAM_WEBHOOK_SECRET unset in production."
+        )
+        return {"ok": False, "error": "webhook secret not configured"}
 
     bot = get_bot()
     if bot is None:

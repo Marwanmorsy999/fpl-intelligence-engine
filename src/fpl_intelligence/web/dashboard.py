@@ -140,20 +140,59 @@ def _register_dashboard_routes() -> None:
         router.get(path, include_in_schema=False)(_page_handler(filename))
 
     @router.get("/api/v1/dashboard/squad-decisions", include_in_schema=False)
-    async def dashboard_squad_decisions() -> JSONResponse:
-        """Proxy the squad decisions for the dashboard SPA."""
-        from fastapi.testclient import TestClient
+    async def dashboard_squad_decisions(
+        session_id: str | None = None,
+    ) -> JSONResponse:
+        """Proxy the squad decisions for the dashboard SPA.
 
-        from fpl_intelligence.api.main import app
+        Audit 2026-08: this used to spin up a ``fastapi.testclient.TestClient``
+        per request to call ``GET /api/v1/decisions`` — importing test tooling
+        into production, re-entering the ASGI app mid-request, and dropping
+        the caller's session. It now invokes the shared decisions builder
+        directly with the caller's ``session_id`` (falling back to the last
+        saved squad), with no in-process HTTP hop.
+        """
+        from fpl_intelligence.api import deps
+        from fpl_intelligence.api.routes.squad import build_decisions_payload
 
-        client = TestClient(app)
-        resp = client.get("/api/v1/decisions")
-        if resp.status_code != 200:
+        db_gen = deps._get_db_session()
+        db = next(db_gen)
+        try:
+            key = session_id or _last_saved_session_id(db)
+            if not key:
+                return JSONResponse(
+                    content={"error": "No squad configured. Use POST /api/v1/squad first."},
+                    status_code=404,
+                )
+            provider = deps.get_prediction_provider(db)  # type: ignore[arg-type]
+            report = await build_decisions_payload(db, provider, key)
+            return JSONResponse(content=report.model_dump(mode="json"))
+        except Exception as exc:  # noqa: BLE001 — honest error, never a bare 500
             return JSONResponse(
-                content={"error": "No squad configured. Use POST /api/v1/squad first."},
-                status_code=resp.status_code,
+                content={
+                    "error": f"Decisions unavailable right now ({type(exc).__name__})."
+                },
+                status_code=503,
             )
-        return JSONResponse(content=resp.json())
+        finally:
+            try:
+                next(db_gen, None)
+            except StopIteration:
+                pass
+
+    def _last_saved_session_id(db: object) -> str | None:
+        """Most recently updated squad session (legacy default-squad behavior)."""
+        from sqlalchemy import select as _select
+
+        from fpl_intelligence.squad.models_db import SquadStateDB
+
+        try:
+            row = db.execute(  # type: ignore[union-attr]
+                _select(SquadStateDB.session_id).order_by(SquadStateDB.updated_at.desc())
+            ).scalars().first()
+            return str(row) if row else None
+        except Exception:  # noqa: BLE001 — missing table etc. degrades to None
+            return None
 
 
 if get_settings().serve_static_dashboard:

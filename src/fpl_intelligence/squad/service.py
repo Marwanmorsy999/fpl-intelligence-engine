@@ -336,29 +336,42 @@ class SquadService:
                 if own:
                     db.close()
 
-    def get_effective_squad(self, session_id: str) -> SquadStateResponse | None:
+    def get_effective_squad(
+        self, session_id: str, mode: str = "plan"
+    ) -> SquadStateResponse | None:
         """User-facing squad: local override preferred, base fallback.
 
         This is what Captaincy, Alpha, Horizon Planner, Trajectory and FOMO
         all read. The daily league/rival fetch stays auto-fetched and
         unaffected. Never raises (v2.7.4-prod-heal): any local/base read
         failure degrades to the other layer and finally to ``None``.
+
+        Phase 2 truth ``mode``:
+
+        * ``"plan"`` (default) — local Transfer-Planner overlay when present,
+          else the base FPL squad.
+        * ``"fpl"`` — the base FPL-truth picks only; the local overlay is
+          never consulted, so the UI can never show a planned player absent
+          from FPL.
         """
-        # Fast path: in-memory mode
+        # Fast path: in-memory mode (no local/base split to honour)
         if not self._is_persistent():
             with self._lock:
+                if mode == "fpl":
+                    return self._state
                 if self._local_state is not None:
                     return self._local_state
                 return self._state
         with self._lock:
             db, own = self._acquire()
             try:
-                local_row = self._read_local_row(db, session_id)
-                if local_row is not None:
-                    try:
-                        return SquadStateResponse.model_validate(local_row.squad_json)
-                    except Exception as exc:  # noqa: BLE001 — corrupt row → base
-                        logger.warning("local squad payload invalid, using base: %s", exc)
+                if mode != "fpl":
+                    local_row = self._read_local_row(db, session_id)
+                    if local_row is not None:
+                        try:
+                            return SquadStateResponse.model_validate(local_row.squad_json)
+                        except Exception as exc:  # noqa: BLE001 — corrupt row → base
+                            logger.warning("local squad payload invalid, using base: %s", exc)
                 base_row = db.execute(
                     select(SquadStateDB).where(SquadStateDB.session_id == session_id)
                 ).scalar_one_or_none()
