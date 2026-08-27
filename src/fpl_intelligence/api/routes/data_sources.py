@@ -269,7 +269,10 @@ async def _probe_understat_refresh_uncached(db: Any) -> dict[str, Any]:
                 timeout=min(4.0, settings.egress_strategy_timeout),
                 cache_ttl=0,
             )
-            html = await egress.fetch("/league/EPL/2026")
+            # Pass 2: TEXT mode — the league page is HTML, and the JSON-only
+            # chain discarded a healthy 200 as JSONDecodeError (the permanent
+            # "page reachable but no playersData block" stale status).
+            html = await egress.fetch_text("/league/EPL/2026")
             strategy = egress.winning_strategy or "direct"
         except Exception as exc:  # noqa: BLE001 - blocked is an expected outcome
             return None, f"{type(exc).__name__}: {exc}"

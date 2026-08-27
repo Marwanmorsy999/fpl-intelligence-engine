@@ -311,6 +311,29 @@ def persist_ledger(
             existing.cost = int(row.get("cost") or 0)
             existing.source = source
             continue
+        # Pass 2 dedupe: snapshot diffs can infer the SAME swap twice with the
+        # in/out sides flipped (live bug: "Cash(#32) ↔ De Cuyper(#115) swap
+        # listed twice"). Before inserting, look for an existing same-gameweek
+        # row with a NULL transfer_id and the REVERSED element pair; when found,
+        # UPDATE it to the newest inference instead of inserting a duplicate.
+        if tid is None and row.get("element_in") is not None and row.get("element_out") is not None:
+            reversed_row = db.scalar(
+                select(TransferLogDB).where(
+                    TransferLogDB.entry_id == str(entry_id),
+                    TransferLogDB.gameweek == int(row["gameweek"]),
+                    TransferLogDB.transfer_id.is_(None),
+                    TransferLogDB.element_in == row["element_out"],
+                    TransferLogDB.element_out == row["element_in"],
+                )
+            )
+            if reversed_row is not None:
+                reversed_row.element_in = row["element_in"]
+                reversed_row.element_out = row["element_out"]
+                reversed_row.name_in = row.get("name_in")
+                reversed_row.name_out = row.get("name_out")
+                reversed_row.cost = int(row.get("cost") or 0)
+                reversed_row.source = source
+                continue
         db.add(
             TransferLogDB(
                 entry_id=str(entry_id),

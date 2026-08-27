@@ -84,6 +84,7 @@ def _chain_with_behaviors(monkeypatch, behaviors: list[tuple[str, object]]) -> F
     monkeypatch.setattr(chain, "_direct", _make("direct"))
     monkeypatch.setattr(chain, "_allorigins", _make("allorigins"))
     monkeypatch.setattr(chain, "_corsproxy", _make("corsproxy"))
+    monkeypatch.setattr(chain, "_codetabs", _make("codetabs"))
     monkeypatch.setattr(chain, "_env_proxy", _make("env_proxy"))
     return chain
 
@@ -135,8 +136,9 @@ class TestEgressStrategyOrder:
         with pytest.raises(FplEgressExhaustedError) as excinfo:
             asyncio.run(chain.fetch("/api/entry/1/", validator=validate_entry_payload))
         tried = [name for name, _err in excinfo.value.attempts]
-        # Order matters: direct first, user proxy LAST.
-        assert tried == ["direct", "allorigins", "corsproxy", "env_proxy"]
+        # Order matters: direct first, user proxy LAST; codetabs sits between
+        # corsproxy and the user proxy (pass-2 fourth free mask).
+        assert tried == ["direct", "allorigins", "corsproxy", "codetabs", "env_proxy"]
         assert chain.winning_strategy is None
 
     def test_cache_reuses_successful_response(self, monkeypatch) -> None:

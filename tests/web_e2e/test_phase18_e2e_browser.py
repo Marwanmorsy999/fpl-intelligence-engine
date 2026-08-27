@@ -280,6 +280,15 @@ def browser_page(page: Page) -> Iterator[Page]:
     page.route("**/api/v1/squad?*", _make_squad_post_handler(captured_squads))
     page.route("**/api/v1/squad/demo**", lambda r: r.fulfill(status=404, body="{}"))
     page.route("**/api/v1/decisions*", _mock_decisions_factory(captured_squads))
+    # "What FPL sees" debug card — 404 catch-all would log a console error.
+    page.route(
+        "**/api/v1/squad/fpl-view*",
+        lambda r: r.fulfill(
+            status=200,
+            content_type="application/json",
+            body='{"current_event": 2, "picks_current": {"gw": 2, "ids": []}, "picks_next": {"gw": 3, "status": 404, "ids": []}, "fpl_history": {"note": ""}}',
+        ),
+    )
     page.route("**/api/v1/analyst/summary*", _mock_analyst)
     page.route("**/api/v1/data-sources*", lambda r: r.fulfill(status=200, body="{}"))
     # Phase 20.0 overlay endpoints (fixture strips + news radar) — empty but
