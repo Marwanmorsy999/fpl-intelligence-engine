@@ -119,7 +119,25 @@ print(
             "package_file": fpl_intelligence.__file__,
             "entrypoint_file": entrypoint.__file__,
             "sys_path_additions": list(entrypoint.SYS_PATH_ADDITIONS),
-            "routes": sorted({getattr(r, "path", "") for r in app.routes}),
+            # FastAPI >= 0.128 keeps included routers as lazy `_IncludedRouter`
+            # entries with an empty ``path`` until first resolution; read each
+            # entry's ``original_router`` plus its ``include_context.prefix``
+            # so the route inventory is complete on old and new FastAPI alike.
+            "routes": sorted({
+                p
+                for r in app.routes
+                for p in (
+                    {getattr(r, "path", "")}
+                    if getattr(r, "path", "")
+                    else {
+                        getattr(getattr(r, "include_context", None), "prefix", "")
+                        + getattr(sub, "path", "")
+                        for sub in getattr(
+                            getattr(r, "original_router", None), "routes", []
+                        )
+                    }
+                )
+            }),
             "cwd": __import__("os").getcwd(),
             "env_keys": sorted(__import__("os").environ),
         }
