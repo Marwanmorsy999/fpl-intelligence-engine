@@ -157,7 +157,7 @@ class TestPhase2SquadTruth:
             rebuilt_from_history = False
             pending_transfer_gw = None
 
-        assert _build_transfer_status(_R()) == "Squad imported from FPL — no confirmed transfer."
+        assert _build_transfer_status(_R()) == "Squad imported from FPL — no confirmed transfer to report."
 
 
 # --------------------------------------------------------------------------- #

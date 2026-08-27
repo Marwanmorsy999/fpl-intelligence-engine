@@ -588,6 +588,9 @@ async function analyze() {
     /* Phase 20: persist with the real entry name so the chip reads
        "{entry_name} · {entry_id} · synced {time}" on every page. */
     FPLApp.session.save(String(entryId), "fpl_id", data.entry_name || "");
+    /* Phase 1 — reflect the session in the URL so a refresh / shared link
+       restores the exact same squad (read back on boot). */
+    try { history.replaceState(null, "", "?entry=" + String(entryId)); } catch (e) {}
     CURRENT_SOURCE_LABEL = data.entry_name ? data.entry_name + " · FPL ID " + entryId : "FPL ID " + entryId;
     updateSourceChip();
     var syncNote = data.sync_status ? '<div class="mt-2 text-xs text-slate-500">📋 ' + esc(data.sync_status) + "</div>" : "";
@@ -1983,6 +1986,65 @@ function restoreSession(session, report) {
   $("results").style.display = "";
 }
 
+/* Phase 3 — Layer A fallback: when the optimizer (decisions) is unavailable
+   (404/503/error) we STILL render the 15 squad player cards from the saved
+   squad so the page is never blank/onboarding-only, plus a degraded banner. */
+function showDegradedBanner() {
+  var host = $("status");
+  if (!host) return;
+  host.style.display = "block";
+  host.className = "banner banner--warn";
+  host.innerHTML = "⚠️ Analysis degraded — squad only. Your 15 players are shown below; live XI/captain optimisation is temporarily unavailable.";
+}
+
+async function loadSquadOnly(sessionKey) {
+  try {
+    var sres = await fetch(API + "/api/v1/squad?session_id=" + encodeURIComponent(sessionKey));
+    if (!sres.ok) { showError("Could not load your saved squad."); return; }
+    var squad = await sres.json();
+    var pres = await fetch(API + "/api/v1/players");
+    var players = pres.ok ? await pres.json() : [];
+    var names = {};
+    (players || []).forEach(function (p) {
+      names[p.fpl_element_id != null ? p.fpl_element_id : p.id] = p.web_name;
+    });
+    CURRENT_SESSION_ID = String(sessionKey);
+    var s = FPLApp.session.read();
+    CURRENT_SOURCE = (s && s.source) || "fpl_id";
+    CURRENT_SOURCE_LABEL = (s && s.entry_name) ? s.entry_name + " · FPL ID " + sessionKey : "FPL ID " + sessionKey;
+    try { updateSourceChip(); } catch (e) {}
+    showDegradedBanner();
+    var grid = squad.player_ids.map(function (pid, i) {
+      var name = names[pid] || ("Player " + pid);
+      var pos = (squad.player_positions || {})[pid];
+      var price = (squad.player_prices || {})[pid];
+      var team = (squad.player_teams || {})[pid];
+      var isC = pid === squad.captain_id;
+      var isV = !isC && pid === squad.vice_captain_id;
+      return (
+        '<div class="card" data-testid="squad-tile" data-player-id="' + pid + '">' +
+          '<div style="display:flex;align-items:center;gap:8px">' +
+            '<span class="crest" data-team="' + (team || 0) + '" style="background:linear-gradient(135deg,#334155,#1e293b)">' +
+              FPLApp.esc(String(name).slice(0, 3).toUpperCase()) + "</span>" +
+            "<div><strong>" + FPLApp.esc(name) + "</strong>" +
+              '<div class="faint small">' + (pos ? POS_NAMES[pos] + " · " : "") + (price != null ? "£" + Number(price).toFixed(1) + "m" : "") + "</div></div>" +
+            '<span style="margin-left:auto">' +
+              (isC ? '<span class="pill warn">C×2</span>' : isV ? '<span class="pill">VC</span>' : "") +
+              '<span class="faint small" style="margin-left:6px">#' + (i + 1) + "</span></span>" +
+          "</div></div>"
+      );
+    }).join("");
+    var results = $("results");
+    results.innerHTML =
+      '<h2 class="page-title">Your Squad</h2>' +
+      '<div class="squad-grid" data-testid="squad-grid">' + grid + "</div>";
+    results.style.display = "block";
+    FPLApp.hydrateCrests(results);
+  } catch (e) {
+    showError(e.message || "Could not load your saved squad.");
+  }
+}
+
 function shareDecisions(){
   if (!LAST_REPORT) { $("shareStatus").textContent = "No decisions to share yet."; return; }
   var brief = "FPL GW"+LAST_REPORT.gameweek+" · Captain "+ (function(){ var c=LAST_REPORT.captain; if(!c) return "—"; var p=(LAST_REPORT.players||{})[String(c.player_id)]; return p? p.web_name : ("#"+c.player_id); })() + " ("+FPLApp.fmtPts(LAST_REPORT.captain?LAST_REPORT.captain.expected_points:"—")+" xPTS) · XI "+ (LAST_REPORT.starting_xi||[]).slice(0,4).map(function(pid){ var p=(LAST_REPORT.players||{})[String(pid)]; return p?p.web_name:pid; }).join(", ")+"…";
@@ -2017,6 +2079,21 @@ function exportBriefTxt(){
 function boot() {
   checkHealth();
   FPLApp.renderNav("/dashboard");
+  /* Phase 1 — URL ?entry=<id> restores the session even on a fresh browser
+     with no localStorage (shared link / refresh). URL wins over a stored
+     session of a different id, mirroring "URL -> localStorage -> Connect". */
+  try {
+    var _urlEntry = new URLSearchParams(window.location.search).get("entry");
+    if (_urlEntry) {
+      var _eid = parseInt(_urlEntry, 10);
+      if (_eid && _eid >= 1) {
+        var _existing = FPLApp.session.read();
+        if (!_existing || _existing.key !== String(_eid)) {
+          FPLApp.session.save(String(_eid), "fpl_id", "");
+        }
+      }
+    }
+  } catch (e) {}
   try { updateSourceChip(); } catch (e) {}
   renderPriceStrip();
   /* Phase 3.4 — first-visit tour (auto-starts once per browser, skips missing
@@ -2062,14 +2139,28 @@ function boot() {
     onReady: restoreSession,
     onNoSession: function (msg) { showEntryScreen(msg); },
     onError: function (msg) {
-      /* Network/5xx: keep the chip but surface the error honestly. */
-      showError(msg || "Could not load your saved squad.");
-      $("inputSection").style.display = "none";
+      /* Phase 3 — even when the optimizer (decisions) is down we still show
+         the 15 squad cards (Layer A) + a degraded banner, never a blank page. */
       var s = FPLApp.session.read();
-      if (!s) { $("inputSection").style.display = "block"; }
+      if (s && s.key) {
+        $("inputSection").style.display = "none";
+        loadSquadOnly(s.key);
+      } else {
+        showError(msg || "Could not load your saved squad.");
+        $("inputSection").style.display = "block";
+      }
     }
   });
 }
+
+/* Phase 5 — a "Build squad manually" link from Connect opens the manual
+   builder directly on the dashboard entry screen. */
+try {
+  if (window.sessionStorage && sessionStorage.getItem("fpl_open_manual") === "1") {
+    sessionStorage.removeItem("fpl_open_manual");
+    if (typeof toggleManual === "function") { toggleManual(); }
+  }
+} catch (e) {}
 
 boot();
 </script>

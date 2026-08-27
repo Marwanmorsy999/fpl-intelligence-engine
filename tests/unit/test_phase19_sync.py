@@ -182,6 +182,29 @@ class TestPushAuth:
         assert bad.status_code == 401
 
 
+class TestCronAuth:
+    def test_missing_secret_fails_closed_in_production(self, monkeypatch):
+        from fastapi import HTTPException
+
+        from fpl_intelligence.api.routes.admin import _require_cron_auth
+
+        monkeypatch.delenv("CRON_SECRET", raising=False)
+        monkeypatch.setenv("APP_ENV", "production")
+
+        with pytest.raises(HTTPException) as error:
+            _require_cron_auth()
+
+        assert error.value.status_code == 503
+
+    def test_missing_secret_remains_available_for_development(self, monkeypatch):
+        from fpl_intelligence.api.routes.admin import _require_cron_auth
+
+        monkeypatch.delenv("CRON_SECRET", raising=False)
+        monkeypatch.setenv("APP_ENV", "development")
+
+        _require_cron_auth()
+
+
 class TestBookmarkletPayloadParsing:
     def test_captain_flag_required(self, api):
         client, _db, token = api

@@ -1,12 +1,13 @@
-from typing import Any
-
+import logging
 import os
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 
 from fpl_intelligence import __version__
+from fpl_intelligence.api.cache import EdgeCachePolicyMiddleware
 from fpl_intelligence.api.deps import GetDB, assert_no_static_stub_in_production
 from fpl_intelligence.api.routes.admin import router as admin_router
 from fpl_intelligence.api.routes.analyst import router as analyst_router
@@ -31,12 +32,12 @@ from fpl_intelligence.api.routes.sync import router as sync_router
 from fpl_intelligence.api.routes.targets import router as targets_router
 from fpl_intelligence.api.routes.telegram import router as telegram_router
 from fpl_intelligence.api.routes.transfers import router as transfers_router
-from fpl_intelligence.api.cache import EdgeCachePolicyMiddleware
 from fpl_intelligence.common.logging import silence_credential_leaking_loggers
 from fpl_intelligence.config import get_settings
 from fpl_intelligence.web.dashboard import router as dashboard_router
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 # Phase 4.4 — Sentry error tracking (free 5k errors/mo). Boot is guarded so the
 # app runs perfectly when SENTRY_DSN is absent; the SDK only activates when a
@@ -127,8 +128,9 @@ async def health(db: GetDB) -> dict[str, str]:
         db.execute(__import__("sqlalchemy").text("SELECT 1"))
         db_status = "connected"
         status = "ok"
-    except Exception as exc:  # noqa: BLE001 - health must never crash
-        db_status = f"error: {exc}"
+    except Exception:  # noqa: BLE001 - health must never crash
+        logger.exception("health database probe failed")
+        db_status = "error"
         status = "degraded"
     return {"status": status, "db": db_status, "version": __version__}
 
@@ -156,7 +158,7 @@ def _never_500_handler_factory() -> Any:
 
     async def handler(request: Any, exc: Exception) -> Any:
         path = request.url.path
-        diag = f"{type(exc).__name__}: {exc}"
+        logger.exception("Unhandled exception for %s", path, exc_info=exc)
         # Phase 4.4 — report the unhandled exception to Sentry when configured.
         if _sentry_dsn:
             try:
@@ -176,9 +178,8 @@ def _never_500_handler_factory() -> Any:
                     "needs_picker": False,
                     "note": (
                         "league data unavailable right now — render failed "
-                        f"({type(exc).__name__}); retry or press Refresh"
+                        "server-side; retry or press Refresh"
                     ),
-                    "diag": diag,
                     "honest_notes": [
                         "League page could not be computed right now — "
                         "showing a degraded state rather than failing."
@@ -191,9 +192,8 @@ def _never_500_handler_factory() -> Any:
                 content={
                     "detail": (
                         "Decisions engine could not be computed right now "
-                        f"({type(exc).__name__}); retry shortly."
+                        "; retry shortly."
                     ),
-                    "diag": diag,
                 },
             )
         return PlainTextResponse("Internal Server Error", status_code=500)

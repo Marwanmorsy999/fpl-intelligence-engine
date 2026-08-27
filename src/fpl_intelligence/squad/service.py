@@ -147,10 +147,8 @@ class SquadService:
 
     def _upsert_local(self, db: Session, session_id: str, state: SquadStateResponse) -> None:
         # Self-seal table on first use (prod DB predates 0021).
-        try:
+        with contextlib.suppress(Exception):
             self._ensure_local_table(db)
-        except Exception:
-            pass
         data = self._row_data(session_id, state)
         try:
             existing = db.execute(
@@ -341,9 +339,18 @@ class SquadService:
     ) -> SquadStateResponse | None:
         """User-facing squad: local override preferred, base fallback.
 
-        This is what Captaincy, Alpha, Horizon Planner, Trajectory and FOMO
-        all read. The daily league/rival fetch stays auto-fetched and
-        unaffected. Never raises (v2.7.4-prod-heal): any local/base read
+        Phase 2 — the dual-state read is now explicit:
+
+        * ``mode="fpl"``  → **base only**. The latest official FPL picks, never
+          the local Transfer-Planner overlay. Use this anywhere the UI must not
+          show a planned player that is absent from FPL truth (e.g. De Cuyper
+          after an FPL sync that cleared the local row).
+        * ``mode="plan"`` (default) → local override if present, else base. This
+          preserves the pre-existing behaviour so the Transfer Planner overlay
+          still wins once the user opts into it.
+
+        Captaincy, Alpha, Horizon Planner, Trajectory and FOMO all read the
+        effective squad. Never raises (v2.7.4-prod-heal): any local/base read
         failure degrades to the other layer and finally to ``None``.
 
         Phase 2 truth ``mode``:
@@ -362,6 +369,25 @@ class SquadService:
                 if self._local_state is not None:
                     return self._local_state
                 return self._state
+        if mode == "fpl":
+            # FPL truth only — base row, ignore any local overlay.
+            with self._lock:
+                db, own = self._acquire()
+                try:
+                    base_row = db.execute(
+                        select(SquadStateDB).where(SquadStateDB.session_id == session_id)
+                    ).scalar_one_or_none()
+                    if base_row is None:
+                        return None
+                    return SquadStateResponse.model_validate(base_row.squad_json)
+                except Exception as exc:  # noqa: BLE001 — last-resort degradation
+                    logger.warning("get_effective_squad(fpl) failed: %s", exc)
+                    with contextlib.suppress(Exception):
+                        db.rollback()
+                    return None
+                finally:
+                    if own:
+                        db.close()
         with self._lock:
             db, own = self._acquire()
             try:
