@@ -145,11 +145,20 @@ async def get_squad(
     db: GetDB,
     response: Response,
     session_id: str | None = Query(None, description="Per-user session key. Required."),
+    mode: str = Query(
+        "plan",
+        description="Phase 2 truth mode. 'plan' (default) returns the local "
+        "Transfer-Planner overlay if present else the base FPL squad. 'fpl' "
+        "returns the base FPL picks only (never the local overlay).",
+        pattern="^(plan|fpl)$",
+    ),
 ) -> SquadStateResponse:
     """Retrieve the *effective* squad state for a specific session.
 
     v2.7.3-dual-state: prefers the Transfer Planner's ``local_squad`` override;
     falls back to the last FPL-imported base row. ``session_id`` is REQUIRED.
+    Phase 2: ``mode=fpl`` returns the FPL-truth base squad only (never the
+    local overlay), so the UI can never show a planned player absent from FPL.
     Returns 404 if missing or if no squad has been saved for that key.
     """
     if not session_id:
@@ -157,7 +166,7 @@ async def get_squad(
             status_code=404,
             detail="No squad saved for this session",
         )
-    squad = SquadService(session=db).get_effective_squad(session_id=session_id)
+    squad = SquadService(session=db).get_effective_squad(session_id=session_id, mode=mode)
     if squad is None:
         raise HTTPException(
             status_code=404,
@@ -1087,6 +1096,13 @@ class FromFplRequest(BaseModel):
         description="Your FPL Manager Entry ID (the number in your FPL team URL).",
         examples=[1234567],
     )
+    session_id: str | None = Field(
+        default=None,
+        description="Optional session key to persist under. When omitted, "
+        "defaults to str(entry_id). Phase 1: the squad is always stored under "
+        "this key so a refresh/restore keeps the same session.",
+        examples=["1234567"],
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -1291,6 +1307,30 @@ async def _attach_phase2_insights(
     report.meta["phase2"] = phase2
 
 
+def _build_transfer_status(result: Any) -> str | None:
+    """Honest transfer verdict — never derived from an internal snapshot diff.
+
+    A confirmed transfer is reported ONLY when one of the official FPL signals
+    is present:
+    * the squad was rebuilt from FPL's official ``/history/`` element_in/out
+      (``rebuilt_from_history``), or
+    * FPL's history recorded zero transfers for the target GW (``no_pending_transfer``
+      → "Matches FPL picks — no confirmed transfer.").
+
+    In every other case we report the neutral line rather than guessing from a
+    snapshot diff, so the UI never shows "Cash in / De Cuyper out" as fact.
+    """
+    if getattr(result, "rebuilt_from_history", False):
+        gw = getattr(result, "pending_transfer_gw", None) or "next"
+        return (
+            f"Confirmed transfer applied for GW{gw} (from official FPL history). "
+            "Your FPL squad now reflects this move."
+        )
+    if getattr(result, "no_pending_transfer", False):
+        return "Matches FPL picks — no confirmed transfer."
+    return "Squad imported from FPL — no confirmed transfer."
+
+
 def _build_sync_status(result: Any, entry_id: int) -> str:
     """Build an honest sync-status line naming the egress mask that won."""
     strategy = getattr(result, "winning_strategy", None)
@@ -1367,26 +1407,43 @@ async def import_squad_from_fpl(
             "Your ID is saved — we retry automatically and will Telegram you on success.",
         ) from exc
 
-    saved = SquadService(session=db).set_squad(result.squad, session_id=str(payload.entry_id))
-    _invalidate_decisions_cache(str(payload.entry_id))
+    # Phase 1: the squad is always persisted under the entry_id unless an
+    # explicit session_id was supplied in the body (e.g. a reconnect of the
+    # same manager). Refresh/restore then keeps one stable session key.
+    effective_session = payload.session_id or str(payload.entry_id)
+
+    saved = SquadService(session=db).set_squad(result.squad, session_id=effective_session)
+    _invalidate_decisions_cache(effective_session)
+
+    # Phase 2 — after "Sync from FPL" the user is in FPL mode: the base (FPL
+    # truth) row is authoritative. Drop any stale local Transfer-Planner
+    # override so the effective squad can never bleed in a planned player
+    # (e.g. De Cuyper) that is absent from the official picks. The planner is
+    # an overlay only; it is re-applied by the user if they opt to keep it.
+    try:
+        SquadService(session=db).clear_local(effective_session)
+    except Exception as exc:  # noqa: BLE001 — overlay clear is best-effort
+        logger.debug("clear_local on sync failed (ignored): %s", exc)
+
     # Never cache responses that are specific to a session.
     response.headers["Cache-Control"] = "no-store"
     sync_status = _build_sync_status(result, entry_id=payload.entry_id)
-    # Phase 25 (T1): banner payload when this sync changed the roster.
-    detected: dict[str, Any] | None = None
-    try:
-        from fpl_intelligence.transfers.service import detect_transfer_between_snapshots
 
-        detected = detect_transfer_between_snapshots(db, str(payload.entry_id))
-    except Exception as exc:  # noqa: BLE001 — banner is best-effort
-        logger.debug("detected-transfer lookup failed: %s", exc)
+    # Phase 2 — honest transfer verdict. A confirmed transfer is reported ONLY
+    # when FPL's official history recorded one (rebuilt_from_history) or the
+    # import found no pending transfer (no_pending_transfer). The internal
+    # snapshot-diff (detected_transfer) is NEVER surfaced as confirmed — we
+    # demote it to None so the UI cannot present a guessed move as fact.
+    transfer_status = _build_transfer_status(result)
+
     return FromFplResponse(
         squad=saved,
         player_names=result.player_names,
         entry_name=result.entry_name,
         gameweek=result.gameweek,
         sync_status=sync_status,
-        detected_transfer=detected,
+        detected_transfer=None,
+        transfer_status=transfer_status,
     )
 
 
@@ -1447,15 +1504,24 @@ async def retry_sync(request: Request, db: GetDB, response: Response) -> FromFpl
 
     saved = SquadService(session=db).set_squad(result.squad, session_id=session_key)
     _invalidate_decisions_cache(session_key)
+    # Phase 2 — re-sync returns the user to FPL mode; drop any stale local
+    # Transfer-Planner overlay so the effective squad matches FPL truth.
+    try:
+        SquadService(session=db).clear_local(session_key)
+    except Exception as exc:  # noqa: BLE001 — overlay clear is best-effort
+        logger.debug("clear_local on retry-sync failed (ignored): %s", exc)
     # Never cache responses that are specific to a session.
     response.headers["Cache-Control"] = "no-store"
     sync_status = _build_sync_status(result, entry_id=pending_before.entry_id)
+    transfer_status = _build_transfer_status(result)
     return FromFplResponse(
         squad=saved,
         player_names=result.player_names,
         entry_name=result.entry_name,
         gameweek=result.gameweek,
         sync_status=sync_status,
+        detected_transfer=None,
+        transfer_status=transfer_status,
     )
 
 
