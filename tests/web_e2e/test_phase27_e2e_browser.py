@@ -154,6 +154,15 @@ class TestTransferDesk:
         expect(page.locator('[data-testid="shadow-row"]').first).to_be_visible()
         expect(page.locator('[data-testid="captain-delta"]')).to_contain_text("Captaincy")
 
+    @pytest.mark.xfail(
+        reason=(
+            "tests the pre-v2.7.2 Direct Push (execute-transfer-btn -> POST "
+            "/api/v1/transfers/execute), which was intentionally removed: the "
+            "app is planner-only and FPL is the execution layer. The button and "
+            "endpoint no longer exist in src/. Re-implement or delete this test."
+        ),
+        strict=False,
+    )
     def test_execute_shows_success(self, mocked: Page):
         page = mocked
         page.goto(BASE_URL + "/transfers", wait_until="domcontentloaded")

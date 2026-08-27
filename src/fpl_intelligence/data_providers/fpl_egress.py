@@ -11,7 +11,13 @@ Strategy order
 1. ``direct``       — existing browser-User-Agent GET.
 2. ``allorigins``   — ``https://api.allorigins.win/raw?url=<encoded>``.
 3. ``corsproxy``    — ``https://corsproxy.io/?url=<encoded>``.
-4. ``env_proxy``    — ``$FPL_PROXY_URL?url=<encoded>`` (user's Apps Script).
+4. ``codetabs``     — ``https://api.codetabs.com/v1/proxy?quest=<encoded>``.
+5. ``env_proxy``    — ``$FPL_PROXY_URL?url=<encoded>`` (user's Apps Script or
+                     the free Cloudflare Worker in ``scripts/``).
+
+``fetch()`` returns parsed JSON; ``fetch_text()`` (pass 2) runs the SAME chain
+in raw-body mode for targets whose payload is not JSON (Understat league HTML
+pages were previously discarded as JSONDecodeError even on a healthy 200).
 
 No strategy ever transmits auth or secrets: only public FPL URLs are passed to
 any mask, and the mask URL itself is taken from env (``FPL_PROXY_URL``), never
@@ -90,7 +96,7 @@ def reset_mask_health() -> None:
 
 def mask_health_payload() -> list[dict[str, Any]]:
     """Per-strategy health rows ordered by chain priority."""
-    order = ["direct", "allorigins", "corsproxy", "env_proxy"]
+    order = ["direct", "allorigins", "corsproxy", "codetabs", "env_proxy"]
     with _MASK_HEALTH_LOCK:
         snapshot = {k: dict(v) for k, v in _MASK_HEALTH.items()}
     known = [name for name in order if name in snapshot]
@@ -115,6 +121,9 @@ _BROWSER_HEADERS = {
     ),
     "Accept": "application/json",
 }
+
+#: Same browser identity, HTML-tolerant Accept for the text-mode direct fetch.
+_BROWSER_HEADERS_TEXT = {**_BROWSER_HEADERS, "Accept": "text/html,*/*"}
 
 #: Per-strategy network timeout (seconds). Short so a blocked mask fails fast
 #: and we fall through to the next one.
@@ -247,6 +256,106 @@ class FplEgressChain:
 
         raise FplEgressExhaustedError(full_path, attempts)
 
+    async def fetch_text(
+        self,
+        path: str,
+        *,
+        use_cache: bool = True,
+    ) -> str:
+        """Fetch ``base_url + path`` as RAW TEXT through the same chain.
+
+        The JSON chain (``r.json()``) rejects any non-JSON body, so a healthy
+        200 HTML page (Understat league pages) was discarded as
+        JSONDecodeError on every strategy — the Sources page then stuck on a
+        permanent stale "page reachable but no playersData block" status.
+        Text mode keeps the SAME strategy order and per-strategy health
+        accounting but returns the raw body, so a 200 HTML response counts as
+        reachable and the caller parses whatever it needs.
+
+        allorigins may answer with a ``{"contents": "<raw body>"}`` wrapper;
+        that is unwrapped before returning. Successful results are cached
+        under ``text:<path>`` so they never collide with JSON-mode entries.
+        """
+        full_path = path if path.startswith("/") else f"/{path}"
+        cache_key = f"text:{full_path}"
+
+        if use_cache:
+            cached = self._cache.get(cache_key)
+            if cached:
+                ts, data = cached
+                if self._now() - ts < self._cache_ttl:
+                    logger.debug("fpl_egress: text cache hit %s", full_path)
+                    return data
+
+        url = f"{self._base_url}{full_path}"
+
+        # Plain async closures for the mask strategies (text variants of the
+        # JSON chain) — the direct strategy uses the shared _direct_text.
+        async def _get_text(proxy_url: str) -> str:
+            async with httpx.AsyncClient(
+                timeout=self._timeout, follow_redirects=True
+            ) as client:
+                r = await client.get(proxy_url)
+                r.raise_for_status()
+                return r.text
+
+        async def _allorigins_text(target: str) -> str:
+            body = await _get_text(f"https://api.allorigins.win/raw?url={_enc(target)}")
+            # allorigins may re-encode the upstream body as {"contents": ...}.
+            if body.lstrip()[:1] == "{":
+                try:
+                    parsed = json.loads(body)
+                except (ValueError, TypeError):
+                    parsed = None
+                if isinstance(parsed, dict) and isinstance(parsed.get("contents"), str):
+                    return parsed["contents"]
+            return body
+
+        async def _corsproxy_text(target: str) -> str:
+            return await _get_text(f"https://corsproxy.io/?url={_enc(target)}")
+
+        async def _codetabs_text(target: str) -> str:
+            return await _get_text(f"https://api.codetabs.com/v1/proxy?quest={_enc(target)}")
+
+        async def _env_proxy_text(target: str) -> str:
+            base = os.getenv("FPL_PROXY_URL", "").strip()
+            if not base:
+                raise FplEgressError("FPL_PROXY_URL not set")
+            # Strip any trailing ?url= so we control the query param ourselves.
+            base = base.split("?url=")[0].rstrip("?&")
+            return await _get_text(f"{base}?url={_enc(target)}")
+
+        strategies: list[tuple[str, Callable[[str], Any]]] = [
+            ("direct", self._direct_text),
+            ("allorigins", _allorigins_text),
+            ("corsproxy", _corsproxy_text),
+            ("codetabs", _codetabs_text),
+            ("env_proxy", _env_proxy_text),
+        ]
+
+        attempts: list[tuple[str, str]] = []
+        for name, fn in strategies:
+            try:
+                text = await fn(url)
+            except Exception as exc:  # noqa: BLE001 — record and fall through
+                attempts.append((name, f"{type(exc).__name__}: {exc}"))
+                record_strategy_result(name, ok=False, detail=f"{type(exc).__name__}: {exc}")
+                logger.debug("fpl_egress: %s -> %s (text) failed: %s", full_path, name, exc)
+                continue
+
+            if not isinstance(text, str) or not text.strip():
+                attempts.append((name, "shape rejected: empty or non-text body"))
+                record_strategy_result(name, ok=False, detail="empty or non-text body")
+                continue
+
+            self._winning_strategy = name
+            record_strategy_result(name, ok=True)
+            self._cache[cache_key] = (self._now(), text)
+            logger.info("fpl_egress: %s -> strategy=%s OK (text)", full_path, name)
+            return text
+
+        raise FplEgressExhaustedError(full_path, attempts)
+
     async def fetch_with_client(
         self,
         path: str,
@@ -311,6 +420,7 @@ class FplEgressChain:
         return [
             ("allorigins", self._allorigins),
             ("corsproxy", self._corsproxy),
+            ("codetabs", self._codetabs),
             ("env_proxy", self._env_proxy),
         ]
 
@@ -324,11 +434,24 @@ class FplEgressChain:
             r.raise_for_status()
             return r.json()
 
+    async def _direct_text(self, url: str) -> str:
+        async with httpx.AsyncClient(
+            timeout=self._timeout,
+            follow_redirects=True,
+            headers=_BROWSER_HEADERS_TEXT,
+        ) as client:
+            r = await client.get(url)
+            r.raise_for_status()
+            return r.text
+
     async def _allorigins(self, url: str) -> Any:
         return await self._proxy_get(f"https://api.allorigins.win/raw?url={_enc(url)}")
 
     async def _corsproxy(self, url: str) -> Any:
         return await self._proxy_get(f"https://corsproxy.io/?url={_enc(url)}")
+
+    async def _codetabs(self, url: str) -> Any:
+        return await self._proxy_get(f"https://api.codetabs.com/v1/proxy?quest={_enc(url)}")
 
     async def _env_proxy(self, url: str) -> Any:
         base = os.getenv("FPL_PROXY_URL", "").strip()

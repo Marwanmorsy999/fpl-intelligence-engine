@@ -313,6 +313,8 @@ document.addEventListener("DOMContentLoaded", function(){
       var valData = results[0], shadData = results[1];
       renderValuation(valData);
       renderShadow(shadData);
+      /* The label is only shown for a STAGED pair — say so explicitly. */
+      $("stagedLabel").textContent = "STAGED — shadow squad ready · changes not yet saved";
       $("stagedLabel").hidden=false;
       $("statusLine").innerHTML='<span class="pill ok">Staged — shadow squad ready</span>';
     }).catch(function(err){ $("statusLine").innerHTML='<span class="pill bad">'+esc(err.message||"Stage failed")+"</span>"; });

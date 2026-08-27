@@ -141,3 +141,24 @@ Run: `uvicorn fpl_intelligence.api.main:app --port 8000 & pytest tests/web_e2e/t
 | `tests/web_e2e/test_audit_core_journeys.py` | **NEW** — Playwright browser E2E for the 5 core journeys. |
 
 *Suite status after this pass: 0 failed / 0 errors (≈1,500 tests, incl. 28 new E2E), 8 xfail'd stale specs with documented reasons.*
+
+---
+
+## 8. Pass 2 (2026-08-27)
+
+Follow-up pass on top of the 2026-08 audit branch. Nine fixes (P2-1…P2-9),
+each regression-tested; full suite green after the pass.
+
+| ID | Area | Fix |
+|---|---|---|
+| **P2-1** | `data_providers/fpl_egress.py` | **Egress TEXT mode** — new `FplEgressChain.fetch_text(path, use_cache=True) -> str` runs the SAME strategy chain in raw-body mode. Root cause: the chain was JSON-only (`r.json()`), so a healthy **200 HTML** response (Understat league pages) was discarded as `JSONDecodeError` on every mask → the Sources page stuck on the permanent stale status *"page reachable but no playersData block"*. allorigins' `{"contents": …}` wrapper is unwrapped; results cache under `text:<path>`; new `_direct_text` helper; per-strategy health ledger kept. |
+| **P2-2** | `data_providers/fpl_egress.py` | **4th free mask (codetabs)** — `GET https://api.codetabs.com/v1/proxy?quest=<urlencoded target>` inserted between `corsproxy` and `env_proxy`. Final order: `direct → allorigins → corsproxy → codetabs → env_proxy`; `_strategies()` introspection and the mask-health order list stay consistent. |
+| **P2-3** | `api/routes/data_sources.py` | **Understat probe** — the league probe switches from JSON `fetch()` to `egress.fetch_text("/league/EPL/2026")`, so a 200 HTML body counts as *reachable* (hex-block parsing unchanged). |
+| **P2-4** | `api/routes/players.py` | **Players endpoints rewritten** — `_catalog()` process-cached bootstrap catalog; `_latest_team_map()` / `_latest_price_map()` single batched queries (≈1,200 per-player queries → 2 for 600 players). `GET /players`: no perf row → catalog price fallback (kills early-season "£—"); `code` stays `p.fpl_code`; NULL `fpl_element_id` stays honestly null. **NEW** `GET /players/search?q=&limit=&position=&max_price=&team=&sort=` — typo-tolerant (per-token difflib ratio vs web_name / first+second / catalog full name, +0.25 prefix bonus, max over fields), relevance cutoff 0.45, limit default 20, `score = round(0.7·name + 0.3·min(1, xpts/10), 4)` with xPTS from the newest-gameweek `predictions_current` rows (`_latest_xpts_map`), filters position/max_price/team, sorts relevance/xpts/price/ownership, each hit enriched with `xpts`, `ownership_pct`, `team_short`. |
+| **P2-5** | `transfers/service.py` | **Ledger reverse-pair dedupe** — before insert, a same-gameweek row with NULL `transfer_id` and the SWAPPED in/out element ids (reverse pair from snapshot diffs) is UPDATEd to the newest inference instead of a second insert. Fixes the live bug: *"Cash(#32) ↔ De Cuyper(#115) swap listed twice"*. |
+| **P2-6** | `web/static/dashboard.html` + `connect.html` | **Dashboard UX** — `#inputSection{display:none}` initially; `boot()` reveals it only with NO saved session (kills the flash-then-vanish). New `resyncSquadBtn` (`data-testid="resync-squad-btn"`, hidden) before `syncNowBtn`: `resyncSquad()` sets `teamId = CURRENT_SESSION_ID`, awaits `analyze()` (reuses the battle-tested import chain), guards demo sessions; wired in `boot()`, revealed in `updateSourceChip()` for real sessions. **"Refresh League Data" → "Refresh Rivals"** (it never touches squad picks) — label, hint, title, alerts and JS textContent resets on both pages. Honest ribbon hint text; 503 egress line now lists all four free masks. |
+| **P2-7** | `scripts/cloudflare_worker_fpl_proxy.js` (NEW) | **Free egress proxy** — Cloudflare Worker, host allowlist (`fantasy.premierleague.com`, `understat.com`, `resources.premierleague.com`), `?url=` passthrough, 60s edge cache. |
+| **P2-8** | `docs/FPL_PROXY_WORKER.md` (NEW) | **2-minute deploy guide** — wrangler or dashboard; worker URL goes into `FPL_PROXY_URL` for free private egress; verify curls + free-tier notes. |
+| **P2-9** | Tests | `test_phase18_master_fix.py` (codetabs in the mocked chain; exhaustion order `[direct, allorigins, corsproxy, codetabs, env_proxy]`); `test_ribbon_always.py` (hint → "Refresh Rivals"); **NEW** `tests/unit/test_audit_improvements.py` (10 tests: respx-mocked egress text/JSON/codetabs/order/exhaustion, TestClient price fallback, search filters + score blend vs 4-dp rounding, ledger reverse-pair dedupe); **NEW** 3 browser tests in `test_audit_core_journeys.py` (F1 resync hidden w/o session · F2 resync fires `POST /squad/from-fpl` + input stays hidden · F3 no input flash with saved session). |
+
+*Suite status after Pass 2: 0 failed / 0 errors (≈1,368 tests, incl. the new unit + browser tests).*

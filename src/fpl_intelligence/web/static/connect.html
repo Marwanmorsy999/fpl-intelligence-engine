@@ -48,12 +48,12 @@
 </head>
 <body>
 <div id="topnav"></div>
-<!-- v2.7.3-dual-state — Refresh League Data ribbon: ALWAYS visible on /connect (mirrors /dashboard) -->
+<!-- v2.7.3-dual-state — Refresh Rivals ribbon: ALWAYS visible on /connect (mirrors /dashboard) -->
 <div id="syncRibbon" class="sync-ribbon" data-testid="sync-ribbon">
   <div class="sync-ribbon__inner sync-ribbon__inner--connect">
-    <button id="syncNowBtn" class="btn-primary" type="button" data-testid="sync-now-btn">↻ Refresh League Data</button>
-    <span id="syncHint" data-testid="sync-ribbon-hint" class="small sync-ribbon-hint">Analyze your team to enable Refresh League Data</span>
-    <span class="faint small sync-note">Refresh pulls rival standings & picks via masks — your local squad is never overwritten</span>
+    <button id="syncNowBtn" class="btn-primary" type="button" data-testid="sync-now-btn">↻ Refresh Rivals</button>
+    <span id="syncHint" data-testid="sync-ribbon-hint" class="small sync-ribbon-hint">Analyze your team to enable Refresh Rivals</span>
+    <span class="faint small sync-note">Refresh Rivals pulls rival standings & picks via masks — your local squad picks are never overwritten</span>
   </div>
   <div id="syncBannerSticky" class="sync-banner-sticky" role="status" aria-live="polite" data-testid="sync-banner-sticky">
     <div id="syncBannerStickyInner" class="sync-banner-inner"></div>
@@ -274,14 +274,14 @@ document.addEventListener("DOMContentLoaded", function () {
     var isDemo = sess && sess.source === "demo";
     var shouldEnable = hasSession && !isDemo;
     var rb = $("syncRibbon"); if (rb) rb.style.display = "block";
-    var btn = $("syncNowBtn"); if (btn) { btn.disabled = !shouldEnable; btn.title = shouldEnable ? "" : "Analyze your team to enable Refresh League Data"; if (!shouldEnable) btn.setAttribute("aria-disabled","true"); else btn.removeAttribute("aria-disabled"); }
+    var btn = $("syncNowBtn"); if (btn) { btn.disabled = !shouldEnable; btn.title = shouldEnable ? "" : "Analyze your team to enable Refresh Rivals"; if (!shouldEnable) btn.setAttribute("aria-disabled","true"); else btn.removeAttribute("aria-disabled"); }
     var hint = $("syncHint"); if (hint) hint.classList.toggle("show", !shouldEnable);
     var tgl = $("syncNextGwToggle"); if (tgl) tgl.disabled = !shouldEnable;
   }
   function _syncNowConnect() {
-    // v2.7.3-dual-state: Refresh League Data — only pulls rival standings/picks via masks, never overwrites local_squad.
+    // v2.7.3-dual-state: Refresh Rivals — only pulls rival standings/picks via masks, never overwrites local_squad.
     var sess = null; try { sess = FPLApp.session.read(); } catch(e){}
-    if (!sess || !sess.key || sess.source === "demo") { alert("Analyze your team to enable Refresh League Data"); return; }
+    if (!sess || !sess.key || sess.source === "demo") { alert("Analyze your team to enable Refresh Rivals"); return; }
     var btn = $("syncNowBtn");
     var stickyWrap = $("syncBannerSticky"); var stickyInner = $("syncBannerStickyInner");
     if (stickyWrap) stickyWrap.classList.remove("show"); if (stickyInner) stickyInner.textContent = "";
@@ -294,7 +294,7 @@ document.addEventListener("DOMContentLoaded", function () {
           var bannerText = data.status === "ok" ? ("League refreshed ✓ — " + (data.league_name || "standings") + " updated. Trajectory & Alpha use your local squad.") : (data.note || "Refreshing…");
           if (stickyWrap && stickyInner) { stickyInner.textContent = bannerText; stickyWrap.classList.add("show"); }
           _updateConnectRibbon();
-          if (btn) btn.textContent = "\u21BB Refresh League Data";
+          if (btn) btn.textContent = "\u21BB Refresh Rivals";
           return;
         }
         if (data && (data.status === "failed" || data.status === "error")) {
@@ -304,9 +304,9 @@ document.addEventListener("DOMContentLoaded", function () {
           return;
         }
         _updateConnectRibbon();
-        if (btn) btn.textContent = "\u21BB Refresh League Data";
+        if (btn) btn.textContent = "\u21BB Refresh Rivals";
       });
-    }).catch(function(e){ alert(e.message); _updateConnectRibbon(); if (btn) btn.textContent = "\u21BB Refresh League Data"; });
+    }).catch(function(e){ alert(e.message); _updateConnectRibbon(); if (btn) btn.textContent = "\u21BB Refresh Rivals"; });
   }
   // wire ribbon button immediately and keep state in sync with storage events
   try { var _snC = $("syncNowBtn"); if (_snC) _snC.addEventListener("click", _syncNowConnect); } catch(e){}

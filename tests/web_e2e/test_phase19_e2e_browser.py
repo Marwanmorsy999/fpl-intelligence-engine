@@ -99,7 +99,8 @@ class TestNav:
         # Phase 25 Gate 1 (U3): desktop nav lists every surface — primary
         # (Decisions · Targets · League · Live) first, then secondary pages.
         nav = page.locator(".topnav .navlink")
-        expect(nav).to_have_count(13)
+        # Phase 25.2 added Compare & Crunch to the secondary nav (15 surfaces).
+        expect(nav).to_have_count(15)
         labels = [t.strip() for t in nav.all_inner_texts()]
         assert labels[:4] == ["Decisions", "Targets", "League", "Live"]
         assert "My Team" in labels and "Sources" in labels and "Connect" in labels

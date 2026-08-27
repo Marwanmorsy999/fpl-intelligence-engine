@@ -100,6 +100,10 @@
   .drawer h2 { margin: 0 0 2px; font-size: 20px; color: #fff; }
   .manual-form-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:0.7rem; }
   .hidden { display:none !important; }
+  /* pass-2 (2026-08-27): the entry form starts HIDDEN; boot() reveals it only
+     when NO saved session exists (kills the flash-then-vanish on returning
+     visits — the section used to render for a frame before restore hid it). */
+  #inputSection { display:none; }
   /* v2.6.1 — Decisions grid: outer wrap + inner #results grid, no horizontal scroll */
   html, body { overflow-x: hidden; }
   .wrap--decisions { box-sizing: border-box; max-width: 1080px; }
@@ -142,12 +146,15 @@
      The server-rendered markup below is replaced by FPLApp.renderNav at boot,
      which also mounts the persistent session chip. -->
 <div id="topnav"></div>
-<!-- v2.7.3-dual-state — Refresh League Data ribbon: ALWAYS visible; demo/no-session -> disabled + hint -->
+<!-- v2.7.3-dual-state — Refresh Rivals ribbon: ALWAYS visible; demo/no-session -> disabled + hint.
+     pass-2: "Refresh Rivals" (it never touches squad picks) + Re-sync squad button. -->
 <div id="syncRibbon" class="sync-ribbon" data-testid="sync-ribbon">
   <div class="sync-ribbon__inner">
-    <button id="syncNowBtn" class="btn-primary" type="button" data-testid="sync-now-btn">↻ Refresh League Data</button>
-    <span id="syncHint" data-testid="sync-ribbon-hint" class="small hidden">Analyze your team to enable Refresh League Data</span>
-    <span class="faint small ml-auto">Refresh pulls rival standings & picks via masks — your local squad is never overwritten</span>
+    <button id="resyncSquadBtn" class="btn-ghost" type="button" data-testid="resync-squad-btn" style="display:none">↻ Re-sync squad from FPL</button>
+    <button id="syncNowBtn" class="btn-primary" type="button" data-testid="sync-now-btn">↻ Refresh Rivals</button>
+    <span id="syncHint" data-testid="sync-ribbon-hint" class="small hidden">Analyze your team to enable Refresh Rivals</span>
+    <label class="small faint" title="Also refresh next-gameweek targets alongside rival standings"><input type="checkbox" id="syncNextGwToggle" data-testid="sync-next-gw-toggle" disabled> Next GW</label>
+    <span class="faint small ml-auto">Refresh Rivals pulls rival standings & picks via masks — your local squad picks are never overwritten</span>
   </div>
   <div id="syncBannerSticky" class="hidden" role="status" aria-live="polite" data-testid="sync-banner-sticky">
     <div id="syncBannerStickyInner" class="banner banner--success"></div>
@@ -392,8 +399,8 @@ function badgeHTML(teamId) {
   return '<img class="team-badge" alt="" loading="lazy" src="' + BADGE_BASE + teamId + '.png" onerror="window.__badgeFail(this)">';
 }
 
-function setStatus(msg) { var el = $("status"); el.textContent = msg; el.style.display = "block"; }
-function showError(msg) { var el = $("error"); el.textContent = msg; el.style.display = "block"; }
+function setStatus(msg) { var el = $("status"); el.textContent = msg; el.classList.remove("hidden"); el.style.display = "block"; }
+function showError(msg) { var el = $("error"); el.textContent = msg; el.classList.remove("hidden"); el.style.display = "block"; }
 function hideMessages() { $("status").style.display = "none"; $("error").style.display = "none"; }
 
 /* ---------- Session: Phase 20.0 shared module ---------- */
@@ -415,6 +422,7 @@ function updateSourceChip() {
   var demoChip = $("demoChip");
   var startOver = $("startOverBtn");
   var syncNow = $("syncNowBtn");
+  var resync = $("resyncSquadBtn");
   var ribbon = $("syncRibbon");
   var hint = $("syncHint");
   var tgl = $("syncNextGwToggle");
@@ -423,24 +431,30 @@ function updateSourceChip() {
   var shouldEnable = hasSession && !isDemo;
   // v2.5.5 — ribbon ALWAYS visible
   if (ribbon) ribbon.style.display = "block";
+  // pass-2: Re-sync squad only makes sense with a REAL (non-demo) session.
+  if (resync) resync.style.display = shouldEnable ? "inline-block" : "none";
   if (syncNow) {
     syncNow.style.display = "inline-block";
     syncNow.disabled = !shouldEnable;
     if (!shouldEnable) {
       syncNow.setAttribute("aria-disabled", "true");
-      syncNow.title = "Analyze your team to enable Refresh League Data";
+      syncNow.title = "Analyze your team to enable Refresh Rivals";
     } else {
       syncNow.removeAttribute("aria-disabled");
       syncNow.title = "";
     }
   }
-  if (hint) hint.style.display = shouldEnable ? "none" : "inline";
+  /* `.hidden` is !important — toggle the class, inline display can't win. */
+  if (hint) hint.classList.toggle("hidden", shouldEnable);
   if (tgl) tgl.disabled = !shouldEnable;
   if (hasSession) {
+    chip.classList.remove("hidden");
     chip.style.display = "inline-flex";
     chip.textContent = CURRENT_SOURCE_LABEL;
+    startOver.classList.remove("hidden");
     startOver.style.display = "inline-block";
     if (isDemo) {
+      demoChip.classList.remove("hidden");
       demoChip.style.display = "inline-flex";
     } else {
       demoChip.style.display = "none";
@@ -532,6 +546,7 @@ async function analyze() {
       body: JSON.stringify({ entry_id: entryId })
     });
     if (res.status === 503) {
+      document.getElementById("retrySyncBtn").classList.remove("hidden");
       document.getElementById("retrySyncBtn").style.display = "inline-block";
       var body503 = await res.json().catch(function () { return {}; });
       var detail503 = body503.detail || "FPL is blocking our servers right now.";
@@ -540,12 +555,13 @@ async function analyze() {
         + '<div class="mt-2 rounded-xl border border-sky-900 bg-[#0b1526] p-3 text-xs text-slate-300" id="syncStatusCard">'
         + '<div class="font-bold text-sky-300 mb-1">📋 Sync status</div>'
         + "<div>Last attempt: " + esc(nowStr) + "</div>"
-        + "<div>Egress: <span class='text-red-400'>blocked</span> — direct + allorigins + corsproxy"
+        + "<div>Egress: <span class='text-red-400'>blocked</span> — direct + allorigins + corsproxy + codetabs"
         + ($("teamId").value ? " + your proxy" : "") + " all failed</div>"
         + "<div>Next retry: daily 06:10 cron · we will Telegram you on success.</div>"
         + "</div>"
         + '<div class="mt-2 text-xs text-slate-400">Meanwhile: press 🔄 Try Again above, or '
         + '<button id="manualCta" class="underline text-sky-400 font-semibold" type="button">Enter Squad Manually</button>.</div>';
+      $("error").classList.remove("hidden");
       $("error").style.display = "block";
       var cta = document.getElementById("manualCta");
       if (cta) { cta.addEventListener("click", function () { toggleManual(); }); }
@@ -554,10 +570,12 @@ async function analyze() {
     }
     if (res.status === 404) { throw new Error("Could not find that FPL Team ID. Please double-check the number."); }
     if (res.status === 403) {
+      document.getElementById("retrySyncBtn").classList.remove("hidden");
       document.getElementById("retrySyncBtn").style.display = "inline-block";
       throw new Error("FPL is blocking our servers right now. Your ID is saved and we retry automatically. Meanwhile: press \uD83D\uDD04 Try Again, or type your squad below using Enter Squad Manually.");
     }
     if (res.status === 409) {
+      document.getElementById("retrySyncBtn").classList.remove("hidden");
       document.getElementById("retrySyncBtn").style.display = "inline-block";
       throw new Error("Picks not saved yet — use Enter Squad Manually for now, or Try Again closer to kickoff.");
     }
@@ -625,12 +643,12 @@ async function retrySync() {
 
 /* v2.5.6 — Dashboard Sync now (async job: 202 + poll, never dies, 25s cap, warm retry) */
 async function syncNow() {
-  // v2.7.3-dual-state: Refresh League Data — only pulls rival standings/picks via masks, never overwrites local_squad.
+  // v2.7.3-dual-state: Refresh Rivals — only pulls rival standings/picks via masks, never overwrites local_squad.
   var btn = $("syncNowBtn");
   var banner = $("syncBanner");
   var stickyWrap = $("syncBannerSticky");
   var stickyInner = $("syncBannerStickyInner");
-  if (!CURRENT_SESSION_ID || CURRENT_SOURCE === "demo") { showError("Analyze your team to enable Refresh League Data"); return; }
+  if (!CURRENT_SESSION_ID || CURRENT_SOURCE === "demo") { showError("Analyze your team to enable Refresh Rivals"); return; }
   hideMessages();
   if (banner) { banner.style.display = "none"; banner.textContent = ""; }
   if (stickyWrap) { stickyWrap.style.display = "none"; }
@@ -642,7 +660,7 @@ async function syncNow() {
   function restoreBtn() {
     btn.disabled = !shouldEnableFinally;
     btn.textContent = origText;
-    var h = $("syncHint"); if (h) h.style.display = shouldEnableFinally ? "none" : "inline";
+    var h = $("syncHint"); if (h) h.classList.toggle("hidden", shouldEnableFinally);
     var tg = $("syncNextGwToggle"); if (tg) tg.disabled = !shouldEnableFinally;
   }
   try {
@@ -656,8 +674,8 @@ async function syncNow() {
       var bannerText = data.status === "ok"
         ? ("League refreshed ✓ — " + (data.league_name || "standings") + " standings updated. Trajectory & Alpha now reflect rival data.")
         : (data.note || "Refreshing… reload in a moment.");
-      if (banner) { banner.textContent = bannerText; banner.style.display = "block"; }
-      if (stickyWrap && stickyInner) { stickyInner.textContent = bannerText; stickyWrap.style.display = "block"; }
+      if (banner) { banner.textContent = bannerText; banner.classList.remove("hidden"); banner.style.display = "block"; }
+      if (stickyWrap && stickyInner) { stickyInner.textContent = bannerText; stickyWrap.classList.remove("hidden"); stickyWrap.style.display = "block"; }
       setStatus(bannerText);
       // No squad overwrite — just confirm local squad still drives math; optionally refresh fpl view for display
       await loadFplView();
@@ -675,6 +693,24 @@ async function syncNow() {
     if (banner) { banner.style.display = "none"; }
     if (stickyWrap) { stickyWrap.style.display = "none"; }
     restoreBtn();
+  }
+}
+
+/* pass-2 (2026-08-27) — Re-sync squad from FPL.
+   Re-imports the CURRENT session's squad by re-pointing the team ID field at
+   the saved session and awaiting analyze() — the same battle-tested
+   import chain as first-time onboarding (503/404/409 handling included).
+   Demo sessions are guarded: there is no real FPL entry to re-import. */
+async function resyncSquad() {
+  if (!CURRENT_SESSION_ID) { showError("Analyze your team to enable Re-sync squad"); return; }
+  if (CURRENT_SOURCE === "demo") { showError("Re-sync squad is only available for real FPL sessions"); return; }
+  var btn = $("resyncSquadBtn");
+  if (btn) { btn.disabled = true; btn.textContent = "↻ Re-syncing\u2026"; }
+  try {
+    $("teamId").value = CURRENT_SESSION_ID;
+    await analyze();
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "\u21BB Re-sync squad from FPL"; }
   }
 }
 
@@ -702,7 +738,10 @@ async function renderFromApi() {
     /* Re-render chips once Alpha values arrive (no-op when unavailable). */
     if (LAST_REPORT) { renderReport(LAST_REPORT); }
   });
-  $("results").style.display = "block";
+  /* `.hidden` is !important — the class must go; clearing inline display
+     lets the CSS decide (block on mobile, 2-col grid on desktop). */
+  $("results").classList.remove("hidden");
+  $("results").style.display = "";
 }
 
 /* v2.5.7 — Load and render "What FPL sees" debug card */
@@ -718,7 +757,9 @@ async function loadFplView() {
       return;
     }
     var data = await res.json();
+    card.classList.remove("hidden");
     card.style.display = "block";
+    content.classList.remove("hidden");
 
     // Format picks_current
     var pc = data.picks_current;
@@ -933,6 +974,7 @@ function renderSimulator() {
   if (!LAST_REPORT) { box.style.display = "none"; return; }
   var sim = simulateAutoSubs();
   if (!sim || !(sim.subs.length)) { box.style.display = "none"; return; }
+  box.classList.remove("hidden");
   box.style.display = "block";
   var sign = sim.delta >= 0 ? "+" : "";
   var color = sim.delta >= 0 ? "text-emerald-400" : "text-red-400";
@@ -1034,6 +1076,7 @@ function renderWatchlist(report) {
     html += "</div>";
   });
   box.innerHTML = html;
+  box.classList.remove("hidden");
   box.style.display = "block";
 }
 
@@ -1254,6 +1297,8 @@ function showTabErrorCard(err) {
       'document.getElementById(\'inputSection\').style.display=\'block\'' +
     '" type="button">Dismiss</button>' +
     '</div></div>';
+  /* `.hidden` is !important — reveal by class, not inline display. */
+  box.classList.remove("hidden");
   box.style.display = "block";
   box.classList.add("hidden-children");
 }
@@ -1548,6 +1593,7 @@ async function demoTeam() {
     var data = await res.json();
     if (data.player_names) { PLAYER_NAMES = data.player_names; }
     FPLApp.session.save(CURRENT_SESSION_ID, "demo", "Demo Squad");
+    $("demoBanner").classList.remove("hidden");
     $("demoBanner").style.display = "block";
     $("teamName").textContent = (data.entry_name ? data.entry_name + " · " : "") + "Gameweek " + data.gameweek;
     setStatus("Demo ready — running the numbers…");
@@ -1727,6 +1773,7 @@ function setupCaptainAutocomplete(inputEl, listEl, isCaptain) {
           + '<span class="team-short">' + fmtPrice(p.price) + '</span></div>';
       }).join("");
     }
+    listEl.classList.remove("hidden");
     listEl.style.display = "block";
     var items = listEl.querySelectorAll(".autocomplete-item[data-id]");
     for (var i = 0; i < items.length; i++) {
@@ -1815,9 +1862,12 @@ function refreshCaptainInputs() {
 
 async function toggleManual() {
   var section = $("manualEntry");
-  var show = section.style.display === "none";
+  /* Class is the source of truth — the initial `hidden` class is !important,
+     so inline styles can neither reveal the section nor report its state.
+     Computed display also covers hides set inline by other code paths. */
+  var show = getComputedStyle(section).display === "none";
   hideMessages();
-  if (!show) { section.style.display = "none"; return; }
+  if (!show) { section.classList.add("hidden"); return; }
   try {
     setStatus("Loading the player list…");
     await loadPlayers();
@@ -1825,7 +1875,8 @@ async function toggleManual() {
     /* Setup captain/vice autocomplete */
     setupCaptainAutocomplete($("manualCap"), $("capList"), true);
     setupCaptainAutocomplete($("manualVice"), $("viceList"), false);
-    section.style.display = "block";
+    section.classList.remove("hidden");
+    section.style.display = "";
     $("status").style.display = "none";
   } catch (e) {
     showError(e.message);
@@ -1920,13 +1971,16 @@ function restoreSession(session, report) {
   /* ID input + manual entry render ONLY when no saved session. */
   $("inputSection").style.display = "none";
   if (session.source === "demo") {
+    $("demoBanner").classList.remove("hidden");
     $("demoBanner").style.display = "block";
   }
   var gwLabel = report && report.gameweek != null ? " · Gameweek " + report.gameweek : "";
   var nameBit = session.entry_name ? session.entry_name + " · " : "";
   $("teamName").textContent = nameBit + "Restored from your saved session" + gwLabel;
   renderReport(report);
-  $("results").style.display = "block";
+  /* `.hidden` is !important — the class must go for the report to show. */
+  $("results").classList.remove("hidden");
+  $("results").style.display = "";
 }
 
 function shareDecisions(){
@@ -1980,6 +2034,7 @@ function boot() {
   $("saveManualBtn").addEventListener("click", saveManual);
   $("retrySyncBtn").addEventListener("click", retrySync);
   var _sn = $("syncNowBtn"); if(_sn) _sn.addEventListener("click", syncNow);
+  var _rs = $("resyncSquadBtn"); if(_rs) _rs.addEventListener("click", resyncSquad);
   $("startOverBtn").addEventListener("click", startOver);
   var _sb = $("shareBtn"); if(_sb) _sb.addEventListener("click", shareDecisions);
   var _es = $("exportSquadBtn"); if(_es) _es.addEventListener("click", exportSquadCsv);
