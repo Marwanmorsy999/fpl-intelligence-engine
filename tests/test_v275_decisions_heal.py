@@ -261,7 +261,8 @@ class TestLeagueNever500Net:
             assert r.status_code == 200, r.text[:400]
             body = r.json()
             assert body["status"] == "degraded"
-            assert "RuntimeError" in body.get("diag", "")
+            assert "diag" not in body
+            assert "RuntimeError" not in r.text
         finally:
             app.dependency_overrides.pop(deps._get_db_session, None)
 
