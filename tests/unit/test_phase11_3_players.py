@@ -10,6 +10,8 @@ Exercises:
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -69,6 +71,41 @@ def test_list_players_filters_by_team(client: TestClient) -> None:
     body = resp.json()
     assert len(body) == 1
     assert body[0]["web_name"] == "Haaland"
+
+
+def test_list_players_falls_back_to_latest_non_null_price(
+    client: TestClient, db_session: Session
+) -> None:
+    """If the latest gameweek performance has price=None, fall back to an earlier non-null price."""
+    from fpl_intelligence.db.models import Gameweek, PlayerGameweekPerformance
+
+    # Add a later gameweek performance with null price for Haaland (player_id=4).
+    later_gw = Gameweek(
+        season_id=1,
+        provider_event_id=99,
+        name="GW99",
+        deadline_time=datetime(2099, 8, 1, tzinfo=UTC),
+    )
+    db_session.add(later_gw)
+    db_session.flush()
+    db_session.add(
+        PlayerGameweekPerformance(
+            player_id=4,
+            gameweek_id=later_gw.id,
+            season_id=1,
+            team_id=4,
+            minutes=0,
+            price=None,
+        )
+    )
+    db_session.commit()
+
+    resp = client.get("/api/v1/players")
+    assert resp.status_code == 200
+    body = resp.json()
+    haaland = next(p for p in body if p["web_name"] == "Haaland")
+    # Should fall back to the earlier non-null price (6.5) instead of returning null.
+    assert haaland["price"] == pytest.approx(6.5)
 
 
 def _squad_schema(schema: dict) -> dict:

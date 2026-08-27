@@ -9,6 +9,7 @@ deterministic fixtures. No synthetic full-season data is used.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -27,6 +28,7 @@ from fpl_intelligence.availability.evaluation import (
 from fpl_intelligence.availability.minutes_integration import (
     AvailabilityAwareMinutesModel,
 )
+from fpl_intelligence.availability.historical.temporal import AvailabilityTimestamps
 from fpl_intelligence.availability.models import (
     AvailabilityArticle,
     AvailabilityEvent,
@@ -34,7 +36,12 @@ from fpl_intelligence.availability.models import (
     AvailabilityStatus,
     EvidenceType,
     SourceReliability,
+    TemporalClass,
     TrainingReport,
+)
+from fpl_intelligence.db.models import (
+    PlayerExternalId,
+    TeamExternalId,
 )
 from fpl_intelligence.availability.prediction_wrapper import (
     AvailabilityAwarePredictionProvider,
@@ -1017,3 +1024,102 @@ class TestValidationAudits:
         report = audit_temporal_availability(db_session)
         assert report.missing_timestamp_events == 0
         assert report.eligible_events == 1
+
+
+# ---------------------------------------------------------------------------
+# Phase 7.2 — historical entity resolution alias tolerance
+# ---------------------------------------------------------------------------
+
+
+class TestHistoricalEntityResolutionAlias:
+    """real_fpl and real_fpl_bootstrap must resolve to the same canonical players."""
+
+    def _seed(self, db_session: Session):
+        from fpl_intelligence.db.models import Gameweek, Player, Season, Team
+
+        season = Season(code="2024-25", display_name="2024/25")
+        db_session.add(season)
+        db_session.flush()
+
+        team = Team(name="Arsenal", short_name="ARS")
+        db_session.add(team)
+        db_session.flush()
+
+        gw = Gameweek(
+            season_id=season.id,
+            provider_event_id=1,
+            name="GW1",
+            deadline_time=datetime(2024, 8, 1, tzinfo=UTC),
+        )
+        db_session.add(gw)
+        db_session.flush()
+
+        player = Player(first_name="Bukayo", second_name="Saka", web_name="Saka", position_code=3)
+        db_session.add(player)
+        db_session.flush()
+        db_session.commit()
+        return season.id, gw.id, player.id
+
+    def test_real_fpl_bootstrap_resolves_against_real_fpl_external_id(
+        self, db_session: Session
+    ) -> None:
+        """Availability importer (real_fpl_bootstrap) must match players stored under real_fpl."""
+        from fpl_intelligence.availability.historical.entity_resolution import (
+            HistoricalEntityResolver,
+            HistoricalResolutionReport,
+        )
+        from fpl_intelligence.availability.historical.importer import (
+            ResolverAudit,
+        )
+        from fpl_intelligence.db.models import PlayerExternalId, TeamExternalId
+
+        sid, gwid, pid = self._seed(db_session)
+
+        # Canonical players are ingested under provider "real_fpl" (live path).
+        db_session.add(PlayerExternalId(player_id=pid, provider="real_fpl", provider_player_id="44"))
+        db_session.add(TeamExternalId(team_id=1, provider="real_fpl", provider_team_id="1"))
+        db_session.commit()
+
+        # The availability bootstrap provider resolves under "real_fpl_bootstrap".
+        # With the alias fix, the resolver must find the player stored under "real_fpl".
+        resolver = HistoricalEntityResolver(db_session, "real_fpl_bootstrap")
+        report = HistoricalResolutionReport()
+        resolved_pid = resolver.resolve_player_by_context(
+            provider_player_id="44",
+            player_name="Saka",
+            team_id=1,
+            season_id=sid,
+            report=report,
+        )
+        assert resolved_pid == pid, f"expected {pid}, got {resolved_pid}"
+        assert report.matched_players == 1
+
+    def test_resolve_player_alias_tolerance(self, db_session: Session) -> None:
+        from fpl_intelligence.availability.historical.entity_resolution import (
+            HistoricalEntityResolver,
+        )
+
+        sid, gwid, pid = self._seed(db_session)
+        db_session.add(
+            PlayerExternalId(player_id=pid, provider="real_fpl", provider_player_id="44")
+        )
+        db_session.commit()
+
+        resolver = HistoricalEntityResolver(db_session, "real_fpl_bootstrap")
+        resolved = resolver.resolve_player("44")
+        assert resolved == pid, f"expected {pid}, got {resolved}"
+
+    def test_resolve_team_alias_tolerance(self, db_session: Session) -> None:
+        from fpl_intelligence.availability.historical.entity_resolution import (
+            HistoricalEntityResolver,
+        )
+
+        sid, gwid, pid = self._seed(db_session)
+        db_session.add(
+            TeamExternalId(team_id=1, provider="real_fpl", provider_team_id="1")
+        )
+        db_session.commit()
+
+        resolver = HistoricalEntityResolver(db_session, "real_fpl_bootstrap")
+        resolved = resolver.resolve_team("1")
+        assert resolved == 1, f"expected 1, got {resolved}"

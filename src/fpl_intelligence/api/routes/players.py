@@ -59,10 +59,18 @@ def _latest_team_id(db: Session, player_id: int) -> int | None:
 
 
 def _latest_price(db: Session, player_id: int) -> float | None:
+    """Return the latest known non-null price for a player.
+
+    Falls back through gameweek snapshots so a missing live price does not
+    hide a previously-seeded bootstrap / initialize-data price.
+    """
     perf = (
         db.execute(
             select(PlayerGameweekPerformance)
-            .where(PlayerGameweekPerformance.player_id == player_id)
+            .where(
+                PlayerGameweekPerformance.player_id == player_id,
+                PlayerGameweekPerformance.price.is_not(None),
+            )
             .order_by(PlayerGameweekPerformance.gameweek_id.desc())
         )
         .scalars()

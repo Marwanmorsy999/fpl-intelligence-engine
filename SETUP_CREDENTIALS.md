@@ -5,6 +5,26 @@ nothing sensitive is committed to the repo (see the `test_deployment_artifacts_c
 test). Every value below is injected via environment variables / platform
 secrets. This is the single inventory for ops.
 
+## Production Vercel checklist
+
+Set these in **Vercel → Project → Settings → Environment Variables** before
+going live:
+
+| Priority | Variable | Required | Notes |
+|----------|----------|----------|-------|
+| 1 | `DATABASE_URL` | Yes | Postgres (Neon / Supabase / your host). Falls back to local SQLite when unset in dev. |
+| 2 | `CRON_SECRET` | Yes | Bearer token Vercel Cron + GitHub Actions send as `Authorization: Bearer <CRON_SECRET>`. |
+| 3 | `FPL_PROXY_URL` | Recommended | Google Apps Script mirror. Vercel shared egress is often 403/429-blocked by the official FPL API. The egress mask chain tries direct → allorigins → corsproxy.io → this proxy. |
+| 4 | `SYNC_PUSH_TOKEN` | No | Machine-to-machine pushes (bookmarklet, Apps Script fetcher, GHA data-refresh). Empty = push endpoints return 503. |
+| 5 | `SENTRY_DSN` | No | Backend + frontend error tracking (optional, free tier). |
+| 6 | `TELEGRAM_BOT_TOKEN` | No | Enables `/api/v1/telegram/webhook`. |
+| 7 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | No | Browser push notifications (self-hosted web push). |
+| 8 | `GROQ_API_KEY` / `GOOGLE_API_KEY` / `OPENROUTER_API_KEY` | No | LLM providers for the AI Analyst. Empty = AI features degrade gracefully. |
+| 9 | `THE_ODDS_API_KEY` | No | Market-check enrichment (free tier 500 credits/mo). |
+| 10 | `RSS_FEED_URL` | No | Override the BBC RSS source for the News Radar. |
+
+Also set the same secrets in **GitHub Actions → Settings → Secrets and variables → Actions** for any workflows that write to the app.
+
 ## 1. Database
 
 | Secret               | Required | Where                         | Notes |

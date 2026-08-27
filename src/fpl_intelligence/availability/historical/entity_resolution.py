@@ -33,6 +33,22 @@ from fpl_intelligence.entity_resolution.resolver import (
     normalize_name,
 )
 
+#: Known aliases for the FPL element-id namespace. ``real_fpl`` and
+#: ``real_fpl_bootstrap`` both refer to the same official FPL ``element`` ids;
+#: the live ingestion path stores under ``real_fpl`` while the availability
+#: bootstrap provider resolves under ``real_fpl_bootstrap``. Treating them as
+#: aliases fixes the cross-provider mismatch without changing canonical storage.
+_FPL_PROVIDER_ALIASES: dict[str, tuple[str, ...]] = {
+    "real_fpl": ("real_fpl_bootstrap",),
+    "real_fpl_bootstrap": ("real_fpl",),
+}
+
+
+def _provider_alias_candidates(provider_name: str) -> tuple[str, ...]:
+    """Return provider names to query for ID lookup, primary first."""
+    aliases = _FPL_PROVIDER_ALIASES.get(provider_name, ())
+    return (provider_name,) + aliases
+
 
 @dataclass
 class HistoricalResolutionReport:
@@ -68,26 +84,32 @@ class HistoricalEntityResolver:
         """Resolve a provider team ID to a canonical team ID."""
         if not provider_team_id:
             return None
-        ext = self.db.scalar(
-            select(TeamExternalId).where(
-                TeamExternalId.provider == self.provider_name,
-                TeamExternalId.provider_team_id == str(provider_team_id),
+        for candidate_provider in _provider_alias_candidates(self.provider_name):
+            ext = self.db.scalar(
+                select(TeamExternalId).where(
+                    TeamExternalId.provider == candidate_provider,
+                    TeamExternalId.provider_team_id == str(provider_team_id),
+                )
             )
-        )
-        return ext.team_id if ext else None
+            if ext is not None:
+                return ext.team_id
+        return None
 
     # -- players ----------------------------------------------------------
     def resolve_player(self, provider_player_id: str | None) -> int | None:
         """Resolve a provider player ID to a canonical player ID (primary path)."""
         if not provider_player_id:
             return None
-        ext = self.db.scalar(
-            select(PlayerExternalId).where(
-                PlayerExternalId.provider == self.provider_name,
-                PlayerExternalId.provider_player_id == str(provider_player_id),
+        for candidate_provider in _provider_alias_candidates(self.provider_name):
+            ext = self.db.scalar(
+                select(PlayerExternalId).where(
+                    PlayerExternalId.provider == candidate_provider,
+                    PlayerExternalId.provider_player_id == str(provider_player_id),
+                )
             )
-        )
-        return ext.player_id if ext else None
+            if ext is not None:
+                return ext.player_id
+        return None
 
     def resolve_player_by_context(
         self,
