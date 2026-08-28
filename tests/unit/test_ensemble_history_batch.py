@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 from fpl_intelligence.models.ensemble_xpts import collect_player_inputs_batch
 
 
@@ -26,11 +24,11 @@ class FakeSession:
 def test_collect_player_inputs_batch_uses_one_query_and_preserves_history_shape():
     db = FakeSession(
         [
-            SimpleNamespace(player_id=10, gameweek_id=1, total_points=2),
-            SimpleNamespace(player_id=10, gameweek_id=2, total_points=8),
-            SimpleNamespace(player_id=10, gameweek_id=3, total_points=5),
-            SimpleNamespace(player_id=20, gameweek_id=1, total_points=4),
-            SimpleNamespace(player_id=20, gameweek_id=2, total_points=7),
+            (10, 1, 2),
+            (10, 2, 8),
+            (10, 3, 5),
+            (20, 1, 4),
+            (20, 2, 7),
         ]
     )
 
