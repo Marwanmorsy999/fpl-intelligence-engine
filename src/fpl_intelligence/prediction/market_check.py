@@ -149,18 +149,11 @@ def official_id_names_map(db: Any) -> dict[int, list[str]]:
 # --------------------------------------------------------------------------- #
 # Persistence: one shared payload row so surfaces that cannot afford a live
 # odds fetch (the materialized fast path) still render THE SAME sentence.
+# ``provider_refresh`` is created by the versioned database migration; request
+# paths must never issue DDL against the production database.
 # --------------------------------------------------------------------------- #
 
 _MARKET_CHECK_SOURCE = "market_check"
-
-_CACHE_DDL = (
-    "CREATE TABLE IF NOT EXISTS provider_refresh ("
-    " source VARCHAR(60) PRIMARY KEY,"
-    " season_label VARCHAR(40),"
-    " player_count INTEGER NOT NULL DEFAULT 0,"
-    " payload JSONB NOT NULL DEFAULT '[]'::jsonb,"
-    " fetched_at TIMESTAMP WITH TIME ZONE NOT NULL)"
-)
 
 
 def store_shared_payload(
@@ -172,12 +165,10 @@ def store_shared_payload(
     """Persist the canonical market-check payload (best-effort, never raises)."""
     try:
         from datetime import UTC, datetime
-
-        from sqlalchemy import select, text
+        from sqlalchemy import select
 
         from fpl_intelligence.sync.materialized_models import ProviderRefreshDB
 
-        db.execute(text(_CACHE_DDL))
         row = db.scalar(
             select(ProviderRefreshDB).where(ProviderRefreshDB.source == _MARKET_CHECK_SOURCE)
         )
@@ -207,11 +198,10 @@ def store_shared_payload(
 def load_cached_payload(db: Any) -> dict[str, Any] | None:
     """The last stored canonical payload, or ``None``."""
     try:
-        from sqlalchemy import select, text
+        from sqlalchemy import select
 
         from fpl_intelligence.sync.materialized_models import ProviderRefreshDB
 
-        db.execute(text(_CACHE_DDL))
         row = db.scalar(
             select(ProviderRefreshDB).where(ProviderRefreshDB.source == _MARKET_CHECK_SOURCE)
         )
