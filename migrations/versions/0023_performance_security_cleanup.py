@@ -1,0 +1,43 @@
+"""v2.7.10 — performance/security cleanup for production schema.
+
+Removes duplicate indexes reported by Supabase's database advisor and makes
+``public.rls_auto_enable()`` non-callable by API roles. The runtime already
+uses versioned migrations, so request paths must not recreate schema objects.
+
+Revision ID: 0023_performance_security_cleanup
+Revises: 0022_team_strength_dimensions
+Create Date: 2026-08-28
+"""
+
+from __future__ import annotations
+
+from alembic import op
+
+revision = "0023_performance_security_cleanup"
+down_revision = "0022_team_strength_dimensions"
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
+    op.execute("DROP INDEX IF EXISTS ix_local_squad_state_session_id")
+    op.execute("DROP INDEX IF EXISTS ix_squad_state_session_id")
+    op.execute("REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM PUBLIC")
+    op.execute("REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM anon")
+    op.execute("REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM authenticated")
+
+
+def downgrade() -> None:
+    op.create_index(
+        "ix_local_squad_state_session_id",
+        "local_squad_state",
+        ["session_id"],
+        unique=True,
+    )
+    op.create_index(
+        "ix_squad_state_session_id",
+        "squad_state",
+        ["session_id"],
+        unique=True,
+    )
+    op.execute("GRANT EXECUTE ON FUNCTION public.rls_auto_enable() TO PUBLIC")
