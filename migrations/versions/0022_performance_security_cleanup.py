@@ -26,6 +26,7 @@ def upgrade() -> None:
     op.execute("DROP INDEX IF EXISTS ix_squad_state_session_id")
 
     # rls_auto_enable is a deployment helper, not a public RPC surface.
+    op.execute("REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM PUBLIC")
     op.execute("REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM anon")
     op.execute("REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM authenticated")
 
@@ -43,5 +44,4 @@ def downgrade() -> None:
         ["session_id"],
         unique=True,
     )
-    op.execute("GRANT EXECUTE ON FUNCTION public.rls_auto_enable() TO anon")
-    op.execute("GRANT EXECUTE ON FUNCTION public.rls_auto_enable() TO authenticated")
+    op.execute("GRANT EXECUTE ON FUNCTION public.rls_auto_enable() TO PUBLIC")
