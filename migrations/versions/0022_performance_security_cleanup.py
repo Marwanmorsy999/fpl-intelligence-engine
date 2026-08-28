@@ -4,8 +4,8 @@ Removes duplicate indexes reported by Supabase's database advisor and makes
 ``public.rls_auto_enable()`` non-callable by API roles. The runtime already
 uses versioned migrations, so request paths must not recreate schema objects.
 
-Revision ID: 0022_performance_security_cleanup
-Revises: 0021_local_squad_state
+Revision ID: 0023_performance_security_cleanup
+Revises: 0022_team_strength_dimensions
 Create Date: 2026-08-28
 """
 
@@ -13,8 +13,8 @@ from __future__ import annotations
 
 from alembic import op
 
-revision = "0022_performance_security_cleanup"
-down_revision = "0021_local_squad_state"
+revision = "0023_performance_security_cleanup"
+down_revision = "0022_team_strength_dimensions"
 branch_labels = None
 depends_on = None
 
