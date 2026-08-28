@@ -203,38 +203,65 @@ def calculate_ensemble_xpts(
     }
 
 
-
 # --------------------------------------------------------------------------- #
-# Guarded data access (used by route integration; never fatal).
+# Batched historical access
 # --------------------------------------------------------------------------- #
 
 
-def get_last_5_gw_points(db: Session, player_id: int) -> list[float]:
-    """Most-recent-first list of up to five gameweek point totals."""
+def collect_player_inputs_batch(
+    db: Session, player_ids: Sequence[int]
+) -> dict[int, dict[str, Any]]:
+    """Load recent + full points history for many players with ONE query.
+
+    This replaces the previous per-player pair of queries used by the
+    decision enrichment path. The result preserves the exact same shape as
+    :func:`collect_player_inputs` while avoiding an N+1 query pattern.
+    """
+    ids = sorted({int(pid) for pid in player_ids})
+    if not ids:
+        return {}
+
     from fpl_intelligence.db.models import PlayerGameweekPerformance
 
     rows = db.execute(
         select(
+            PlayerGameweekPerformance.player_id,
             PlayerGameweekPerformance.gameweek_id,
             PlayerGameweekPerformance.total_points,
         )
-        .where(PlayerGameweekPerformance.player_id == int(player_id))
-        .order_by(PlayerGameweekPerformance.gameweek_id.desc())
-        .limit(5)
+        .where(PlayerGameweekPerformance.player_id.in_(ids))
+        .order_by(
+            PlayerGameweekPerformance.player_id.asc(),
+            PlayerGameweekPerformance.gameweek_id.asc(),
+        )
     ).all()
-    return [float(pts) for _, pts in rows if pts is not None]
+
+    histories: dict[int, list[float]] = {pid: [] for pid in ids}
+    for player_id, _gameweek_id, points in rows:
+        if points is not None:
+            histories[int(player_id)].append(float(points))
+
+    return {
+        pid: {
+            "recent_points": list(reversed(history[-5:])),
+            "points_history": history,
+        }
+        for pid, history in histories.items()
+    }
+
+
+def get_last_5_gw_points(db: Session, player_id: int) -> list[float]:
+    """Most-recent-first list of up to five gameweek point totals."""
+    return collect_player_inputs_batch(db, [player_id]).get(
+        int(player_id), {"recent_points": []}
+    )["recent_points"]
 
 
 def get_points_history(db: Session, player_id: int) -> list[float]:
     """Chronological gameweek point totals used for SD estimation."""
-    from fpl_intelligence.db.models import PlayerGameweekPerformance
-
-    rows = db.execute(
-        select(PlayerGameweekPerformance.total_points)
-        .where(PlayerGameweekPerformance.player_id == int(player_id))
-        .order_by(PlayerGameweekPerformance.gameweek_id.asc())
-    ).all()
-    return [float(pts) for (pts,) in rows if pts is not None]
+    return collect_player_inputs_batch(db, [player_id]).get(
+        int(player_id), {"points_history": []}
+    )["points_history"]
 
 
 def get_historical_avg_vs_opponent(
@@ -272,7 +299,6 @@ def collect_player_inputs(db: Session, player_id: int) -> dict[str, Any]:
     History lives on internal player ids; callers translate element ids
     first (see ``_attach_phase2_insights``).
     """
-    return {
-        "recent_points": get_last_5_gw_points(db, player_id),
-        "points_history": get_points_history(db, player_id),
-    }
+    return collect_player_inputs_batch(db, [player_id]).get(
+        int(player_id), {"recent_points": [], "points_history": []}
+    )
