@@ -69,6 +69,9 @@ class PlayerFact:
     fixture_difficulty: int | None = None
     raw: dict[str, Any] = field(default_factory=dict)
     fetched_at: datetime | None = None
+    published_at: datetime | None = None
+    available_at: datetime | None = None
+    temporal_class: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -87,6 +90,10 @@ class PlayerFact:
             "is_bench": self.is_bench,
             "is_injured": self.is_injured,
             "fixture_difficulty": self.fixture_difficulty,
+            "fetched_at": self.fetched_at.isoformat() if self.fetched_at else None,
+            "published_at": self.published_at.isoformat() if self.published_at else None,
+            "available_at": self.available_at.isoformat() if self.available_at else None,
+            "temporal_class": self.temporal_class,
         }
 
 
@@ -107,6 +114,9 @@ class FactOverride:
     reason: str = ""
     confidence: FactConfidence = FactConfidence.HIGH
     fetched_at: datetime | None = None
+    published_at: datetime | None = None
+    available_at: datetime | None = None
+    temporal_class: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -117,4 +127,8 @@ class FactOverride:
             "availability_status": self.availability_status,
             "reason": self.reason,
             "confidence": self.confidence.value,
+            "fetched_at": self.fetched_at.isoformat() if self.fetched_at else None,
+            "published_at": self.published_at.isoformat() if self.published_at else None,
+            "available_at": self.available_at.isoformat() if self.available_at else None,
+            "temporal_class": self.temporal_class,
         }

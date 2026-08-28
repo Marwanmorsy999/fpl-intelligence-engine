@@ -164,6 +164,10 @@ class TeamStrengthRecord(Base):
     defence_strength: Mapped[float | None] = mapped_column(Float)
     home_strength: Mapped[float | None] = mapped_column(Float)
     away_strength: Mapped[float | None] = mapped_column(Float)
+    home_attack_strength: Mapped[float | None] = mapped_column(Float)
+    away_attack_strength: Mapped[float | None] = mapped_column(Float)
+    home_defence_strength: Mapped[float | None] = mapped_column(Float)
+    away_defence_strength: Mapped[float | None] = mapped_column(Float)
     sample_size: Mapped[int | None] = mapped_column(Integer)
     completeness: Mapped[float | None] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(

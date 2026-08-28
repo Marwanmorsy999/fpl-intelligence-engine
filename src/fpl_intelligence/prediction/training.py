@@ -24,11 +24,12 @@ the outcome fixture/gameweek that occurs *after* the cutoff.
 
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from fpl_intelligence.config.holdout import (
@@ -178,15 +179,26 @@ class TrainingDataBuilder:
         target_perfs = list(self._db.execute(stmt).scalars().all())
 
         # 3. For each target player, build features from data before the cutoff.
+        #    All target-player histories are fetched in a single query (batched)
+        #    rather than one query per player. The feature computation is
+        #    identical to ``_build_player_features``; only the retrieval is
+        #    consolidated so the walk-forward loop is not N+1-bound.
         features: dict[int, dict[str, float]] = {}
         targets: dict[int, float] = {}
 
-        for perf in target_perfs:
-            pid = perf.player_id
-            feat = self._build_player_features(pid, cutoff_time, feature_version)
-            if feat is not None:
-                features[pid] = feat
-                targets[pid] = self._extract_target(perf, target)
+        if target_perfs:
+            target_player_ids = sorted(set(perf.player_id for perf in target_perfs))
+            perfs_by_player = self._fetch_all_player_performances(
+                target_player_ids, cutoff_time
+            )
+            for perf in target_perfs:
+                pid = perf.player_id
+                feat = self._compute_player_features_from_performances(
+                    perfs_by_player.get(pid, [])
+                )
+                if feat is not None:
+                    features[pid] = feat
+                    targets[pid] = self._extract_target(perf, target)
 
         return TrainingDataset(
             entity_type="player",
@@ -289,14 +301,18 @@ class TrainingDataBuilder:
     # ------------------------------------------------------------------
     # Feature builders (strictly pre-cutoff)
     # ------------------------------------------------------------------
-
     def _build_player_features(
         self,
         player_id: int,
         cutoff_time: datetime,
         feature_version: str,
     ) -> dict[str, float] | None:
-        """Build a numeric feature vector for a player from pre-cutoff data."""
+        """Build a numeric feature vector for a player from pre-cutoff data.
+
+        Retained for backward compatibility. Internally delegates to
+        ``_compute_player_features_from_performances`` so the feature logic
+        is identical whether fetched individually or in batch.
+        """
         stmt = select(PlayerGameweekPerformance).where(
             PlayerGameweekPerformance.player_id == player_id,
         )
@@ -306,11 +322,56 @@ class TrainingDataBuilder:
         except ValueError:
             pass
         stmt = stmt.order_by(PlayerGameweekPerformance.gameweek_id)
-
         perfs = list(self._db.execute(stmt).scalars().all())
+        return self._compute_player_features_from_performances(perfs)
+
+    def _fetch_all_player_performances(
+        self,
+        player_ids: list[int],
+        cutoff_time: datetime,
+    ) -> dict[int, list[PlayerGameweekPerformance]]:
+        """Fetch pre-cutoff performances for many players in a single query.
+
+        This replaces the per-player N+1 queries previously issued by
+        ``_build_player_features``. The temporal policy (``apply_policy``)
+        and ordering (``player_id, gameweek_id``) guarantee that every
+        player's performance list is identical to what the per-player
+        query would have returned.
+        """
+        if not player_ids:
+            return {}
+        stmt = select(PlayerGameweekPerformance).where(
+            PlayerGameweekPerformance.player_id.in_(player_ids)
+        )
+        try:
+            condition = apply_policy(PlayerGameweekPerformance, self._policy, cutoff_time)
+            stmt = stmt.where(condition)
+        except ValueError:
+            pass
+        stmt = stmt.order_by(
+            PlayerGameweekPerformance.player_id,
+            PlayerGameweekPerformance.gameweek_id,
+        )
+        all_perfs = list(self._db.execute(stmt).scalars().all())
+        grouped: dict[int, list[PlayerGameweekPerformance]] = defaultdict(list)
+        for perf in all_perfs:
+            grouped[perf.player_id].append(perf)
+        return grouped
+
+    @staticmethod
+    def _compute_player_features_from_performances(
+        perfs: list[PlayerGameweekPerformance],
+    ) -> dict[str, float] | None:
+        """Compute the feature vector from an ordered list of performances.
+
+        ``perfs`` must be ordered by ``gameweek_id`` ascending — which is
+        exactly how ``_build_player_features`` and
+        ``_fetch_all_player_performances`` order results. The computation
+        below is a verbatim extraction of the feature logic from
+        ``_build_player_features`` to guarantee identical vectors.
+        """
         if not perfs:
             return None
-
         features: dict[str, float] = {}
         windows = [3, 5, 10]
         for window in windows:
@@ -338,8 +399,6 @@ class TrainingDataBuilder:
         else:
             features["points_per_90"] = 0.0
 
-        # Position info from the latest performance's team? Player position
-        # lives on the Player table; kept simple here.
         return features
 
     def _build_team_features(
@@ -391,11 +450,40 @@ class TrainingDataBuilder:
     # ------------------------------------------------------------------
 
     def _get_next_gameweek(self, cutoff_time: datetime) -> Gameweek | None:
-        """Find the first gameweek whose deadline is after the cutoff."""
+        """Find the first gameweek whose deadline is after the cutoff.
+
+        Gameweek-ordering fallback (temporal-safety documented in
+        ``backtesting.cutoff._outcome_ordering_cutoff``): when gameweeks carry
+        no genuine ``deadline_time`` (historical mirror imports), the next
+        gameweek is the one whose earliest *genuine* fixture kickoff is the
+        first after the cutoff. This never widens information access: the
+        boundary is a real source timestamp and features remain strictly
+        pre-cutoff under the caller's information-access policy.
+        """
         stmt = (
             select(Gameweek)
             .where(Gameweek.deadline_time > cutoff_time)
             .order_by(Gameweek.deadline_time)
+            .limit(1)
+        )
+        next_gw = self._db.scalar(stmt)
+        if next_gw is not None:
+            return next_gw
+
+        first_kickoff = (
+            select(
+                Fixture.gameweek_id.label("gameweek_id"),
+                func.min(Fixture.kickoff_time).label("first_kickoff"),
+            )
+            .where(Fixture.gameweek_id.is_not(None))
+            .group_by(Fixture.gameweek_id)
+            .subquery()
+        )
+        stmt = (
+            select(Gameweek)
+            .join(first_kickoff, Gameweek.id == first_kickoff.c.gameweek_id)
+            .where(first_kickoff.c.first_kickoff > cutoff_time)
+            .order_by(first_kickoff.c.first_kickoff)
             .limit(1)
         )
         return self._db.scalar(stmt)

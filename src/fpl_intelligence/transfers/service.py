@@ -27,6 +27,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from fpl_intelligence.data_providers.registry import ProviderState
 from fpl_intelligence.db.base import Base
 from fpl_intelligence.sync.materialized_models import PredictionCurrentDB
 from fpl_intelligence.transfers.models import SquadSnapshotDB, TransferLogDB
@@ -116,7 +117,7 @@ async def fetch_official_transfers(
     provenance display.
     """
     from fpl_intelligence.config import get_settings
-    from fpl_intelligence.data_providers.fpl_egress import FplEgressChain
+    from fpl_intelligence.data_providers.registry import get_async_fpl_adapter
 
     def _validate(data: Any) -> None:
         if not isinstance(data, dict) or not (
@@ -129,14 +130,12 @@ async def fetch_official_transfers(
             )
 
     cfg = get_settings()
-    chain = FplEgressChain(
-        cfg.fpl_base_url,
-        timeout=cfg.egress_strategy_timeout,
-        cache_ttl=300.0,
-    )
-    payload = await chain.fetch(
+    result = await get_async_fpl_adapter(settings=cfg).resolve(
         f"/api/entry/{int(entry_id)}/history/", validator=_validate
     )
+    if result.state is ProviderState.UNAVAILABLE:
+        raise RuntimeError("FPL provider unavailable: " + "; ".join(result.errors))
+    payload = result.value
     rows = parse_history_transfers(payload)
     excerpt: list[dict[str, Any]] = []
     if with_raw:
@@ -160,7 +159,7 @@ async def fetch_official_transfers(
                     "transfers": (last.get("transfers") or [])[:5],
                 }
             )
-    return rows, (chain.winning_strategy or "direct"), excerpt
+    return rows, result.provenance.get("egress_strategy", "direct"), excerpt
 
 
 def snapshot_diff_rows(db: Session, entry_id: str) -> list[dict[str, Any]]:

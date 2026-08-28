@@ -99,15 +99,12 @@ async def fetch_official_history_for_gw(
     and transfers array, or None if unavailable.
     """
     from fpl_intelligence.config import get_settings
-    from fpl_intelligence.data_providers.fpl_egress import FplEgressChain
 
     if egress is None:
         settings = get_settings()
-        egress = FplEgressChain(
-            settings.fpl_base_url,
-            timeout=settings.egress_strategy_timeout,
-            cache_ttl=300.0,
-        )
+        from fpl_intelligence.data_providers.registry import get_async_fpl_adapter
+
+        egress = get_async_fpl_adapter(settings=settings)
 
     def _validate(data: Any) -> None:
         if not isinstance(data, dict) or not isinstance(data.get("history"), list):

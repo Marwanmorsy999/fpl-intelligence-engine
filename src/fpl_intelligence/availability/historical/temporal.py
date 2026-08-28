@@ -48,6 +48,7 @@ def classify_temporal(
     timestamps: AvailabilityTimestamps,
     *,
     strict_backtest_safe: bool = True,
+    unsafe_lookahead: bool = False,
 ) -> str:
     """Classify a historical availability event into a TemporalClass.
 
@@ -68,6 +69,8 @@ def classify_temporal(
         * event_time only (no publication/avail) -> HISTORICAL_EVENT_ONLY.
         * no timestamps at all                   -> UNKNOWN.
     """
+    if unsafe_lookahead:
+        return TemporalClass.UNSAFE_LOOKAHEAD
     if not strict_backtest_safe:
         if timestamps.published_at is not None or timestamps.available_at is not None:
             return TemporalClass.HISTORICAL_EVENT_ONLY
@@ -104,6 +107,7 @@ def classify_and_check_eligibility(
     cutoff: datetime | None,
     *,
     strict_backtest_safe: bool = True,
+    unsafe_lookahead: bool = False,
 ) -> tuple[str, bool]:
     """Classify an event and check strict pre-deadline eligibility together.
 
@@ -111,7 +115,11 @@ def classify_and_check_eligibility(
     STRICT_BACKTEST_SAFE *and* eligible when its information was available before
     the cutoff. This is the single source of truth for the strict path.
     """
-    temporal_class = classify_temporal(timestamps, strict_backtest_safe=strict_backtest_safe)
+    temporal_class = classify_temporal(
+        timestamps,
+        strict_backtest_safe=strict_backtest_safe,
+        unsafe_lookahead=unsafe_lookahead,
+    )
     eligible = (
         temporal_class == TemporalClass.STRICT_BACKTEST_SAFE
         and is_event_eligible_before_cutoff(timestamps, cutoff)

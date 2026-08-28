@@ -105,21 +105,19 @@ async def fetch_event_live(
     """
     try:
         from fpl_intelligence.config import get_settings  # noqa: PLC0415
-        from fpl_intelligence.data_providers.fpl_egress import FplEgressChain  # noqa: PLC0415
+        from fpl_intelligence.data_providers.registry import get_async_fpl_adapter
 
         cfg = settings or get_settings()
-        egress = FplEgressChain(
-            cfg.fpl_base_url,
-            timeout=cfg.egress_strategy_timeout,
-            cache_ttl=0,  # results are final; never serve a stale half-time score
-        )
-        payload = await egress.fetch(
+        adapter = get_async_fpl_adapter(settings=cfg)
+        payload = await adapter.fetch(
             f"/api/event/{int(gameweek)}/live/",
             validator=validate_event_live_payload,
+            use_cache=False,
         )
     except Exception as exc:  # noqa: BLE001 - surfaced as an honest failure
         return None, f"{type(exc).__name__}: {exc}"
-    strategy = getattr(egress, "winning_strategy", None) or "direct"
+    result = adapter.last_result
+    strategy = result.provenance.get("egress_strategy", "direct") if result else "direct"
     return parse_event_live(payload), strategy
 
 

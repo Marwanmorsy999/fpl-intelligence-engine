@@ -36,6 +36,7 @@ from fpl_intelligence.data_providers.live_fact_injector import (
     LiveFactInjector,
     LiveFactResult,
 )
+from fpl_intelligence.data_providers.registry import ProviderRegistry, build_default_registry
 from fpl_intelligence.optimization.provider import (
     DecisionPredictionProvider,
     PlayerPrediction,
@@ -139,18 +140,24 @@ class FactCollectionService:
         fpl_connector: FplOfficialConnector | None = None,
         api_football_connector: ApiFootballConnector | None = None,
         football_data_connector: FootballDataOrgConnector | None = None,
+        registry: ProviderRegistry | None = None,
     ) -> None:
         self._cache = cache or ResponseCache()
         self._http_client = http_client
-        self._fpl = fpl_connector
-        self._api = api_football_connector
+        fpl = fpl_connector or FplOfficialConnector(
+            cache=self._cache, http_client=self._http_client
+        )
+        api = api_football_connector or ApiFootballConnector(
+            cache=self._cache, http_client=self._http_client
+        )
+        self._registry = registry or build_default_registry(fpl=fpl, api_football=api)
         self._fd = football_data_connector
 
     def _build_fpl(self) -> FplOfficialConnector:
-        return self._fpl or FplOfficialConnector(cache=self._cache, http_client=self._http_client)
+        return self._registry.provider("fpl_official")
 
     def _build_api_football(self) -> ApiFootballConnector:
-        return self._api or ApiFootballConnector(cache=self._cache, http_client=self._http_client)
+        return self._registry.provider("api_football")
 
     def _build_football_data(self) -> FootballDataOrgConnector:
         return self._fd or FootballDataOrgConnector(

@@ -47,6 +47,22 @@ Each external source has an adapter implementing the `HistoricalFootballDataProv
 
 **Output**: Provider-specific `Mapping[str, object]` dictionaries.
 
+#### Stage 1C provider decision path
+
+Production ingestion resolves FPL through `ProviderRegistry` and then calls
+`FplProviderAdapter`. The adapter owns the legacy synchronous provider shape,
+cache-first lookup, and provider budget accounting; `FplEgressChain` remains an
+allowed internal fetch strategy for async FPL endpoints. Higher-level services
+must not construct `OfficialFPLDataProvider` or choose an egress strategy.
+
+The remaining direct `FplEgressChain` constructions are endpoint-specific
+internal fetches (live gameweek data, squad/history, fixtures, planner, and
+transfer services). They are retained to preserve their existing async egress
+fallback behavior and should be moved behind an async registry adapter in a
+later foundation stage. `OfficialFPLDataProvider` remains only as the legacy
+sync implementation wrapped by the ingestion adapter; it is no longer imported
+by ingestion orchestration, CLI, or admin orchestration.
+
 ### 3. RAW RECORD STORE
 
 Before any transformation, the raw payload is saved to the `raw_records` table.

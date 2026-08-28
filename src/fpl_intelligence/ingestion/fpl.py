@@ -8,7 +8,11 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from fpl_intelligence.collectors.official_fpl import OfficialFPLDataProvider
+from fpl_intelligence.data_providers.registry import (
+    FplProviderAdapter,
+    ProviderRegistry,
+    fpl_ingestion_adapter,
+)
 from fpl_intelligence.db.models import (
     Fixture,
     Gameweek,
@@ -149,14 +153,22 @@ def _get_or_create_player(
     return player
 
 
-def ingest_bootstrap(db: Session, provider: OfficialFPLDataProvider, season_code: str) -> int:
+def _adapter(provider: Any = None) -> FplProviderAdapter:
+    if isinstance(provider, FplProviderAdapter):
+        return provider
+    if isinstance(provider, ProviderRegistry):
+        return fpl_ingestion_adapter(registry=provider)
+    return fpl_ingestion_adapter(provider)
+
+
+def ingest_bootstrap(db: Session, provider: Any, season_code: str) -> int:
     started = datetime.now(UTC)
     run = IngestionRun(source=PROVIDER, job_name="bootstrap", status="RUNNING", started_at=started)
     db.add(run)
     db.flush()
 
     try:
-        payload = provider.get_bootstrap_static()
+        payload = _adapter(provider).get_bootstrap_static()
         _save_raw_record(db, "/api/bootstrap-static/", payload, season_code)
 
         season = _get_or_create_season(db, season_code)
@@ -273,14 +285,14 @@ def ingest_bootstrap(db: Session, provider: OfficialFPLDataProvider, season_code
         raise
 
 
-def ingest_fixtures(db: Session, provider: OfficialFPLDataProvider, season_code: str) -> int:
+def ingest_fixtures(db: Session, provider: Any, season_code: str) -> int:
     started = datetime.now(UTC)
     run = IngestionRun(source=PROVIDER, job_name="fixtures", status="RUNNING", started_at=started)
     db.add(run)
     db.flush()
 
     try:
-        payload = provider.get_fixtures()
+        payload = _adapter(provider).get_fixtures()
         _save_raw_record(db, "/api/fixtures/", {"fixtures": payload}, season_code)
 
         season = _get_or_create_season(db, season_code)
