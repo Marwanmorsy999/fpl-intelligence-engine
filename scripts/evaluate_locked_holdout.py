@@ -58,8 +58,6 @@ def _minutes_holdout(db) -> dict[str, object]:
 
     evaluator = FastMinutesWalkForwardEvaluator(db, feature_version="2.0.0")
     dev_datasets = evaluator._build_datasets_once(dev_cutoffs)
-    # Warm-up folds are excluded from development scoring, but remain legitimate
-    # historical training data for the final frozen fit.
     model = evaluator._fit_model(dev_datasets)
 
     holdout_cutoffs = get_all_gameweek_cutoffs(db, HOLDOUT, policy=DEFAULT_POLICY)
@@ -178,6 +176,8 @@ def _minutes_holdout(db) -> dict[str, object]:
 
     candidate_metrics = metrics(candidate_rows)
     baseline_metrics = metrics(baseline_rows)
+    beats_mae = candidate_metrics["mae"] < baseline_metrics["mae"]
+    beats_brier = candidate_metrics["start_brier"] < baseline_metrics["start_brier"]
     return {
         "model": "minutes_model",
         "model_version": "2.0.0",
@@ -188,9 +188,9 @@ def _minutes_holdout(db) -> dict[str, object]:
         "excluded_target_rows_without_history": excluded,
         "candidate": candidate_metrics,
         "baseline_recent_minutes": baseline_metrics,
-        "beats_baseline_mae": candidate_metrics["mae"] < baseline_metrics["mae"],
-        "beats_baseline_start_brier": candidate_metrics["start_brier"] < baseline_metrics["start_brier"],
-        "promotion_gate_passed": False,
+        "beats_baseline_mae": beats_mae,
+        "beats_baseline_start_brier": beats_brier,
+        "promotion_gate_passed": beats_mae and beats_brier,
         "folds": folds,
     }
 
@@ -283,6 +283,11 @@ def _team_holdout(db) -> dict[str, object]:
 
     candidate = metrics(candidate_rows)
     baseline = metrics(baseline_rows)
+    better_mae = candidate["mae"] < baseline["mae"]
+    better_rmse = candidate["rmse"] < baseline["rmse"]
+    better_logloss = candidate["multiclass_log_loss"] < baseline["multiclass_log_loss"]
+    better_home_brier = candidate["home_win_brier"] < baseline["home_win_brier"]
+    promotion_gate = all((better_mae, better_rmse, better_logloss, better_home_brier))
     return {
         "model": "team_strength_engine",
         "model_version": "2.0.0",
@@ -294,11 +299,11 @@ def _team_holdout(db) -> dict[str, object]:
         "holdout_season": HOLDOUT,
         "candidate": candidate,
         "baseline_rolling_goals": baseline,
-        "candidate_better_on_mae": candidate["mae"] < baseline["mae"],
-        "candidate_better_on_rmse": candidate["rmse"] < baseline["rmse"],
-        "candidate_better_on_log_loss": candidate["multiclass_log_loss"] < baseline["multiclass_log_loss"],
-        "candidate_better_on_home_win_brier": candidate["home_win_brier"] < baseline["home_win_brier"],
-        "promotion_gate_passed": False,
+        "candidate_better_on_mae": better_mae,
+        "candidate_better_on_rmse": better_rmse,
+        "candidate_better_on_log_loss": better_logloss,
+        "candidate_better_on_home_win_brier": better_home_brier,
+        "promotion_gate_passed": promotion_gate,
     }
 
 
