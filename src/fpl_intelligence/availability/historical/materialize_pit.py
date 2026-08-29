@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import lzma
+import os
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
@@ -83,10 +84,11 @@ class MaterializeReport:
 
 
 def _github_json(url: str) -> object:
-    req = urllib.request.Request(
-        url,
-        headers={"Accept": "application/vnd.github+json", "User-Agent": USER_AGENT},
-    )
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": USER_AGENT}
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    req = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(req, timeout=30) as response:
         return json.loads(response.read().decode("utf-8"))
 
@@ -131,7 +133,11 @@ def local_snapshot_path(root: Path, captured_at: datetime) -> Path:
 
 
 def download_snapshot(url: str, dest: Path) -> None:
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    headers = {"User-Agent": USER_AGENT}
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    req = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(req, timeout=60) as response:
         data = response.read()
     payload = json.loads(lzma.decompress(data).decode("utf-8"))
