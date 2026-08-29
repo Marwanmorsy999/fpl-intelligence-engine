@@ -1,7 +1,8 @@
 """Read-only end-to-end PIT evaluation.
 
-This command never writes to the database. A non-zero exit means a safety gate
-could not be established (missing snapshots, missing events, or chronology failure).
+This command never writes to the database. By default it proves snapshot,
+event, and chronology safety; ``--require-signal`` additionally requires a
+measured validation-DB signal rather than accepting structural counts.
 """
 from __future__ import annotations
 
@@ -27,6 +28,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--gameweek", action="append", default=[])
     parser.add_argument("--cache-root", type=Path, default=Path("data/fplcache_pit"))
     parser.add_argument("--search-days", type=int, default=3)
+    parser.add_argument("--require-signal", action="store_true")
     args = parser.parse_args(argv)
 
     if len(args.season) != len(args.cutoff):
@@ -34,13 +36,17 @@ def main(argv: list[str] | None = None) -> int:
     if args.gameweek and len(args.gameweek) != len(args.cutoff):
         parser.error("provide exactly one --gameweek per --cutoff")
     gameweeks = [int(value) for value in args.gameweek] if args.gameweek else [None] * len(args.cutoff)
-    cutoffs = [DeadlineCutoff(season, gw, _parse_cutoff(cutoff)) for season, gw, cutoff in zip(args.season, gameweeks, args.cutoff, strict=True)]
+    cutoffs = [
+        DeadlineCutoff(season, gw, _parse_cutoff(cutoff))
+        for season, gw, cutoff in zip(args.season, gameweeks, args.cutoff, strict=True)
+    ]
 
     report = materialize_cutoffs(args.cache_root, cutoffs, search_days=args.search_days)
     chronological = evaluate_materialize_report(report)
     db = None
     try:
         from fpl_intelligence.db.session import validation_session_factory
+
         db = validation_session_factory()()
         lift = evaluate_signal_lift(report, db)
     except Exception as exc:  # noqa: BLE001
@@ -58,7 +64,9 @@ def main(argv: list[str] | None = None) -> int:
         "gates": {
             "snapshots_found": report.missing == 0,
             "events_present": report.event_count > 0,
-            "all_events_chronologically_eligible": report.event_count > 0 and chronological.ineligible == 0 and chronological.missing_timestamp == 0,
+            "all_events_chronologically_eligible": report.event_count > 0
+            and chronological.ineligible == 0
+            and chronological.missing_timestamp == 0,
             "signal_direction_ok": lift.to_dict().get("signal_direction_ok", False),
         },
     }
@@ -70,6 +78,8 @@ def main(argv: list[str] | None = None) -> int:
         return 3
     if chronological.ineligible or chronological.missing_timestamp:
         return 4
+    if args.require_signal and not lift.to_dict().get("signal_direction_ok", False):
+        return 5
     return 0
 
 
