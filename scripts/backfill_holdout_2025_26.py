@@ -123,9 +123,7 @@ def _ensure_team_match_layer(db, provider: RealFPLProvider, season_id: int) -> d
 
             single_fixture_gw = team_gw_counts[(provider_team_id, gw)] == 1
             expected_goals = stat.get("expected_goals") if single_fixture_gw else None
-            expected_goals_conceded = (
-                stat.get("expected_goals_conceded") if single_fixture_gw else None
-            )
+            expected_goals_conceded = stat.get("expected_goals_conceded") if single_fixture_gw else None
             db.add(
                 TeamMatchPerformance(
                     team_id=canonical_team_id,
@@ -135,11 +133,7 @@ def _ensure_team_match_layer(db, provider: RealFPLProvider, season_id: int) -> d
                     goals_scored=int(stat.get("goals_scored") or 0),
                     goals_conceded=int(stat.get("goals_conceded") or 0),
                     expected_goals=float(expected_goals) if expected_goals is not None else None,
-                    expected_goals_conceded=(
-                        float(expected_goals_conceded)
-                        if expected_goals_conceded is not None
-                        else None
-                    ),
+                    expected_goals_conceded=(float(expected_goals_conceded) if expected_goals_conceded is not None else None),
                     available_at=end_reference,
                     ingested_at=end_reference,
                 )
@@ -154,12 +148,7 @@ def _ensure_team_match_layer(db, provider: RealFPLProvider, season_id: int) -> d
 def _verify_team_match_layer(db, season_id: int) -> dict[str, int]:
     """Read-only verification of the canonical Team Strength source."""
     total = int(
-        db.scalar(
-            select(func.count())
-            .select_from(TeamMatchPerformance)
-            .where(TeamMatchPerformance.season_id == season_id)
-        )
-        or 0
+        db.scalar(select(func.count()).select_from(TeamMatchPerformance).where(TeamMatchPerformance.season_id == season_id)) or 0
     )
     temporal = int(
         db.scalar(
@@ -197,15 +186,22 @@ def main() -> int:
     parser.add_argument("--verify-only", action="store_true")
     args = parser.parse_args()
 
-    session_factory = (
-        validation_session_factory() if args.verify_only else writable_validation_session_factory()
-    )
     provider = RealFPLProvider(seasons=[HOLDOUT])
+    if args.verify_only:
+        session_factory = validation_session_factory()
+        with session_factory() as db:
+            season = db.scalar(select(Season).where(Season.code == HOLDOUT))
+            if season is None:
+                raise RuntimeError("--verify-only requested but the locked 2025-26 season is absent")
+            base = _base_counts(db)
+            team = _verify_team_match_layer(db, int(season.id))
+            print({"holdout": HOLDOUT, **base, **team, "read_only": True})
+        return 0
+
+    session_factory = writable_validation_session_factory()
     with session_factory() as db:
         season = db.scalar(select(Season).where(Season.code == HOLDOUT))
         if season is None:
-            if args.verify_only:
-                raise RuntimeError("--verify-only requested but the locked 2025-26 season is absent")
             report = import_season(db, provider, HOLDOUT, dataset="all")
             print(report.summary(), flush=True)
             season = db.scalar(select(Season).where(Season.code == HOLDOUT))
@@ -213,11 +209,6 @@ def main() -> int:
                 raise RuntimeError("2025-26 import completed without creating the season")
 
         base = _base_counts(db)
-        if args.verify_only:
-            team = _verify_team_match_layer(db, int(season.id))
-            print({"holdout": HOLDOUT, **base, **team, "read_only": True})
-            return 0
-
         team = _ensure_team_match_layer(db, provider, int(season.id))
         db.commit()
         print({"holdout": HOLDOUT, **base, **team, "read_only": False})
