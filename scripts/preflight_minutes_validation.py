@@ -7,7 +7,7 @@ from typing import cast
 from sqlalchemy import func, inspect, select, text
 from sqlalchemy.exc import SQLAlchemyError
 
-from fpl_intelligence.db.models import (  # type: ignore[import-untyped]
+from fpl_intelligence.db.models import (
     Fixture,
     Gameweek,
     Player,
@@ -15,7 +15,7 @@ from fpl_intelligence.db.models import (  # type: ignore[import-untyped]
     Season,
     Team,
 )
-from fpl_intelligence.db.session import validation_session_factory  # type: ignore[import-untyped]
+from fpl_intelligence.db.session import validation_session_factory
 
 REQUIRED_SEASONS = ("2022-23", "2023-24", "2024-25")
 REQUIRED_TABLES = (
@@ -39,86 +39,164 @@ def _season_counts(db, season_code: str) -> dict[str, int]:
     ).where(PlayerGameweekPerformance.season_id == season_id)
     return {
         "players": int(db.scalar(player_count) or 0),
-        "fixtures": int(db.scalar(select(func.count()).select_from(Fixture).where(
-            Fixture.season_id == season_id
-        )) or 0),
-        "gameweeks": int(db.scalar(select(func.count()).select_from(Gameweek).where(
-            Gameweek.season_id == season_id
-        )) or 0),
-        "performance": int(db.scalar(select(func.count()).select_from(
-            PlayerGameweekPerformance
-        ).where(PlayerGameweekPerformance.gameweek_id.in_(gameweek_ids))) or 0),
+        "fixtures": int(
+            db.scalar(
+                select(func.count()).select_from(Fixture).where(Fixture.season_id == season_id)
+            )
+            or 0
+        ),
+        "gameweeks": int(
+            db.scalar(
+                select(func.count()).select_from(Gameweek).where(Gameweek.season_id == season_id)
+            )
+            or 0
+        ),
+        "performance": int(
+            db.scalar(
+                select(func.count())
+                .select_from(PlayerGameweekPerformance)
+                .where(PlayerGameweekPerformance.gameweek_id.in_(gameweek_ids))
+            )
+            or 0
+        ),
     }
 
 
 def collect_preflight(db) -> dict[str, object]:
-    """Collect checks using SELECT-only queries against the canonical schema."""
+    """Collect SELECT-only checks for the historical validation scope."""
     table_names = set(inspect(db.bind).get_table_names())
     missing_tables = [table for table in REQUIRED_TABLES if table not in table_names]
     if missing_tables:
         return {"missing_tables": missing_tables}
 
-    total_performance = int(
-        db.scalar(select(func.count()).select_from(PlayerGameweekPerformance)) or 0
+    season_ids = list(
+        db.scalars(select(Season.id).where(Season.code.in_(REQUIRED_SEASONS))).all()
+    )
+    historical_filter = (
+        PlayerGameweekPerformance.season_id.in_(season_ids) if season_ids else text("1 = 0")
+    )
+    historical_total = int(
+        db.scalar(
+            select(func.count())
+            .select_from(PlayerGameweekPerformance)
+            .where(historical_filter)
+        )
+        or 0
     )
     temporal = {
-        "performance_available_at": int(db.scalar(select(func.count()).select_from(
-            PlayerGameweekPerformance
-        ).where(PlayerGameweekPerformance.available_at.is_not(None))) or 0),
-        "performance_ingested_at": int(db.scalar(select(func.count()).select_from(
-            PlayerGameweekPerformance
-        ).where(PlayerGameweekPerformance.ingested_at.is_not(None))) or 0),
-        "gameweek_deadline_time": int(db.scalar(select(func.count()).select_from(
-            Gameweek
-        ).where(Gameweek.deadline_time.is_not(None))) or 0),
+        "performance_available_at": int(
+            db.scalar(
+                select(func.count())
+                .select_from(PlayerGameweekPerformance)
+                .where(
+                    historical_filter,
+                    PlayerGameweekPerformance.available_at.is_not(None),
+                )
+            )
+            or 0
+        ),
+        "performance_ingested_at": int(
+            db.scalar(
+                select(func.count())
+                .select_from(PlayerGameweekPerformance)
+                .where(
+                    historical_filter,
+                    PlayerGameweekPerformance.ingested_at.is_not(None),
+                )
+            )
+            or 0
+        ),
+        # Historical backfill intentionally leaves this NULL because genuine
+        # FPL deadlines are absent from the source mirror. The validator uses
+        # the conservative previous-gameweek kickoff fallback instead.
+        "gameweek_deadline_time": int(
+            db.scalar(
+                select(func.count())
+                .select_from(Gameweek)
+                .where(
+                    Gameweek.season_id.in_(season_ids) if season_ids else text("1 = 0"),
+                    Gameweek.deadline_time.is_not(None),
+                )
+            )
+            or 0
+        ),
     }
     mappings = {
-        "player": int(db.scalar(select(func.count()).select_from(
-            PlayerGameweekPerformance
-        ).outerjoin(Player, Player.id == PlayerGameweekPerformance.player_id).where(
-            Player.id.is_(None)
-        )) or 0),
-        "team": int(db.scalar(select(func.count()).select_from(
-            PlayerGameweekPerformance
-        ).outerjoin(Team, Team.id == PlayerGameweekPerformance.team_id).where(
-            Team.id.is_(None)
-        )) or 0),
-        "fixture": int(db.scalar(select(func.count(func.distinct(
-            PlayerGameweekPerformance.gameweek_id
-        ))).select_from(PlayerGameweekPerformance).outerjoin(
-            Gameweek, Gameweek.id == PlayerGameweekPerformance.gameweek_id
-        ).where(Gameweek.id.is_(None))) or 0),
+        "player": int(
+            db.scalar(
+                select(func.count())
+                .select_from(PlayerGameweekPerformance)
+                .outerjoin(Player, Player.id == PlayerGameweekPerformance.player_id)
+                .where(historical_filter, Player.id.is_(None))
+            )
+            or 0
+        ),
+        "team": int(
+            db.scalar(
+                select(func.count())
+                .select_from(PlayerGameweekPerformance)
+                .outerjoin(Team, Team.id == PlayerGameweekPerformance.team_id)
+                .where(historical_filter, Team.id.is_(None))
+            )
+            or 0
+        ),
+        "fixture": int(
+            db.scalar(
+                select(func.count(func.distinct(PlayerGameweekPerformance.gameweek_id)))
+                .select_from(PlayerGameweekPerformance)
+                .outerjoin(Gameweek, Gameweek.id == PlayerGameweekPerformance.gameweek_id)
+                .where(historical_filter, Gameweek.id.is_(None))
+            )
+            or 0
+        ),
     }
-    duplicate_groups = db.execute(select(
-        PlayerGameweekPerformance.player_id,
-        PlayerGameweekPerformance.gameweek_id,
-        func.count().label("row_count"),
-    ).group_by(
-        PlayerGameweekPerformance.player_id,
-        PlayerGameweekPerformance.gameweek_id,
-    ).having(func.count() > 1)).all()
-    missing_critical = int(db.scalar(select(func.count()).select_from(
-        PlayerGameweekPerformance
-    ).where(
-        (PlayerGameweekPerformance.player_id.is_(None))
-        | (PlayerGameweekPerformance.gameweek_id.is_(None))
-        | (PlayerGameweekPerformance.season_id.is_(None))
-        | (PlayerGameweekPerformance.team_id.is_(None))
-        | (PlayerGameweekPerformance.minutes.is_(None))
-    )) or 0)
-    invalid_timestamps = int(db.scalar(select(func.count()).select_from(
-        PlayerGameweekPerformance
-    ).where(
-        PlayerGameweekPerformance.available_at.is_not(None),
-        PlayerGameweekPerformance.ingested_at.is_not(None),
-        PlayerGameweekPerformance.available_at > PlayerGameweekPerformance.ingested_at,
-    )) or 0)
+    duplicate_groups = db.execute(
+        select(
+            PlayerGameweekPerformance.player_id,
+            PlayerGameweekPerformance.gameweek_id,
+            func.count().label("row_count"),
+        )
+        .where(historical_filter)
+        .group_by(
+            PlayerGameweekPerformance.player_id,
+            PlayerGameweekPerformance.gameweek_id,
+        )
+        .having(func.count() > 1)
+    ).all()
+    missing_critical = int(
+        db.scalar(
+            select(func.count())
+            .select_from(PlayerGameweekPerformance)
+            .where(
+                historical_filter,
+                (PlayerGameweekPerformance.player_id.is_(None))
+                | (PlayerGameweekPerformance.gameweek_id.is_(None))
+                | (PlayerGameweekPerformance.season_id.is_(None))
+                | (PlayerGameweekPerformance.team_id.is_(None))
+                | (PlayerGameweekPerformance.minutes.is_(None)),
+            )
+        )
+        or 0
+    )
+    invalid_timestamps = int(
+        db.scalar(
+            select(func.count())
+            .select_from(PlayerGameweekPerformance)
+            .where(
+                historical_filter,
+                PlayerGameweekPerformance.available_at.is_not(None),
+                PlayerGameweekPerformance.ingested_at.is_not(None),
+                PlayerGameweekPerformance.available_at > PlayerGameweekPerformance.ingested_at,
+            )
+        )
+        or 0
+    )
     return {
         "missing_tables": [],
         "season_counts": {
             season: _season_counts(db, season) for season in REQUIRED_SEASONS
         },
-        "total_performance": total_performance,
+        "total_performance": historical_total,
         "temporal": temporal,
         "mapping_failures": mappings,
         "duplicate_rows": sum(int(row.row_count) - 1 for row in duplicate_groups),
@@ -133,6 +211,7 @@ def _print_report(report: dict[str, object]) -> int:
         print("schema: required structures missing")
         print(f"missing tables: {', '.join(str(table) for table in missing_tables)}")
         return 1
+
     season_counts = cast(dict[str, dict[str, int]], report["season_counts"])
     for season, counts in season_counts.items():
         print(
@@ -148,17 +227,22 @@ def _print_report(report: dict[str, object]) -> int:
         f"missing_critical_values={report['missing_critical_values']} "
         f"invalid_timestamps={report['invalid_timestamps']}"
     )
+
     temporal = cast(dict[str, int], report["temporal"])
+    historical_rows = int(report["total_performance"])
     temporal_gaps = {
         key: value
         for key, value in temporal.items()
-        if key != "gameweek_deadline_time" and value < int(report["total_performance"])
+        if key != "gameweek_deadline_time" and value < historical_rows
     }
-    if temporal_gaps or temporal["gameweek_deadline_time"] < sum(
-        counts["gameweeks"] for counts in season_counts.values()
-    ):
-        print(f"invalid temporal provenance: {temporal_gaps or 'missing gameweek deadlines'}")
+    if temporal_gaps:
+        print(f"invalid historical temporal provenance: {temporal_gaps}")
         return 1
+    print(
+        "gameweek deadlines: source values are absent; "
+        "validation will use the documented conservative gameweek-ordering cutoff fallback"
+    )
+
     if (
         report["mapping_failures"] != {"player": 0, "team": 0, "fixture": 0}
         or report["duplicate_rows"]
@@ -167,6 +251,7 @@ def _print_report(report: dict[str, object]) -> int:
     ):
         print("invalid historical data quality: refusing validation")
         return 1
+
     missing_seasons = [
         season for season, counts in season_counts.items() if counts["performance"] == 0
     ]
