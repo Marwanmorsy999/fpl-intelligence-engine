@@ -21,6 +21,14 @@ def _dt(value: str) -> datetime:
 
 
 def _cutoffs_from_args(args: argparse.Namespace) -> list[DeadlineCutoff]:
+    if args.from_verified_deadlines:
+        from fpl_intelligence.availability.historical.verified_deadlines import load_verified_deadline_cutoffs
+        return load_verified_deadline_cutoffs(
+            args.season_code or None,
+            gw_min=args.gw_min,
+            gw_max=args.gw_max,
+            limit=args.limit,
+        )
     if args.from_db_deadlines:
         if not args.season_code:
             raise SystemExit("--from-db-deadlines requires --season-code")
@@ -30,7 +38,7 @@ def _cutoffs_from_args(args: argparse.Namespace) -> list[DeadlineCutoff]:
         with Session() as db:
             return load_deadline_cutoffs(db, args.season_code, gw_min=args.gw_min, gw_max=args.gw_max, limit=args.limit)
     if not args.cutoff or not args.season:
-        raise SystemExit("provide --cutoff/--season pairs or --from-db-deadlines")
+        raise SystemExit("provide --cutoff/--season pairs, --from-verified-deadlines, or --from-db-deadlines")
     if len(args.cutoff) != len(args.season):
         raise SystemExit("provide exactly one --season per --cutoff")
     gameweeks = [int(g) for g in args.gameweek] if args.gameweek else [None] * len(args.cutoff)
@@ -45,6 +53,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--season", action="append", default=[])
     parser.add_argument("--gameweek", action="append", default=[])
     parser.add_argument("--from-db-deadlines", action="store_true")
+    parser.add_argument("--from-verified-deadlines", action="store_true")
     parser.add_argument("--season-code", action="append", default=[])
     parser.add_argument("--gw-min", type=int, default=None)
     parser.add_argument("--gw-max", type=int, default=None)
@@ -57,6 +66,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--commit", action="store_true")
     args = parser.parse_args(argv)
 
+    if args.from_db_deadlines and args.from_verified_deadlines:
+        raise SystemExit("--from-db-deadlines and --from-verified-deadlines are mutually exclusive")
     cutoffs = _cutoffs_from_args(args)
     if not cutoffs:
         print(json.dumps({"error": "no deadline cutoffs available"}, indent=2))
@@ -95,7 +106,6 @@ def main(argv: list[str] | None = None) -> int:
     if args.do_import:
         if db is None:
             raise SystemExit("validation DB session is required for --import")
-        # Import is exercised inside the current transaction before any commit.
         import_result = import_materialized(db, report, strict_backtest_safe=True)
         payload["import_result"] = import_result
         audit = import_result.get("resolver_audit", {})
@@ -120,8 +130,6 @@ def main(argv: list[str] | None = None) -> int:
         else:
             db.rollback()
             payload["committed"] = False
-    elif args.commit:
-        raise SystemExit("--commit requires --import")
 
     print(json.dumps(payload, indent=2, default=str))
     return 0 if report.missing == 0 and report.event_count > 0 and chronology.ineligible == 0 else 4
