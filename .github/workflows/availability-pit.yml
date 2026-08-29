@@ -1,0 +1,26 @@
+name: Availability Point-in-Time Provider
+
+on:
+  push:
+    branches:
+      - feature/availability-pit
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout availability branch
+        uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install declared dependencies
+        run: python -m pip install ".[dev]"
+      - name: Run point-in-time availability tests
+        run: python -m pytest tests/unit/test_pit_fplcache_availability.py -q
