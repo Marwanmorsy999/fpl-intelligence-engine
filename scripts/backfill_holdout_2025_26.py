@@ -83,9 +83,15 @@ def _ensure_team_match_layer(db, provider: RealFPLProvider, season_id: int) -> d
         if gw_i not in gw_end or kickoff > gw_end[gw_i]:
             gw_end[gw_i] = kickoff
 
+    # historical._get_or_create_fixture stores hashed numeric IDs, so use the
+    # same canonical transformation when building the provider -> DB mapping.
     canonical_fixture_ids = {
         str(f.provider_fixture_id): f.id
         for f in db.scalars(select(Fixture).where(Fixture.season_id == season_id)).all()
+    }
+    canonical_fixture_by_provider_id = {
+        str(_fixture_id_to_int(provider_fixture_id)): fixture_id
+        for provider_fixture_id, fixture_id in canonical_fixture_ids.items()
     }
     team_external_ids = {
         ext.provider_team_id: ext.team_id
@@ -107,7 +113,7 @@ def _ensure_team_match_layer(db, provider: RealFPLProvider, season_id: int) -> d
             raise RuntimeError(f"no canonical team mapping for real_fpl team {provider_team_id}")
         for stat in fpl_stats.get_team_match_stats(HOLDOUT, provider_team_id):
             provider_fixture_id = str(stat["provider_fixture_id"])
-            fixture_id = canonical_fixture_ids.get(str(_fixture_id_to_int(provider_fixture_id)))
+            fixture_id = canonical_fixture_by_provider_id.get(str(_fixture_id_to_int(provider_fixture_id)))
             if fixture_id is None:
                 raise RuntimeError(f"no canonical fixture mapping for provider fixture {provider_fixture_id}")
             if (canonical_team_id, fixture_id) in existing:
