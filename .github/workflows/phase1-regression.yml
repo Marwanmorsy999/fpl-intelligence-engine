@@ -18,9 +18,9 @@ on:
     paths:
       - 'src/fpl_intelligence/availability/historical/**'
       - 'src/fpl_intelligence/data_providers/fpl_egress.py'
+      - 'src/fpl_intelligence/data_providers/fpl_egress.py'
       - 'src/fpl_intelligence/db/session.py'
       - 'src/fpl_intelligence/prediction/live_provider.py'
-      - 'src/fpl_intelligence/sync/service.py'
       - 'src/fpl_intelligence/sync/service.py'
       - 'tests/unit/test_gameweek_season_scope.py'
       - 'tests/unit/test_db_production_safety.py'
