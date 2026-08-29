@@ -1,67 +1,26 @@
-# Stage 2B.2 Data Blocker
+# Stage 2B.2 Data Blocker — Resolved
 
-Status: blocked in the current operator environment (2026-08-28).
+Status: **RESOLVED (2026-08-29)**.
 
-Real canonical historical validation cannot start because the existing
-Supabase PostgreSQL pooler is not reachable over TCP. The configured
-production `DATABASE_URL` was present, but its value was not printed or
-changed.
+The earlier connectivity/data blocker is now cleared for the feature-branch validation workflow.
 
-## Connectivity evidence
+## Resolution evidence
 
-The credential-safe diagnostic used the existing `validation_database_url()`
-and Psycopg 3 SQLAlchemy configuration with no writes or schema changes:
+GitHub Actions `Historical Model Validation #7` reached the canonical Supabase database and completed the full validation workflow successfully.
 
-```text
-DATABASE_URL_PRESENT=True
-DNS_HOST=aws-1-eu-west-3.pooler.supabase.com
-DNS_RESULT=RESOLVED addresses=2
-TCP_RESULT=FAILED error=TimeoutError: timed out
-TCP_IPv4_13.36.13.135=FAILED TimeoutError: timed out
-TCP_IPv4_52.47.148.215=FAILED TimeoutError: timed out
-```
+The Team Strength validation source is now present and temporally usable:
 
-The failure is at **TCP connection establishment to port 5432**. Because
-TCP did not complete:
+- `team_match_performances`: 2,280 historical rows
+- 760 rows each for 2022-23, 2023-24, and 2024-25
+- 2,280/2,280 rows have both `available_at` and `ingested_at`
+- the locked 2025-26 holdout and 2026-27 current-season rows are excluded from Stage 2B validation
 
-- TLS was not reached.
-- PostgreSQL authentication was not reached.
-- `SELECT 1` was not reached.
-- Canonical metadata queries were not reached.
-- The team-strength evaluator was not run.
+The Team Strength evaluator was hardened to fail closed when the source is empty or temporal provenance is incomplete. This eliminates the previous constant-fallback failure mode.
 
-The per-address checks timed out for both DNS-resolved IPv4 addresses, which
-is consistent with an outbound network, firewall, proxy, VPN, or network
-allow-list block affecting the current operator environment. It is not
-evidence of an authentication or SQL-query failure.
+## Validation result
 
-## Required operator/environment action
+Run #7 produced distinct results for `ewma`, `poisson`, `rolling_goals`, and `rolling_xg` across 1,140 historical fixtures. A regression test also verifies that these methods produce distinct strength and fixture-probability signatures on controlled chronological data.
 
-Restore permitted outbound TCP access from this environment to the existing
-Supabase pooler host `aws-1-eu-west-3.pooler.supabase.com` on port `5432`.
-The operator should check the local egress firewall, corporate proxy/VPN,
-container or runner network policy, and any Supabase network restrictions.
-Do not change connection settings, credentials, pool sizes, timeouts, or
-database data as a workaround.
+The current development-season winner is **EWMA**, which is retained as the Team Strength candidate. No production promotion has occurred.
 
-After access is restored, rerun the same connectivity diagnostic, then run
-the existing read-only preflight and proceed to the evaluator only if all
-three canonical seasons and temporal coverage are available:
-
-```text
-python scripts/preflight_minutes_validation.py
-python scripts/evaluate_team_strength.py
-```
-
-No alternate provider, synthetic data, ingestion, migration, schema change,
-or model change is permitted for this stage.
-
-## Validation and promotion
-
-Historical coverage for `2022-23`, `2023-24`, and `2024-25` is unverified
-because the database could not be reached. No validation metrics or
-calibration results exist. TeamStrengthEngine status remains:
-
-`INSUFFICIENT EVIDENCE`
-
-The promotion gate was not changed.
+The final 2025-26 holdout remains locked and is not part of this Stage 2B validation.
