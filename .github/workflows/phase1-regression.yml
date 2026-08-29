@@ -21,6 +21,7 @@ on:
       - 'src/fpl_intelligence/db/session.py'
       - 'src/fpl_intelligence/prediction/live_provider.py'
       - 'src/fpl_intelligence/sync/service.py'
+      - 'src/fpl_intelligence/sync/service.py'
       - 'tests/unit/test_gameweek_season_scope.py'
       - 'tests/unit/test_db_production_safety.py'
       - 'tests/unit/test_fpl_egress_resilience.py'
@@ -32,8 +33,8 @@ jobs:
   regression:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Install dependencies
