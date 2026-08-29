@@ -1,8 +1,8 @@
 # Stage 2 — Locked 2025-26 Holdout Gate
 
-Status: **RUN TRIGGERED — RESULTS PENDING**
+Status: **PASSED — FINAL HOLDOUT EVALUATED**.
 
-This document defines the final holdout gate after Stage 2A/2B development validation. It must never be read as evidence that the holdout passed.
+This document records the final holdout evidence after Stage 2A/2B development validation. The 2025-26 season remains a locked evaluation set and was not used for model selection, tuning, feature selection, or calibration fitting.
 
 ## Season split
 
@@ -15,33 +15,69 @@ The holdout policy forbids 2025-26 from training, hyperparameter tuning, feature
 
 ## Frozen candidates
 
-- Minutes: model version `2.0.0`, feature version `2.0.0`; development result remains **KEEP AS CANDIDATE** because its required historical promotion gate is not met.
-- Team Strength: model version `2.0.0`, feature version `team-strength-2.0.0`; selected development method is **EWMA**, window `5`, decay `0.9`.
+- Minutes: model version `2.0.0`, feature version `2.0.0`; the development result remained **KEEP AS CANDIDATE**.
+- Team Strength: model version `2.0.0`, feature version `team-strength-2.0.0`; frozen method **EWMA**, window `5`, decay `0.9`.
 
-No holdout observation is used to change these selections.
+These selections were frozen before the 2025-26 evaluation.
 
 ## Materialization
 
-`scripts/backfill_holdout_2025_26.py` uses the existing real `RealFPLProvider` and canonical `import_season()` pipeline. It performs additive, idempotent ingestion and does not update or delete existing rows. Team Strength team-match rows are derived from the real FPL fixture and gameweek xG source, with double-gameweek xG left unset rather than copied across fixtures.
+`scripts/backfill_holdout_2025_26.py` uses the existing real `RealFPLProvider` and canonical `import_season()` pipeline. It performs additive, idempotent ingestion and verifies the observation layer separately in read-only mode. The final successful run materialized and verified the canonical holdout source without changing model-selection inputs.
 
-The canonical holdout gate requires:
+The holdout gate required:
 
 - 2025-26 season exists;
-- 380 fixtures exist;
-- all 380 fixtures have genuine kickoff and final scores;
-- 760 team-match rows exist;
-- all 760 team-match rows have usable temporal provenance.
+- 380 scored fixtures;
+- 760 team-match rows;
+- 760/760 team-match rows with usable temporal provenance.
 
 ## Evaluation
 
-`scripts/evaluate_locked_holdout.py` fits Minutes parameters using development seasons only and evaluates them on 2025-26. Team Strength evaluates the frozen EWMA configuration chronologically using only observations available before each fixture cutoff.
+GitHub Actions `Historical Model Validation #43` evaluated the frozen candidates on 2025-26. The evaluator trained Minutes only on development seasons and evaluated Team Strength chronologically using observations available before each fixture cutoff.
 
-The evaluator produces a deterministic JSON artifact. GitHub Actions executes it twice and byte-compares the outputs.
+The evaluator was run twice and byte-compared with `cmp`; both outputs were identical. The workflow completed successfully after the corrected canonical fixture-ID mapping was deployed.
 
-## Current gate state
+Artifact: `locked-2025-26-holdout`  
+Artifact ID: `9717764102`  
+SHA-256: `62c97c558a6e524a868bde6875e57e80a8c2c47473a9a0fe972e57fc85ea67b1`
 
-The 2025-26 canonical dataset has been materialized in production Supabase. The explicit locked-holdout workflow trigger is configured and the fixture mapping has been verified against the canonical ingestion implementation. This commit triggers a **holdout-only** Actions run; historical validation is not repeated for this trigger commit.
+## Final results
 
-Promotion remains blocked until a successful holdout artifact is reviewed against the existing project promotion criteria.
+### Team Strength — EWMA
 
-Production `main` remains unchanged.
+| Metric | Candidate | Baseline | Result |
+|---|---:|---:|---|
+| MAE | **0.9602** | 1.1483 | PASS |
+| RMSE | **1.1980** | 1.4501 | PASS |
+| Multiclass log loss | **1.0903** | 1.2684 | PASS |
+| Home-win Brier | **0.2424** | 0.2830 | PASS |
+| Clean-sheet Brier | **0.2155** | 0.2718 | PASS |
+
+`promotion_gate_passed: true`.
+
+### Minutes — model 2.0.0
+
+| Metric | Candidate | Baseline | Result |
+|---|---:|---:|---|
+| MAE | 16.4963 | **14.8949** | FAIL |
+| RMSE | **26.5042** | 28.7575 | PASS |
+| Start Brier | **0.1057** | 0.1197 | PASS |
+| Start log loss | **0.4652** | 1.4119 | PASS |
+
+`promotion_gate_passed: false`.
+
+## Promotion decision
+
+**Team Strength: HOLDOUT-APPROVED — EWMA.**
+
+The frozen EWMA candidate beat the rolling-goals baseline on every primary holdout comparison. No alternative method was selected after seeing 2025-26, and the holdout was not used to tune EWMA.
+
+**Minutes: NOT PROMOTABLE.**
+
+The candidate improved probabilistic start metrics but failed the required raw expected-minutes MAE comparison, so it remains a candidate for future development.
+
+## Production activation note
+
+The scientific promotion gate for Team Strength is passed. The repository's `model_registry` currently contains no registered model artifacts, and the current player baseline pipeline does not yet route fixture predictions through `TeamStrengthEngine`. Therefore this stage does **not** fabricate a registry entry or claim that the runtime has been activated with EWMA. Runtime activation must occur through the appropriate production integration when that pipeline is wired to the validated Team Strength engine.
+
+The 2025-26 holdout remains read-only evidence and must not be used for subsequent tuning.
