@@ -111,9 +111,18 @@ def get_prediction_provider(db: GetDB) -> DecisionPredictionProvider:
 
         return StaticPredictionProvider()
 
+    from fpl_intelligence.prediction.gameweek_resolve import safe_fixture_count
     from fpl_intelligence.prediction.live_provider import LivePredictionProvider
 
-    return LivePredictionProvider(session=db)
+    provider = LivePredictionProvider(session=db)
+    # Production hotfix: provider_event_id is unique per season only. The stock
+    # get_fixture_count used an unscoped scalar_one_or_none() which raises
+    # MultipleResultsFound after historical seasons are ingested and turns
+    # /decisions into a 503. Bind a season-scoped implementation instead.
+    provider.get_fixture_count = lambda player_id, gameweek, _db=db: safe_fixture_count(
+        _db, player_id, gameweek
+    )
+    return provider
 
 
 def get_prediction_builder(
