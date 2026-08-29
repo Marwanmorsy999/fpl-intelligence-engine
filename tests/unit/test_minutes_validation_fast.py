@@ -1,6 +1,5 @@
 from datetime import UTC, datetime
 
-from fpl_intelligence.prediction.minutes_validation import TrainingDataset  # type: ignore[attr-defined]
 from fpl_intelligence.prediction.minutes_validation_fast import FastMinutesWalkForwardEvaluator, _PerfRow
 from fpl_intelligence.prediction.training import TrainingDataBuilder
 
