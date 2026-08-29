@@ -40,7 +40,6 @@ HOLDOUT = FINAL_HOLDOUT_SEASONS[0]
 TEAM_METHOD = "ewma"
 TEAM_WINDOW = 5
 TEAM_DECAY = 0.9
-INITIAL_TRAIN_FOLDS = 3
 
 
 def _logloss(probability: float, actual: int) -> float:
@@ -59,8 +58,8 @@ def _minutes_holdout(db) -> dict[str, object]:
 
     evaluator = FastMinutesWalkForwardEvaluator(db, feature_version="2.0.0")
     dev_datasets = evaluator._build_datasets_once(dev_cutoffs)
-    # The first three folds are warm-up folds during walk-forward scoring, but
-    # they are still legitimate historical training data for the final frozen fit.
+    # Warm-up folds are excluded from development scoring, but remain legitimate
+    # historical training data for the final frozen fit.
     model = evaluator._fit_model(dev_datasets)
 
     holdout_cutoffs = get_all_gameweek_cutoffs(db, HOLDOUT, policy=DEFAULT_POLICY)
@@ -129,7 +128,6 @@ def _minutes_holdout(db) -> dict[str, object]:
                 for row in histories.get(player_id, [])
                 if row.available_at <= cutoff.cutoff_time
                 and row.ingested_at <= cutoff.cutoff_time
-                and row.available_at < row.ingested_at + __import__("datetime").timedelta(days=36500)
             ]
             if not eligible:
                 excluded += 1
