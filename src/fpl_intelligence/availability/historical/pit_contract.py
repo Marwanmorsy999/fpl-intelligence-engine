@@ -59,17 +59,41 @@ def validate_pit_events(
 
 
 def validate_import_result(result: Any) -> dict[str, int]:
-    """Validate importer conservation and entity-resolution accounting."""
+    """Validate importer conservation, entity resolution, and stage accounting."""
     audit = result.audit
     if not audit.check_conservation():
         raise ValueError(
             f"historical import conservation failed: fetched={audit.fetched} terminal={audit.terminal_total}"
         )
+
+    pre_resolution = audit.fetched - audit.normalization_failed
     resolved_terminal = audit.matched + audit.ambiguous + audit.unmatched
-    if resolved_terminal > audit.fetched - audit.normalization_failed:
-        raise ValueError("historical resolution counters exceed normalized input")
+    if resolved_terminal != pre_resolution:
+        raise ValueError(
+            "historical resolution accounting failed: "
+            f"resolved={resolved_terminal} expected={pre_resolution}"
+        )
+
+    if audit.ambiguous or audit.unmatched:
+        raise ValueError(
+            f"PIT entity resolution is not complete: ambiguous={audit.ambiguous} unmatched={audit.unmatched}"
+        )
+
+    matched_terminal = (
+        audit.persisted
+        + audit.failed_persist
+        + audit.skipped_duplicate
+        + audit.skipped_temporal_invalid
+    )
+    if matched_terminal != audit.matched:
+        raise ValueError(
+            "matched-record accounting failed: "
+            f"matched={audit.matched} terminal={matched_terminal}"
+        )
+
     if result.eligible_before_cutoff > result.strict_safe:
         raise ValueError("eligible_before_cutoff cannot exceed strict-safe events")
+
     return {
         "fetched": audit.fetched,
         "persisted": audit.persisted,
