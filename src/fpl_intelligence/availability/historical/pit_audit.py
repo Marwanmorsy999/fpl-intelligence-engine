@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from fpl_intelligence.availability.models import AvailabilityEvent, TemporalClass
-from fpl_intelligence.db.models import Gameweek, PlayerGameweekPerformance, Season
+from fpl_intelligence.db.models import PlayerGameweekPerformance, Season
 
 _RESTRICTED = {"out", "suspended", "doubtful", "questionable", "suspect"}
 _HARD_OUT = {"out", "suspended"}
@@ -70,16 +70,20 @@ def audit_pit_events(db: Session, seasons: list[str] | None = None) -> PITAuditR
     """Audit PIT events and realized player-GW minutes in the validation DB."""
     query = select(AvailabilityEvent).where(AvailabilityEvent.provider == "fplcache_pit")
     if seasons:
-        season_rows = list(db.execute(select(Season).where(Season.code.in_(seasons))).scalars().all())
+        season_rows = list(
+            db.execute(select(Season).where(Season.code.in_(seasons))).scalars().all()
+        )
         season_ids = [season.id for season in season_rows]
         query = query.where(AvailabilityEvent.season_id.in_(season_ids)) if season_ids else query.where(False)
 
     events = list(db.execute(query).scalars().all())
     report = PITAuditReport(seasons=seasons or [])
     report.event_count = len(events)
-    report.strict_safe = sum(e.temporal_class == TemporalClass.STRICT_BACKTEST_SAFE for e in events)
-    report.timestamp_complete = sum(e.valid_from is not None for e in events)
-    report.gameweek_linked = sum(e.gameweek_id is not None for e in events)
+    report.strict_safe = sum(
+        event.temporal_class == TemporalClass.STRICT_BACKTEST_SAFE for event in events
+    )
+    report.timestamp_complete = sum(event.valid_from is not None for event in events)
+    report.gameweek_linked = sum(event.gameweek_id is not None for event in events)
 
     restricted_minutes: list[float] = []
     hard_out_minutes: list[float] = []
@@ -90,15 +94,19 @@ def audit_pit_events(db: Session, seasons: list[str] | None = None) -> PITAuditR
         if event.gameweek_id is None:
             continue
         flagged_by_gw.setdefault(int(event.gameweek_id), set()).add(int(event.player_id))
-        perf = db.scalar(select(PlayerGameweekPerformance).where(
-            PlayerGameweekPerformance.player_id == event.player_id,
-            PlayerGameweekPerformance.gameweek_id == event.gameweek_id,
-        ))
+        perf = db.scalar(
+            select(PlayerGameweekPerformance).where(
+                PlayerGameweekPerformance.player_id == event.player_id,
+                PlayerGameweekPerformance.gameweek_id == event.gameweek_id,
+            )
+        )
         if perf is None:
             continue
         minutes = float(perf.minutes or 0)
         report.performance_matches += 1
-        status = str(event.status.value if hasattr(event.status, "value") else event.status).lower()
+        status = str(
+            event.status.value if hasattr(event.status, "value") else event.status
+        ).lower()
         status_minutes.setdefault(status, []).append(minutes)
         if status in _RESTRICTED:
             restricted_minutes.append(minutes)
@@ -108,7 +116,9 @@ def audit_pit_events(db: Session, seasons: list[str] | None = None) -> PITAuditR
     control_minutes: list[float] = []
     for gameweek_id, flagged_players in flagged_by_gw.items():
         perf_rows = db.scalars(
-            select(PlayerGameweekPerformance).where(PlayerGameweekPerformance.gameweek_id == gameweek_id)
+            select(PlayerGameweekPerformance).where(
+                PlayerGameweekPerformance.gameweek_id == gameweek_id
+            )
         ).all()
         for perf in perf_rows:
             if int(perf.player_id) not in flagged_players:
@@ -129,11 +139,19 @@ def audit_pit_events(db: Session, seasons: list[str] | None = None) -> PITAuditR
     report.restricted_start_rate = _rate(restricted_minutes)
     report.control_start_rate = _rate(control_minutes)
     if report.restricted_mean_minutes is not None and report.control_mean_minutes is not None:
-        report.minutes_delta = round(report.control_mean_minutes - report.restricted_mean_minutes, 4)
+        report.minutes_delta = round(
+            report.control_mean_minutes - report.restricted_mean_minutes, 4
+        )
     if report.restricted_start_rate is not None and report.control_start_rate is not None:
-        report.start_rate_delta = round(report.control_start_rate - report.restricted_start_rate, 6)
+        report.start_rate_delta = round(
+            report.control_start_rate - report.restricted_start_rate, 6
+        )
     report.by_status = {
-        status: {"n": len(values), "mean_minutes": _mean(values), "start_rate": _rate(values)}
+        status: {
+            "n": len(values),
+            "mean_minutes": _mean(values),
+            "start_rate": _rate(values),
+        }
         for status, values in sorted(status_minutes.items())
     }
 
@@ -150,7 +168,9 @@ def audit_pit_events(db: Session, seasons: list[str] | None = None) -> PITAuditR
     else:
         report.notes.append("Hard-out signal is not yet established on the available validation sample.")
     if report.comparative_signal_ok:
-        report.notes.append("Restricted statuses are suppressed versus unflagged player-gameweeks in the same sampled gameweeks.")
+        report.notes.append(
+            "Restricted statuses are suppressed versus unflagged player-gameweeks in the same sampled gameweeks."
+        )
     elif report.control_rows:
         report.notes.append("Comparative restricted-vs-control signal is inconclusive on the available sample.")
     return report
