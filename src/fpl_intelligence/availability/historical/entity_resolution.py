@@ -73,43 +73,96 @@ class HistoricalResolutionReport:
 
 
 class HistoricalEntityResolver:
-    """Resolve provider player/team IDs to canonical DB entities."""
+    """Resolve provider player/team IDs to canonical DB entities.
+
+    Resolver lookups are memoized for the lifetime of one import transaction.
+    Historical PIT batches repeat the same player/team/gameweek identifiers
+    across snapshots, so caching avoids thousands of redundant round trips
+    without changing matching precedence or fallback semantics.
+    """
 
     def __init__(self, db: Session, provider_name: str):
         self.db = db
         self.provider_name = provider_name
+        self._team_cache: dict[str, int | None] = {}
+        self._player_cache: dict[str, int | None] = {}
+        self._gameweek_cache: dict[tuple[int, int], int | None] = {}
+        self._context_name_cache: dict[tuple[int, int], dict[str, list[tuple[str, int]]]] = {}
 
     # -- teams ------------------------------------------------------------
     def resolve_team(self, provider_team_id: str | None) -> int | None:
         """Resolve a provider team ID to a canonical team ID."""
         if not provider_team_id:
             return None
+        key = str(provider_team_id)
+        if key in self._team_cache:
+            return self._team_cache[key]
+        resolved: int | None = None
         for candidate_provider in _provider_alias_candidates(self.provider_name):
             ext = self.db.scalar(
                 select(TeamExternalId).where(
                     TeamExternalId.provider == candidate_provider,
-                    TeamExternalId.provider_team_id == str(provider_team_id),
+                    TeamExternalId.provider_team_id == key,
                 )
             )
             if ext is not None:
-                return ext.team_id
-        return None
+                resolved = ext.team_id
+                break
+        self._team_cache[key] = resolved
+        return resolved
 
     # -- players ----------------------------------------------------------
     def resolve_player(self, provider_player_id: str | None) -> int | None:
         """Resolve a provider player ID to a canonical player ID (primary path)."""
         if not provider_player_id:
             return None
+        key = str(provider_player_id)
+        if key in self._player_cache:
+            return self._player_cache[key]
+        resolved: int | None = None
         for candidate_provider in _provider_alias_candidates(self.provider_name):
             ext = self.db.scalar(
                 select(PlayerExternalId).where(
                     PlayerExternalId.provider == candidate_provider,
-                    PlayerExternalId.provider_player_id == str(provider_player_id),
+                    PlayerExternalId.provider_player_id == key,
                 )
             )
             if ext is not None:
-                return ext.player_id
-        return None
+                resolved = ext.player_id
+                break
+        self._player_cache[key] = resolved
+        return resolved
+
+    def _context_candidates(
+        self,
+        team_id: int,
+        season_id: int,
+    ) -> dict[str, list[tuple[str, int]]]:
+        key = (team_id, season_id)
+        cached = self._context_name_cache.get(key)
+        if cached is not None:
+            return cached
+
+        from fpl_intelligence.db.models import PlayerTeamMembership
+
+        memberships = (
+            self.db.execute(
+                select(PlayerTeamMembership).where(
+                    PlayerTeamMembership.team_id == team_id,
+                    PlayerTeamMembership.season_id == season_id,
+                )
+            )
+            .scalars()
+            .all()
+        )
+        by_name: dict[str, list[tuple[str, int]]] = {}
+        for membership in memberships:
+            player = self.db.get(Player, membership.player_id)
+            name = normalize_name(player.web_name if player else "")
+            if name:
+                by_name.setdefault(name, []).append(("region", membership.player_id))
+        self._context_name_cache[key] = by_name
+        return by_name
 
     def resolve_player_by_context(
         self,
@@ -130,31 +183,11 @@ class HistoricalEntityResolver:
             report.matched_players += 1
             return pid
 
-        by_name: dict[str, list[tuple[str, int]]] = {}
-        # Build a name -> candidate map from the player's team+season context.
-        if team_id is not None and season_id is not None:
-            from fpl_intelligence.db.models import PlayerTeamMembership
-
-            memberships = (
-                self.db.execute(
-                    select(PlayerTeamMembership).where(
-                        PlayerTeamMembership.team_id == team_id,
-                        PlayerTeamMembership.season_id == season_id,
-                    )
-                )
-                .scalars()
-                .all()
-            )
-            for m in memberships:
-                name = normalize_name(
-                    self.db.get(Player, m.player_id).web_name
-                    if self.db.get(Player, m.player_id)
-                    else ""
-                )
-                if name:
-                    by_name.setdefault(name, []).append(("region", m.player_id))
-
         norm = normalize_name(player_name or "")
+        by_name: dict[str, list[tuple[str, int]]] = {}
+        if team_id is not None and season_id is not None:
+            by_name = self._context_candidates(team_id, season_id)
+
         if norm and norm in by_name:
             candidates = by_name[norm]
             if len(candidates) == 1:
@@ -192,6 +225,9 @@ class HistoricalEntityResolver:
         """Resolve a gameweek number within a season to a canonical gameweek ID."""
         if season_id is None or gw_num is None:
             return None
+        key = (season_id, gw_num)
+        if key in self._gameweek_cache:
+            return self._gameweek_cache[key]
         from fpl_intelligence.db.models import Gameweek
 
         gw = self.db.scalar(
@@ -200,4 +236,6 @@ class HistoricalEntityResolver:
                 Gameweek.provider_event_id == gw_num,
             )
         )
-        return gw.id if gw else None
+        resolved = gw.id if gw else None
+        self._gameweek_cache[key] = resolved
+        return resolved
