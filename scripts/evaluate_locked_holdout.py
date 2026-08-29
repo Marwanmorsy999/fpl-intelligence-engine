@@ -30,6 +30,10 @@ from fpl_intelligence.db.models import (  # noqa: E402
 from fpl_intelligence.db.session import validation_session_factory  # noqa: E402
 from fpl_intelligence.features.temporal import DEFAULT_POLICY  # noqa: E402
 from fpl_intelligence.prediction.minutes import SimpleRecentMinutesBaseline  # noqa: E402
+from fpl_intelligence.prediction.minutes_validation import (  # noqa: E402
+    blend_prediction,
+    select_blend_weight,
+)
 from fpl_intelligence.prediction.minutes_validation_fast import (  # noqa: E402
     FastMinutesWalkForwardEvaluator,
     _PerfRow,
@@ -48,7 +52,7 @@ def _logloss(probability: float, actual: int) -> float:
 
 
 def _minutes_holdout(db) -> dict[str, object]:
-    """Fit Minutes only on development data and score frozen parameters on holdout."""
+    """Fit on development data, freeze the blend weight, and score 2025-26 holdout."""
     dev_cutoffs = []
     for season in DEVELOPMENT_SEASONS:
         dev_cutoffs.extend(get_all_gameweek_cutoffs(db, season, policy=DEFAULT_POLICY))
@@ -58,6 +62,14 @@ def _minutes_holdout(db) -> dict[str, object]:
 
     evaluator = FastMinutesWalkForwardEvaluator(db, feature_version="2.0.0")
     dev_datasets = evaluator._build_datasets_once(dev_cutoffs)
+    if len(dev_datasets) < 2:
+        raise RuntimeError("insufficient development folds for frozen Minutes blend weight")
+
+    frozen_weight, inner_training_window, inner_validation_window = evaluator._inner_weight_cached(
+        dev_datasets,
+        len(dev_datasets),
+        None,
+    )
     model = evaluator._fit_model(dev_datasets)
 
     holdout_cutoffs = get_all_gameweek_cutoffs(db, HOLDOUT, policy=DEFAULT_POLICY)
@@ -113,6 +125,7 @@ def _minutes_holdout(db) -> dict[str, object]:
         rows.sort(key=lambda r: (r.available_at, r.ingested_at, r.gameweek_id))
 
     candidate_rows: list[tuple[float, float, int, float]] = []
+    blend_rows: list[tuple[float, float, int, float]] = []
     baseline_rows: list[tuple[float, float, int, float]] = []
     folds: list[dict[str, object]] = []
     excluded = 0
@@ -144,8 +157,18 @@ def _minutes_holdout(db) -> dict[str, object]:
             if pred is None or base is None:
                 continue
             started = int(actual >= 60)
+            blended = blend_prediction(
+                pred,
+                base,
+                frozen_weight,
+                inner_training_window,
+                inner_validation_window,
+            )
             candidate_rows.append(
                 (float(pred["expected_minutes"]), actual, started, float(pred["probability_starting"]))
+            )
+            blend_rows.append(
+                (float(blended["expected_minutes"]), actual, started, float(blended["probability_starting"]))
             )
             baseline_rows.append(
                 (float(base["expected_minutes"]), actual, started, float(base["probability_starting"]))
@@ -175,9 +198,12 @@ def _minutes_holdout(db) -> dict[str, object]:
         }
 
     candidate_metrics = metrics(candidate_rows)
+    blend_metrics = metrics(blend_rows)
     baseline_metrics = metrics(baseline_rows)
-    beats_mae = candidate_metrics["mae"] < baseline_metrics["mae"]
-    beats_brier = candidate_metrics["start_brier"] < baseline_metrics["start_brier"]
+    candidate_beats_mae = candidate_metrics["mae"] < baseline_metrics["mae"]
+    candidate_beats_brier = candidate_metrics["start_brier"] < baseline_metrics["start_brier"]
+    blend_beats_mae = blend_metrics["mae"] < baseline_metrics["mae"]
+    blend_beats_brier = blend_metrics["start_brier"] < baseline_metrics["start_brier"]
     return {
         "model": "minutes_model",
         "model_version": "2.0.0",
@@ -186,11 +212,17 @@ def _minutes_holdout(db) -> dict[str, object]:
         "holdout_season": HOLDOUT,
         "training_rows": sum(len(dataset.targets) for _, dataset in dev_datasets),
         "excluded_target_rows_without_history": excluded,
+        "frozen_blend_weight": frozen_weight,
+        "blend_inner_training_window": inner_training_window,
+        "blend_inner_validation_window": inner_validation_window,
         "candidate": candidate_metrics,
+        "blend": blend_metrics,
         "baseline_recent_minutes": baseline_metrics,
-        "beats_baseline_mae": beats_mae,
-        "beats_baseline_start_brier": beats_brier,
-        "promotion_gate_passed": beats_mae and beats_brier,
+        "candidate_beats_baseline_mae": candidate_beats_mae,
+        "candidate_beats_baseline_start_brier": candidate_beats_brier,
+        "blend_beats_baseline_mae": blend_beats_mae,
+        "blend_beats_baseline_start_brier": blend_beats_brier,
+        "promotion_gate_passed": blend_beats_mae and blend_beats_brier,
         "folds": folds,
     }
 
