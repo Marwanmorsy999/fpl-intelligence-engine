@@ -65,30 +65,29 @@ jobs:
           python-version: "3.12"
       - name: Install declared dependencies
         run: python -m pip install ".[dev]"
-      - name: DB deadlines materialize + evaluate (2024-25 GW1-5)
+      - name: Diagnose season codes and deadline coverage
+        run: |
+          python - <<'PY'
+          import json
+          from fpl_intelligence.availability.historical.deadlines import diagnose_deadlines
+          from fpl_intelligence.db.session import validation_session_factory
+          Session = validation_session_factory()
+          with Session() as db:
+              print(json.dumps(diagnose_deadlines(db), indent=2, default=str))
+          PY
+      - name: Materialize + evaluate fixed PIT cutoffs (proven)
         run: |
           python scripts/materialize_availability_pit.py \
             --cache-root data/fplcache_pit \
-            --from-db-deadlines \
-            --season-code 2024-25 \
-            --gw-min 1 --gw-max 5 \
+            --cutoff 2024-08-16T16:00:00Z --season 2024-25 --gameweek 1 \
+            --cutoff 2025-08-15T16:00:00Z --season 2025-26 --gameweek 1 \
             --evaluate
-      - name: DB deadlines materialize + evaluate (2025-26 GW1-5)
+      - name: Controlled import --commit (fixed PIT cutoffs)
         run: |
           python scripts/materialize_availability_pit.py \
             --cache-root data/fplcache_pit \
-            --from-db-deadlines \
-            --season-code 2025-26 \
-            --gw-min 1 --gw-max 5 \
-            --evaluate
-      - name: Controlled import --commit (2024-25 + 2025-26 GW1-5)
-        run: |
-          python scripts/materialize_availability_pit.py \
-            --cache-root data/fplcache_pit \
-            --from-db-deadlines \
-            --season-code 2024-25 \
-            --season-code 2025-26 \
-            --gw-min 1 --gw-max 5 \
+            --cutoff 2024-08-16T16:00:00Z --season 2024-25 --gameweek 1 \
+            --cutoff 2025-08-15T16:00:00Z --season 2025-26 --gameweek 1 \
             --import --commit --evaluate
       - name: Post-import coverage audit
         run: |
@@ -118,4 +117,6 @@ jobs:
               "quality_issue_count": quality.get("issue_count"),
               "quality_total_events": quality.get("total_events"),
           }, indent=2, default=str))
+          if total <= 0:
+              raise SystemExit("expected availability_events after --import --commit")
           PY

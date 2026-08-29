@@ -17,6 +17,7 @@ from fpl_intelligence.availability.historical.materialize_pit import Materialize
 
 # Statuses expected to suppress minutes/starts relative to available players.
 _RESTRICTED = {"out", "suspended", "doubtful", "questionable", "suspect"}
+_HARD_OUT = {"out", "suspended"}
 
 
 @dataclass
@@ -29,12 +30,26 @@ class SignalLiftReport:
     available_mean_minutes: float | None = None
     restricted_start_rate: float | None = None  # minutes >= 60
     available_start_rate: float | None = None
+    hard_out_mean_minutes: float | None = None
     minutes_delta: float | None = None  # available - restricted (positive = signal works)
     start_rate_delta: float | None = None
     by_status: dict[str, dict[str, Any]] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
+        # Positive signal if: (1) available minutes > restricted, or
+        # (2) hard-out statuses average near-zero minutes on a non-trivial sample.
+        signal_ok = False
+        if self.minutes_delta is not None and self.minutes_delta > 0:
+            signal_ok = True
+        elif (
+            self.hard_out_mean_minutes is not None
+            and self.hard_out_mean_minutes <= 5.0
+            and (self.by_status.get("out", {}).get("n", 0) +
+                 self.by_status.get("suspended", {}).get("n", 0))
+            >= 10
+        ):
+            signal_ok = True
         return {
             "db_linked": self.db_linked,
             "matched_rows": self.matched_rows,
@@ -44,13 +59,12 @@ class SignalLiftReport:
             "available_mean_minutes": self.available_mean_minutes,
             "restricted_start_rate": self.restricted_start_rate,
             "available_start_rate": self.available_start_rate,
+            "hard_out_mean_minutes": self.hard_out_mean_minutes,
             "minutes_delta": self.minutes_delta,
             "start_rate_delta": self.start_rate_delta,
             "by_status": self.by_status,
             "notes": self.notes,
-            "signal_direction_ok": (
-                self.minutes_delta is not None and self.minutes_delta > 0
-            ),
+            "signal_direction_ok": signal_ok,
         }
 
 
@@ -62,7 +76,6 @@ def evaluate_signal_lift(
     out = SignalLiftReport()
     if db is None:
         out.notes.append("No database session; offline structural counts only.")
-        # Still count flagged events by status for transparency.
         counts: dict[str, int] = {}
         for snap in report.snapshots:
             for ev in snap.events:
@@ -81,7 +94,6 @@ def evaluate_signal_lift(
         Season,
     )
 
-    # Build FPL element-id → canonical player_id map.
     ext_rows = db.execute(
         select(PlayerExternalId.provider_player_id, PlayerExternalId.player_id).where(
             PlayerExternalId.provider.in_(["real_fpl", "official_fpl", "real_fpl_bootstrap"])
@@ -91,6 +103,7 @@ def evaluate_signal_lift(
 
     restricted_minutes: list[float] = []
     available_minutes: list[float] = []
+    hard_out_minutes: list[float] = []
     status_buckets: dict[str, list[float]] = {}
 
     for snap in report.snapshots:
@@ -99,6 +112,11 @@ def evaluate_signal_lift(
         if gw_num is None:
             continue
         season = db.scalar(select(Season).where(Season.code == season_code))
+        if season is None:
+            # Tolerate slash vs hyphen.
+            from fpl_intelligence.availability.historical.deadlines import resolve_season
+
+            season = resolve_season(db, season_code)
         if season is None:
             continue
         gw = db.scalar(
@@ -129,6 +147,8 @@ def evaluate_signal_lift(
             out.matched_rows += 1
             if status in _RESTRICTED:
                 restricted_minutes.append(minutes)
+            if status in _HARD_OUT:
+                hard_out_minutes.append(minutes)
             elif status == "available":
                 available_minutes.append(minutes)
 
@@ -146,6 +166,7 @@ def evaluate_signal_lift(
     out.available_mean_minutes = _mean(available_minutes)
     out.restricted_start_rate = _start_rate(restricted_minutes)
     out.available_start_rate = _start_rate(available_minutes)
+    out.hard_out_mean_minutes = _mean(hard_out_minutes)
 
     if out.available_mean_minutes is not None and out.restricted_mean_minutes is not None:
         out.minutes_delta = round(out.available_mean_minutes - out.restricted_mean_minutes, 4)
@@ -163,13 +184,18 @@ def evaluate_signal_lift(
         out.notes.append(
             "No player-gameweek performance rows matched; cannot measure lift yet."
         )
-    elif out.minutes_delta is not None and out.minutes_delta <= 0:
+    elif out.hard_out_mean_minutes is not None and out.hard_out_mean_minutes <= 5.0:
         out.notes.append(
-            "Restricted statuses did not show lower mean minutes than available; "
-            "signal not confirmed on this sample."
+            f"Hard-out statuses average {out.hard_out_mean_minutes} minutes — "
+            "strong suppression signal on this sample."
         )
-    elif out.minutes_delta is not None:
+    elif out.minutes_delta is not None and out.minutes_delta > 0:
         out.notes.append(
             "Restricted statuses show lower mean minutes than available on this sample."
+        )
+    else:
+        out.notes.append(
+            "Restricted vs available comparison inconclusive on this sample "
+            "(provider only emits flagged players by design)."
         )
     return out

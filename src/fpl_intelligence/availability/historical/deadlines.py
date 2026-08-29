@@ -12,6 +12,25 @@ from fpl_intelligence.availability.historical.materialize_pit import DeadlineCut
 from fpl_intelligence.db.models import Gameweek, Season
 
 
+def list_season_codes(db: Session) -> list[str]:
+    """Return all season codes present in the database."""
+    return list(db.execute(select(Season.code).order_by(Season.code)).scalars().all())
+
+
+def _normalize_code(code: str) -> str:
+    return code.strip().replace("/", "-")
+
+
+def resolve_season(db: Session, code: str) -> Season | None:
+    """Resolve a season by code, tolerating 2024-25 vs 2024/25."""
+    wanted = _normalize_code(code)
+    seasons = list(db.execute(select(Season)).scalars().all())
+    for s in seasons:
+        if _normalize_code(str(s.code)) == wanted:
+            return s
+    return None
+
+
 def load_deadline_cutoffs(
     db: Session,
     seasons: list[str],
@@ -26,7 +45,7 @@ def load_deadline_cutoffs(
     """
     cutoffs: list[DeadlineCutoff] = []
     for code in seasons:
-        season = db.scalar(select(Season).where(Season.code == code))
+        season = resolve_season(db, code)
         if season is None:
             continue
         q = (
@@ -36,8 +55,12 @@ def load_deadline_cutoffs(
         )
         gws = list(db.execute(q).scalars().all())
         for gw in gws:
-            gw_num = int(gw.provider_event_id) if gw.provider_event_id is not None else None
-            if gw_num is None:
+            raw_num = gw.provider_event_id
+            if raw_num is None:
+                continue
+            try:
+                gw_num = int(raw_num)
+            except (TypeError, ValueError):
                 continue
             if gw_min is not None and gw_num < gw_min:
                 continue
@@ -52,7 +75,7 @@ def load_deadline_cutoffs(
                 deadline = deadline.astimezone(UTC)
             cutoffs.append(
                 DeadlineCutoff(
-                    season_code=code,
+                    season_code=str(season.code),
                     gameweek=gw_num,
                     cutoff=deadline,
                 )
@@ -60,6 +83,31 @@ def load_deadline_cutoffs(
             if limit is not None and len(cutoffs) >= limit:
                 return cutoffs
     return cutoffs
+
+
+def diagnose_deadlines(db: Session, seasons: list[str] | None = None) -> dict[str, Any]:
+    """Explain why deadline loading may return empty."""
+    present = list_season_codes(db)
+    target = seasons or present
+    detail: dict[str, Any] = {}
+    for code in target:
+        season = resolve_season(db, code)
+        if season is None:
+            detail[code] = {"found": False, "reason": "season_code_not_in_db"}
+            continue
+        gws = list(
+            db.execute(select(Gameweek).where(Gameweek.season_id == season.id)).scalars().all()
+        )
+        with_deadline = sum(1 for g in gws if g.deadline_time is not None)
+        detail[str(season.code)] = {
+            "found": True,
+            "gameweeks": len(gws),
+            "with_deadline_time": with_deadline,
+            "sample_provider_event_ids": [
+                g.provider_event_id for g in gws[:5]
+            ],
+        }
+    return {"seasons_in_db": present, "requested": target, "detail": detail}
 
 
 def cutoffs_summary(cutoffs: list[DeadlineCutoff]) -> dict[str, Any]:
