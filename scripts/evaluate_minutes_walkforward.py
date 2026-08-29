@@ -11,10 +11,10 @@ from fpl_intelligence.config.holdout import DEVELOPMENT_SEASONS
 from fpl_intelligence.db.session import validation_session_factory
 from fpl_intelligence.prediction.minutes_validation import (
     FEATURE_VERSION,
-    MinutesWalkForwardEvaluator,
     ValidationResult,
     render_report,
 )
+from fpl_intelligence.prediction.minutes_validation_fast import FastMinutesWalkForwardEvaluator
 
 
 def main() -> int:
@@ -27,7 +27,7 @@ def main() -> int:
     try:
         session_factory = validation_session_factory()
         with session_factory() as db:
-            result = MinutesWalkForwardEvaluator(
+            result = FastMinutesWalkForwardEvaluator(
                 db, feature_version=FEATURE_VERSION
             ).run(args.seasons, initial_train_folds=args.initial_train_folds)
     except (RuntimeError, SQLAlchemyError) as exc:
