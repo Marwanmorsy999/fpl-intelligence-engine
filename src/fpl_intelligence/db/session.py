@@ -37,7 +37,7 @@ def _effective_database_url() -> str:
 
 
 def validation_database_url() -> str:
-    """Return the explicitly configured PostgreSQL URL for read-only validation.
+    """Return the explicitly configured PostgreSQL URL for validation runs.
 
     Validation must never inherit the local development fallback. The value is
     read through the same Settings/.env mechanism as the application, but is
@@ -55,7 +55,7 @@ def validation_database_url() -> str:
 
 
 def validation_session_factory() -> sessionmaker[Session]:
-    """Build a session factory for the configured validation database."""
+    """Build a read-only session factory for historical validation."""
     url = validation_database_url()
     connect_args = {"prepare_threshold": None} if url.startswith("postgres") else {}
     validation_engine = create_engine(url, pool_pre_ping=True, connect_args=connect_args)
@@ -66,6 +66,25 @@ def validation_session_factory() -> sessionmaker[Session]:
 
     return sessionmaker(
         bind=validation_engine,
+        autoflush=False,
+        autocommit=False,
+        expire_on_commit=False,
+    )
+
+
+def writable_validation_session_factory() -> sessionmaker[Session]:
+    """Build a normal writable session factory for holdout materialization.
+
+    This deliberately shares the explicit validation DATABASE_URL but does not
+    install the read-only transaction hook used by ``validation_session_factory``.
+    The holdout importer uses this only to materialize observations before its
+    separate read-only verification/evaluation steps.
+    """
+    url = validation_database_url()
+    connect_args = {"prepare_threshold": None} if url.startswith("postgres") else {}
+    writable_engine = create_engine(url, pool_pre_ping=True, connect_args=connect_args)
+    return sessionmaker(
+        bind=writable_engine,
         autoflush=False,
         autocommit=False,
         expire_on_commit=False,
