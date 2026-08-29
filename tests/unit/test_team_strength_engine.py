@@ -79,3 +79,33 @@ def test_home_advantage_is_learned_from_prior_matches() -> None:
     rows = [make_row(1, day, 3, 0, True) for day in range(2, 10)]
     rows += [make_row(2, day, 1, 0, False) for day in range(2, 10)]
     assert TeamStrengthEngine(rows).home_advantage(cutoff) > 1.0
+
+
+def test_methods_produce_distinct_strength_signatures_on_controlled_history() -> None:
+    cutoff = datetime(2024, 1, 20, tzinfo=UTC)
+    goals = [0, 3, 1, 0, 2, 4, 1, 3]
+    conceded = [2, 0, 1, 3, 0, 1, 2, 0]
+    xg = [1.8, 0.4, 0.9, 2.2, 0.2, 3.1, 0.7, 1.6]
+    rows = [
+        make_row(1, day, goals[i], conceded[i], day % 2 == 0, xg=xg[i])
+        for i, day in enumerate(range(2, 10))
+    ]
+    engine = TeamStrengthEngine(rows)
+
+    estimates = {
+        method: engine.estimate(1, cutoff, method=method, window=5, decay=0.8)
+        for method in ("rolling_goals", "ewma", "rolling_xg", "poisson")
+    }
+    signatures = {
+        method: tuple(round(value, 10) for value in (
+            estimate.attack_strength,
+            estimate.defence_strength,
+            estimate.home_attack_strength,
+            estimate.away_attack_strength,
+            estimate.home_defence_strength,
+            estimate.away_defence_strength,
+        ))
+        for method, estimate in estimates.items()
+    }
+
+    assert len(set(signatures.values())) == 4
