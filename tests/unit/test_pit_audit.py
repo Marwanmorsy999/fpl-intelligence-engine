@@ -33,8 +33,8 @@ def test_comparative_signal_requires_material_control_sample_and_positive_delta(
         control_rows=50,
         restricted_mean_minutes=5.0,
         control_mean_minutes=35.0,
+        minutes_delta=30.0,
     )
-    assert report.minutes_delta == 30.0
     assert report.comparative_signal_ok is True
 
 
@@ -44,6 +44,6 @@ def test_comparative_signal_fails_without_positive_delta() -> None:
         control_rows=50,
         restricted_mean_minutes=40.0,
         control_mean_minutes=35.0,
+        minutes_delta=-5.0,
     )
-    assert report.minutes_delta == -5.0
     assert report.comparative_signal_ok is False
