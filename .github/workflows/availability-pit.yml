@@ -26,6 +26,7 @@ jobs:
             tests/unit/test_pit_fplcache_availability.py \
             tests/unit/test_materialize_pit.py \
             tests/unit/test_chronological_and_lift.py \
+            tests/unit/test_pit_audit.py \
             -q
       - name: Read-only historical PIT evaluation
         run: |
