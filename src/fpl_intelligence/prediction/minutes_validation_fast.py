@@ -8,7 +8,8 @@ costs in the original evaluator:
 2. The inner blend model for fold k reuses the already-fitted outer model from
    fold k-1, because both are trained on exactly the same chronological prefix.
 
-No model, feature, cutoff, or scoring rule is changed.
+The MinutesModel's independent target classifiers are fitted concurrently by
+ParallelMinutesModel. No model, feature, cutoff, or scoring rule is changed.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from fpl_intelligence.prediction.minutes import (
     RollingAverageMinutesBaseline,
     SimpleRecentMinutesBaseline,
 )
+from fpl_intelligence.prediction.minutes_parallel import ParallelMinutesModel
 from fpl_intelligence.prediction.training import TrainingDataset
 from fpl_intelligence.prediction.minutes_validation import (
     BLEND_WEIGHTS,
@@ -121,7 +123,6 @@ class FastMinutesWalkForwardEvaluator:
                 exclusions["insufficient_training_rows"] += len(dataset.targets)
                 continue
 
-            # Outer fit: identical training data to the original evaluator.
             model = self._fit_model(train_datasets)
             features = dataset.features
             player_ids = sorted(features)
@@ -189,7 +190,6 @@ class FastMinutesWalkForwardEvaluator:
                 }
             )
 
-            # This model is exactly the one needed as the next fold's inner model.
             previous_outer_model = model
 
         return ValidationResult(rows, folds, exclusions, sorted(set(seasons)))
@@ -201,9 +201,6 @@ class FastMinutesWalkForwardEvaluator:
         max_cutoff = max(cutoff.cutoff_time for cutoff in cutoffs)
         cutoff_keys = {(cutoff.season, cutoff.gameweek) for cutoff in cutoffs}
 
-        # Historical feature source: only rows whose required timestamps are
-        # both known and no later than the final validation cutoff can ever be
-        # eligible. Earlier folds apply their own stricter cutoff in memory.
         feature_stmt = (
             select(
                 PlayerGameweekPerformance.player_id,
@@ -252,8 +249,6 @@ class FastMinutesWalkForwardEvaluator:
         for row in feature_rows:
             histories.setdefault(row.player_id, []).append(row)
 
-        # Outcome source: exact target gameweeks only. This intentionally reads
-        # post-cutoff outcomes because those are the labels being scored.
         target_stmt = (
             select(
                 PlayerGameweekPerformance.player_id,
@@ -294,10 +289,7 @@ class FastMinutesWalkForwardEvaluator:
                 ]
                 if not eligible:
                     continue
-                feature_row = {
-                    **self._feature_builder(eligible),
-                }
-                features[player_id] = feature_row
+                features[player_id] = self._feature_builder(eligible)
                 targets[player_id] = target_minutes
             datasets.append(
                 (
@@ -357,7 +349,7 @@ class FastMinutesWalkForwardEvaluator:
                 key = len(train_features)
                 train_features[key] = train_dataset.features[player_id]
                 train_targets[key] = train_dataset.targets[player_id]
-        model = MinutesModel(feature_version="2.0.0")
+        model = ParallelMinutesModel(feature_version="2.0.0")
         model.fit(train_features, train_targets, {"target": "minutes"})
         return model
 
