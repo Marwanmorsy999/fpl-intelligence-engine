@@ -96,8 +96,13 @@ def main(argv: list[str] | None = None) -> int:
     lift = evaluate_signal_lift(report, None)
     if args.evaluate or args.do_import:
         try:
-            from fpl_intelligence.db.session import validation_session_factory
-            db = validation_session_factory()()
+            if args.do_import:
+                from fpl_intelligence.db.session import validation_write_session_factory
+                Session = validation_write_session_factory()
+            else:
+                from fpl_intelligence.db.session import validation_session_factory
+                Session = validation_session_factory()
+            db = Session()
             lift = evaluate_signal_lift(report, db)
         except Exception as exc:  # noqa: BLE001
             lift.notes.append(f"DB link unavailable: {type(exc).__name__}: {exc}")
