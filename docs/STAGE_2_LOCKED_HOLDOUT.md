@@ -1,6 +1,6 @@
 # Stage 2 — Locked 2025-26 Holdout Gate
 
-Status: **PREPARED — NOT YET EVALUATED**
+Status: **RUN TRIGGERED — RESULTS PENDING**
 
 This document defines the final holdout gate after Stage 2A/2B development validation. It must never be read as evidence that the holdout passed.
 
@@ -40,7 +40,7 @@ The evaluator produces a deterministic JSON artifact. GitHub Actions executes it
 
 ## Current gate state
 
-The holdout evaluator and CI workflow are prepared. The 2025-26 canonical dataset is not yet present in the production Supabase database, so no holdout metric or promotion claim is currently valid.
+The 2025-26 canonical dataset has been materialized in production Supabase. The explicit locked-holdout workflow trigger is now configured and this commit triggers a **holdout-only** Actions run; historical validation is not repeated for this trigger commit.
 
 Promotion remains blocked until a successful holdout artifact is reviewed against the existing project promotion criteria.
 
