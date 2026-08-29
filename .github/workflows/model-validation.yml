@@ -30,10 +30,10 @@ jobs:
       VALIDATION_TARGET: ${{ inputs.validation_target }}
     steps:
       - name: Checkout selected validation branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -99,7 +99,7 @@ jobs:
 
       - name: Upload minutes validation report
         if: ${{ inputs.validation_target == 'minutes' || inputs.validation_target == 'all' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ inputs.report_name }}-minutes
           if-no-files-found: error
@@ -107,7 +107,7 @@ jobs:
 
       - name: Upload team-strength validation report
         if: ${{ inputs.validation_target == 'team_strength' || inputs.validation_target == 'all' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ inputs.report_name }}-team-strength
           if-no-files-found: error
