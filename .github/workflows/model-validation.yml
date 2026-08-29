@@ -36,35 +36,28 @@ jobs:
     steps:
       - name: Checkout selected validation branch
         uses: actions/checkout@v7
-
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-
       - name: Install declared dependencies
         run: python -m pip install ".[dev]"
-
       - name: Run Team Strength unit tests
         run: python -m pytest tests/unit/test_team_strength_engine.py -q
-
       - name: Read-only preflight
         run: python scripts/preflight_minutes_validation.py
-
       - name: Validate minutes walk-forward
         if: ${{ inputs.validation_target == 'minutes' || inputs.validation_target == 'all' || github.event_name == 'push' }}
         run: |
           python scripts/evaluate_minutes_walkforward.py --report docs/STAGE_2A_MINUTES_VALIDATION.md
           python scripts/evaluate_minutes_walkforward.py --report /tmp/STAGE_2A_MINUTES_VALIDATION.rerun.md
           cmp -- docs/STAGE_2A_MINUTES_VALIDATION.md /tmp/STAGE_2A_MINUTES_VALIDATION.rerun.md
-
       - name: Validate team strength
         if: ${{ inputs.validation_target == 'team_strength' || inputs.validation_target == 'all' || github.event_name == 'push' }}
         run: |
           python scripts/evaluate_team_strength.py
           python scripts/evaluate_team_strength.py --output /tmp/stage-2b1-evaluation.rerun.json
           cmp -- data/experiments/team_strength/stage-2b1-evaluation.json /tmp/stage-2b1-evaluation.rerun.json
-
       - name: Add reproducibility metadata
         run: |
           python - <<'PY'
@@ -73,7 +66,6 @@ jobs:
           import platform
           from datetime import datetime, timezone
           from pathlib import Path
-
           metadata = {
               "commit_sha": os.environ["GITHUB_SHA"],
               "branch": os.environ["GITHUB_REF_NAME"],
@@ -104,7 +96,6 @@ jobs:
               report["validation_metadata"] = metadata
               team_report.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
           PY
-
       - name: Upload minutes validation report
         if: ${{ inputs.validation_target == 'minutes' || inputs.validation_target == 'all' || github.event_name == 'push' }}
         uses: actions/upload-artifact@v7
@@ -112,7 +103,6 @@ jobs:
           name: ${{ inputs.report_name || 'historical-model-validation' }}-minutes
           if-no-files-found: error
           path: docs/STAGE_2A_MINUTES_VALIDATION.md
-
       - name: Upload team-strength validation report
         if: ${{ inputs.validation_target == 'team_strength' || inputs.validation_target == 'all' || github.event_name == 'push' }}
         uses: actions/upload-artifact@v7
@@ -131,27 +121,21 @@ jobs:
     steps:
       - name: Checkout validation branch
         uses: actions/checkout@v7
-
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-
       - name: Install declared dependencies
         run: python -m pip install ".[dev]"
-
       - name: Materialize locked 2025-26 observations
         run: python scripts/backfill_holdout_2025_26.py
-
       - name: Verify locked observation layer read-only
         run: python scripts/backfill_holdout_2025_26.py --verify-only
-
       - name: Evaluate frozen holdout twice
         run: |
           python scripts/evaluate_locked_holdout.py --output /tmp/holdout-1.json
           python scripts/evaluate_locked_holdout.py --output /tmp/holdout-2.json
           cmp -- /tmp/holdout-1.json /tmp/holdout-2.json
-
       - name: Upload locked holdout artifact
         uses: actions/upload-artifact@v7
         with:
