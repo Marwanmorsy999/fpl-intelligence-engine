@@ -8,6 +8,7 @@ from fastapi.responses import RedirectResponse
 
 from fpl_intelligence import __version__
 from fpl_intelligence.api.cache import EdgeCachePolicyMiddleware
+from fpl_intelligence.api.performance import RequestProfilingMiddleware
 from fpl_intelligence.api.deps import GetDB, assert_no_static_stub_in_production
 from fpl_intelligence.api.routes.admin import router as admin_router
 from fpl_intelligence.api.routes.analyst import router as analyst_router
@@ -61,6 +62,8 @@ assert_no_static_stub_in_production()
 silence_credential_leaking_loggers()
 
 app = FastAPI(title="FPL Intelligence Engine", version=__version__)
+app.add_middleware(RequestProfilingMiddleware)
+
 
 # Phase 19.1 — the bookmarklet POSTs to the sync push routes from
 # fantasy.premierleague.com and needs CORS regardless of CORS_ORIGINS. Added
