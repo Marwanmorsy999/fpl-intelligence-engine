@@ -12,7 +12,9 @@ permissions:
 jobs:
   unit:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
       - name: Checkout availability branch
         uses: actions/checkout@v7
@@ -24,3 +26,9 @@ jobs:
         run: python -m pip install ".[dev]"
       - name: Run point-in-time availability tests
         run: python -m pytest tests/unit/test_pit_fplcache_availability.py -q
+      - name: Run read-only live point-in-time preflight
+        run: |
+          python scripts/availability_pit_preflight.py \
+            --cutoff 2024-08-16T16:00:00Z \
+            --cutoff 2025-08-16T16:00:00Z \
+            --cutoff 2026-08-15T16:00:00Z
