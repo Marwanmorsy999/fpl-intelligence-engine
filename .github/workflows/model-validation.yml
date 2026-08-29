@@ -1,0 +1,114 @@
+name: Historical Model Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      validation_target:
+        description: Validation target
+        required: true
+        type: choice
+        options:
+          - all
+          - minutes
+          - team_strength
+        default: all
+      report_name:
+        description: Optional artifact name suffix
+        required: false
+        type: string
+        default: historical-model-validation
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      VALIDATION_TARGET: ${{ inputs.validation_target }}
+    steps:
+      - name: Checkout selected validation branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install declared dependencies
+        run: python -m pip install ".[dev]"
+
+      - name: Read-only preflight
+        run: python scripts/preflight_minutes_validation.py
+
+      - name: Validate minutes walk-forward
+        if: ${{ inputs.validation_target == 'minutes' || inputs.validation_target == 'all' }}
+        run: |
+          python scripts/evaluate_minutes_walkforward.py --report docs/STAGE_2A_MINUTES_VALIDATION.md
+          python scripts/evaluate_minutes_walkforward.py --report /tmp/STAGE_2A_MINUTES_VALIDATION.rerun.md
+          cmp -- docs/STAGE_2A_MINUTES_VALIDATION.md /tmp/STAGE_2A_MINUTES_VALIDATION.rerun.md
+
+      - name: Validate team strength
+        if: ${{ inputs.validation_target == 'team_strength' || inputs.validation_target == 'all' }}
+        run: |
+          python scripts/evaluate_team_strength.py
+          python scripts/evaluate_team_strength.py --output /tmp/stage-2b1-evaluation.rerun.json
+          cmp -- data/experiments/team_strength/stage-2b1-evaluation.json /tmp/stage-2b1-evaluation.rerun.json
+
+      - name: Add reproducibility metadata
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import platform
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          metadata = {
+              "commit_sha": os.environ["GITHUB_SHA"],
+              "branch": os.environ["GITHUB_REF_NAME"],
+              "workflow_run_id": os.environ["GITHUB_RUN_ID"],
+              "python_version": platform.python_version(),
+              "minutes_model_version": "2.0.0",
+              "minutes_feature_version": "2.0.0",
+              "team_strength_model_version": "2.0.0",
+              "team_strength_feature_version": "team-strength-2.0.0",
+              "dataset": "canonical_historical_performance",
+              "validation_seasons": ["2022-23", "2023-24", "2024-25"],
+              "temporal_policy": "strict_reproducibility",
+              "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+              "validation_target": os.environ["VALIDATION_TARGET"],
+          }
+          minutes_report = Path("docs/STAGE_2A_MINUTES_VALIDATION.md")
+          if minutes_report.exists():
+              minutes_report.write_text(
+                  "## Run metadata\n\n"
+                  + "\n".join(f"- {key}: `{value}`" for key, value in metadata.items())
+                  + "\n\n"
+                  + minutes_report.read_text(encoding="utf-8"),
+                  encoding="utf-8",
+              )
+          team_report = Path("data/experiments/team_strength/stage-2b1-evaluation.json")
+          if team_report.exists():
+              report = json.loads(team_report.read_text(encoding="utf-8"))
+              report["validation_metadata"] = metadata
+              team_report.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          PY
+
+      - name: Upload minutes validation report
+        if: ${{ inputs.validation_target == 'minutes' || inputs.validation_target == 'all' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.report_name }}-minutes
+          if-no-files-found: error
+          path: docs/STAGE_2A_MINUTES_VALIDATION.md
+
+      - name: Upload team-strength validation report
+        if: ${{ inputs.validation_target == 'team_strength' || inputs.validation_target == 'all' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.report_name }}-team-strength
+          if-no-files-found: error
+          path: data/experiments/team_strength/stage-2b1-evaluation.json
