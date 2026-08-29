@@ -376,15 +376,11 @@ async def _run_sync_job(
 
         try:
             from fpl_intelligence.config import get_settings
-            from fpl_intelligence.data_providers.fpl_egress import FplEgressChain
+            from fpl_intelligence.data_providers.registry import get_async_fpl_adapter
             from fpl_intelligence.squad.fpl_truth import fetch_fpl_truth
 
             settings = get_settings()
-            egress = FplEgressChain(
-                settings.fpl_base_url,
-                timeout=settings.egress_strategy_timeout,
-                cache_ttl=settings.egress_cache_ttl,
-            )
+            egress = get_async_fpl_adapter(settings=settings)
             # Honour mocked importer classes (tests patch either location).
             TruthImporterCls = _get_importer_cls()
             truth_importer = TruthImporterCls(egress=egress)

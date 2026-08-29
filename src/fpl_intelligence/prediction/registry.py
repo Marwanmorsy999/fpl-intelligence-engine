@@ -180,9 +180,11 @@ class ModelRegistry:
             RecentFormBaselineModel,
         )
         from fpl_intelligence.prediction.minutes import MinutesModel
+        from fpl_intelligence.prediction.team_strength_engine import TeamStrengthEngine
 
         for cls in [
             MinutesModel,
+            TeamStrengthEngine,
             RecentFormBaselineModel,
             MinutesAdjustedBaselineModel,
             FixtureAdjustedBaselineModel,

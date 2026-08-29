@@ -51,6 +51,7 @@ from sqlalchemy.orm import Session
 
 from fpl_intelligence.data_providers.odds_api import OddsApiConnector
 from fpl_intelligence.data_providers.open_meteo import OpenMeteoConnector
+from fpl_intelligence.data_providers.registry import ProviderRegistry, build_default_registry
 from fpl_intelligence.data_providers.understat import (
     UnderstatConnector,
     build_stats_from_row,
@@ -943,6 +944,7 @@ class LivePredictionProvider:
         *,
         catalog_path: Path | None = None,
         understat_snapshot_path: Path | None = None,
+        provider_registry: ProviderRegistry | None = None,
     ) -> None:
         self.session = session
         self._catalog_path = catalog_path
@@ -951,6 +953,7 @@ class LivePredictionProvider:
         self._understat_index: dict[str, dict[str, Any]] | None = None
         self._odds_connector: OddsApiConnector | None = None
         self._odds_error: str | None = None
+        self._provider_registry = provider_registry or build_default_registry()
         self._weather_connector: OpenMeteoConnector | None = None
         self._weather_error: str | None = None
         #: most recent :meth:`resolve_chain` outcome, for cheap meta re-reads
@@ -1046,7 +1049,7 @@ class LivePredictionProvider:
     def _get_weather(self) -> OpenMeteoConnector | None:
         if self._weather_connector is None and self._weather_error is None:
             try:
-                self._weather_connector = OpenMeteoConnector()
+                self._weather_connector = self._provider_registry.provider("open_meteo")
             except Exception as exc:  # noqa: BLE001 - never fatal
                 self._weather_error = f"{type(exc).__name__}: {exc}"
         return self._weather_connector

@@ -24,7 +24,6 @@ from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from fpl_intelligence.api import deps
-from fpl_intelligence.config import get_settings
 from fpl_intelligence.fixtures.scanner import (
     NEUTRAL_FDR,
     TEAM_SHORT_NAMES,
@@ -83,16 +82,10 @@ async def load_fixtures(db: Session) -> list[dict[str, Any]]:
     if "pytest" in sys.modules or os.getenv("FPL_NO_NETWORK", "") == "1":
         return []
 
-    settings = get_settings()
-    from fpl_intelligence.data_providers.fpl_egress import FplEgressChain  # noqa: PLC0415
+    from fpl_intelligence.data_providers.registry import get_async_fpl_adapter
 
-    egress = FplEgressChain(
-        settings.fpl_base_url,
-        timeout=settings.egress_strategy_timeout,
-        cache_ttl=settings.egress_cache_ttl,
-    )
     try:
-        raw = await egress.fetch("/api/fixtures/")
+        raw = await get_async_fpl_adapter().fetch("/api/fixtures/", capability="fixtures")
     except Exception as exc:  # noqa: BLE001 - surfaced as an honest 503
         logger.warning("fixtures fetch failed: %s", exc)
         raise HTTPException(
@@ -116,6 +109,170 @@ async def load_fixtures(db: Session) -> list[dict[str, Any]]:
             logger.warning("fixtures cache backfill failed: %s", exc)
             db.rollback()
     return raw if isinstance(raw, list) else []
+
+
+# --------------------------------------------------------------------------- #
+# Phase 4 — per-player / per-team fixture feed for My Team & cards
+# --------------------------------------------------------------------------- #
+
+_FIXTURES_PER_PLAYER = 3
+
+
+def _resolve_player_teams(
+    db: Session, pids: list[int], hint_teams: dict[int, int] | None = None
+) -> dict[int, int]:
+    """Resolve each player id to its FPL team id (ElementFactDB → catalog)."""
+    teams: dict[int, int] = {}
+    # Prefer caller-supplied hints (squad.player_teams) — cheapest + authoritative.
+    if hint_teams:
+        for pid in pids:
+            t = hint_teams.get(pid)
+            if t:
+                teams[pid] = int(t)
+    missing = [pid for pid in pids if pid not in teams]
+    if missing:
+        try:
+            from fpl_intelligence.sync.materialized_models import ElementFactDB
+
+            for element_id, team_id in db.execute(
+                select(ElementFactDB.element_id, ElementFactDB.team_id).where(
+                    ElementFactDB.element_id.in_(missing)
+                )
+            ).all():
+                if element_id is not None and team_id is not None:
+                    teams[int(element_id)] = int(team_id)
+        except Exception as exc:  # noqa: BLE001 — metadata only
+            db.rollback()
+            logger.debug("element_facts team read failed: %s", exc)
+    still_missing = [pid for pid in missing if pid not in teams]
+    if still_missing:
+        try:
+            from fpl_intelligence.prediction.live_provider import load_player_catalog
+
+            for pid in still_missing:
+                row = load_player_catalog().get(int(pid))
+                if row and row.get("team") is not None:
+                    teams[int(pid)] = int(row["team"])
+        except Exception as exc:  # noqa: BLE001 — metadata only
+            logger.debug("seed catalog team read failed: %s", exc)
+    return teams
+
+
+def _fixtures_for_players(
+    db: Session,
+    rows: list[Any],
+    team_names: dict[int, str],
+    players: dict[int, int],
+    horizon: list[int],
+    rows_by_gw: dict[int, list[Any]],
+) -> dict[str, Any]:
+    """Build {player_id: {team_id, fixtures:[...up to N...]}} keyed by str(id)."""
+    out: dict[str, Any] = {}
+    for pid, team_id in players.items():
+        if team_id:
+            runs = player_run(team_id, rows_by_gw, horizon, team_names=team_names)
+        else:
+            runs = []
+        real_runs = [r for r in runs if r.opponent_id != 0][: _FIXTURES_PER_PLAYER]
+        out[str(pid)] = {
+            "team_id": team_id or None,
+            "fixtures": [
+                {
+                    "gw": r.gw,
+                    "opponent": r.opponent,
+                    "opponent_id": r.opponent_id,
+                    "is_home": r.is_home,
+                    "difficulty": r.difficulty,
+                    "kickoff": None,
+                }
+                for r in real_runs
+            ],
+        }
+    return out
+
+
+@router.get("", summary="Per-player / per-team upcoming fixtures")
+@router.get("/", summary="Per-player / per-team upcoming fixtures")
+async def fixtures_get(
+    db: GetDB,
+    response: Response,
+    session_id: str | None = Query(None, description="Per-user session key (resolves the effective FPL 15)."),
+    player_ids: str | None = Query(None, description="Comma-separated player ids, e.g. '1,2,3'."),
+    team_id: int | None = Query(None, description="Return upcoming fixtures for this FPL team id."),
+) -> dict[str, Any]:
+    """Next 1–3 fixtures per player (or per team).
+
+    Phase 4 — restores the fixtures feed that the My Team page renders. Accepts
+    EITHER a ``session_id`` (resolves the effective FPL 15), OR an explicit
+    ``player_ids`` list, OR a single ``team_id``. When no fixtures are
+    published yet the response is still a 200 with empty lists so the UI can
+    render "TBD" honestly instead of a 404.
+    """
+    if not session_id and not player_ids and team_id is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide one of: session_id, player_ids, or team_id.",
+        )
+
+    squad_players: dict[int, int] = {}  # pid -> team_id
+    if session_id:
+        squad = SquadService(session=db).get_effective_squad(session_id=session_id, mode="fpl")
+        if squad is None:
+            raise HTTPException(
+                status_code=404, detail="No squad saved for this session"
+            )
+        squad_players = _resolve_player_teams(
+            db, list(squad.player_ids), hint_teams=squad.player_teams
+        )
+    elif player_ids:
+        try:
+            pids = [int(x) for x in str(player_ids).split(",") if x.strip()]
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=400, detail="player_ids must be comma-separated integers."
+            ) from exc
+        squad_players = _resolve_player_teams(db, pids)
+
+    rows = parse_fixtures(await load_fixtures(db))
+    team_names = _team_names(db)
+    rows_by_gw = {}
+    for row in rows:
+        rows_by_gw.setdefault(row.event, []).append(row)
+    try:
+        from fpl_intelligence.sync.gameweek_clock import resolve_target_gameweek
+
+        target_gw = await resolve_target_gameweek(db, fallback=1)
+    except Exception:
+        target_gw = 1
+    current_gw = max(infer_current_gameweek(rows), target_gw)
+    horizon = next_unplayed_gameweeks(rows, current_gw, _FIXTURES_PER_PLAYER)
+
+    response.headers["Cache-Control"] = "no-store"
+    by_player = _fixtures_for_players(
+        db, rows, team_names, squad_players, horizon, rows_by_gw
+    )
+    by_team: dict[str, list[dict[str, Any]]] = {}
+    if team_id is not None:
+        runs = player_run(int(team_id), rows_by_gw, horizon, team_names=team_names)
+        by_team[str(team_id)] = [
+            {
+                "gw": r.gw,
+                "opponent": r.opponent,
+                "opponent_id": r.opponent_id,
+                "is_home": r.is_home,
+                "difficulty": r.difficulty,
+                "kickoff": None,
+            }
+            for r in runs
+            if r.opponent_id != 0
+        ][: _FIXTURES_PER_PLAYER]
+    return {
+        "session_id": session_id,
+        "gameweek": current_gw,
+        "horizon_gws": horizon,
+        "by_player": by_player,
+        "by_team": by_team,
+    }
 
 
 @router.get("/scan")

@@ -105,6 +105,7 @@ document.addEventListener("DOMContentLoaded", function () {
     var pos = ((squad.player_positions || {})[pid]);
     var price = ((squad.player_prices || {})[pid]);
     var runs = window.__MT_FIXTURE_RUNS && window.__MT_FIXTURE_RUNS[pid];
+    var fx = window.__MT_FIXTURES && window.__MT_FIXTURES[pid];
     var formBars = FORM_DATA[pid] || [];
     var formHTML = "";
     if (formBars.length) {
@@ -112,6 +113,12 @@ document.addEventListener("DOMContentLoaded", function () {
       var labels = formBars.map(function(b) { return "GW" + (b.gw != null ? b.gw : "?"); });
       formHTML = '<div data-testid="form-spark" style="margin-top:6px">' + FPLApp.sparklineSVG(pts, labels) + "</div>";
     }
+    /* Phase 4 — prefer the per-player fixtures feed; fall back to the scan
+       runs; render "TBD" honestly when no fixture is published yet. */
+    var stripHTML = fx && fx.length
+      ? fixtureStripFromList(fx)
+      : (runs ? FPLApp.fixtureStripHTML(runs) : "");
+    var fixtureBlock = stripHTML || '<span class="faint small" data-testid="fixture-tbd">TBD</span>';
     return (
       '<div class="card" data-testid="squad-tile">' +
         '<div style="display:flex;align-items:center;gap:8px">' +
@@ -123,9 +130,26 @@ document.addEventListener("DOMContentLoaded", function () {
             (isC ? '<span class="pill warn">C×2</span>' : isV ? '<span class="pill">VC</span>' : "") +
             '<span class="faint small" style="margin-left:6px">#' + slotIdx + "</span></span>" +
         "</div>" +
-        FPLApp.fixtureStripHTML(runs) +
+        fixtureBlock +
         formHTML +
       "</div>"
+    );
+  }
+
+  /* Phase 4 — render a fixture strip from the /api/v1/fixtures by_player shape. */
+  function fixtureStripFromList(fixtures) {
+    if (!fixtures || !fixtures.length) return "";
+    return (
+      '<span class="fixture-strip">' +
+      fixtures.map(function (f) {
+        return (
+          '<span class="fdr-chip" title="GW' + f.gw + ": " + f.opponent +
+          (f.is_home ? " (H)" : " (A)") + ' · FDR ' + f.difficulty + '"' +
+          ' style="background:' + FPLApp.fdrColor(f.difficulty) + '">' +
+          String(f.opponent || "—").slice(0, 3) + "</span>"
+        );
+      }).join("") +
+      "</span>"
     );
   }
 
@@ -393,6 +417,19 @@ document.addEventListener("DOMContentLoaded", function () {
           });
         });
         renderSquadPanel(squad);
+        /* Phase 4 — batch-fetch the per-player fixtures feed for the 15 IDs. */
+        fetch("/api/v1/fixtures?session_id=" + encodeURIComponent(sessionKey))
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .catch(function () { return null; })
+          .then(function (fx) {
+            if (fx && fx.by_player) {
+              window.__MT_FIXTURES = {};
+              Object.keys(fx.by_player).forEach(function (pid) {
+                window.__MT_FIXTURES[Number(pid)] = (fx.by_player[pid].fixtures) || [];
+              });
+              if (window.__MT_NAMES) render(squad, window.__MT_NAMES);
+            }
+          });
         fetch("/api/v1/fixtures/scan?session_id=" + encodeURIComponent(sessionKey))
           .then(function (r) { return r.ok ? r.json() : null; })
           .then(function (scan) {

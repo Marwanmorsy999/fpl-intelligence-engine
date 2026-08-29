@@ -568,7 +568,8 @@ async def league_refresh(
 ) -> dict[str, Any]:
     """v2.7.3-dual-state: Refresh league standing + rival picks (no squad write).
 
-    This is what the renamed "Refresh League Data" button calls. It fetches
+    This is what the "Refresh Rivals" button calls (pass-2 rename: it never
+    touches squad picks). It fetches
     standings page 1 and capped rival picks via the egress masks, persists them
     to ``league_cache`` and returns the same payload shape as ``GET /league``.
     The user's ``local_squad`` is never touched.

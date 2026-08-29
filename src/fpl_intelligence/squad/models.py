@@ -267,11 +267,26 @@ class FromFplResponse(BaseModel):
     )
     #: Phase 25 (T1) — transfer inferred by diffing squad snapshots on sync.
     #: ``None`` when nothing changed or no prior snapshot exists.
+    #:
+    #: SECURITY/TRUTH: this value is NEVER a *confirmed* transfer. It is a
+    #: best-effort snapshot diff used only for diagnostics and is not shown to
+    #: the UI as a confirmed move (see transfer_status for the honest line).
     detected_transfer: dict[str, Any] | None = Field(
         default=None,
         description=(
             "Snapshot-diffed transfer banner payload: {element_in, element_out,"
-            " name_in, name_out, gameweek}. Populated when this sync changed "
-            "the roster."
+            " name_in, name_out, gameweek}. Never surfaced as a CONFIRMED "
+            "transfer — see transfer_status for the honest verdict."
+        ),
+    )
+    #: Phase 1/2 — honest transfer verdict. A confirmed transfer is only ever
+    #: reported when FPL's official /transfers is non-empty OR two official FPL
+    #: picks payloads (e.g. GW1 vs GW2) differ. Otherwise:
+    #: "Matches FPL picks — no confirmed transfer."
+    transfer_status: str | None = Field(
+        default=None,
+        description=(
+            "Honest transfer verdict shown to the user. Never derived from an "
+            "internal snapshot diff alone."
         ),
     )

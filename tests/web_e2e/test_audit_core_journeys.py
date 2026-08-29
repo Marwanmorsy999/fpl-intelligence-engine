@@ -93,6 +93,10 @@ def mocked(page: Page) -> Iterator[Page]:
         lambda resp: bad_responses.append((resp.status, resp.url)) if resp.status >= 400 else None,
     )
 
+    # Playwright precedence: the LAST registered matching route wins — so the
+    # catch-all goes FIRST as a safety net and every specific route below
+    # overrides it (same convention as test_ribbon_always._mocked).
+    page.route("**/api/**", _json_route({}))
     page.route("**/health", _json_route({"status": "ok", "db": "connected", "version": "2.7.9"}))
     page.route("**/api/v1/sync/status*", _json_route({"latest": {}, "counts": {}, "token_configured": True}))
     page.route("**/api/v1/data-sources*", _json_route({"as_of": None, "sources": {}}))
@@ -101,7 +105,9 @@ def mocked(page: Page) -> Iterator[Page]:
     page.route("**/api/v1/squad/local**", _json_route(SQUAD_STATE))
     page.route("**/api/v1/targets**", _json_route(TARGETS_PAYLOAD))
     page.route("**/api/v1/league**", _json_route(LEAGUE_DEGRADED))
-    page.route("**/api/**", _json_route({}))
+    # my-team does players.forEach(...): without this it would hit the
+    # catch-all {} and die with a TypeError before rendering anything.
+    page.route("**/api/v1/players**", _json_route([]))
 
     yield page
 
@@ -117,7 +123,11 @@ def mocked(page: Page) -> Iterator[Page]:
 
 def _seed_session(page: Page) -> None:
     page.goto(BASE_URL + "/dashboard", wait_until="domcontentloaded")
-    page.evaluate(f"localStorage.setItem({SESSION_KEY!r}, {json.dumps(json.dumps(SESSION_OBJ))!r})")
+    # `json.dumps(SESSION_OBJ)` is the JSON string the app stores; its Python
+    # repr is a valid JS string literal. Double-encoding would leave a
+    # string-in-string that readSession()'s JSON.parse resolves to a string,
+    # not an object — the session would silently fail to restore.
+    page.evaluate(f"localStorage.setItem({SESSION_KEY!r}, {json.dumps(SESSION_OBJ)!r})")
 
 
 # --------------------------------------------------------------------------- #
@@ -237,3 +247,73 @@ class TestETargets:
         body = page.locator("body")
         expect(body).to_contain_text("Ellborg", timeout=10_000)
         expect(body).to_contain_text("Kelleher")
+
+
+# --------------------------------------------------------------------------- #
+# F — pass-2 (2026-08-27): re-sync button + no input flash
+# --------------------------------------------------------------------------- #
+
+
+class TestFResyncSquad:
+    def test_resync_button_hidden_without_session(self, mocked: Page) -> None:
+        """No saved session → entry screen visible, re-sync button HIDDEN."""
+        page = mocked
+        page.goto(BASE_URL + "/dashboard", wait_until="domcontentloaded")
+        page.evaluate("() => localStorage.removeItem('fpl_session_v20')")
+        page.evaluate("() => localStorage.removeItem('fpl_session_id')")
+        page.reload(wait_until="domcontentloaded")
+        expect(page.locator("#teamId")).to_be_visible(timeout=10_000)
+        expect(page.locator('[data-testid="resync-squad-btn"]')).to_be_hidden()
+        expect(page.locator('[data-testid="sync-now-btn"]')).to_be_disabled()
+
+    def test_resync_fires_from_fpl_and_input_stays_hidden(self, mocked: Page) -> None:
+        """With a real session: button visible, click fires POST /squad/from-fpl
+        (the battle-tested import chain) and the entry form stays hidden."""
+        page = mocked
+        seen: dict[str, object] = {}
+
+        def _capture(route: Route) -> None:
+            seen["url"] = route.request.url
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps({**SQUAD_STATE, "entry_name": "E2E Manager", "source": "fpl-import"}),
+            )
+
+        page.route("**/api/v1/squad/from-fpl**", _capture)
+        _seed_session(page)
+        page.goto(BASE_URL + "/dashboard", wait_until="domcontentloaded")
+
+        btn = page.locator('[data-testid="resync-squad-btn"]')
+        expect(btn).to_be_visible(timeout=10_000)
+        expect(btn).to_be_enabled()
+        expect(page.locator("#inputSection")).to_be_hidden()
+        btn.click(timeout=5_000)
+        page.wait_for_timeout(2_000)
+        assert "from-fpl" in str(seen.get("url", "")), "re-sync must call /squad/from-fpl"
+        # The entry form must REMAIN hidden — re-sync reuses the saved session.
+        expect(page.locator("#inputSection")).to_be_hidden()
+
+    def test_no_input_flash_with_saved_session(self, mocked: Page) -> None:
+        """A saved session must never show the entry form — not even for a
+        frame before the session bootstrap resolves (the old flash-then-vanish)."""
+        page = mocked
+        _seed_session(page)  # first goto + seed localStorage
+        page.add_init_script(
+            """
+            window.__inputFlash = false;
+            const _checkInput = () => {
+              const el = document.getElementById('inputSection');
+              if (el && getComputedStyle(el).display !== 'none') window.__inputFlash = true;
+            };
+            new MutationObserver(_checkInput).observe(document.documentElement, {
+              subtree: true, attributes: true, attributeFilter: ['style', 'class']
+            });
+            setInterval(_checkInput, 50);
+            """
+        )
+        page.goto(BASE_URL + "/dashboard", wait_until="domcontentloaded")
+        page.wait_for_timeout(1_500)
+        expect(page.locator("#inputSection")).to_be_hidden()
+        flashed = page.evaluate("window.__inputFlash")
+        assert flashed is False, "#inputSection became visible with a saved session"

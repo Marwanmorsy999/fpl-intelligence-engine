@@ -35,12 +35,11 @@ FAILED = "FAILED"
 
 
 def _build_egress() -> Any:
-    """Build the egress chain from settings (lazy import avoids cycles)."""
+    """Return the registry-backed async FPL adapter."""
     from fpl_intelligence.config import get_settings
-    from fpl_intelligence.data_providers.fpl_egress import FplEgressChain
+    from fpl_intelligence.data_providers.registry import get_async_fpl_adapter
 
-    settings = get_settings()
-    return FplEgressChain(settings.fpl_base_url)
+    return get_async_fpl_adapter(settings=get_settings())
 
 
 class NoPendingSync(Exception):

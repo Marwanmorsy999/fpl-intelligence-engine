@@ -285,6 +285,49 @@ def mocked_page(page: Page) -> Page:
     # unreachable database would wedge the request pool (Phase 18.0 lesson).
     page.route("**/api/v1/analyst/summary*", _mock_analyst)
     page.route("**/api/v1/data-sources*", _mock_data_sources)
+    # Later dashboard fetches (Phase 20+/25 ribbons, overlays, FPL view):
+    # each hits the 404 catch-all above and its "Failed to load resource"
+    # console error trips the console-clean audit, so mock them all.
+    page.route(
+        "**/api/v1/squad/fpl-view*",
+        lambda r: r.fulfill(
+            status=200,
+            content_type="application/json",
+            body='{"current_event": 2, "picks_current": {"gw": 2, "ids": []}, "picks_next": {"gw": 3, "status": 404, "ids": []}, "fpl_history": {"note": ""}}',
+        ),
+    )
+    page.route(
+        "**/api/v1/sync/**",
+        lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({})),
+    )
+    page.route(
+        "**/api/v1/prices/**",
+        lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({})),
+    )
+    page.route(
+        "**/api/v1/push/**",
+        lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({"unread": 0})),
+    )
+    page.route(
+        "**/api/v1/news/radar*",
+        lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({})),
+    )
+    page.route(
+        "**/api/v1/fixtures/scan*",
+        lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({})),
+    )
+    page.route(
+        "**/api/v1/league**",
+        lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({"your_rank": None})),
+    )
+    page.route(
+        "**/api/v1/transfers/**",
+        lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({"transfers": []})),
+    )
+    page.route(
+        "**/api/v1/targets**",
+        lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({"targets": []})),
+    )
     return page
 
 

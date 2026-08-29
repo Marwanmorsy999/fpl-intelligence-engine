@@ -48,12 +48,12 @@
 </head>
 <body>
 <div id="topnav"></div>
-<!-- v2.7.3-dual-state — Refresh League Data ribbon: ALWAYS visible on /connect (mirrors /dashboard) -->
+<!-- v2.7.3-dual-state — Refresh Rivals ribbon: ALWAYS visible on /connect (mirrors /dashboard) -->
 <div id="syncRibbon" class="sync-ribbon" data-testid="sync-ribbon">
   <div class="sync-ribbon__inner sync-ribbon__inner--connect">
-    <button id="syncNowBtn" class="btn-primary" type="button" data-testid="sync-now-btn">↻ Refresh League Data</button>
-    <span id="syncHint" data-testid="sync-ribbon-hint" class="small sync-ribbon-hint">Analyze your team to enable Refresh League Data</span>
-    <span class="faint small sync-note">Refresh pulls rival standings & picks via masks — your local squad is never overwritten</span>
+    <button id="syncNowBtn" class="btn-primary" type="button" data-testid="sync-now-btn">↻ Refresh Rivals</button>
+    <span id="syncHint" data-testid="sync-ribbon-hint" class="small sync-ribbon-hint">Analyze your team to enable Refresh Rivals</span>
+    <span class="faint small sync-note">Refresh Rivals pulls rival standings & picks via masks — your local squad picks are never overwritten</span>
   </div>
   <div id="syncBannerSticky" class="sync-banner-sticky" role="status" aria-live="polite" data-testid="sync-banner-sticky">
     <div id="syncBannerStickyInner" class="sync-banner-inner"></div>
@@ -64,12 +64,49 @@
   <h1 class="page-title">Connect your data</h1>
   <p class="muted small connect-lead">Three independent ways keep this engine fed. All pushes authenticate with your personal <strong>SYNC_PUSH_TOKEN</strong> (Bearer header). The token is shown once in your deployment report — paste it below and into Apps Script / GitHub secrets.</p>
 
+  <!-- ======= Data mode badge (Phase 5) ======= -->
+  <div class="card" id="dataModeCard">
+    <div class="small muted" style="margin-bottom:6px">Data mode</div>
+    <div id="dataModeBadge" class="pill ok" data-testid="data-mode-badge">Live FPL</div>
+    <p class="faint small" id="dataModeNote" style="margin-top:6px">Pulling your squad straight from fantasy.premierleague.com. If FPL blocks the server, switch to Manual or the Bookmarklet below — you can still get a full squad without a server pull.</p>
+  </div>
+
+  <!-- ======= Path 1: Team ID ======= -->
+  <div class="section-h">1 · Team ID — paste your FPL entry id (recommended)</div>
+  <div class="card">
+    <p class="muted small">The number in your FPL team URL (fantasy.premierleague.com/entry/<strong>&lt;id&gt;</strong>/event). We pull your official picks and never overwrite them with a guess.</p>
+    <div class="token-row">
+      <input id="connectTeamId" type="text" inputmode="numeric" class="input" placeholder="e.g. 2295006" autocomplete="off">
+      <button id="connectAnalyzeBtn" class="btn-primary" type="button">Analyze</button>
+    </div>
+    <p class="faint small" id="connectTeamMsg"></p>
+    <p class="faint small">No FPL account or server blocked? Use <a href="#manual">Manual</a> or the <a href="#bookmarklet">Bookmarklet</a> below — all three lead to the same analyser.</p>
+  </div>
+
+  <!-- ======= Path 2: Manual ======= -->
+  <div class="section-h" id="manual">2 · Manual — build your 15 on site</div>
+  <div class="card">
+    <p class="muted small">No FPL pull required. Pick 15 players, set captain/vice, and we analyse them. Useful when the API is blocked or you want a what-if squad.</p>
+    <a class="btn" href="/dashboard" onclick="sessionStorage.setItem('fpl_open_manual','1');return true">Build squad manually →</a>
+  </div>
+
+  <!-- ======= Path 3: Bookmarklet ======= -->
+  <div class="section-h" id="bookmarklet">3 · Bookmarklet — one-click from the FPL site</div>
+  <div class="card">
+    <p class="muted small">Works even when our server is rate-limited by FPL: the push runs from your browser (your IP, not ours). Authenticate with your <strong>SYNC_PUSH_TOKEN</strong> (saved in the Token box below).</p>
+    <div class="bm-row">
+      <a id="bookmarkletLinkConnect" class="btn" href="#" onclick="return false" title="Drag me to your bookmarks bar">⚽ Sync FPL Squad → Engine</a>
+      <button id="copyBmBtnConnect" class="btn-ghost" type="button">Copy link URL</button>
+    </div>
+    <p class="faint small" id="bmStatusConnect"></p>
+  </div>
+
   <!-- ======= Sync status ======= -->
   <div class="section-h">Sync status</div>
   <div class="card" id="statusCard"><span class="faint">Checking…</span></div>
 
   <!-- ======= Token ======= -->
-  <div class="section-h">1 · Your token</div>
+  <div class="section-h">4 · Your token</div>
   <div class="card">
     <label class="small muted" for="tokenInput">SYNC_PUSH_TOKEN</label>
     <div class="token-row">
@@ -80,7 +117,7 @@
   </div>
 
   <!-- ======= Method A: bookmarklet ======= -->
-  <div class="section-h">2 · Bookmarklet — instant one-click sync (recommended)</div>
+  <div class="section-h">5 · Bookmarklet — instant one-click sync (recommended)</div>
   <div class="card">
     <ol class="muted small bm-list">
       <li>Paste + save your token above.</li>
@@ -103,7 +140,7 @@
   </div>
 
   <!-- ======= Method B: Apps Script ======= -->
-  <div class="section-h">3 · Google Apps Script fetcher — automatic daily + matchday</div>
+  <div class="section-h">6 · Google Apps Script fetcher — automatic daily + matchday</div>
   <div class="card">
     <p class="muted small">Runs on Google's infrastructure (no Cloudflare, no Vercel egress problems). Two time-triggers:</p>
     <ul class="muted small apps-list">
@@ -230,7 +267,7 @@ function onOpen() {
   </div>
 
   <!-- ======= Method C: GitHub Actions ======= -->
-  <div class="section-h">4 · GitHub Actions — vaastav dataset + Understat refresh (daily 06:00 UTC)</div>
+  <div class="section-h">7 · GitHub Actions — vaastav dataset + Understat refresh (daily 06:00 UTC)</div>
   <div class="card">
     <ol class="muted small method-list">
       <li>In your GitHub repo: <em>Settings → Secrets and variables → Actions</em>.</li>
@@ -241,7 +278,7 @@ function onOpen() {
   </div>
 
   <!-- ======= PWA install prompt (Phase 24) ======= -->
-  <div class="section-h">5 · Install as app (PWA)</div>
+  <div class="section-h">8 · Install as app (PWA)</div>
   <div class="card">
     <p class="muted small">Install FPL Intelligence as a standalone app on your phone or desktop. Theme color #0f172a, offline shell cached.</p>
     <div id="pwaInstallHost"><p class="faint small">Install prompt appears here when your browser supports it. If already installed, you're set.</p></div>
@@ -249,7 +286,7 @@ function onOpen() {
   </div>
 
   <!-- ======= Notifications (Phase 23 — self-hosted web push) ======= -->
-  <div class="section-h">6 · Notifications — self-hosted web push (no external accounts)</div>
+  <div class="section-h">9 · Notifications — self-hosted web push (no external accounts)</div>
   <div class="card" id="pushCard">
     <p class="muted small">Enable browser notifications for goals, price moves, the weekly brief and track-record grading. The in-app 🔔 bell works regardless of this setting.</p>
     <button id="enablePushBtn" class="btn" type="button" data-testid="enable-notifications">Enable notifications</button>
@@ -274,14 +311,14 @@ document.addEventListener("DOMContentLoaded", function () {
     var isDemo = sess && sess.source === "demo";
     var shouldEnable = hasSession && !isDemo;
     var rb = $("syncRibbon"); if (rb) rb.style.display = "block";
-    var btn = $("syncNowBtn"); if (btn) { btn.disabled = !shouldEnable; btn.title = shouldEnable ? "" : "Analyze your team to enable Refresh League Data"; if (!shouldEnable) btn.setAttribute("aria-disabled","true"); else btn.removeAttribute("aria-disabled"); }
+    var btn = $("syncNowBtn"); if (btn) { btn.disabled = !shouldEnable; btn.title = shouldEnable ? "" : "Analyze your team to enable Refresh Rivals"; if (!shouldEnable) btn.setAttribute("aria-disabled","true"); else btn.removeAttribute("aria-disabled"); }
     var hint = $("syncHint"); if (hint) hint.classList.toggle("show", !shouldEnable);
     var tgl = $("syncNextGwToggle"); if (tgl) tgl.disabled = !shouldEnable;
   }
   function _syncNowConnect() {
-    // v2.7.3-dual-state: Refresh League Data — only pulls rival standings/picks via masks, never overwrites local_squad.
+    // v2.7.3-dual-state: Refresh Rivals — only pulls rival standings/picks via masks, never overwrites local_squad.
     var sess = null; try { sess = FPLApp.session.read(); } catch(e){}
-    if (!sess || !sess.key || sess.source === "demo") { alert("Analyze your team to enable Refresh League Data"); return; }
+    if (!sess || !sess.key || sess.source === "demo") { alert("Analyze your team to enable Refresh Rivals"); return; }
     var btn = $("syncNowBtn");
     var stickyWrap = $("syncBannerSticky"); var stickyInner = $("syncBannerStickyInner");
     if (stickyWrap) stickyWrap.classList.remove("show"); if (stickyInner) stickyInner.textContent = "";
@@ -294,7 +331,7 @@ document.addEventListener("DOMContentLoaded", function () {
           var bannerText = data.status === "ok" ? ("League refreshed ✓ — " + (data.league_name || "standings") + " updated. Trajectory & Alpha use your local squad.") : (data.note || "Refreshing…");
           if (stickyWrap && stickyInner) { stickyInner.textContent = bannerText; stickyWrap.classList.add("show"); }
           _updateConnectRibbon();
-          if (btn) btn.textContent = "\u21BB Refresh League Data";
+          if (btn) btn.textContent = "\u21BB Refresh Rivals";
           return;
         }
         if (data && (data.status === "failed" || data.status === "error")) {
@@ -304,9 +341,9 @@ document.addEventListener("DOMContentLoaded", function () {
           return;
         }
         _updateConnectRibbon();
-        if (btn) btn.textContent = "\u21BB Refresh League Data";
+        if (btn) btn.textContent = "\u21BB Refresh Rivals";
       });
-    }).catch(function(e){ alert(e.message); _updateConnectRibbon(); if (btn) btn.textContent = "\u21BB Refresh League Data"; });
+    }).catch(function(e){ alert(e.message); _updateConnectRibbon(); if (btn) btn.textContent = "\u21BB Refresh Rivals"; });
   }
   // wire ribbon button immediately and keep state in sync with storage events
   try { var _snC = $("syncNowBtn"); if (_snC) _snC.addEventListener("click", _syncNowConnect); } catch(e){}
@@ -478,6 +515,59 @@ document.addEventListener("DOMContentLoaded", function () {
         $("pushStatus").textContent = "Permission denied or unsupported (" + (err.message || err.name) + ") — the 🔔 bell still works.";
       });
   }
+
+  /* Phase 5 — Path 1: Team ID one-click pull from Connect. On success we
+     hand off to the dashboard (which renders the analysis) with the entry in
+     the URL; on 503/blocked we surface Manual + Bookmarklet as equal fallbacks. */
+  var connectApi = (window.API || "") + "/api/v1";
+  function connectWithTeamId() {
+    var raw = ($("connectTeamId") && $("connectTeamId").value || "").trim();
+    var entryId = parseInt(raw, 10);
+    var msg = $("connectTeamMsg");
+    if (!entryId || entryId < 1) { if (msg) msg.textContent = "Enter a valid FPL Team ID."; return; }
+    if (msg) { msg.textContent = "Importing from FPL…"; msg.className = "faint small"; }
+    fetch(connectApi + "/squad/from-fpl", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ entry_id: entryId })
+    }).then(function (r) {
+      if (r.status === 503) {
+        var note = "FPL is blocking our servers right now. You can still continue: use Manual (build your 15 on site) or the Bookmarklet — both give a full squad without a server pull.";
+        if (msg) { msg.textContent = note; msg.className = "small"; msg.style.color = "#fbbf24"; }
+        // Reflect degraded data mode.
+        var badge = $("dataModeBadge"); if (badge) { badge.textContent = "Manual"; badge.className = "pill"; }
+        return;
+      }
+      if (!r.ok) { return r.json().catch(function(){return {};}).then(function(b){ throw new Error(b.detail || ("Import failed ("+r.status+")")); }); }
+      return r.json().then(function (data) {
+        FPLApp.session.save(String(entryId), "fpl_id", (data && data.entry_name) || "");
+        window.location.href = "/dashboard?entry=" + String(entryId);
+      });
+    }).catch(function (e) {
+      if (msg) { msg.textContent = e.message || "Import failed."; msg.className = "small"; msg.style.color = "#f87171"; }
+    });
+  }
+  try { var _cab = $("connectAnalyzeBtn"); if (_cab) _cab.addEventListener("click", connectWithTeamId); } catch (e) {}
+  try { var _cti = $("connectTeamId"); if (_cti) _cti.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.keyCode === 13) { e.preventDefault(); connectWithTeamId(); } }); } catch (e) {}
+
+  /* Phase 5 — mirror the bookmarklet builder for the connect page. */
+  function buildConnectBookmarklet() {
+    var token = "";
+    try { token = localStorage.getItem("fpl_sync_push_token") || ""; } catch (e) {}
+    fetch("/static/bookmarklet.js").then(function (r) { return r.text(); }).then(function (src) {
+      src = 'window.__FPL_ENGINE_BASE__="' + window.location.origin + '";\n' + src;
+      var url = "javascript:" + encodeURIComponent(src);
+      var link = $("bookmarkletLinkConnect"); if (link) { link.href = url; link.removeAttribute("onclick"); }
+      $("bmStatusConnect").textContent = token
+        ? "Bookmarklet ready — drag the button to your bookmarks bar."
+        : "Bookmarklet ready, but no token saved yet — paste your SYNC_PUSH_TOKEN in box 4 first.";
+    }).catch(function () { $("bmStatusConnect").textContent = "Could not load bookmarklet source."; });
+  }
+  try { $("copyBmBtnConnect").addEventListener("click", function () {
+    var link = $("bookmarkletLinkConnect");
+    if (!link || !link.href || link.href === "#") return;
+    navigator.clipboard.writeText(link.href).then(function(){ $("copyBmBtnConnect").textContent = "Copied ✓"; }, function(){ $("copyBmBtnConnect").textContent = "Copy failed"; });
+  }); } catch (e) {}
+  buildConnectBookmarklet();
 
   FPLApp.session.bootstrap({
     onReady: function (session) {

@@ -29,18 +29,11 @@ async def price_pressure(db: Any) -> dict[str, Any]:
     """Rise-pressure chip: high/low/unavailable from official counters only."""
     try:
         from fpl_intelligence.config import get_settings
-        from fpl_intelligence.data_providers.fpl_egress import (
-            FplEgressChain,
-            validate_bootstrap_payload,
-        )
+        from fpl_intelligence.data_providers.fpl_egress import validate_bootstrap_payload
+        from fpl_intelligence.data_providers.registry import get_async_fpl_adapter
 
         cfg = get_settings()
-        chain = FplEgressChain(
-            cfg.fpl_base_url,
-            timeout=cfg.egress_strategy_timeout,
-            cache_ttl=600.0,
-        )
-        payload = await chain.fetch(
+        payload = await get_async_fpl_adapter(settings=cfg).fetch(
             "/api/bootstrap-static/", validator=validate_bootstrap_payload
         )
         elements = payload.get("elements") or []

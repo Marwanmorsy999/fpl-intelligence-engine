@@ -27,6 +27,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from fpl_intelligence.data_providers.registry import ProviderState
 from fpl_intelligence.db.base import Base
 from fpl_intelligence.sync.materialized_models import PredictionCurrentDB
 from fpl_intelligence.transfers.models import SquadSnapshotDB, TransferLogDB
@@ -116,7 +117,7 @@ async def fetch_official_transfers(
     provenance display.
     """
     from fpl_intelligence.config import get_settings
-    from fpl_intelligence.data_providers.fpl_egress import FplEgressChain
+    from fpl_intelligence.data_providers.registry import get_async_fpl_adapter
 
     def _validate(data: Any) -> None:
         if not isinstance(data, dict) or not (
@@ -129,14 +130,12 @@ async def fetch_official_transfers(
             )
 
     cfg = get_settings()
-    chain = FplEgressChain(
-        cfg.fpl_base_url,
-        timeout=cfg.egress_strategy_timeout,
-        cache_ttl=300.0,
-    )
-    payload = await chain.fetch(
+    result = await get_async_fpl_adapter(settings=cfg).resolve(
         f"/api/entry/{int(entry_id)}/history/", validator=_validate
     )
+    if result.state is ProviderState.UNAVAILABLE:
+        raise RuntimeError("FPL provider unavailable: " + "; ".join(result.errors))
+    payload = result.value
     rows = parse_history_transfers(payload)
     excerpt: list[dict[str, Any]] = []
     if with_raw:
@@ -160,7 +159,7 @@ async def fetch_official_transfers(
                     "transfers": (last.get("transfers") or [])[:5],
                 }
             )
-    return rows, (chain.winning_strategy or "direct"), excerpt
+    return rows, result.provenance.get("egress_strategy", "direct"), excerpt
 
 
 def snapshot_diff_rows(db: Session, entry_id: str) -> list[dict[str, Any]]:
@@ -311,6 +310,29 @@ def persist_ledger(
             existing.cost = int(row.get("cost") or 0)
             existing.source = source
             continue
+        # Pass 2 dedupe: snapshot diffs can infer the SAME swap twice with the
+        # in/out sides flipped (live bug: "Cash(#32) ↔ De Cuyper(#115) swap
+        # listed twice"). Before inserting, look for an existing same-gameweek
+        # row with a NULL transfer_id and the REVERSED element pair; when found,
+        # UPDATE it to the newest inference instead of inserting a duplicate.
+        if tid is None and row.get("element_in") is not None and row.get("element_out") is not None:
+            reversed_row = db.scalar(
+                select(TransferLogDB).where(
+                    TransferLogDB.entry_id == str(entry_id),
+                    TransferLogDB.gameweek == int(row["gameweek"]),
+                    TransferLogDB.transfer_id.is_(None),
+                    TransferLogDB.element_in == row["element_out"],
+                    TransferLogDB.element_out == row["element_in"],
+                )
+            )
+            if reversed_row is not None:
+                reversed_row.element_in = row["element_in"]
+                reversed_row.element_out = row["element_out"]
+                reversed_row.name_in = row.get("name_in")
+                reversed_row.name_out = row.get("name_out")
+                reversed_row.cost = int(row.get("cost") or 0)
+                reversed_row.source = source
+                continue
         db.add(
             TransferLogDB(
                 entry_id=str(entry_id),

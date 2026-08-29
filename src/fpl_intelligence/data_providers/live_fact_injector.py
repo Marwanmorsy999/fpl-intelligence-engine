@@ -153,6 +153,9 @@ class LiveFactInjector:
             reason="; ".join(parts) if parts else "FPL fact",
             confidence=FactConfidence.HIGH,
             fetched_at=fact.fetched_at,
+            published_at=fact.published_at,
+            available_at=fact.available_at,
+            temporal_class=fact.temporal_class,
         )
 
     def _from_api_football(self, fact: PlayerFact) -> FactOverride | None:

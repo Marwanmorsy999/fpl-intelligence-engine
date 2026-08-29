@@ -269,7 +269,10 @@ async def _probe_understat_refresh_uncached(db: Any) -> dict[str, Any]:
                 timeout=min(4.0, settings.egress_strategy_timeout),
                 cache_ttl=0,
             )
-            html = await egress.fetch("/league/EPL/2026")
+            # Pass 2: TEXT mode — the league page is HTML, and the JSON-only
+            # chain discarded a healthy 200 as JSONDecodeError (the permanent
+            # "page reachable but no playersData block" stale status).
+            html = await egress.fetch_text("/league/EPL/2026")
             strategy = egress.winning_strategy or "direct"
         except Exception as exc:  # noqa: BLE001 - blocked is an expected outcome
             return None, f"{type(exc).__name__}: {exc}"
@@ -359,18 +362,17 @@ _response_lock = threading.Lock()
 async def _probe_fpl(settings: Any) -> tuple[str, str, str]:
     """FPL import reachability -> (status, detail, strategy)."""
     try:
-        from fpl_intelligence.data_providers.fpl_egress import (  # noqa: PLC0415
-            FplEgressChain,
-            validate_entry_payload,
-        )
+        from fpl_intelligence.data_providers.fpl_egress import validate_entry_payload
+        from fpl_intelligence.data_providers.registry import get_async_fpl_adapter
 
-        egress = FplEgressChain(
-            settings.fpl_base_url,
+        adapter = get_async_fpl_adapter(settings=settings)
+        await adapter.fetch(
+            "/api/entry/1/",
+            validator=validate_entry_payload,
             timeout=min(_PROBE_BUDGET_SECONDS, settings.egress_strategy_timeout),
-            cache_ttl=0,  # never cache a health probe
+            use_cache=False,
         )
-        await egress.fetch("/api/entry/1/", validator=validate_entry_payload)
-        return "ok", "reachable", egress.winning_strategy or "direct"
+        return "ok", "reachable", adapter.winning_strategy or "direct"
     except Exception:  # noqa: BLE001
         pass
     try:

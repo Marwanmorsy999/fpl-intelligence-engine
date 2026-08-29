@@ -59,6 +59,10 @@ class MatchPrediction:
     away_win_probability: float
     home_clean_sheet_probability: float
     away_clean_sheet_probability: float
+    home_team_goals_2_plus_probability: float = 0.0
+    home_team_goals_3_plus_probability: float = 0.0
+    away_team_goals_2_plus_probability: float = 0.0
+    away_team_goals_3_plus_probability: float = 0.0
     home_attack_strength: float = 1.0
     away_attack_strength: float = 1.0
     home_defence_strength: float = 1.0
@@ -77,6 +81,10 @@ class MatchPrediction:
             "away_win_probability": round(self.away_win_probability, 4),
             "home_clean_sheet_probability": round(self.home_clean_sheet_probability, 4),
             "away_clean_sheet_probability": round(self.away_clean_sheet_probability, 4),
+            "home_team_goals_2_plus_probability": round(self.home_team_goals_2_plus_probability, 4),
+            "home_team_goals_3_plus_probability": round(self.home_team_goals_3_plus_probability, 4),
+            "away_team_goals_2_plus_probability": round(self.away_team_goals_2_plus_probability, 4),
+            "away_team_goals_3_plus_probability": round(self.away_team_goals_3_plus_probability, 4),
             "home_attack_strength": self.home_attack_strength,
             "away_attack_strength": self.away_attack_strength,
             "home_defence_strength": self.home_defence_strength,
@@ -145,13 +153,15 @@ class PoissonMatchModel:
         home = self._strength_to_dict(home_strength)
         away = self._strength_to_dict(away_strength)
 
-        home_attack = home.get("attack_strength", 1.0)
-        away_defence = away.get("defence_strength", 1.0)
-        away_attack = away.get("attack_strength", 1.0)
-        home_defence = home.get("defence_strength", 1.0)
+        home_attack = home.get("home_attack_strength", home.get("attack_strength", 1.0))
+        away_defence = away.get("away_defence_strength", away.get("defence_strength", 1.0))
+        away_attack = away.get("away_attack_strength", away.get("attack_strength", 1.0))
+        home_defence = home.get("home_defence_strength", home.get("defence_strength", 1.0))
 
-        lambda_home = self._league_avg_goals * home_attack * away_defence * self._home_advantage
-        lambda_away = self._league_avg_goals * away_attack * home_defence
+        lambda_home = (
+            self._league_avg_goals * home_attack / max(away_defence, 0.2) * self._home_advantage
+        )
+        lambda_away = self._league_avg_goals * away_attack / max(home_defence, 0.2)
 
         # Clamp to a realistic range.
         lambda_home = max(0.1, min(5.0, lambda_home))
@@ -163,6 +173,10 @@ class PoissonMatchModel:
         away_win = sum(p for (h, a), p in probs.items() if h < a)
         home_cs = sum(p for (h, a), p in probs.items() if a == 0)
         away_cs = sum(p for (h, a), p in probs.items() if h == 0)
+        home_2 = sum(p for (h, _), p in probs.items() if h >= 2)
+        home_3 = sum(p for (h, _), p in probs.items() if h >= 3)
+        away_2 = sum(p for (_, a), p in probs.items() if a >= 2)
+        away_3 = sum(p for (_, a), p in probs.items() if a >= 3)
 
         return MatchPrediction(
             fixture_id=fixture_id,
@@ -174,6 +188,10 @@ class PoissonMatchModel:
             away_win_probability=away_win,
             home_clean_sheet_probability=home_cs,
             away_clean_sheet_probability=away_cs,
+            home_team_goals_2_plus_probability=home_2,
+            home_team_goals_3_plus_probability=home_3,
+            away_team_goals_2_plus_probability=away_2,
+            away_team_goals_3_plus_probability=away_3,
             home_attack_strength=home_attack,
             away_attack_strength=away_attack,
             home_defence_strength=home_defence,
@@ -193,10 +211,22 @@ class PoissonMatchModel:
         home = {
             "attack_strength": home_features.get("attack_strength", 1.0),
             "defence_strength": home_features.get("defensive_strength", 1.0),
+            "home_attack_strength": home_features.get(
+                "home_attack_strength", home_features.get("attack_strength", 1.0)
+            ),
+            "home_defence_strength": home_features.get(
+                "home_defence_strength", home_features.get("defensive_strength", 1.0)
+            ),
         }
         away = {
             "attack_strength": away_features.get("attack_strength", 1.0),
             "defence_strength": away_features.get("defensive_strength", 1.0),
+            "away_attack_strength": away_features.get(
+                "away_attack_strength", away_features.get("attack_strength", 1.0)
+            ),
+            "away_defence_strength": away_features.get(
+                "away_defence_strength", away_features.get("defensive_strength", 1.0)
+            ),
         }
         return self.predict_from_strengths(fixture_id, cutoff_time, home, away)
 
@@ -237,4 +267,4 @@ def normalize_probabilities(probs: dict[str, float]) -> dict[str, float]:
     total = sum(probs.values())
     if total <= 0:
         return probs
-    return {k: v / total for k, v in probs.items()}
+    return {key: value / total for key, value in probs.items()}

@@ -91,6 +91,26 @@ class PredictionCurrentDB(Base):
     )
 
 
+def _latest_xpts_map(db: Any) -> dict[int, float]:
+    """element_id -> expected_points for the NEWEST gameweek with predictions.
+
+    Pass 2 (player search): xPTS must reflect the most recent computed
+    gameweek only — one row per element, read in a single query so the
+    search endpoint stays at O(1) DB round-trips regardless of how many
+    gameweeks have been precomputed.
+    """
+    from sqlalchemy import func, select
+
+    newest = db.scalar(select(func.max(PredictionCurrentDB.gameweek)))
+    if newest is None:
+        return {}
+    rows = db.execute(
+        select(PredictionCurrentDB.element_id, PredictionCurrentDB.expected_points)
+        .where(PredictionCurrentDB.gameweek == int(newest))
+    ).all()
+    return {int(eid): float(pts) for eid, pts in rows}
+
+
 class LiveSnapshotDB(Base):
     """Phase 20.4 — last good live-matchday snapshot for one gameweek.
 

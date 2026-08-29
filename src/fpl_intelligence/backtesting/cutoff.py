@@ -13,10 +13,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from fpl_intelligence.db.models import Gameweek
+from fpl_intelligence.db.models import Fixture, Gameweek
 from fpl_intelligence.features.temporal import (
     DEFAULT_POLICY,
     InformationAccessPolicy,
@@ -52,6 +52,43 @@ class DecisionCutoff:
     def is_strict(self) -> bool:
         """Whether this cutoff uses strict reproducibility policy."""
         return self.policy == InformationAccessPolicy.STRICT_REPRODUCIBILITY
+
+
+def _outcome_ordering_cutoff(db: Session, gameweek: Gameweek) -> datetime | None:
+    """Derive a gameweek-ordering decision boundary when no deadline is known.
+
+    Historical FPL sources (the ``vaastav`` mirror) do not publish genuine
+    Gameweek ``deadline_time`` values. Fabricating one would pretend an exact
+    decision instant is known when it is not (forbidden). Instead, when a
+    gameweek has no deadline, the cutoff falls back to the latest *genuine*
+    fixture kickoff_time of the *previous* gameweek of the same season:
+
+    * it is a real source timestamp (fixtures.kickoff_time), never invented;
+    * it is strictly earlier than (or at worst equal to) the true, unknown
+      deadline of the target gameweek, so it can only *shrink* the information
+      available to the decision-maker -- the no-look-ahead rule is never
+      weakened;
+    * gameweeks whose cutoff still cannot be derived (no previous gameweek
+      with fixtures, e.g. GW1 of the earliest season) are skipped, matching
+      the existing NULL-deadline skip behaviour.
+
+    The DB ``deadline_time`` column is intentionally never written with this
+    value.
+    """
+    previous = db.scalar(
+        select(Gameweek)
+        .where(
+            Gameweek.season_id == gameweek.season_id,
+            Gameweek.provider_event_id < gameweek.provider_event_id,
+        )
+        .order_by(Gameweek.provider_event_id.desc())
+        .limit(1)
+    )
+    if previous is None:
+        return None
+    return db.scalar(
+        select(func.max(Fixture.kickoff_time)).where(Fixture.gameweek_id == previous.id)
+    )
 
 
 def get_gameweek_decision_cutoff(
@@ -92,7 +129,12 @@ def get_gameweek_decision_cutoff(
     if gw is None:
         raise ValueError(f"Gameweek {gameweek} for season {season!r} not found.")
 
-    deadline = gw.deadline_time
+    deadline = _ensure_aware(gw.deadline_time)
+    if deadline is None:
+        # Gameweek-ordering fallback (see _outcome_ordering_cutoff): the
+        # exact FPL deadline is unknown for this gameweek; use the latest
+        # genuine kickoff of the previous gameweek instead of fabricating.
+        deadline = _ensure_aware(_outcome_ordering_cutoff(db, gw))
     if deadline is None:
         raise ValueError(f"Gameweek {gameweek} for season {season!r} has no deadline_time.")
 
@@ -149,10 +191,17 @@ def get_all_gameweek_cutoffs(
 
     cutoffs: list[DecisionCutoff] = []
     for gw in gameweeks:
-        if gw.deadline_time is None:
+        deadline = _ensure_aware(gw.deadline_time)
+        if deadline is None:
+            # Gameweek-ordering fallback: the mirror-based historical imports
+            # cannot know genuine FPL deadlines. The derived boundary uses only
+            # genuine previous-gameweek kickoff timestamps and is never written
+            # back as a deadline (see _outcome_ordering_cutoff).
+            deadline = _ensure_aware(_outcome_ordering_cutoff(db, gw))
+        if deadline is None:
             continue
         gw_offset = timedelta(hours=1) if offset is None else offset
-        cutoff_time = _ensure_aware(gw.deadline_time - gw_offset)
+        cutoff_time = deadline - gw_offset
         assert cutoff_time is not None
         cutoffs.append(
             DecisionCutoff(
@@ -160,7 +209,7 @@ def get_all_gameweek_cutoffs(
                 gameweek=gw.provider_event_id,
                 season=season,
                 policy=policy,
-                deadline_time=_ensure_aware(gw.deadline_time),
+                deadline_time=deadline,
                 offset=gw_offset,
             )
         )

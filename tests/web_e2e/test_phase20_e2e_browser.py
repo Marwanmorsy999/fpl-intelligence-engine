@@ -265,10 +265,13 @@ class TestSessionPersistence:
                 expect(card.first).to_be_visible(timeout=10000)
 
             # Zero typing guarantee: no input on any of these pages was touched.
+            # Checkboxes/radios are excluded — their implicit value ("on") is
+            # not user typing (e.g. the ribbon's Next-GW toggle).
             typed = page.evaluate(
                 "() => document.querySelectorAll('input:not([type=hidden])')"
                 ".length && Array.from(document.querySelectorAll('input'))"
-                ".some(i => i.value && i.value.length > 0"
+                ".some(i => i.type !== 'checkbox' && i.type !== 'radio'"
+                " && i.value && i.value.length > 0"
                 " && i.value !== (JSON.parse(localStorage.getItem('fpl_session_v20')||'{}').key || ''))"
             )
             assert typed in (False, None), f"user had to type on {path}"
