@@ -54,18 +54,38 @@ def validation_database_url() -> str:
     return url
 
 
-def validation_session_factory() -> sessionmaker[Session]:
-    """Build a session factory for the configured validation database."""
+def _validation_engine() -> object:
+    """Build the engine shared by validation session factories."""
     url = validation_database_url()
     connect_args = {"prepare_threshold": None} if url.startswith("postgres") else {}
-    validation_engine = create_engine(url, pool_pre_ping=True, connect_args=connect_args)
-    if url.startswith("postgres"):
+    return create_engine(url, pool_pre_ping=True, connect_args=connect_args)
+
+
+def validation_session_factory() -> sessionmaker[Session]:
+    """Build a read-only session factory for the configured validation database."""
+    validation_engine = _validation_engine()
+    if validation_engine.url.drivername.startswith("postgres"):
         @event.listens_for(validation_engine, "begin")
         def _set_validation_transaction_read_only(connection) -> None:
             connection.exec_driver_sql("SET TRANSACTION READ ONLY")
 
     return sessionmaker(
         bind=validation_engine,
+        autoflush=False,
+        autocommit=False,
+        expire_on_commit=False,
+    )
+
+
+def validation_write_session_factory() -> sessionmaker[Session]:
+    """Build a write-capable session factory for controlled validation imports.
+
+    This factory is intentionally separate from ``validation_session_factory`` so
+    ordinary validation stays read-only by default. Callers that can commit must
+    independently enforce a validation-only database target before using it.
+    """
+    return sessionmaker(
+        bind=_validation_engine(),
         autoflush=False,
         autocommit=False,
         expire_on_commit=False,
