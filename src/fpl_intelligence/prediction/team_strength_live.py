@@ -10,7 +10,7 @@ Stage 2 locked holdout (2025-26) approved:
 
 This module is the **runtime** bridge. It never tunes hyperparameters from
 live data. When team-match history is missing it returns neutral multipliers
-and reports ``status=\"unavailable\"`` so the chain stays honest.
+and reports status unavailable so the chain stays honest.
 """
 
 from __future__ import annotations
@@ -86,7 +86,7 @@ def compute_team_strength_multipliers(
         from fpl_intelligence.db.models import Fixture
         from sqlalchemy import select
     except Exception as exc:  # noqa: BLE001
-        logger.warning("team strength live import failed: %s", exc)
+        logger.warning("team strength live import failed: %s", exp)
         return TeamStrengthLiveResult({}, _neutral_notes(f"import_failed:{type(exc).__name__}"))
 
     try:
@@ -127,7 +127,7 @@ def compute_team_strength_multipliers(
             cutoff, method=TS_METHOD, window=TS_WINDOW, decay=TS_DECAY
         )
     except Exception as exc:  # noqa: BLE001
-        logger.warning("team strength estimate_all failed: %s", exp)
+        logger.warning("team strength estimate_all failed: %s", exc)
         return TeamStrengthLiveResult({}, _neutral_notes(f"estimate:{type(exc).__name__}"))
 
     teams_with_sample = sum(1 for e in estimates.values() if e.sample_size > 0)
@@ -202,7 +202,7 @@ def apply_multipliers_to_points(
 
 
 def player_team_map_from_catalog(catalog: dict[int, dict[str, Any]]) -> dict[int, int]:
-    """``{player_id: team_id}`` from the offline/live player catalog rows."""
+    """Map player ids to team ids from the catalog."""
     mapping: dict[int, int] = {}
     for pid, row in catalog.items():
         team = row.get("team")
