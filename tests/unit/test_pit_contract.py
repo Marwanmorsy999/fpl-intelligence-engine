@@ -7,6 +7,9 @@ import pytest
 from fpl_intelligence.availability.historical.pit_contract import validate_pit_events
 from fpl_intelligence.availability.historical.temporal import AvailabilityTimestamps
 
+# Keep PIT contract coverage on the production main branch so the permanent gate
+# exercises the same contract that the materializer enforces.
+
 
 def _event(at: datetime) -> dict[str, object]:
     return {
