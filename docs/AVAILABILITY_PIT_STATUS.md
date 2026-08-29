@@ -16,6 +16,7 @@ and says it is updated four times daily at six-hour intervals.
 - `--commit` is allowed only after snapshot, chronology, signal, and entity-resolution gates pass inside the same transaction.
 - The CI database import job is disabled unless repository variable `AVAILABILITY_PIT_ENABLE_IMPORT=true`.
 - No live decision-chain wiring is included.
+- The PIT GitHub API discovery path uses the Actions token when available; CI supplies `GITHUB_TOKEN` explicitly to avoid unauthenticated GitHub API throttling.
 
 ## Current components
 
@@ -24,13 +25,13 @@ and says it is updated four times daily at six-hour intervals.
 | Immutable PIT provider | `src/fpl_intelligence/availability/historical/pit_fplcache.py` | Implemented |
 | DB deadline loader | `src/fpl_intelligence/availability/historical/deadlines.py` | Implemented; skips missing DB deadlines rather than guessing |
 | Verified deadline catalog | `src/fpl_intelligence/availability/historical/verified_deadlines.py` | Implemented; 10 source-provenanced cutoffs |
-| Snapshot materializer | `src/fpl_intelligence/availability/historical/materialize_pit.py` | Implemented |
+| Snapshot materializer | `src/fpl_intelligence/availability/historical/materialize_pit.py` | Implemented; authenticated GitHub discovery |
 | Chronological gate | `src/fpl_intelligence/availability/historical/chronological.py` | Implemented, fail-closed |
 | Minutes signal-lift | `src/fpl_intelligence/availability/historical/signal_lift.py` | Implemented with same-GW unflagged control |
 | Validation DB evidence audit | `src/fpl_intelligence/availability/historical/pit_audit.py` + `scripts/audit_availability_pit.py` | Implemented |
 | Dry-run evaluator | `scripts/evaluate_availability_pit.py` | Implemented |
 | Controlled import | `scripts/materialize_availability_pit.py` | Implemented, opt-in |
-| CI | `.github/workflows/availability-pit.yml` | Implemented |
+| CI | `.github/workflows/availability-pit.yml` | Implemented; checkout@v6 + setup-python@v7 |
 | Unit tests | PIT provider/materializer/chronology/audit/control/deadline tests | Implemented |
 
 ## Source-provenanced deadline catalog
@@ -44,8 +45,9 @@ The catalog contains 10 verified cutoffs spanning GW1-GW5 for each season.
 
 ## Expanded read-only PIT evidence
 
-Runs 45 and 46 exercised all 10 verified cutoffs from the catalog. Each run found
-a snapshot for every cutoff and materialized **1,659 availability observations**:
+The expanded preflight exercises all 10 verified cutoffs from the catalog. Each
+cutoff has a resolvable immutable snapshot and the materializer produces **1,659
+availability observations**:
 
 - 2024-25: **793** observations across GW1-GW5.
 - 2025-26: **866** observations across GW1-GW5.
@@ -53,8 +55,9 @@ a snapshot for every cutoff and materialized **1,659 availability observations**
 - **0** missing information timestamps.
 - **0** post-deadline observations.
 
-The current PIT preflight also passes targeted correctness lint and all 18
-unit tests, including deadline, chronology, control-group, and audit safeguards.
+The current PIT preflight passes targeted correctness lint and all 18 targeted unit
+tests, including deadline, chronology, control-group, audit, and GitHub-token
+regression safeguards.
 
 ## Validation DB evidence observed on 2026-08-29
 
@@ -65,7 +68,9 @@ performance rows. It currently contains 210 `fplcache_pit` availability events:
 
 All 210 imported PIT rows are linked to gameweeks, classified
 `STRICT_BACKTEST_SAFE`, and have a non-null `valid_from` timestamp. The realized
-minutes join matches all 210 rows.
+minutes join matches all 210 rows. A direct duplicate-key audit over
+`(provider, provider_event_id, season_id, player_id)` returns zero duplicate groups
+and zero duplicate rows.
 
 The provider emits flagged/non-default availability states rather than an
 explicit `available` row for every player. The signal evaluator therefore uses
@@ -87,6 +92,18 @@ suspended rows also have 0.00 mean realized minutes.
 The expanded 10-cutoff sample is read-only and has **not** been written into
 the validation database.
 
+## CI history
+
+- **Run 46 — green**: expanded 10-cutoff PIT preflight.
+- **Run 47 — green**: expanded PIT preflight.
+- **Run 48 — initial attempt failed** on GitHub API 403 rate limiting during remote snapshot discovery; the retry passed.
+- **Run 50 — green**: authenticated GitHub snapshot discovery fix.
+- **Run 52 — green**: restored legacy coverage/entity-resolution semantics plus expanded preflight.
+- **Run 53 — green**: Node24-compatible Actions (`checkout@v6`, `setup-python@v7`).
+- **Run 54 — green**: GitHub-token regression test plus expanded preflight.
+
+The latest three completed preflight runs (52, 53, 54) are green.
+
 ## Promotion gates
 
 A future promotion decision requires real evidence for:
@@ -99,14 +116,13 @@ A future promotion decision requires real evidence for:
 6. A controlled validation import is independently reviewed and verified idempotent.
 7. An explicit human decision to wire the feature into the live decision chain.
 
+The read-only PIT gates are now green. Gate 6 remains intentionally opt-in because
+the repository workflow must be provided an explicitly validated validation-only
+`DATABASE_URL`; this branch does not assume that an unreviewed repository secret
+is safe to use. No production database write is performed by CI by default.
+
 A green read-only workflow is not, by itself, evidence that production promotion
-is safe. No validation-DB import is enabled by default.
-
-## CI streak
-
-- **Run 46 — green**: expanded 10-cutoff PIT preflight.
-- **Run 47 — green**: same expanded preflight on the documented-clean state.
-- **Run 48 — required**: final consecutive-green run after this documentation-only status update.
+is safe.
 
 ## Commands
 
@@ -131,12 +147,14 @@ python scripts/audit_availability_pit.py \
 
 ### Controlled validation-DB import
 
-Only run this after the gates above are independently reviewed:
+Only run this after the gates above are independently reviewed and an explicit
+validation-only `DATABASE_URL` is confirmed:
 
 ```bash
 python scripts/materialize_availability_pit.py \
   --from-verified-deadlines \
   --season-code 2024-25 --season-code 2025-26 \
   --gw-min 1 --gw-max 5 \
+  --cache-root data/fplcache_pit \
   --import --commit --evaluate
 ```
