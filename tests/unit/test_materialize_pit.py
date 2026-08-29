@@ -17,6 +17,7 @@ from fpl_intelligence.availability.historical.pit_fplcache import (
     PointInTimeFPLCacheAvailabilityProvider,
     SnapshotRef,
 )
+from fpl_intelligence.availability.historical.temporal import AvailabilityTimestamps
 
 
 def _write_snapshot(root: Path, captured_at: datetime, elements: list[dict]) -> Path:
@@ -94,20 +95,13 @@ def test_normalizer_preserves_provider_status_when_valid() -> None:
         "event_type": "fitness",
         "status": "questionable",
         "description": "chance_of_playing_this_round=50",
-        "timestamps": SnapshotRef(  # type: ignore[arg-type]
-            captured, Path("/tmp/x")
+        "timestamps": AvailabilityTimestamps(
+            event_time=None,
+            published_at=captured,
+            available_at=captured,
+            ingested_at=captured,
         ),
     }
-    # Build a proper timestamps object via the provider path.
-    root = Path("/tmp")  # unused; we construct event dict manually
-    from fpl_intelligence.availability.historical.temporal import AvailabilityTimestamps
-
-    raw["timestamps"] = AvailabilityTimestamps(
-        event_time=None,
-        published_at=captured,
-        available_at=captured,
-        ingested_at=captured,
-    )
     norm = normalize_event(raw)
     assert norm["status"] == "questionable"
     assert norm["event_type"] == "fitness"
