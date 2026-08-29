@@ -1,13 +1,6 @@
 name: Locked 2025-26 Holdout Evaluation
 
 on:
-  push:
-    branches:
-      - feature/intelligence-validation
-    paths:
-      - scripts/backfill_holdout_2025_26.py
-      - scripts/evaluate_locked_holdout.py
-      - .github/workflows/holdout-evaluation.yml
   workflow_dispatch:
 
 permissions:
