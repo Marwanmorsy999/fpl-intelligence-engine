@@ -16,10 +16,11 @@ import hashlib
 import sys
 from collections import defaultdict
 from datetime import datetime
+from pathlib import Path
 
 from sqlalchemy import func, select
 
-sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from fpl_intelligence.db.models import Fixture, Season, TeamExternalId, TeamMatchPerformance  # noqa: E402
 from fpl_intelligence.db.session import validation_session_factory  # noqa: E402
@@ -62,7 +63,7 @@ def _base_counts(db) -> dict[str, int]:
 
 
 def _ensure_team_match_layer(db, provider: RealFPLProvider, season_id: int) -> dict[str, int]:
-    """Add missing canonical team-match rows; never updates existing rows."""
+    """Add missing canonical team-match rows; never update existing rows."""
     fpl_stats = RealFootballStatsProvider(provider)
     provider_fixtures = list(provider.get_fixtures(HOLDOUT))
     provider_fixture_by_id = {str(row["provider_fixture_id"]): row for row in provider_fixtures}
@@ -111,6 +112,7 @@ def _ensure_team_match_layer(db, provider: RealFPLProvider, season_id: int) -> d
                 raise RuntimeError(f"no canonical fixture mapping for provider fixture {provider_fixture_id}")
             if (canonical_team_id, fixture_id) in existing:
                 continue
+
             provider_fixture = provider_fixture_by_id.get(provider_fixture_id)
             if provider_fixture is None:
                 raise RuntimeError(f"provider fixture {provider_fixture_id} missing from fixture source")
