@@ -1,6 +1,9 @@
 name: Historical Model Validation
 
 on:
+  push:
+    branches:
+      - feature/intelligence-validation
   workflow_dispatch:
     inputs:
       validation_target:
@@ -27,7 +30,7 @@ jobs:
     timeout-minutes: 90
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      VALIDATION_TARGET: ${{ inputs.validation_target }}
+      VALIDATION_TARGET: ${{ inputs.validation_target || 'all' }}
     steps:
       - name: Checkout selected validation branch
         uses: actions/checkout@v7
@@ -40,18 +43,21 @@ jobs:
       - name: Install declared dependencies
         run: python -m pip install ".[dev]"
 
+      - name: Run Team Strength unit tests
+        run: python -m pytest tests/unit/test_team_strength_engine.py -q
+
       - name: Read-only preflight
         run: python scripts/preflight_minutes_validation.py
 
       - name: Validate minutes walk-forward
-        if: ${{ inputs.validation_target == 'minutes' || inputs.validation_target == 'all' }}
+        if: ${{ inputs.validation_target == 'minutes' || inputs.validation_target == 'all' || github.event_name == 'push' }}
         run: |
           python scripts/evaluate_minutes_walkforward.py --report docs/STAGE_2A_MINUTES_VALIDATION.md
           python scripts/evaluate_minutes_walkforward.py --report /tmp/STAGE_2A_MINUTES_VALIDATION.rerun.md
           cmp -- docs/STAGE_2A_MINUTES_VALIDATION.md /tmp/STAGE_2A_MINUTES_VALIDATION.rerun.md
 
       - name: Validate team strength
-        if: ${{ inputs.validation_target == 'team_strength' || inputs.validation_target == 'all' }}
+        if: ${{ inputs.validation_target == 'team_strength' || inputs.validation_target == 'all' || github.event_name == 'push' }}
         run: |
           python scripts/evaluate_team_strength.py
           python scripts/evaluate_team_strength.py --output /tmp/stage-2b1-evaluation.rerun.json
@@ -98,17 +104,17 @@ jobs:
           PY
 
       - name: Upload minutes validation report
-        if: ${{ inputs.validation_target == 'minutes' || inputs.validation_target == 'all' }}
+        if: ${{ inputs.validation_target == 'minutes' || inputs.validation_target == 'all' || github.event_name == 'push' }}
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ inputs.report_name }}-minutes
+          name: ${{ inputs.report_name || 'historical-model-validation' }}-minutes
           if-no-files-found: error
           path: docs/STAGE_2A_MINUTES_VALIDATION.md
 
       - name: Upload team-strength validation report
-        if: ${{ inputs.validation_target == 'team_strength' || inputs.validation_target == 'all' }}
+        if: ${{ inputs.validation_target == 'team_strength' || inputs.validation_target == 'all' || github.event_name == 'push' }}
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ inputs.report_name }}-team-strength
+          name: ${{ inputs.report_name || 'historical-model-validation' }}-team-strength
           if-no-files-found: error
           path: data/experiments/team_strength/stage-2b1-evaluation.json
