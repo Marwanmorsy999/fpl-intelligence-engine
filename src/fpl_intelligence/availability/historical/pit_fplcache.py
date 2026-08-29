@@ -21,8 +21,8 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from fpl_intelligence.availability.historical.event_types import parse_event_type
-from fpl_intelligence.availability.historical.temporal import AvailabilityTimestamps
 from fpl_intelligence.availability.historical.providers import HistoricalAvailabilityProvider
+from fpl_intelligence.availability.historical.temporal import AvailabilityTimestamps
 
 
 FPLCACHE_REPO = "Randdalf/fplcache"
@@ -38,17 +38,7 @@ class SnapshotRef:
 
 
 class PointInTimeFPLCacheAvailabilityProvider(HistoricalAvailabilityProvider):
-    """REAL point-in-time availability provider backed by fplcache snapshots.
-
-    The source is the public ``Randdalf/fplcache`` repository, which documents
-    that FPL ``bootstrap-static`` snapshots are cached four times per day in
-    ``cache/{year}/{month}/{day}/{time}.json.xz``. The filename timestamp is
-    treated as the information-availability time for the snapshot.
-
-    The provider emits only flagged / non-default availability states. It does
-    not infer an injury from a missed match. It preserves the FPL status,
-    chance-of-playing values and current news text as the raw signal.
-    """
+    """REAL point-in-time availability provider backed by fplcache snapshots."""
 
     environment = "real"
 
@@ -76,47 +66,38 @@ class PointInTimeFPLCacheAvailabilityProvider(HistoricalAvailabilityProvider):
     def seasons_covered(self) -> list[str]:
         return self._seasons
 
-    def snapshots_for_window(
-        self,
-        start: datetime,
-        end: datetime,
-    ) -> list[SnapshotRef]:
+    def snapshots_for_window(self, start: datetime, end: datetime) -> list[SnapshotRef]:
         """Return locally materialized snapshots within ``[start, end]``."""
         if start.tzinfo is None or end.tzinfo is None:
             raise ValueError("snapshot window must be timezone-aware")
+        start_utc = start.astimezone(UTC)
+        end_utc = end.astimezone(UTC)
         out: list[SnapshotRef] = []
-        cursor = start.astimezone(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
-        final = end.astimezone(UTC)
-        while cursor <= final:
+        cursor = start_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+        while cursor <= end_utc:
             day_dir = self.snapshot_root / str(cursor.year) / str(cursor.month) / str(cursor.day)
             if day_dir.exists():
                 for path in sorted(day_dir.glob("*.json.xz")):
-                    try:
-                        hour_minute = path.name.removesuffix(".json.xz")
-                        captured = cursor.replace(
-                            hour=int(hour_minute[:2]),
-                            minute=int(hour_minute[2:4]),
-                        )
-                    except (ValueError, IndexError):
+                    stem = path.name.removesuffix(".json.xz")
+                    if len(stem) != 4 or not stem.isdigit():
                         continue
-                    if start <= captured <= end:
+                    try:
+                        captured = cursor.replace(hour=int(stem[:2]), minute=int(stem[2:4]))
+                    except ValueError:
+                        continue
+                    if captured in out:
+                        continue
+                    if start_utc <= captured <= end_utc:
                         out.append(SnapshotRef(captured, path))
             cursor += timedelta(days=1)
         return sorted(out, key=lambda ref: ref.captured_at)
 
-    def latest_before(
-        self,
-        cutoff: datetime,
-        *,
-        search_days: int = 2,
-    ) -> SnapshotRef | None:
+    def latest_before(self, cutoff: datetime, *, search_days: int = 2) -> SnapshotRef | None:
         """Return the latest materialized snapshot not after ``cutoff``."""
         if cutoff.tzinfo is None:
             raise ValueError("cutoff must be timezone-aware")
-        refs = self.snapshots_for_window(
-            cutoff.astimezone(UTC) - timedelta(days=search_days),
-            cutoff.astimezone(UTC),
-        )
+        cutoff_utc = cutoff.astimezone(UTC)
+        refs = self.snapshots_for_window(cutoff_utc - timedelta(days=search_days), cutoff_utc)
         return refs[-1] if refs else None
 
     def load_snapshot(self, ref: SnapshotRef) -> dict[str, Any]:
@@ -145,13 +126,11 @@ class PointInTimeFPLCacheAvailabilityProvider(HistoricalAvailabilityProvider):
             chance_this = _int_or_none(player.get("chance_of_playing_this_round"))
             chance_next = _int_or_none(player.get("chance_of_playing_next_round"))
             news = str(player.get("news") or "").strip()
-
             if _is_default_available(status_code, chance_this, news):
                 continue
 
             status = _map_status(status_code, chance_this)
-            labels = [news, status_code]
-            event_type = parse_event_type(labels) if news else _event_type_from_status(status_code)
+            event_type = parse_event_type([news, status_code]) if news else _event_type_from_status(status_code)
             description = news or _chance_description(chance_this)
             provider_event_id = f"{captured.isoformat()}:{season}:{player_id}"
             timestamps = AvailabilityTimestamps(
@@ -186,18 +165,12 @@ class PointInTimeFPLCacheAvailabilityProvider(HistoricalAvailabilityProvider):
         return events
 
     def fetch_events(self, season: str) -> list[dict[str, Any]]:
-        """Fetch all flagged events from every locally available snapshot for a season.
-
-        The season mapping is intentionally calendar-based rather than inferred
-        from the current FPL API. This path is primarily used after the ingestion
-        script has materialized deadline-adjacent snapshots into ``snapshot_root``.
-        """
+        """Fetch all flagged events from locally materialized season snapshots."""
         if season in self._cache:
             return self._cache[season]
         season_start, season_end = _season_window(season)
-        refs = self.snapshots_for_window(season_start, season_end)
         events: list[dict[str, Any]] = []
-        for ref in refs:
+        for ref in self.snapshots_for_window(season_start, season_end):
             events.extend(self.events_from_snapshot(season, ref))
         self._cache[season] = events
         return events
