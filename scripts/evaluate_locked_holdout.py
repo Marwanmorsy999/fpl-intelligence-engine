@@ -210,7 +210,7 @@ def _team_holdout(db) -> dict[str, object]:
                 Fixture.away_score.is_not(None),
             )
             .order_by(Fixture.kickoff_time, Fixture.id)
-        ).all()
+        ).all())
     if len(fixtures) != 380:
         raise RuntimeError(f"expected 380 scored holdout fixtures, found {len(fixtures)}")
 
