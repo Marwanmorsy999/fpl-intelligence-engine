@@ -44,8 +44,8 @@ The catalog contains 10 verified cutoffs spanning GW1-GW5 for each season.
 
 ## Expanded read-only PIT evidence
 
-Workflow run 46 exercised all 10 verified cutoffs from the catalog. It found a
-snapshot for every cutoff and materialized **1,659 availability observations**:
+Runs 45 and 46 exercised all 10 verified cutoffs from the catalog. Each run found
+a snapshot for every cutoff and materialized **1,659 availability observations**:
 
 - 2024-25: **793** observations across GW1-GW5.
 - 2025-26: **866** observations across GW1-GW5.
@@ -53,7 +53,8 @@ snapshot for every cutoff and materialized **1,659 availability observations**:
 - **0** missing information timestamps.
 - **0** post-deadline observations.
 
-Run 46 also passed the PIT correctness-lint gate and all 18 targeted unit tests.
+The current PIT preflight also passes targeted correctness lint and all 18
+unit tests, including deadline, chronology, control-group, and audit safeguards.
 
 ## Validation DB evidence observed on 2026-08-29
 
@@ -103,9 +104,9 @@ is safe. No validation-DB import is enabled by default.
 
 ## CI streak
 
-Run 46 is the first clean run after the final validation hardening. Runs 47 and
-48 must also complete successfully before the three-consecutive-green condition
-is declared satisfied.
+- **Run 46 — green**: expanded 10-cutoff PIT preflight.
+- **Run 47 — green**: same expanded preflight on the documented-clean state.
+- **Run 48 — required**: final consecutive-green run after this documentation-only status update.
 
 ## Commands
 
