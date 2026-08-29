@@ -35,6 +35,19 @@ def _fixture_id_to_int(provider_fixture_id: str) -> int:
     return int(hashlib.md5(provider_fixture_id.encode()).hexdigest()[:8], 16) % (10**9)
 
 
+def _canonical_fixture_id_map(db, season_id: int) -> dict[str, int]:
+    """Map the provider fixture ID representation used by the Team Strength source to canonical DB fixtures.
+
+    Historical ingestion stores ``Fixture.provider_fixture_id`` as the deterministic
+    numeric transformation of the provider fixture ID.  The DB value is therefore
+    already canonicalized and must not be hashed a second time.
+    """
+    return {
+        str(f.provider_fixture_id): f.id
+        for f in db.scalars(select(Fixture).where(Fixture.season_id == season_id)).all()
+    }
+
+
 def _base_counts(db) -> dict[str, int]:
     season = db.scalar(select(Season).where(Season.code == HOLDOUT))
     if season is None:
@@ -83,16 +96,7 @@ def _ensure_team_match_layer(db, provider: RealFPLProvider, season_id: int) -> d
         if gw_i not in gw_end or kickoff > gw_end[gw_i]:
             gw_end[gw_i] = kickoff
 
-    # historical._get_or_create_fixture stores hashed numeric IDs, so use the
-    # same canonical transformation when building the provider -> DB mapping.
-    canonical_fixture_ids = {
-        str(f.provider_fixture_id): f.id
-        for f in db.scalars(select(Fixture).where(Fixture.season_id == season_id)).all()
-    }
-    canonical_fixture_by_provider_id = {
-        str(_fixture_id_to_int(provider_fixture_id)): fixture_id
-        for provider_fixture_id, fixture_id in canonical_fixture_ids.items()
-    }
+    canonical_fixture_by_provider_id = _canonical_fixture_id_map(db, season_id)
     team_external_ids = {
         ext.provider_team_id: ext.team_id
         for ext in db.scalars(select(TeamExternalId)).all()
