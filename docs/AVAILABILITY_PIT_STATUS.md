@@ -6,7 +6,7 @@ This branch adds an isolated point-in-time availability path using immutable
 `Randdalf/fplcache` bootstrap snapshots. The snapshot capture timestamp is the
 information-availability timestamp; football event time is never substituted.
 Randdalf/fplcache documents the cache layout as `{year}/{month}/{day}/{time}.json.xz`
-and says it is updated four times daily at six-hour intervals. citeturn218102search1
+and says it is updated four times daily at six-hour intervals. Source: `https://github.com/Randdalf/fplcache`.
 
 ## Safety boundary
 
@@ -29,7 +29,7 @@ and says it is updated four times daily at six-hour intervals. citeturn218
 | Dry-run evaluator | `scripts/evaluate_availability_pit.py` | Implemented |
 | Controlled import | `scripts/materialize_availability_pit.py` | Implemented, opt-in |
 | CI | `.github/workflows/availability-pit.yml` | Implemented |
-| Unit tests | `tests/unit/test_*pit*`, `test_chronological_and_lift.py` | Implemented |
+| Unit tests | `tests/unit/test_pit_fplcache_availability.py`, `test_materialize_pit.py`, `test_chronological_and_lift.py` | Implemented |
 
 ## Promotion gates
 
