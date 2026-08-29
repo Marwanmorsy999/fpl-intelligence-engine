@@ -12,7 +12,7 @@ permissions:
 jobs:
   unit-and-readonly-preflight:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -28,18 +28,26 @@ jobs:
             tests/unit/test_chronological_and_lift.py \
             tests/unit/test_pit_audit.py \
             -q
-      - name: Read-only historical PIT evaluation
+      - name: Read-only multi-gameweek PIT evaluation
         run: |
           python scripts/evaluate_availability_pit.py \
             --cache-root data/fplcache_pit \
-            --cutoff 2024-08-16T16:00:00Z --season 2024-25 --gameweek 1 \
-            --cutoff 2025-08-15T16:00:00Z --season 2025-26 --gameweek 1
+            --cutoff 2024-08-16T17:30:00Z --season 2024-25 --gameweek 1 \
+            --cutoff 2024-08-23T17:30:00Z --season 2024-25 --gameweek 2 \
+            --cutoff 2024-08-31T10:00:00Z --season 2024-25 --gameweek 3 \
+            --cutoff 2024-09-14T10:00:00Z --season 2024-25 --gameweek 4 \
+            --cutoff 2024-09-21T10:00:00Z --season 2024-25 --gameweek 5 \
+            --cutoff 2025-08-15T17:30:00Z --season 2025-26 --gameweek 1 \
+            --cutoff 2025-08-22T17:30:00Z --season 2025-26 --gameweek 2 \
+            --cutoff 2025-08-30T10:00:00Z --season 2025-26 --gameweek 3 \
+            --cutoff 2025-09-13T10:00:00Z --season 2025-26 --gameweek 4 \
+            --cutoff 2025-09-20T10:00:00Z --season 2025-26 --gameweek 5
 
   validation-db-import-gate:
     if: ${{ vars.AVAILABILITY_PIT_ENABLE_IMPORT == 'true' }}
     needs: unit-and-readonly-preflight
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
@@ -53,8 +61,16 @@ jobs:
         run: |
           python scripts/materialize_availability_pit.py \
             --cache-root data/fplcache_pit \
-            --cutoff 2024-08-16T16:00:00Z --season 2024-25 --gameweek 1 \
-            --cutoff 2025-08-15T16:00:00Z --season 2025-26 --gameweek 1 \
+            --cutoff 2024-08-16T17:30:00Z --season 2024-25 --gameweek 1 \
+            --cutoff 2024-08-23T17:30:00Z --season 2024-25 --gameweek 2 \
+            --cutoff 2024-08-31T10:00:00Z --season 2024-25 --gameweek 3 \
+            --cutoff 2024-09-14T10:00:00Z --season 2024-25 --gameweek 4 \
+            --cutoff 2024-09-21T10:00:00Z --season 2024-25 --gameweek 5 \
+            --cutoff 2025-08-15T17:30:00Z --season 2025-26 --gameweek 1 \
+            --cutoff 2025-08-22T17:30:00Z --season 2025-26 --gameweek 2 \
+            --cutoff 2025-08-30T10:00:00Z --season 2025-26 --gameweek 3 \
+            --cutoff 2025-09-13T10:00:00Z --season 2025-26 --gameweek 4 \
+            --cutoff 2025-09-20T10:00:00Z --season 2025-26 --gameweek 5 \
             --import --commit --evaluate
       - name: Validate imported PIT evidence
         run: |
