@@ -27,6 +27,7 @@ jobs:
             tests/unit/test_materialize_pit.py \
             tests/unit/test_chronological_and_lift.py \
             tests/unit/test_pit_audit.py \
+            tests/unit/test_signal_lift_controls.py \
             -q
       - name: Read-only multi-gameweek PIT evaluation
         run: |
