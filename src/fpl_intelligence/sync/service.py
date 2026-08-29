@@ -66,7 +66,13 @@ def _get_or_create_season(db: Session, code: str = DEFAULT_SEASON_CODE) -> Seaso
 
 
 def _get_or_create_gameweek(db: Session, gameweek: int) -> Gameweek:
-    row = db.scalar(select(Gameweek).where(Gameweek.provider_event_id == gameweek))
+    season = _get_or_create_season(db)
+    row = db.scalar(
+        select(Gameweek).where(
+            Gameweek.season_id == season.id,
+            Gameweek.provider_event_id == gameweek,
+        )
+    )
     if row is None:
         row = Gameweek(
             season_id=_get_or_create_season(db).id,

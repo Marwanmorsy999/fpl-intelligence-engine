@@ -182,10 +182,12 @@ class FplEgressChain:
         timeout: float = STRATEGY_TIMEOUT,
         cache_ttl: float = DEFAULT_CACHE_TTL_SECONDS,
         monotonic_clock: Callable[[], float] | None = None,
+        stale_if_error_ttl: float = 900.0,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._timeout = float(timeout)
         self._cache_ttl = float(cache_ttl)
+        self._stale_if_error_ttl = max(0.0, float(stale_if_error_ttl))
         self._now = monotonic_clock or time.monotonic
         self._cache: dict[str, tuple[float, dict[str, Any]]] = {}
         self._winning_strategy: str | None = None
@@ -217,13 +219,19 @@ class FplEgressChain:
         full_path = path if path.startswith("/") else f"/{path}"
         cache_key = full_path
 
+        stale_candidate = None
+        stale_age = None
         if use_cache:
             cached = self._cache.get(cache_key)
             if cached:
                 ts, data = cached
-                if self._now() - ts < self._cache_ttl:
+                age = self._now() - ts
+                if age < self._cache_ttl:
                     logger.debug("fpl_egress: cache hit %s", full_path)
                     return data
+                if age <= self._cache_ttl + self._stale_if_error_ttl:
+                    stale_candidate = data
+                    stale_age = age
 
         url = f"{self._base_url}{full_path}"
         attempts: list[tuple[str, str]] = []
@@ -254,6 +262,10 @@ class FplEgressChain:
             logger.info("fpl_egress: %s -> strategy=%s OK", full_path, name)
             return data
 
+        if stale_candidate is not None:
+            logger.warning("fpl_egress: all strategies failed for %s; serving stale cache age=%.1fs", full_path, stale_age or 0.0)
+            self._winning_strategy = "stale-cache"
+            return stale_candidate
         raise FplEgressExhaustedError(full_path, attempts)
 
     async def fetch_text(
@@ -279,13 +291,19 @@ class FplEgressChain:
         full_path = path if path.startswith("/") else f"/{path}"
         cache_key = f"text:{full_path}"
 
+        stale_candidate = None
+        stale_age = None
         if use_cache:
             cached = self._cache.get(cache_key)
             if cached:
                 ts, data = cached
-                if self._now() - ts < self._cache_ttl:
+                age = self._now() - ts
+                if age < self._cache_ttl:
                     logger.debug("fpl_egress: text cache hit %s", full_path)
                     return data
+                if age <= self._cache_ttl + self._stale_if_error_ttl:
+                    stale_candidate = data
+                    stale_age = age
 
         url = f"{self._base_url}{full_path}"
 
@@ -327,10 +345,10 @@ class FplEgressChain:
 
         strategies: list[tuple[str, Callable[[str], Any]]] = [
             ("direct", self._direct_text),
+            ("env_proxy", _env_proxy_text),
             ("allorigins", _allorigins_text),
             ("corsproxy", _corsproxy_text),
             ("codetabs", _codetabs_text),
-            ("env_proxy", _env_proxy_text),
         ]
 
         attempts: list[tuple[str, str]] = []
@@ -354,6 +372,10 @@ class FplEgressChain:
             logger.info("fpl_egress: %s -> strategy=%s OK (text)", full_path, name)
             return text
 
+        if stale_candidate is not None:
+            logger.warning("fpl_egress: all text strategies failed for %s; serving stale cache age=%.1fs", full_path, stale_age or 0.0)
+            self._winning_strategy = "stale-cache"
+            return stale_candidate
         raise FplEgressExhaustedError(full_path, attempts)
 
     async def fetch_with_client(
@@ -418,10 +440,10 @@ class FplEgressChain:
 
     def _mask_strategies(self) -> list[tuple[str, Callable[[str], Any]]]:
         return [
+            ("env_proxy", self._env_proxy),
             ("allorigins", self._allorigins),
             ("corsproxy", self._corsproxy),
             ("codetabs", self._codetabs),
-            ("env_proxy", self._env_proxy),
         ]
 
     async def _direct(self, url: str) -> Any:

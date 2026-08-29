@@ -1,3 +1,5 @@
+import os
+
 from collections.abc import Generator
 
 from sqlalchemy import create_engine, event
@@ -21,6 +23,10 @@ def _normalize_postgres_driver(url: str) -> str:
     return url
 
 
+def _is_production_runtime() -> bool:
+    return settings.app_env.lower() == "production" or os.getenv("VERCEL") == "1" or os.getenv("VERCEL_ENV") == "production"
+
+
 def _effective_database_url() -> str:
     """Resolve the single source-of-truth DATABASE_URL with a graceful dev fallback.
 
@@ -30,9 +36,12 @@ def _effective_database_url() -> str:
     file so development keeps working with zero configuration. Production always
     requires an explicit DATABASE_URL.
     """
-    url = settings.database_url
-    if url == _DEFAULT_PG_PLACEHOLDER and settings.app_env != "production":
-        return _DEFAULT_DEV_SQLITE
+    url = settings.database_url.strip()
+    if url == _DEFAULT_PG_PLACEHOLDER or url.startswith("sqlite"):
+        if _is_production_runtime():
+            raise RuntimeError("Production requires an explicit PostgreSQL DATABASE_URL; SQLite/dev fallback is disabled.")
+        if url == _DEFAULT_PG_PLACEHOLDER:
+            return _DEFAULT_DEV_SQLITE
     return _normalize_postgres_driver(url)
 
 

@@ -15,6 +15,10 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Iterable
 
+from fpl_intelligence.availability.historical.pit_contract import (
+    validate_import_result,
+    validate_pit_events,
+)
 from fpl_intelligence.availability.historical.pit_fplcache import (
     FPLCACHE_RAW_BASE,
     PointInTimeFPLCacheAvailabilityProvider,
@@ -111,7 +115,9 @@ def _snapshot_files(day: date) -> list[tuple[datetime, str]]:
         if not name.endswith(".json.xz") or len(stem) != 4 or not stem.isdigit():
             continue
         try:
-            captured = datetime(day.year, day.month, day.day, int(stem[:2]), int(stem[2:]), tzinfo=UTC)
+            captured = datetime(
+                day.year, day.month, day.day, int(stem[:2]), int(stem[2:]), tzinfo=UTC
+            )
         except ValueError:
             continue
         out.append((captured, f"{FPLCACHE_RAW_BASE}/{day.year}/{day.month}/{day.day}/{name}"))
@@ -147,7 +153,13 @@ def download_snapshot(url: str, dest: Path) -> None:
     dest.write_bytes(data)
 
 
-def ensure_snapshot(root: Path, cutoff: datetime, *, search_days: int = 3, force: bool = False) -> tuple[SnapshotRef, str, bool] | None:
+def ensure_snapshot(
+    root: Path,
+    cutoff: datetime,
+    *,
+    search_days: int = 3,
+    force: bool = False,
+) -> tuple[SnapshotRef, str, bool] | None:
     remote = latest_remote_before(cutoff, search_days=search_days)
     if remote is None:
         return None
@@ -159,7 +171,13 @@ def ensure_snapshot(root: Path, cutoff: datetime, *, search_days: int = 3, force
     return SnapshotRef(captured, path), url, downloaded
 
 
-def materialize_cutoffs(root: Path, cutoffs: Iterable[DeadlineCutoff], *, search_days: int = 3, force: bool = False) -> MaterializeReport:
+def materialize_cutoffs(
+    root: Path,
+    cutoffs: Iterable[DeadlineCutoff],
+    *,
+    search_days: int = 3,
+    force: bool = False,
+) -> MaterializeReport:
     provider = PointInTimeFPLCacheAvailabilityProvider(root)
     report = MaterializeReport()
     for cutoff in cutoffs:
@@ -171,8 +189,20 @@ def materialize_cutoffs(root: Path, cutoffs: Iterable[DeadlineCutoff], *, search
         report.downloaded += int(downloaded)
         report.reused += int(not downloaded)
         payload = provider.load_snapshot(ref)
-        events = provider.events_from_snapshot(cutoff.season_code, ref, gameweek=cutoff.gameweek)
-        report.snapshots.append(MaterializedSnapshot(cutoff, ref.captured_at, ref.path, url, len(payload["elements"]), len(events), events))
+        events = provider.events_from_snapshot(
+            cutoff.season_code, ref, gameweek=cutoff.gameweek
+        )
+        report.snapshots.append(
+            MaterializedSnapshot(
+                cutoff,
+                ref.captured_at,
+                ref.path,
+                url,
+                len(payload["elements"]),
+                len(events),
+                events,
+            )
+        )
         report.event_count += len(events)
     return report
 
@@ -203,15 +233,36 @@ class _StaticEventProvider:
         return list(self._events.get(season, []))
 
 
-def import_materialized(db: Any, report: MaterializeReport, *, strict_backtest_safe: bool = True) -> dict[str, Any]:
-    """Import materialized events through the canonical append-only importer."""
+def import_materialized(
+    db: Any,
+    report: MaterializeReport,
+    *,
+    strict_backtest_safe: bool = True,
+) -> dict[str, Any]:
+    """Validate and import materialized events through the canonical importer."""
     from fpl_intelligence.availability.historical.importer import import_historical_availability
 
     by_season: dict[str, list[dict[str, Any]]] = {}
+    all_events: list[dict[str, Any]] = []
+    cutoffs: dict[tuple[str, int | None], datetime] = {}
     for snapshot in report.snapshots:
         by_season.setdefault(snapshot.cutoff.season_code, []).extend(snapshot.events)
+        all_events.extend(snapshot.events)
+        cutoffs[(snapshot.cutoff.season_code, snapshot.cutoff.gameweek)] = snapshot.cutoff.cutoff
+
+    pit_contract = validate_pit_events(all_events, cutoffs=cutoffs)
     provider = _StaticEventProvider(by_season)
-    result = import_historical_availability(db, provider, list(by_season), strict_backtest_safe=strict_backtest_safe)
+    result = import_historical_availability(
+        db,
+        provider,
+        list(by_season),
+        strict_backtest_safe=strict_backtest_safe,
+    )
+    import_contract = validate_import_result(result)
     report.dry_run = False
-    report.import_result = result.to_dict()
+    report.import_result = {
+        **result.to_dict(),
+        "pit_contract": pit_contract,
+        "import_contract": import_contract,
+    }
     return report.import_result
