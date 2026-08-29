@@ -23,7 +23,7 @@ from sqlalchemy import func, select
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from fpl_intelligence.db.models import Fixture, Season, TeamExternalId, TeamMatchPerformance  # noqa: E402
-from fpl_intelligence.db.session import validation_session_factory  # noqa: E402
+from fpl_intelligence.db.session import validation_session_factory, writable_validation_session_factory  # noqa: E402
 from fpl_intelligence.ingestion.historical import import_season  # noqa: E402
 from fpl_intelligence.providers.real_fpl import RealFPLProvider  # noqa: E402
 from fpl_intelligence.providers.real_football_stats import RealFootballStatsProvider  # noqa: E402
@@ -197,7 +197,9 @@ def main() -> int:
     parser.add_argument("--verify-only", action="store_true")
     args = parser.parse_args()
 
-    session_factory = validation_session_factory()
+    session_factory = (
+        validation_session_factory() if args.verify_only else writable_validation_session_factory()
+    )
     provider = RealFPLProvider(seasons=[HOLDOUT])
     with session_factory() as db:
         season = db.scalar(select(Season).where(Season.code == HOLDOUT))
