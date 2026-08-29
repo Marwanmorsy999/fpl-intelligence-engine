@@ -1,14 +1,4 @@
-"""Evaluate frozen Minutes and Team Strength candidates on the locked 2025-26 holdout.
-
-Rules enforced here:
-- 2025-26 observations are evaluation-only and are never used to fit model
-  parameters, choose hyperparameters, select features, or calibrate.
-- Minutes parameters are fitted only from development seasons.
-- Team Strength uses the frozen EWMA method; historical prior observations may
-  be consumed chronologically, but no model-selection decision is made from the
-  holdout.
-- The report is deterministic so a second run can be byte-compared.
-"""
+"""Evaluate frozen Minutes and Team Strength candidates on locked 2025-26."""
 
 from __future__ import annotations
 
@@ -20,17 +10,30 @@ from collections import defaultdict
 from pathlib import Path
 from statistics import mean
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from fpl_intelligence.backtesting.cutoff import get_all_gameweek_cutoffs  # noqa: E402
-from fpl_intelligence.config.holdout import DEVELOPMENT_SEASONS, FINAL_HOLDOUT_SEASONS, HoldoutMode, enforce_holdout  # noqa: E402
-from fpl_intelligence.db.models import Fixture, Gameweek, PlayerGameweekPerformance, Season  # noqa: E402
+from fpl_intelligence.config.holdout import (  # noqa: E402
+    DEFAULT_SEASON_SPLIT,
+    DEVELOPMENT_SEASONS,
+    FINAL_HOLDOUT_SEASONS,
+    HoldoutMode,
+)
+from fpl_intelligence.db.models import (  # noqa: E402
+    Fixture,
+    Gameweek,
+    PlayerGameweekPerformance,
+    Season,
+)
 from fpl_intelligence.db.session import validation_session_factory  # noqa: E402
 from fpl_intelligence.features.temporal import DEFAULT_POLICY  # noqa: E402
 from fpl_intelligence.prediction.minutes import SimpleRecentMinutesBaseline  # noqa: E402
-from fpl_intelligence.prediction.minutes_validation_fast import FastMinutesWalkForwardEvaluator  # noqa: E402
+from fpl_intelligence.prediction.minutes_validation_fast import (  # noqa: E402
+    FastMinutesWalkForwardEvaluator,
+    _PerfRow,
+)
 from fpl_intelligence.prediction.team_strength_engine import TeamStrengthEngine  # noqa: E402
 
 HOLDOUT = FINAL_HOLDOUT_SEASONS[0]
@@ -46,9 +49,7 @@ def _logloss(probability: float, actual: int) -> float:
 
 
 def _minutes_holdout(db) -> dict[str, object]:
-    # Build development folds with the exact same feature construction as the
-    # validated Stage 2A evaluator, then fit ONE frozen model on the final
-    # development training prefix. No holdout target enters this fit.
+    """Fit Minutes only on development data and score frozen parameters on holdout."""
     dev_cutoffs = []
     for season in DEVELOPMENT_SEASONS:
         dev_cutoffs.extend(get_all_gameweek_cutoffs(db, season, policy=DEFAULT_POLICY))
@@ -58,8 +59,9 @@ def _minutes_holdout(db) -> dict[str, object]:
 
     evaluator = FastMinutesWalkForwardEvaluator(db, feature_version="2.0.0")
     dev_datasets = evaluator._build_datasets_once(dev_cutoffs)
-    train_datasets = dev_datasets[INITIAL_TRAIN_FOLDS:]
-    model = evaluator._fit_model(train_datasets)
+    # The first three folds are warm-up folds during walk-forward scoring, but
+    # they are still legitimate historical training data for the final frozen fit.
+    model = evaluator._fit_model(dev_datasets)
 
     holdout_cutoffs = get_all_gameweek_cutoffs(db, HOLDOUT, policy=DEFAULT_POLICY)
     holdout_cutoffs.sort(key=lambda c: c.cutoff_time)
@@ -86,20 +88,35 @@ def _minutes_holdout(db) -> dict[str, object]:
             PlayerGameweekPerformance.available_at.is_not(None),
             PlayerGameweekPerformance.ingested_at.is_not(None),
         )
+        .order_by(
+            PlayerGameweekPerformance.player_id,
+            Gameweek.provider_event_id,
+            PlayerGameweekPerformance.gameweek_id,
+        )
     )
     raw = db.execute(stmt).all()
-    histories: dict[int, list] = defaultdict(list)
+    histories: dict[int, list[_PerfRow]] = defaultdict(list)
     target_rows: dict[int, dict[int, float]] = defaultdict(dict)
     for row in raw:
-        histories[int(row.player_id)].append(row)
+        perf = _PerfRow(
+            player_id=int(row.player_id),
+            gameweek_id=int(row.gameweek_id),
+            minutes=float(row.minutes) if row.minutes is not None else None,
+            total_points=float(row.total_points) if row.total_points is not None else None,
+            goals_scored=float(row.goals_scored) if row.goals_scored is not None else None,
+            assists=float(row.assists) if row.assists is not None else None,
+            available_at=row.available_at,
+            ingested_at=row.ingested_at,
+        )
+        histories[perf.player_id].append(perf)
         if row.code == HOLDOUT and row.minutes is not None:
             target_rows[int(row.provider_event_id)][int(row.player_id)] = float(row.minutes)
 
     for rows in histories.values():
-        rows.sort(key=lambda r: ((r.available_at or r.ingested_at), r.ingested_at, r.gameweek_id))
+        rows.sort(key=lambda r: (r.available_at, r.ingested_at, r.gameweek_id))
 
-    candidate_rows: list[tuple[float, float, int, int, float]] = []
-    baseline_rows: list[tuple[float, float, int, int, float]] = []
+    candidate_rows: list[tuple[float, float, int, float]] = []
+    baseline_rows: list[tuple[float, float, int, float]] = []
     folds: list[dict[str, object]] = []
     excluded = 0
 
@@ -110,22 +127,14 @@ def _minutes_holdout(db) -> dict[str, object]:
             eligible = [
                 row
                 for row in histories.get(player_id, [])
-                if row.available_at <= cutoff.cutoff_time and row.ingested_at <= cutoff.cutoff_time
+                if row.available_at <= cutoff.cutoff_time
+                and row.ingested_at <= cutoff.cutoff_time
+                and row.available_at < row.ingested_at + __import__("datetime").timedelta(days=36500)
             ]
             if not eligible:
                 excluded += 1
                 continue
-            features[player_id] = evaluator._feature_builder(
-                [
-                    type("Perf", (), {
-                        "minutes": row.minutes,
-                        "total_points": row.total_points,
-                        "goals_scored": row.goals_scored,
-                        "assists": row.assists,
-                    })()
-                    for row in eligible
-                ]
-            )
+            features[player_id] = evaluator._feature_builder(eligible)
 
         predictions = model.predict_batch(
             features,
@@ -134,46 +143,41 @@ def _minutes_holdout(db) -> dict[str, object]:
         )
         baseline = SimpleRecentMinutesBaseline().predict_batch(features, cutoff)
         for player_id, actual in targets.items():
-            if player_id not in predictions:
+            pred = predictions.get(player_id)
+            base = baseline.get(player_id)
+            if pred is None or base is None:
                 continue
-            pred = predictions[player_id]
-            base = baseline[player_id]
             started = int(actual >= 60)
-            appeared = int(actual > 0)
-            sixty = int(actual >= 60)
             candidate_rows.append(
-                (
-                    float(pred["expected_minutes"]),
-                    actual,
-                    started,
-                    appeared,
-                    float(pred["probability_starting"]),
-                )
+                (float(pred["expected_minutes"]), actual, started, float(pred["probability_starting"]))
             )
             baseline_rows.append(
-                (
-                    float(base["expected_minutes"]),
-                    actual,
-                    started,
-                    appeared,
-                    float(base["probability_starting"]),
-                )
+                (float(base["expected_minutes"]), actual, started, float(base["probability_starting"]))
             )
-        folds.append({"gameweek": cutoff.gameweek, "cutoff": cutoff.cutoff_time.isoformat(), "n": len(targets)})
+        folds.append(
+            {
+                "gameweek": cutoff.gameweek,
+                "cutoff": cutoff.cutoff_time.isoformat(),
+                "n_targets": len(targets),
+                "n_evaluated": sum(1 for player_id in targets if player_id in predictions),
+            }
+        )
 
-    def metrics(rows: list[tuple[float, float, int, int, float]]) -> dict[str, float | int]:
+    def metrics(rows: list[tuple[float, float, int, float]]) -> dict[str, float | int]:
         if not rows:
             raise RuntimeError("no evaluable holdout Minutes rows")
         return {
             "n": len(rows),
             "mae": round(mean(abs(pred - actual) for pred, actual, *_ in rows), 6),
             "rmse": round(math.sqrt(mean((pred - actual) ** 2 for pred, actual, *_ in rows)), 6),
-            "start_brier": round(mean((prob - started) ** 2 for *_prefix, prob in rows for started in [_prefix[1]]), 6),
-            "start_log_loss": round(mean(_logloss(prob, started) for pred, actual, started, appeared, prob in rows), 6),
+            "start_brier": round(
+                mean((prob - started) ** 2 for pred, actual, started, prob in rows), 6
+            ),
+            "start_log_loss": round(
+                mean(_logloss(prob, started) for pred, actual, started, prob in rows), 6
+            ),
         }
 
-    # The MAE/start-Brier comparison is descriptive on holdout; it does not
-    # alter the frozen model selection decision.
     candidate_metrics = metrics(candidate_rows)
     baseline_metrics = metrics(baseline_rows)
     return {
@@ -182,7 +186,7 @@ def _minutes_holdout(db) -> dict[str, object]:
         "feature_version": "2.0.0",
         "training_seasons": list(DEVELOPMENT_SEASONS),
         "holdout_season": HOLDOUT,
-        "training_rows": sum(len(dataset.targets) for _, dataset in train_datasets),
+        "training_rows": sum(len(dataset.targets) for _, dataset in dev_datasets),
         "excluded_target_rows_without_history": excluded,
         "candidate": candidate_metrics,
         "baseline_recent_minutes": baseline_metrics,
@@ -194,6 +198,7 @@ def _minutes_holdout(db) -> dict[str, object]:
 
 
 def _team_holdout(db) -> dict[str, object]:
+    """Evaluate frozen EWMA chronologically on 2025-26."""
     season = db.scalar(select(Season).where(Season.code == HOLDOUT))
     if season is None:
         raise RuntimeError("2025-26 holdout season is missing")
@@ -211,39 +216,62 @@ def _team_holdout(db) -> dict[str, object]:
     if len(fixtures) != 380:
         raise RuntimeError(f"expected 380 scored holdout fixtures, found {len(fixtures)}")
 
-    # Include development history and chronological holdout observations. The
-    # method itself is frozen; the prior window can update only with observations
-    # whose event/availability time is before the fixture cutoff.
     engine = TeamStrengthEngine.from_db(db, season_codes=[*DEVELOPMENT_SEASONS, HOLDOUT])
     candidate_rows = []
     baseline_rows = []
     for fixture in fixtures:
         cutoff = fixture.kickoff_time
         assert cutoff is not None
-        home = engine.estimate(fixture.home_team_id, cutoff, method=TEAM_METHOD, window=TEAM_WINDOW, decay=TEAM_DECAY)
-        away = engine.estimate(fixture.away_team_id, cutoff, method=TEAM_METHOD, window=TEAM_WINDOW, decay=TEAM_DECAY)
+        home = engine.estimate(
+            fixture.home_team_id, cutoff, method=TEAM_METHOD, window=TEAM_WINDOW, decay=TEAM_DECAY
+        )
+        away = engine.estimate(
+            fixture.away_team_id, cutoff, method=TEAM_METHOD, window=TEAM_WINDOW, decay=TEAM_DECAY
+        )
         pred = engine.fixture_probability(fixture.id, cutoff, home, away)
         actual_home = int(fixture.home_score or 0)
         actual_away = int(fixture.away_score or 0)
-        result_prob = pred.home_win_probability if actual_home > actual_away else pred.away_win_probability if actual_home < actual_away else pred.draw_probability
-        candidate_rows.append({
-            "mae": (abs(pred.expected_home_goals - actual_home) + abs(pred.expected_away_goals - actual_away)) / 2,
-            "sq": ((pred.expected_home_goals - actual_home) ** 2 + (pred.expected_away_goals - actual_away) ** 2) / 2,
-            "result_ll": _logloss(result_prob, 1),
-            "home_brier": (pred.home_win_probability - int(actual_home > actual_away)) ** 2,
-            "home_cs_brier": (pred.home_clean_sheet_probability - int(actual_away == 0)) ** 2,
-        })
-        baseline_home = engine.estimate(fixture.home_team_id, cutoff, method="rolling_goals", window=TEAM_WINDOW, decay=TEAM_DECAY)
-        baseline_away = engine.estimate(fixture.away_team_id, cutoff, method="rolling_goals", window=TEAM_WINDOW, decay=TEAM_DECAY)
+        actual_result = 1 if actual_home > actual_away else -1 if actual_home < actual_away else 0
+        result_prob = (
+            pred.home_win_probability
+            if actual_result == 1
+            else pred.away_win_probability
+            if actual_result == -1
+            else pred.draw_probability
+        )
+        candidate_rows.append(
+            {
+                "mae": (abs(pred.expected_home_goals - actual_home) + abs(pred.expected_away_goals - actual_away)) / 2,
+                "sq": ((pred.expected_home_goals - actual_home) ** 2 + (pred.expected_away_goals - actual_away) ** 2) / 2,
+                "result_ll": _logloss(result_prob, 1),
+                "home_brier": (pred.home_win_probability - int(actual_result == 1)) ** 2,
+                "home_cs_brier": (pred.home_clean_sheet_probability - int(actual_away == 0)) ** 2,
+            }
+        )
+
+        baseline_home = engine.estimate(
+            fixture.home_team_id, cutoff, method="rolling_goals", window=TEAM_WINDOW, decay=TEAM_DECAY
+        )
+        baseline_away = engine.estimate(
+            fixture.away_team_id, cutoff, method="rolling_goals", window=TEAM_WINDOW, decay=TEAM_DECAY
+        )
         base_pred = engine.fixture_probability(fixture.id, cutoff, baseline_home, baseline_away)
-        base_result_prob = base_pred.home_win_probability if actual_home > actual_away else base_pred.away_win_probability if actual_home < actual_away else base_pred.draw_probability
-        baseline_rows.append({
-            "mae": (abs(base_pred.expected_home_goals - actual_home) + abs(base_pred.expected_away_goals - actual_away)) / 2,
-            "sq": ((base_pred.expected_home_goals - actual_home) ** 2 + (base_pred.expected_away_goals - actual_away) ** 2) / 2,
-            "result_ll": _logloss(base_result_prob, 1),
-            "home_brier": (base_pred.home_win_probability - int(actual_home > actual_away)) ** 2,
-            "home_cs_brier": (base_pred.home_clean_sheet_probability - int(actual_away == 0)) ** 2,
-        })
+        base_result_prob = (
+            base_pred.home_win_probability
+            if actual_result == 1
+            else base_pred.away_win_probability
+            if actual_result == -1
+            else base_pred.draw_probability
+        )
+        baseline_rows.append(
+            {
+                "mae": (abs(base_pred.expected_home_goals - actual_home) + abs(base_pred.expected_away_goals - actual_away)) / 2,
+                "sq": ((base_pred.expected_home_goals - actual_home) ** 2 + (base_pred.expected_away_goals - actual_away) ** 2) / 2,
+                "result_ll": _logloss(base_result_prob, 1),
+                "home_brier": (base_pred.home_win_probability - int(actual_result == 1)) ** 2,
+                "home_cs_brier": (base_pred.home_clean_sheet_probability - int(actual_away == 0)) ** 2,
+            }
+        )
 
     def metrics(rows: list[dict[str, float]]) -> dict[str, float | int]:
         return {
@@ -281,7 +309,10 @@ def main() -> int:
     parser.add_argument("--output", default="data/experiments/holdout/2025-26-frozen-evaluation.json")
     args = parser.parse_args()
 
-    enforce_holdout(season=HOLDOUT, mode=HoldoutMode.FINAL_HOLDOUT_EVALUATION)
+    DEFAULT_SEASON_SPLIT.validate_observation(
+        season=HOLDOUT,
+        mode=HoldoutMode.FINAL_HOLDOUT_EVALUATION,
+    )
     with validation_session_factory()() as db:
         season = db.scalar(select(Season).where(Season.code == HOLDOUT))
         if season is None:
@@ -292,6 +323,7 @@ def main() -> int:
                 "holdout_season": HOLDOUT,
                 "development_seasons": list(DEVELOPMENT_SEASONS),
                 "model_selection_frozen": True,
+                "evaluation_read_only": True,
             },
             "minutes": _minutes_holdout(db),
             "team_strength": _team_holdout(db),
