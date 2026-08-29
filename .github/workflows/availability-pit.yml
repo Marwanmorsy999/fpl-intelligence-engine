@@ -12,7 +12,7 @@ permissions:
 jobs:
   unit-and-readonly-preflight:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -20,6 +20,23 @@ jobs:
           python-version: "3.12"
       - name: Install project
         run: python -m pip install ".[dev]"
+      - name: PIT lint
+        run: |
+          python -m ruff check \
+            src/fpl_intelligence/availability/historical/pit_fplcache.py \
+            src/fpl_intelligence/availability/historical/deadlines.py \
+            src/fpl_intelligence/availability/historical/materialize_pit.py \
+            src/fpl_intelligence/availability/historical/chronological.py \
+            src/fpl_intelligence/availability/historical/signal_lift.py \
+            src/fpl_intelligence/availability/historical/pit_audit.py \
+            scripts/evaluate_availability_pit.py \
+            scripts/materialize_availability_pit.py \
+            scripts/audit_availability_pit.py \
+            tests/unit/test_pit_fplcache_availability.py \
+            tests/unit/test_materialize_pit.py \
+            tests/unit/test_chronological_and_lift.py \
+            tests/unit/test_pit_audit.py \
+            tests/unit/test_signal_lift_controls.py
       - name: PIT unit tests
         run: |
           python -m pytest \
