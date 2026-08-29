@@ -23,3 +23,5 @@ def test_canonical_fixture_map_does_not_double_hash_provider_id() -> None:
 
     assert mapping[str(canonical_fixture_id)] == 12345
     assert mapping.get(str(_fixture_id_to_int(str(canonical_fixture_id)))) is None
+
+# Keep the latest commit explicitly scoped to the locked-holdout workflow trigger.
