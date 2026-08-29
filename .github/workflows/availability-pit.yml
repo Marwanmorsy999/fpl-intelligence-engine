@@ -25,10 +25,20 @@ jobs:
       - name: Install declared dependencies
         run: python -m pip install ".[dev]"
       - name: Run point-in-time availability tests
-        run: python -m pytest tests/unit/test_pit_fplcache_availability.py -q
+        run: |
+          python -m pytest \
+            tests/unit/test_pit_fplcache_availability.py \
+            tests/unit/test_materialize_pit.py \
+            -q
       - name: Run read-only live point-in-time preflight
         run: |
           python scripts/availability_pit_preflight.py \
             --cutoff 2024-08-16T16:00:00Z \
             --cutoff 2025-08-16T16:00:00Z \
             --cutoff 2026-08-15T16:00:00Z
+      - name: Dry-run materialize deadline-adjacent snapshots
+        run: |
+          python scripts/materialize_availability_pit.py \
+            --cache-root data/fplcache_pit \
+            --cutoff 2024-08-16T16:00:00Z --season 2024-25 --gameweek 1 \
+            --cutoff 2025-08-15T16:00:00Z --season 2025-26 --gameweek 1

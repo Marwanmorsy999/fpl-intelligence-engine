@@ -21,6 +21,7 @@ from fpl_intelligence.availability.historical.event_types import (
     parse_event_type,
 )
 from fpl_intelligence.availability.historical.temporal import AvailabilityTimestamps
+from fpl_intelligence.availability.models import AvailabilityStatus
 
 
 def normalize_event(raw: dict[str, Any]) -> dict[str, Any]:
@@ -30,6 +31,12 @@ def normalize_event(raw: dict[str, Any]) -> dict[str, Any]:
     ``player_id`` and either ``event_type`` or enough free text to derive one.
     All output fields are plain JSON-safe values (timestamps are ISO strings)
     so the result can be persisted and audited consistently.
+
+    When the provider already supplies a valid :class:`AvailabilityStatus`
+    value, that status is preferred over the generic event-type → status map.
+    This preserves finer PIT signals (e.g. ``questionable`` from chance-of-
+    playing) that would otherwise collapse to ``unknown`` for event_type
+    ``fitness``.
     """
     timestamps: AvailabilityTimestamps | None = raw.get("timestamps")
     if timestamps is None:
@@ -44,12 +51,14 @@ def normalize_event(raw: dict[str, Any]) -> dict[str, Any]:
     if not event_type:
         event_type = parse_event_type([str(raw.get("status", ""))])
 
-    # The canonical status MUST come from the canonical event-type mapping, not
-    # from the provider's raw status string verbatim. Raw status strings (e.g.
-    # "injury", "suspension", "training_limited") are event-type-like labels
-    # that do not necessarily match the AvailabilityStatus enum; passing them
-    # through would violate the enum constraint on AvailabilityEvent.status.
-    status = event_type_to_status(event_type)
+    provider_status = str(raw.get("status") or "").strip().lower()
+    valid_statuses = {s.value for s in AvailabilityStatus}
+    if provider_status in valid_statuses:
+        status = provider_status
+    else:
+        # Canonical status from event-type mapping when provider status is absent
+        # or not a known AvailabilityStatus value.
+        status = event_type_to_status(event_type)
 
     return {
         "provider": raw.get("provider", ""),
