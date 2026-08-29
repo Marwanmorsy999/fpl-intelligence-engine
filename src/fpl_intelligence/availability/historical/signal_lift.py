@@ -78,8 +78,8 @@ def evaluate_signal_lift(report: MaterializeReport, db: Any | None = None) -> Si
         return out
 
     from sqlalchemy import select
-    from fpl_intelligence.db.models import Gameweek, PlayerExternalId, PlayerGameweekPerformance
     from fpl_intelligence.availability.historical.deadlines import resolve_season
+    from fpl_intelligence.db.models import Gameweek, PlayerExternalId, PlayerGameweekPerformance
 
     ext_rows = db.execute(
         select(PlayerExternalId.provider_player_id, PlayerExternalId.player_id).where(
@@ -89,7 +89,6 @@ def evaluate_signal_lift(report: MaterializeReport, db: Any | None = None) -> Si
     canonical = {str(provider_id): int(player_id) for provider_id, player_id in ext_rows}
 
     restricted: list[float] = []
-    available: list[float] = []
     hard_out: list[float] = []
     control: list[float] = []
     buckets: dict[str, list[float]] = {}
@@ -134,8 +133,6 @@ def evaluate_signal_lift(report: MaterializeReport, db: Any | None = None) -> Si
             if status in _HARD_OUT:
                 hard_out.append(minutes)
 
-        # The provider omits default-available rows, so the control group is the
-        # unflagged player population for the exact same season/gameweek.
         perfs = db.scalars(
             select(PlayerGameweekPerformance).where(
                 PlayerGameweekPerformance.season_id == season.id,
