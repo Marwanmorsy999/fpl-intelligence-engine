@@ -25,6 +25,7 @@ def test_verified_catalog_contains_first_five_gameweeks_for_two_seasons() -> Non
 def test_verified_catalog_preserves_utc_cutoff() -> None:
     cutoffs = load_verified_deadline_cutoffs(["2024-25"], gw_min=1, gw_max=1)
     assert cutoffs[0].cutoff == datetime(2024, 8, 16, 17, 30, tzinfo=UTC)
+    assert cutoffs[0].cutoff.tzinfo is UTC
 
 
 def test_verified_catalog_returns_empty_for_uncovered_gameweek() -> None:
