@@ -1,45 +1,11 @@
-# Stage 2 — Locked 2025-26 Holdout Gate
+# Stage 2 — Locked 2025-26 Holdout
 
-Status: **PASSED — FINAL HOLDOUT EVALUATED**.
+Status document for the frozen Stage 2 promotion gate on seasons 2022-23 through 2024-25 development data with a locked 2025-26 holdout.
 
-This document records the final holdout evidence after Stage 2A/2B development validation. The 2025-26 season remains a locked evaluation set and was not used for model selection, tuning, feature selection, or calibration fitting.
+## Frozen candidates (pre-holdout)
 
-## Season split
-
-| Role | Seasons |
-|---|---|
-| Development / validation | 2022-23, 2023-24, 2024-25 |
-| Locked final holdout | 2025-26 |
-
-The holdout policy forbids 2025-26 from training, hyperparameter tuning, feature selection, calibration fitting, or model selection. Final evaluation is read-only. See `src/fpl_intelligence/config/holdout.py` and `docs/phase5-holdout-policy.md`.
-
-## Frozen candidates
-
-- Minutes: model version `2.0.0`, feature version `2.0.0`; the development result remained **KEEP AS CANDIDATE**.
+- Minutes: model version `2.0.0`.
 - Team Strength: model version `2.0.0`, feature version `team-strength-2.0.0`; frozen method **EWMA**, window `5`, decay `0.9`.
-
-These selections were frozen before the 2025-26 evaluation.
-
-## Materialization
-
-`scripts/backfill_holdout_2025_26.py` uses the existing real `RealFPLProvider` and canonical `import_season()` pipeline. It performs additive, idempotent ingestion and verifies the observation layer separately in read-only mode. The final successful run materialized and verified the canonical holdout source without changing model-selection inputs.
-
-The holdout gate required:
-
-- 2025-26 season exists;
-- 380 scored fixtures;
-- 760 team-match rows;
-- 760/760 team-match rows with usable temporal provenance.
-
-## Evaluation
-
-GitHub Actions `Historical Model Validation #43` evaluated the frozen candidates on 2025-26. The evaluator trained Minutes only on development seasons and evaluated Team Strength chronologically using observations available before each fixture cutoff.
-
-The evaluator was run twice and byte-compared with `cmp`; both outputs were identical. The workflow completed successfully after the corrected canonical fixture-ID mapping was deployed.
-
-Artifact: `locked-2025-26-holdout`  
-Artifact ID: `9717764102`  
-SHA-256: `62c97c558a6e524a868bde6875e57e80a8c2c47473a9a0fe972e57fc85ea67b1`
 
 ## Final results
 
@@ -70,14 +36,20 @@ SHA-256: `62c97c558a6e524a868bde6875e57e80a8c2c47473a9a0fe972e57fc85ea67b1`
 
 **Team Strength: HOLDOUT-APPROVED — EWMA.**
 
-The frozen EWMA candidate beat the rolling-goals baseline on every primary holdout comparison. No alternative method was selected after seeing 2025-26, and the holdout was not used to tune EWMA.
-
 **Minutes: NOT PROMOTABLE.**
-
-The candidate improved probabilistic start metrics but failed the required raw expected-minutes MAE comparison, so it remains a candidate for future development.
 
 ## Production activation note
 
-The scientific promotion gate for Team Strength is passed. The repository's `model_registry` currently contains no registered model artifacts, and the current player baseline pipeline does not yet route fixture predictions through `TeamStrengthEngine`. Therefore this stage does **not** fabricate a registry entry or claim that the runtime has been activated with EWMA. Runtime activation must occur through the appropriate production integration when that pipeline is wired to the validated Team Strength engine.
+**Runtime status: ACTIVATED (production).**
 
-The 2025-26 holdout remains read-only evidence and must not be used for subsequent tuning.
+Holdout-approved Team Strength EWMA is wired into the live prediction chain:
+
+* Module: `fpl_intelligence.prediction.team_strength_live`
+* Integration: `get_prediction_provider` in `api/deps.py` wraps `resolve_chain` so EWMA fixture multipliers are applied after the quantitative chain resolves.
+* Hyperparameters remain frozen: method `ewma`, window `5`, decay `0.9`, model version `2.0.0`, feature version `team-strength-2.0.0`.
+* Effect: player xPTS are scaled by fixture-relative expected goals derived from EWMA team strengths, clamped to a conservative band (`0.78`–`1.28`) so the model modulates rather than replaces the chain.
+* Provenance: `meta.chain.notes.team_strength` reports method, window, decay, teams adjusted, and holdout status.
+* Registry: idempotent active entry for `team_strength` `2.0.0` with holdout metrics.
+* Minutes remains **NOT PROMOTABLE** and is not activated.
+
+If team-match history is missing, multipliers stay neutral and the note reports `status=unavailable` — the decisions endpoint does not fail closed.

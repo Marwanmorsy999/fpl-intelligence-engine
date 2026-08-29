@@ -112,7 +112,17 @@ def get_prediction_provider(db: GetDB) -> DecisionPredictionProvider:
         return StaticPredictionProvider()
 
     from fpl_intelligence.prediction.gameweek_resolve import safe_fixture_count
-    from fpl_intelligence.prediction.live_provider import LivePredictionProvider
+    from fpl_intelligence.prediction.live_provider import (
+        ChainLevel,
+        LivePredictionProvider,
+        PredictionChainResult,
+    )
+    from fpl_intelligence.prediction.team_strength_live import (
+        apply_multipliers_to_points,
+        compute_team_strength_multipliers,
+        ensure_registry_entry,
+        player_team_map_from_catalog,
+    )
 
     provider = LivePredictionProvider(session=db)
     # Production hotfix: provider_event_id is unique per season only. The stock
@@ -122,6 +132,55 @@ def get_prediction_provider(db: GetDB) -> DecisionPredictionProvider:
     provider.get_fixture_count = lambda player_id, gameweek, _db=db: safe_fixture_count(
         _db, player_id, gameweek
     )
+
+    # Stage 2 activation: holdout-approved Team Strength EWMA modulates live xPTS.
+    try:
+        ensure_registry_entry(db)
+    except Exception:  # noqa: BLE001 — registry is bookkeeping only
+        pass
+
+    _orig_resolve = provider.resolve_chain
+
+    def _resolve_with_team_strength(
+        gameweek: int, *, skip_materialized: bool = False
+    ) -> PredictionChainResult:
+        if gameweek in provider._chain_cache:
+            return provider._chain_cache[gameweek]
+        result = _orig_resolve(gameweek, skip_materialized=skip_materialized)
+        try:
+            ts = compute_team_strength_multipliers(db, int(gameweek))
+        except Exception:  # noqa: BLE001
+            return result
+        notes = dict(result.resolved.notes)
+        notes["team_strength"] = dict(ts.notes)
+        points = dict(result.resolved.points)
+        if ts.applied:
+            try:
+                team_map = player_team_map_from_catalog(provider.player_catalog())
+                points = apply_multipliers_to_points(points, team_map, ts.multipliers)
+            except Exception:  # noqa: BLE001
+                notes["team_strength"] = {
+                    **dict(ts.notes),
+                    "applied": False,
+                    "status": "error",
+                    "reason": "apply_failed",
+                }
+        resolved = ChainLevel(
+            source=result.resolved.source,
+            data_quality=result.resolved.data_quality,
+            points=points,
+            covered=len(points),
+            notes=notes,
+            per_player=dict(result.resolved.per_player),
+        )
+        adjusted = PredictionChainResult(
+            gameweek=result.gameweek, levels=list(result.levels), resolved=resolved
+        )
+        provider._chain_cache[gameweek] = adjusted
+        provider.last_result = adjusted
+        return adjusted
+
+    provider.resolve_chain = _resolve_with_team_strength  # type: ignore[method-assign]
     return provider
 
 
