@@ -35,29 +35,25 @@ and says it is updated four times daily at six-hour intervals.
 
 ## Source-provenanced deadline catalog
 
-The validation branch now carries the first five FPL deadlines for both
-2024-25 and 2025-26 in `verified_deadlines.py`. The catalog stores UTC cutoffs
-and the Premier League publication URL used to verify each deadline. This is
-validation metadata only; it does not alter database deadline rows.
+The validation branch carries the first five FPL deadlines for both 2024-25 and
+2025-26 in `verified_deadlines.py`. The catalog stores UTC cutoffs and the
+Premier League publication URL used to verify each deadline. This is validation
+metadata only; it does not alter database deadline rows.
 
-The verified times are:
+The catalog contains 10 verified cutoffs spanning GW1-GW5 for each season.
 
-| Season | GW | Deadline (UTC) |
-|---|---:|---|
-| 2024-25 | 1 | 2024-08-16 17:30 |
-| 2024-25 | 2 | 2024-08-24 10:00 |
-| 2024-25 | 3 | 2024-08-31 10:00 |
-| 2024-25 | 4 | 2024-09-14 10:00 |
-| 2024-25 | 5 | 2024-09-21 10:00 |
-| 2025-26 | 1 | 2025-08-15 17:30 |
-| 2025-26 | 2 | 2025-08-22 17:30 |
-| 2025-26 | 3 | 2025-08-30 10:00 |
-| 2025-26 | 4 | 2025-09-13 10:00 |
-| 2025-26 | 5 | 2025-09-20 10:00 |
+## Expanded read-only PIT evidence
 
-The corresponding Premier League publications explicitly state the relevant
-BST deadlines for these gameweeks, so the branch no longer relies on duplicated
-hand-entered CI timestamps.
+Workflow run 45 exercised all 10 verified cutoffs from the catalog. It found a
+snapshot for every cutoff and materialized **1,659 availability observations**:
+
+- 2024-25: **793** observations across GW1-GW5.
+- 2025-26: **866** observations across GW1-GW5.
+- **1,659/1,659** observations were chronologically eligible.
+- **0** missing information timestamps.
+- **0** post-deadline observations.
+
+Run 45 also passed the PIT correctness-lint gate and all targeted unit tests.
 
 ## Validation DB evidence observed on 2026-08-29
 
@@ -72,10 +68,9 @@ minutes join matches all 210 rows.
 
 The provider emits flagged/non-default availability states rather than an
 explicit `available` row for every player. The signal evaluator therefore uses
-an unflagged player-gameweek control group from the same gameweek, avoiding a
-false comparison against a category that the provider does not emit.
+an unflagged player-gameweek control group from the same gameweek.
 
-For the current two-GW1 sample:
+For the current two-GW1 database sample:
 
 | Season | Restricted N | Restricted mean min | Restricted 60+ start rate | Control N | Control mean min | Control 60+ start rate |
 |---|---:|---:|---:|---:|---:|---:|
@@ -83,14 +78,13 @@ For the current two-GW1 sample:
 | 2025-26 | 117 | 2.8462 | 0.025641 | 573 | 33.8115 | 0.364747 |
 | Combined | 207 | 2.1884 | 0.019324 | 1,099 | 35.3894 | 0.379436 |
 
-The hard-OUT sanity check is also strong: the 152 sampled `out` rows have
-0.00 mean realized minutes and a 0% 60+ start rate; the 9 suspended rows also
-have 0.00 mean realized minutes.
+Combined control-minus-restricted mean-minutes delta is **+33.2010 minutes**;
+start-rate delta is **+0.360112**. The hard-OUT sanity check remains strong:
+152 sampled `out` rows have 0.00 mean realized minutes and 0% 60+ starts; 9
+suspended rows also have 0.00 mean realized minutes.
 
-This is strong evidence that the PIT flags carry useful suppression signal,
-but it is still a limited two-GW1 database sample. The expanded CI path now
-materializes the first five gameweeks for both seasons read-only; those extra
-rows have not been written into the validation database.
+The expanded 10-cutoff sample is read-only and has **not** been written into
+the validation database.
 
 ## Promotion gates
 
@@ -104,20 +98,14 @@ A future promotion decision requires real evidence for:
 6. A controlled validation import is independently reviewed and verified idempotent.
 7. An explicit human decision to wire the feature into the live decision chain.
 
-A passing unit test suite or a green read-only workflow is not, by itself, evidence
-that the historical coverage and live-promotion gates have passed.
+A green read-only workflow is not, by itself, evidence that production promotion
+is safe. No validation-DB import is enabled by default.
 
-## CI status
+## CI streak
 
-The latest PIT workflow run (`28`) completed successfully after exercising:
-
-- targeted PIT linting
-- PIT unit tests
-- source-provenanced deadline materialization over the first five gameweeks of
-  both 2024-25 and 2025-26
-
-The validation-DB import job remains deliberately skipped unless the repository
-variable `AVAILABILITY_PIT_ENABLE_IMPORT=true` is explicitly enabled.
+Run 45 is the last completed green run on the current branch state. Previous runs
+include failures during validation hardening. A fresh three-consecutive-green
+streak is required before calling the CI state final.
 
 ## Commands
 
@@ -132,18 +120,12 @@ python scripts/materialize_availability_pit.py \
   --evaluate
 ```
 
-### Read-only DB-deadline materialization
-
-```bash
-python scripts/materialize_availability_pit.py \
-  --from-db-deadlines --season-code 2024-25 --gw-min 1 --gw-max 10 --evaluate
-```
-
 ### Validation DB evidence audit
 
 ```bash
 python scripts/audit_availability_pit.py \
-  --season 2024-25 --season 2025-26
+  --season 2024-25 --season 2025-26 \
+  --require-signal
 ```
 
 ### Controlled validation-DB import
