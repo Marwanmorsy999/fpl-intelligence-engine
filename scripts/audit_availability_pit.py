@@ -11,6 +11,11 @@ from fpl_intelligence.db.session import validation_session_factory
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--season", action="append", dest="seasons", default=[])
+    parser.add_argument(
+        "--require-signal",
+        action="store_true",
+        help="fail unless a material restricted-vs-control signal is established",
+    )
     args = parser.parse_args()
 
     Session = validation_session_factory()
@@ -27,6 +32,8 @@ def main() -> int:
         return 4
     if report.gameweek_linked != report.event_count:
         return 5
+    if args.require_signal and not (report.hard_out_signal_ok or report.comparative_signal_ok):
+        return 6
     return 0
 
 
