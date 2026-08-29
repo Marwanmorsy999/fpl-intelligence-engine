@@ -12,11 +12,12 @@ and says it is updated four times daily at six-hour intervals.
 
 - `master` is unchanged by this work.
 - Materialization is dry-run by default.
-- `--import` targets the existing validation DB session factory only.
+- `--import` targets the existing validation Supabase project only.
+- Ordinary `validation_session_factory()` connections remain read-only.
+- Controlled import uses a separate `validation_write_session_factory()` and the CLI refuses `--commit` unless `DATABASE_URL` identifies the approved validation project reference.
 - `--commit` is allowed only after snapshot, chronology, signal, and entity-resolution gates pass inside the same transaction.
-- The CI database import job is disabled unless repository variable `AVAILABILITY_PIT_ENABLE_IMPORT=true`.
-- No live decision-chain wiring is included.
 - The PIT GitHub API discovery path uses the Actions token when available; CI supplies `GITHUB_TOKEN` explicitly to avoid unauthenticated GitHub API throttling.
+- No live decision-chain wiring is included.
 
 ## Current components
 
@@ -30,9 +31,11 @@ and says it is updated four times daily at six-hour intervals.
 | Minutes signal-lift | `src/fpl_intelligence/availability/historical/signal_lift.py` | Implemented with same-GW unflagged control |
 | Validation DB evidence audit | `src/fpl_intelligence/availability/historical/pit_audit.py` + `scripts/audit_availability_pit.py` | Implemented |
 | Dry-run evaluator | `scripts/evaluate_availability_pit.py` | Implemented |
-| Controlled import | `scripts/materialize_availability_pit.py` | Implemented, opt-in |
+| Controlled import | `scripts/materialize_availability_pit.py` | Implemented; validation-target guarded and opt-in |
+| Read-only validation session | `src/fpl_intelligence/db/session.py` | Preserved |
+| Write-capable validation session | `src/fpl_intelligence/db/session.py` | Implemented; import-only |
 | CI | `.github/workflows/availability-pit.yml` | Implemented; checkout@v6 + setup-python@v7 |
-| Unit tests | PIT provider/materializer/chronology/audit/control/deadline tests | Implemented |
+| Unit tests | PIT provider/materializer/chronology/audit/control/deadline tests | Implemented, including GitHub-token regression |
 
 ## Source-provenanced deadline catalog
 
@@ -55,18 +58,18 @@ availability observations**:
 - **0** missing information timestamps.
 - **0** post-deadline observations.
 
-The current PIT preflight passes targeted correctness lint and all 18 targeted unit
-tests, including deadline, chronology, control-group, audit, and GitHub-token
-regression safeguards.
+The PIT preflight passes targeted correctness lint and the targeted PIT unit suite,
+including deadline, chronology, control-group, audit, and GitHub-token regression
+safeguards.
 
 ## Validation DB evidence observed on 2026-08-29
 
 The connected validation Supabase project contains 5 seasons, 189 gameweeks,
 1,466 players, 1,466 player external-ID mappings, and 126,167 player-gameweek
-performance rows. It currently contains 210 `fplcache_pit` availability events:
-91 for 2024-25 GW1 and 119 for 2025-26 GW1.
+performance rows. Before the expanded controlled import, it contained 210
+`fplcache_pit` availability events: 91 for 2024-25 GW1 and 119 for 2025-26 GW1.
 
-All 210 imported PIT rows are linked to gameweeks, classified
+All 210 existing PIT rows are linked to gameweeks, classified
 `STRICT_BACKTEST_SAFE`, and have a non-null `valid_from` timestamp. The realized
 minutes join matches all 210 rows. A direct duplicate-key audit over
 `(provider, provider_event_id, season_id, player_id)` returns zero duplicate groups
@@ -89,20 +92,22 @@ start-rate delta is **+0.360112**. The hard-OUT sanity check remains strong:
 152 sampled `out` rows have 0.00 mean realized minutes and 0% 60+ starts; 9
 suspended rows also have 0.00 mean realized minutes.
 
-The expanded 10-cutoff sample is read-only and has **not** been written into
-the validation database.
+The 1,659-observation expanded sample is read-only until the one-shot controlled
+validation import succeeds.
 
 ## CI history
 
 - **Run 46 — green**: expanded 10-cutoff PIT preflight.
 - **Run 47 — green**: expanded PIT preflight.
-- **Run 48 — initial attempt failed** on GitHub API 403 rate limiting during remote snapshot discovery; the retry passed.
+- **Run 48 — initial attempt failed** on GitHub API 403 rate limiting during remote snapshot discovery; retry passed.
 - **Run 50 — green**: authenticated GitHub snapshot discovery fix.
 - **Run 52 — green**: restored legacy coverage/entity-resolution semantics plus expanded preflight.
 - **Run 53 — green**: Node24-compatible Actions (`checkout@v6`, `setup-python@v7`).
 - **Run 54 — green**: GitHub-token regression test plus expanded preflight.
+- **Run 55 — green**: status-record preflight.
+- **Run 57 — failed intentionally at Gate 6** because the existing validation factory enforced `SET TRANSACTION READ ONLY`; no import rows were committed.
 
-The latest three completed preflight runs (52, 53, 54) are green.
+The write-session fix is now on the branch and this commit is the one-shot controlled-import trigger.
 
 ## Promotion gates
 
@@ -116,13 +121,12 @@ A future promotion decision requires real evidence for:
 6. A controlled validation import is independently reviewed and verified idempotent.
 7. An explicit human decision to wire the feature into the live decision chain.
 
-The read-only PIT gates are now green. Gate 6 remains intentionally opt-in because
-the repository workflow must be provided an explicitly validated validation-only
-`DATABASE_URL`; this branch does not assume that an unreviewed repository secret
-is safe to use. No production database write is performed by CI by default.
+Gates 1-5 are green on the read-only evidence path. Gate 6 is now being exercised
+once against the approved validation database with a write-capable session that is
+isolated from ordinary read-only validation.
 
-A green read-only workflow is not, by itself, evidence that production promotion
-is safe.
+A successful controlled validation import does **not** permit production promotion.
+The live decision chain remains untouched until a separate explicit decision.
 
 ## Commands
 
@@ -146,9 +150,6 @@ python scripts/audit_availability_pit.py \
 ```
 
 ### Controlled validation-DB import
-
-Only run this after the gates above are independently reviewed and an explicit
-validation-only `DATABASE_URL` is confirmed:
 
 ```bash
 python scripts/materialize_availability_pit.py \
