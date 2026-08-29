@@ -1,0 +1,91 @@
+name: Phase 0 instrumentation
+on:
+  push:
+    branches: [perf/phase0-production-baseline]
+permissions:
+  contents: write
+jobs:
+  instrument:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Wire profiling middleware
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/fpl_intelligence/api/main.py')
+          s = p.read_text(encoding='utf-8')
+          import_anchor = 'from fpl_intelligence.api.cache import EdgeCachePolicyMiddleware\n'
+          import_line = 'from fpl_intelligence.api.performance import RequestProfilingMiddleware\n'
+          if import_line not in s:
+              if import_anchor not in s:
+                  raise SystemExit('cache import anchor not found')
+              s = s.replace(import_anchor, import_anchor + import_line, 1)
+          middleware_anchor = 'app = FastAPI(title="FPL Intelligence Engine", version=__version__)\n'
+          middleware_line = 'app.add_middleware(RequestProfilingMiddleware)\n\n'
+          if 'app.add_middleware(RequestProfilingMiddleware)' not in s:
+              if middleware_anchor not in s:
+                  raise SystemExit('app anchor not found')
+              s = s.replace(middleware_anchor, middleware_anchor + middleware_line, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Add profiler unit tests
+        run: |
+          set -euo pipefail
+          cat > tests/unit/test_performance_middleware.py <<'PY'
+          from __future__ import annotations
+
+          from fastapi import FastAPI
+          from fastapi.testclient import TestClient
+
+          from fpl_intelligence.api.performance import RequestProfilingMiddleware
+
+          def test_request_id_is_generated_and_returned():
+              app = FastAPI()
+              app.add_middleware(RequestProfilingMiddleware)
+
+              @app.get('/probe')
+              def probe():
+                  return {'ok': True}
+
+              with TestClient(app) as client:
+                  response = client.get('/probe')
+
+              assert response.status_code == 200
+              request_id = response.headers.get('x-request-id')
+              assert request_id and len(request_id) == 32
+
+          def test_supplied_request_id_is_preserved():
+              app = FastAPI()
+              app.add_middleware(RequestProfilingMiddleware)
+
+              @app.get('/probe')
+              def probe():
+                  return {'ok': True}
+
+              with TestClient(app) as client:
+                  response = client.get('/probe', headers={'x-request-id': 'phase0-test'})
+
+              assert response.headers['x-request-id'] == 'phase0-test'
+          PY
+      - name: Verify
+        run: |
+          set -euo pipefail
+          python -m pip install -q -r requirements.txt pytest httpx
+          python -m pytest -q tests/unit/test_performance_middleware.py tests/unit/test_gameweek_season_scope.py tests/unit/test_db_production_safety.py tests/unit/test_fpl_egress_resilience.py tests/unit/test_phase7_fpl_provider_alignment.py tests/unit/test_pit_contract.py tests/unit/test_phase9_2_ingestion.py
+          python -m compileall -q src
+      - name: Remove temporary workflow and commit
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/phase0-instrument.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src tests .github/workflows
+          git diff --cached --check
+          git commit -m 'perf: instrument production request latency baseline'
+          git push origin HEAD:perf/phase0-production-baseline
