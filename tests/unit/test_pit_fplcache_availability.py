@@ -13,7 +13,7 @@ from fpl_intelligence.availability.historical.pit_fplcache import (
 
 def _write_snapshot(root: Path, captured_at: datetime, elements: list[dict]) -> Path:
     day = root / str(captured_at.year) / str(captured_at.month) / str(captured_at.day)
-    day.mkdir(parents=True)
+    day.mkdir(parents=True, exist_ok=True)
     path = day / f"{captured_at:%H%M}.json.xz"
     with lzma.open(path, "wt", encoding="utf-8") as fh:
         json.dump({"elements": elements}, fh)
