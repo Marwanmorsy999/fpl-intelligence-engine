@@ -40,7 +40,7 @@ The evaluator produces a deterministic JSON artifact. GitHub Actions executes it
 
 ## Current gate state
 
-The 2025-26 canonical dataset has been materialized in production Supabase. The explicit locked-holdout workflow trigger is now configured and this commit triggers a **holdout-only** Actions run; historical validation is not repeated for this trigger commit.
+The 2025-26 canonical dataset has been materialized in production Supabase. The explicit locked-holdout workflow trigger is configured and the fixture mapping has been verified against the canonical ingestion implementation. This commit triggers a **holdout-only** Actions run; historical validation is not repeated for this trigger commit.
 
 Promotion remains blocked until a successful holdout artifact is reviewed against the existing project promotion criteria.
 
