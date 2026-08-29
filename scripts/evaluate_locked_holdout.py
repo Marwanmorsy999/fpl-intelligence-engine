@@ -32,7 +32,6 @@ from fpl_intelligence.features.temporal import DEFAULT_POLICY  # noqa: E402
 from fpl_intelligence.prediction.minutes import SimpleRecentMinutesBaseline  # noqa: E402
 from fpl_intelligence.prediction.minutes_validation import (  # noqa: E402
     blend_prediction,
-    select_blend_weight,
 )
 from fpl_intelligence.prediction.minutes_validation_fast import (  # noqa: E402
     FastMinutesWalkForwardEvaluator,
