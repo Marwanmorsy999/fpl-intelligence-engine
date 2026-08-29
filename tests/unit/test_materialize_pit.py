@@ -7,7 +7,11 @@ from pathlib import Path
 
 import pytest
 
-from fpl_intelligence.availability.historical.materialize_pit import DeadlineCutoff, download_snapshot, latest_remote_before, local_snapshot_path
+from fpl_intelligence.availability.historical.materialize_pit import (
+    DeadlineCutoff,
+    download_snapshot,
+    local_snapshot_path,
+)
 
 
 def test_deadline_cutoff_requires_timezone() -> None:
@@ -27,8 +31,10 @@ def test_download_snapshot_validates_payload(tmp_path: Path, monkeypatch: pytest
     class Response:
         def __enter__(self):
             return self
+
         def __exit__(self, *_):
             return None
+
         def read(self):
             return compressed
 
