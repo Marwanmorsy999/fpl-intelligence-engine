@@ -483,14 +483,29 @@ def _percentile_ranks(catalog: dict[int, dict[str, Any]]) -> dict[int, float]:
     return {pid: idx / (n - 1) for idx, (pid, _) in enumerate(priced)}
 
 
-def _fixtures_for_gameweek(db: Session, gameweek: int) -> list[dict[str, int]]:
-    """Resolve ``[{home_team_id, away_team_id}]`` for a provider gameweek."""
-    from fpl_intelligence.db.models import Fixture, Gameweek
+def _resolve_gameweek_id(db: Session, gameweek: int) -> int | None:
+    """Resolve a provider gameweek to the newest available season row."""
+    from fpl_intelligence.db.models import Gameweek, Season
 
+    return db.execute(
+        select(Gameweek.id)
+        .join(Season, Gameweek.season_id == Season.id)
+        .where(Gameweek.provider_event_id == int(gameweek))
+        .order_by(Season.code.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+
+
+def _fixtures_for_gameweek(db: Session, gameweek: int) -> list[dict[str, int]]:
+    """Resolve fixtures for the newest season containing ``gameweek``."""
+    from fpl_intelligence.db.models import Fixture
+
+    gw_id = _resolve_gameweek_id(db, int(gameweek))
+    if gw_id is None:
+        return []
     rows = db.execute(
         select(Fixture.home_team_id, Fixture.away_team_id)
-        .join(Gameweek, Fixture.gameweek_id == Gameweek.id)
-        .where(Gameweek.provider_event_id == gameweek)
+        .where(Fixture.gameweek_id == gw_id)
     ).all()
     return [{"home_team_id": int(home), "away_team_id": int(away)} for home, away in rows]
 
@@ -1374,9 +1389,7 @@ class LivePredictionProvider:
 
         # Resolve the internal gameweek row id from the provider_event_id, which
         # is what the FPL-facing gameweek number maps to.
-        gw_row = self.session.execute(
-            select(Gameweek.id).where(Gameweek.provider_event_id == int(gameweek))
-        ).scalar_one_or_none()
+        gw_row = _resolve_gameweek_id(self.session, int(gameweek))
         if gw_row is None:
             return 1
 
