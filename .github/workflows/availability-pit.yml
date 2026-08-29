@@ -49,3 +49,73 @@ jobs:
             --cache-root data/fplcache_pit \
             --cutoff 2024-08-16T16:00:00Z --season 2024-25 --gameweek 1 \
             --cutoff 2025-08-15T16:00:00Z --season 2025-26 --gameweek 1
+
+  operational:
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - name: Checkout availability branch
+        uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install declared dependencies
+        run: python -m pip install ".[dev]"
+      - name: DB deadlines materialize + evaluate (2024-25 GW1-5)
+        run: |
+          python scripts/materialize_availability_pit.py \
+            --cache-root data/fplcache_pit \
+            --from-db-deadlines \
+            --season-code 2024-25 \
+            --gw-min 1 --gw-max 5 \
+            --evaluate
+      - name: DB deadlines materialize + evaluate (2025-26 GW1-5)
+        run: |
+          python scripts/materialize_availability_pit.py \
+            --cache-root data/fplcache_pit \
+            --from-db-deadlines \
+            --season-code 2025-26 \
+            --gw-min 1 --gw-max 5 \
+            --evaluate
+      - name: Controlled import --commit (2024-25 + 2025-26 GW1-5)
+        run: |
+          python scripts/materialize_availability_pit.py \
+            --cache-root data/fplcache_pit \
+            --from-db-deadlines \
+            --season-code 2024-25 \
+            --season-code 2025-26 \
+            --gw-min 1 --gw-max 5 \
+            --import --commit --evaluate
+      - name: Post-import coverage audit
+        run: |
+          python - <<'PY'
+          import json
+          from sqlalchemy import func, select
+          from fpl_intelligence.availability.historical.coverage import audit_historical_coverage
+          from fpl_intelligence.availability.historical.quality import validate_historical_availability
+          from fpl_intelligence.availability.models import AvailabilityEvent
+          from fpl_intelligence.db.session import validation_session_factory
+
+          Session = validation_session_factory()
+          with Session() as db:
+              total = db.scalar(select(func.count()).select_from(AvailabilityEvent)) or 0
+              by_provider = dict(
+                  db.execute(
+                      select(AvailabilityEvent.provider, func.count())
+                      .group_by(AvailabilityEvent.provider)
+                  ).all()
+              )
+              coverage = audit_historical_coverage(db, ["2024-25", "2025-26"]).to_dict()
+              quality = validate_historical_availability(db).to_dict()
+          print(json.dumps({
+              "availability_events_total": total,
+              "by_provider": {str(k): int(v) for k, v in by_provider.items()},
+              "coverage": coverage,
+              "quality_issue_count": quality.get("issue_count"),
+              "quality_total_events": quality.get("total_events"),
+          }, indent=2, default=str))
+          PY
