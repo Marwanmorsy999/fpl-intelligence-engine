@@ -25,6 +25,7 @@ jobs:
           python -m ruff check \
             src/fpl_intelligence/availability/historical/pit_fplcache.py \
             src/fpl_intelligence/availability/historical/deadlines.py \
+            src/fpl_intelligence/availability/historical/verified_deadlines.py \
             src/fpl_intelligence/availability/historical/materialize_pit.py \
             src/fpl_intelligence/availability/historical/chronological.py \
             src/fpl_intelligence/availability/historical/signal_lift.py \
@@ -36,7 +37,8 @@ jobs:
             tests/unit/test_materialize_pit.py \
             tests/unit/test_chronological_and_lift.py \
             tests/unit/test_pit_audit.py \
-            tests/unit/test_signal_lift_controls.py
+            tests/unit/test_signal_lift_controls.py \
+            tests/unit/test_verified_deadlines.py
       - name: PIT unit tests
         run: |
           python -m pytest \
@@ -45,21 +47,16 @@ jobs:
             tests/unit/test_chronological_and_lift.py \
             tests/unit/test_pit_audit.py \
             tests/unit/test_signal_lift_controls.py \
+            tests/unit/test_verified_deadlines.py \
             -q
       - name: Read-only multi-gameweek PIT evaluation
         run: |
-          python scripts/evaluate_availability_pit.py \
+          python scripts/materialize_availability_pit.py \
+            --from-verified-deadlines \
+            --season-code 2024-25 --season-code 2025-26 \
+            --gw-min 1 --gw-max 5 \
             --cache-root data/fplcache_pit \
-            --cutoff 2024-08-16T17:30:00Z --season 2024-25 --gameweek 1 \
-            --cutoff 2024-08-23T17:30:00Z --season 2024-25 --gameweek 2 \
-            --cutoff 2024-08-31T10:00:00Z --season 2024-25 --gameweek 3 \
-            --cutoff 2024-09-14T10:00:00Z --season 2024-25 --gameweek 4 \
-            --cutoff 2024-09-21T10:00:00Z --season 2024-25 --gameweek 5 \
-            --cutoff 2025-08-15T17:30:00Z --season 2025-26 --gameweek 1 \
-            --cutoff 2025-08-22T17:30:00Z --season 2025-26 --gameweek 2 \
-            --cutoff 2025-08-30T10:00:00Z --season 2025-26 --gameweek 3 \
-            --cutoff 2025-09-13T10:00:00Z --season 2025-26 --gameweek 4 \
-            --cutoff 2025-09-20T10:00:00Z --season 2025-26 --gameweek 5
+            --evaluate
 
   validation-db-import-gate:
     if: ${{ vars.AVAILABILITY_PIT_ENABLE_IMPORT == 'true' }}
@@ -78,17 +75,10 @@ jobs:
       - name: Controlled validation-DB import
         run: |
           python scripts/materialize_availability_pit.py \
+            --from-verified-deadlines \
+            --season-code 2024-25 --season-code 2025-26 \
+            --gw-min 1 --gw-max 5 \
             --cache-root data/fplcache_pit \
-            --cutoff 2024-08-16T17:30:00Z --season 2024-25 --gameweek 1 \
-            --cutoff 2024-08-23T17:30:00Z --season 2024-25 --gameweek 2 \
-            --cutoff 2024-08-31T10:00:00Z --season 2024-25 --gameweek 3 \
-            --cutoff 2024-09-14T10:00:00Z --season 2024-25 --gameweek 4 \
-            --cutoff 2024-09-21T10:00:00Z --season 2024-25 --gameweek 5 \
-            --cutoff 2025-08-15T17:30:00Z --season 2025-26 --gameweek 1 \
-            --cutoff 2025-08-22T17:30:00Z --season 2025-26 --gameweek 2 \
-            --cutoff 2025-08-30T10:00:00Z --season 2025-26 --gameweek 3 \
-            --cutoff 2025-09-13T10:00:00Z --season 2025-26 --gameweek 4 \
-            --cutoff 2025-09-20T10:00:00Z --season 2025-26 --gameweek 5 \
             --import --commit --evaluate
       - name: Validate imported PIT evidence
         run: |
