@@ -4,11 +4,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from fpl_intelligence.availability.models import AvailabilityEvent, TemporalClass
-from fpl_intelligence.db.models import Gameweek, PlayerGameweekPerformance, Season
+from fpl_intelligence.db.models import PlayerGameweekPerformance, Season
 
 _RESTRICTED = {"out", "suspended", "doubtful", "questionable", "suspect"}
 _HARD_OUT = {"out", "suspended"}
@@ -37,7 +37,11 @@ class PITAuditReport:
 
     @property
     def hard_out_signal_ok(self) -> bool:
-        return self.hard_out_rows >= 10 and self.hard_out_mean_minutes is not None and self.hard_out_mean_minutes <= 5.0
+        return (
+            self.hard_out_rows >= 10
+            and self.hard_out_mean_minutes is not None
+            and self.hard_out_mean_minutes <= 5.0
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -48,11 +52,11 @@ class PITAuditReport:
 
 
 def audit_pit_events(db: Session, seasons: list[str] | None = None) -> PITAuditReport:
-    """Audit PIT events and their realized player-GW minutes in the validation DB."""
+    """Audit PIT events and realized player-GW minutes in the validation DB."""
     query = select(AvailabilityEvent).where(AvailabilityEvent.provider == "fplcache_pit")
     if seasons:
         season_rows = list(db.execute(select(Season).where(Season.code.in_(seasons))).scalars().all())
-        season_ids = [s.id for s in season_rows]
+        season_ids = [season.id for season in season_rows]
         query = query.where(AvailabilityEvent.season_id.in_(season_ids)) if season_ids else query.where(False)
 
     events = list(db.execute(query).scalars().all())
@@ -69,12 +73,10 @@ def audit_pit_events(db: Session, seasons: list[str] | None = None) -> PITAuditR
     for event in events:
         if event.gameweek_id is None:
             continue
-        perf = db.scalar(
-            select(PlayerGameweekPerformance).where(
-                PlayerGameweekPerformance.player_id == event.player_id,
-                PlayerGameweekPerformance.gameweek_id == event.gameweek_id,
-            )
-        )
+        perf = db.scalar(select(PlayerGameweekPerformance).where(
+            PlayerGameweekPerformance.player_id == event.player_id,
+            PlayerGameweekPerformance.gameweek_id == event.gameweek_id,
+        ))
         if perf is None:
             continue
         minutes = float(perf.minutes or 0)
@@ -90,7 +92,7 @@ def audit_pit_events(db: Session, seasons: list[str] | None = None) -> PITAuditR
         return round(sum(values) / len(values), 4) if values else None
 
     def _rate(values: list[float]) -> float | None:
-        return round(sum(v >= 60 for v in values) / len(values), 6) if values else None
+        return round(sum(value >= 60 for value in values) / len(values), 6) if values else None
 
     report.restricted_rows = len(restricted_minutes)
     report.hard_out_rows = len(hard_out_minutes)
