@@ -45,9 +45,10 @@ def test_parallel_fit_matches_sequential_predictions() -> None:
 
     assert sequential_predictions == parallel_predictions
     for name in ("appeared", "started", "60_plus", "90_plus"):
-        assert np.allclose(
-            sequential._models[name].predict_proba(np.asarray([sequential._vectorize(row) for row in probe]))[:, 1],
-            parallel._models[name].predict_proba(np.asarray([parallel._vectorize(row) for row in probe]))[:, 1],
-            rtol=0,
-            atol=1e-12,
-        )
+        sequential_proba = sequential._models[name].predict_proba(
+            np.asarray([sequential._vectorize(row) for row in probe])
+        )[:, 1]
+        parallel_proba = parallel._models[name].predict_proba(
+            np.asarray([parallel._vectorize(row) for row in probe])
+        )[:, 1]
+        assert np.allclose(sequential_proba, parallel_proba, rtol=0, atol=1e-12)
