@@ -15,12 +15,11 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from fpl_intelligence.availability.historical.pit_fplcache import (
-    FPLCACHE_API if False else FPLCACHE_RAW_BASE,  # type: ignore[misc]
+    FPLCACHE_RAW_BASE,
     PointInTimeFPLCacheAvailabilityProvider,
     SnapshotRef,
 )
 
-# GitHub contents endpoint used only for read-only snapshot discovery.
 FPLCACHE_API = "https://api.github.com/repos/Randdalf/fplcache/contents/cache"
 USER_AGENT = "fpl-intelligence-engine-pit-materialize"
 
@@ -84,7 +83,10 @@ class MaterializeReport:
 
 
 def _github_json(url: str) -> object:
-    req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json", "User-Agent": USER_AGENT})
+    req = urllib.request.Request(
+        url,
+        headers={"Accept": "application/vnd.github+json", "User-Agent": USER_AGENT},
+    )
     with urllib.request.urlopen(req, timeout=30) as response:
         return json.loads(response.read().decode("utf-8"))
 
@@ -115,7 +117,6 @@ def _snapshot_files(day: date) -> list[tuple[datetime, str]]:
 
 
 def latest_remote_before(cutoff: datetime, *, search_days: int = 3) -> tuple[datetime, str] | None:
-    """Return the latest remote snapshot whose capture time is <= cutoff."""
     cutoff_utc = cutoff.astimezone(UTC)
     candidates: list[tuple[datetime, str]] = []
     for offset in range(max(0, search_days) + 1):
@@ -130,7 +131,6 @@ def local_snapshot_path(root: Path, captured_at: datetime) -> Path:
 
 
 def download_snapshot(url: str, dest: Path) -> None:
-    """Download and validate an immutable compressed JSON snapshot before writing."""
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(req, timeout=60) as response:
         data = response.read()
@@ -198,7 +198,7 @@ class _StaticEventProvider:
 
 
 def import_materialized(db: Any, report: MaterializeReport, *, strict_backtest_safe: bool = True) -> dict[str, Any]:
-    """Import through the canonical append-only Phase 7 historical importer."""
+    """Import materialized events through the canonical append-only importer."""
     from fpl_intelligence.availability.historical.importer import import_historical_availability
 
     by_season: dict[str, list[dict[str, Any]]] = {}
