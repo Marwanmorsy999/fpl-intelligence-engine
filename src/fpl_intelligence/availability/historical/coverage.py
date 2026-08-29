@@ -155,14 +155,15 @@ def audit_historical_coverage(
                 or 0
             )
 
-        strict_players: set[int] = set()
+        strict_players: set[tuple[int, int]] = set()
         missing_ts = 0
         injuries = suspensions = training = press_conf = 0
         strict_safe = hist_only = unknown = 0
         for ev in events:
             if ev.temporal_class == TemporalClass.STRICT_BACKTEST_SAFE:
                 strict_safe += 1
-                strict_players.add(ev.player_id)
+                if ev.gameweek_id is not None:
+                    strict_players.add((ev.player_id, ev.gameweek_id))
             elif ev.temporal_class == TemporalClass.HISTORICAL_EVENT_ONLY:
                 hist_only += 1
             else:
@@ -239,7 +240,7 @@ def audit_historical_coverage(
             press_conferences=press_conf,
             articles=articles,
             evidence_records=evidence_count,
-            unresolved_entities=len(players) * 0,  # resolved players only counted
+            unresolved_entities=0,
             missing_timestamps=missing_ts,
             player_gameweeks=player_gws,
             player_gameweeks_with_strict_evidence=len(strict_players),
