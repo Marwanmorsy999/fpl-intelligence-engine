@@ -7,12 +7,27 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 
 from fpl_intelligence.availability.historical.chronological import evaluate_materialize_report
 from fpl_intelligence.availability.historical.materialize_pit import DeadlineCutoff, collect_events, import_materialized, materialize_cutoffs
 from fpl_intelligence.availability.historical.signal_lift import evaluate_signal_lift
+
+# Known validation Supabase project. A commit is rejected unless DATABASE_URL
+# clearly identifies this project (direct host or the project-qualified pooler user).
+VALIDATION_PROJECT_REF = "hnsoektotpqgvpqshusi"
+
+
+def _assert_validation_database_target() -> None:
+    url = os.environ.get("DATABASE_URL", "")
+    if not url:
+        raise SystemExit("--commit requires DATABASE_URL for the validation database")
+    if VALIDATION_PROJECT_REF not in url:
+        raise SystemExit(
+            "refusing --commit: DATABASE_URL does not identify the approved validation Supabase project"
+        )
 
 
 def _dt(value: str) -> datetime:
@@ -68,6 +83,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.from_db_deadlines and args.from_verified_deadlines:
         raise SystemExit("--from-db-deadlines and --from-verified-deadlines are mutually exclusive")
+    if args.commit:
+        _assert_validation_database_target()
     cutoffs = _cutoffs_from_args(args)
     if not cutoffs:
         print(json.dumps({"error": "no deadline cutoffs available"}, indent=2))
