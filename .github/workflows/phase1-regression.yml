@@ -1,0 +1,51 @@
+name: Phase 1 regression
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/fpl_intelligence/availability/historical/**'
+      - 'src/fpl_intelligence/data_providers/fpl_egress.py'
+      - 'src/fpl_intelligence/db/session.py'
+      - 'src/fpl_intelligence/prediction/live_provider.py'
+      - 'src/fpl_intelligence/sync/service.py'
+      - 'tests/unit/test_gameweek_season_scope.py'
+      - 'tests/unit/test_db_production_safety.py'
+      - 'tests/unit/test_fpl_egress_resilience.py'
+      - 'tests/unit/test_phase7_fpl_provider_alignment.py'
+      - 'tests/unit/test_pit_contract.py'
+  push:
+    branches: [main, master]
+    paths:
+      - 'src/fpl_intelligence/availability/historical/**'
+      - 'src/fpl_intelligence/data_providers/fpl_egress.py'
+      - 'src/fpl_intelligence/db/session.py'
+      - 'src/fpl_intelligence/prediction/live_provider.py'
+      - 'src/fpl_intelligence/sync/service.py'
+      - 'tests/unit/test_gameweek_season_scope.py'
+      - 'tests/unit/test_db_production_safety.py'
+      - 'tests/unit/test_fpl_egress_resilience.py'
+      - 'tests/unit/test_phase7_fpl_provider_alignment.py'
+      - 'tests/unit/test_pit_contract.py'
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: python -m pip install -q -r requirements.txt pytest
+      - name: Phase 1 unit regression
+        run: |
+          python -m pytest -q \
+            tests/unit/test_gameweek_season_scope.py \
+            tests/unit/test_db_production_safety.py \
+            tests/unit/test_fpl_egress_resilience.py \
+            tests/unit/test_phase7_fpl_provider_alignment.py \
+            tests/unit/test_pit_contract.py \
+            tests/unit/test_phase9_2_ingestion.py
+      - name: Compile check
+        run: python -m compileall -q src
