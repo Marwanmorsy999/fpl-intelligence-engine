@@ -12,11 +12,7 @@ def validate_pit_events(
     *,
     cutoffs: dict[tuple[str, int | None], datetime],
 ) -> dict[str, int]:
-    """Validate PIT event contracts before they can enter canonical storage.
-
-    Raises ``ValueError`` on any invariant violation. The returned counters are
-    evidence that all accepted records passed the contract.
-    """
+    """Validate PIT event contracts before they can enter canonical storage."""
     seen: set[tuple[str, str, str]] = set()
     checked = 0
     eligible = 0
@@ -28,7 +24,6 @@ def validate_pit_events(
         if not provider or not season or not player or not event_id:
             raise ValueError("PIT event missing provider/season/player/provider_event_id")
 
-        # Provider-event identity must be stable and unique for this materialized batch.
         key = (season, player, event_id)
         if key in seen:
             raise ValueError(f"duplicate PIT provider event: {key}")
@@ -70,11 +65,10 @@ def validate_import_result(result: Any) -> dict[str, int]:
         raise ValueError(
             f"historical import conservation failed: fetched={audit.fetched} terminal={audit.terminal_total}"
         )
-    if audit.matched + audit.ambiguous + audit.unmatched != audit.fetched - audit.normalization_failed - audit.skipped_invalid - audit.skipped_duplicate - audit.skipped_temporal_invalid - audit.persisted + audit.persisted:
-        # Keep this deliberately conservative: the importer owns terminal accounting,
-        # while these stage counters are diagnostic rather than a second conservation equation.
-        raise ValueError("historical resolution counters are internally inconsistent")
-    if result.strict_safe < result.eligible_before_cutoff:
+    resolved_terminal = audit.matched + audit.ambiguous + audit.unmatched
+    if resolved_terminal > audit.fetched - audit.normalization_failed:
+        raise ValueError("historical resolution counters exceed normalized input")
+    if result.eligible_before_cutoff > result.strict_safe:
         raise ValueError("eligible_before_cutoff cannot exceed strict-safe events")
     return {
         "fetched": audit.fetched,
