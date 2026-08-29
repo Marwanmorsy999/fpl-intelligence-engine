@@ -60,11 +60,14 @@ jobs:
             --cache-root data/fplcache_pit \
             --evaluate
 
+  # Deliberately one-shot: this job runs only for the unique validation-import
+  # commit marker and never on ordinary pushes. The script also rejects any
+  # DATABASE_URL that does not identify the approved validation Supabase project.
   validation-db-import-gate:
-    if: ${{ vars.AVAILABILITY_PIT_ENABLE_IMPORT == 'true' }}
+    if: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[availability-pit-validation-import]') }}
     needs: unit-and-readonly-preflight
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       GITHUB_TOKEN: ${{ github.token }}
@@ -83,6 +86,24 @@ jobs:
             --gw-min 1 --gw-max 5 \
             --cache-root data/fplcache_pit \
             --import --commit --evaluate
+      - name: Idempotency replay (rollback-only)
+        run: |
+          python scripts/materialize_availability_pit.py \
+            --from-verified-deadlines \
+            --season-code 2024-25 --season-code 2025-26 \
+            --gw-min 1 --gw-max 5 \
+            --cache-root data/fplcache_pit \
+            --import --evaluate > /tmp/pit_replay.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path('/tmp/pit_replay.json').read_text())
+          result = payload['import_result']
+          audit = result['resolver_audit']
+          assert result['events_imported'] == 0, result
+          assert audit['skipped_duplicate'] == audit['fetched'], audit
+          assert payload['committed'] is False, payload
+          PY
       - name: Validate imported PIT evidence and signal
         run: |
           python scripts/audit_availability_pit.py \
