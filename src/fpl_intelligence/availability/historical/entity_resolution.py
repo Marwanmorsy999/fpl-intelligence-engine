@@ -33,14 +33,13 @@ from fpl_intelligence.entity_resolution.resolver import (
     normalize_name,
 )
 
-#: Known aliases for the FPL element-id namespace. ``real_fpl`` and
-#: ``real_fpl_bootstrap`` both refer to the same official FPL ``element`` ids;
-#: the live ingestion path stores under ``real_fpl`` while the availability
-#: bootstrap provider resolves under ``real_fpl_bootstrap``. Treating them as
-#: aliases fixes the cross-provider mismatch without changing canonical storage.
+#: Provider aliases sharing the official FPL element-id namespace. Availability
+#: sources may use a distinct provider label while still referring to the same
+#: canonical FPL element identifiers stored by the live ingestion path.
 _FPL_PROVIDER_ALIASES: dict[str, tuple[str, ...]] = {
-    "real_fpl": ("real_fpl_bootstrap",),
-    "real_fpl_bootstrap": ("real_fpl",),
+    "real_fpl": ("real_fpl_bootstrap", "fplcache_pit"),
+    "real_fpl_bootstrap": ("real_fpl", "fplcache_pit"),
+    "fplcache_pit": ("real_fpl", "real_fpl_bootstrap"),
 }
 
 
@@ -119,19 +118,13 @@ class HistoricalEntityResolver:
         season_id: int | None,
         report: HistoricalResolutionReport,
     ) -> int | None:
-        """Resolve a player using provider-ID first, then team+season+name context.
-
-        Provider-ID is the authoritative primary key. Only when it is absent do
-        we fall back to contextual matching (team context + season + normalized
-        name as supporting evidence). Ambiguity is reported, never guessed.
-        """
+        """Resolve a player using provider-ID first, then team+season+name context."""
         pid = self.resolve_player(provider_player_id)
         if pid is not None:
             report.matched_players += 1
             return pid
 
         by_name: dict[str, list[tuple[str, int]]] = {}
-        # Build a name -> candidate map from the player's team+season context.
         if team_id is not None and season_id is not None:
             from fpl_intelligence.db.models import PlayerTeamMembership
 
@@ -146,11 +139,8 @@ class HistoricalEntityResolver:
                 .all()
             )
             for m in memberships:
-                name = normalize_name(
-                    self.db.get(Player, m.player_id).web_name
-                    if self.db.get(Player, m.player_id)
-                    else ""
-                )
+                player = self.db.get(Player, m.player_id)
+                name = normalize_name(player.web_name if player else "")
                 if name:
                     by_name.setdefault(name, []).append(("region", m.player_id))
 
