@@ -6,17 +6,18 @@ players, and print a JSON report. Pass --import to persist into Phase 7 tables
 
 Examples:
   python scripts/materialize_availability_pit.py \\
-    --cutoff 2024-08-16T16:00:00Z --season 2024-25 --gameweek 1 \\
-    --cutoff 2025-08-15T16:00:00Z --season 2025-26 --gameweek 1
+    --cutoff 2024-08-16T16:00:00Z --season 2024-25 --gameweek 1
 
-  python scripts/materialize_availability_pit.py --import ...
+  python scripts/materialize_availability_pit.py \\
+    --from-db-deadlines --season-code 2024-25 --gw-min 1 --gw-max 5
+
+  python scripts/materialize_availability_pit.py --import --commit ...
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -37,13 +38,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--cutoff",
         action="append",
-        required=True,
+        default=[],
         help="UTC ISO-8601 deadline cutoff (repeatable)",
     )
     parser.add_argument(
         "--season",
         action="append",
-        required=True,
+        default=[],
         help="Season code aligned positionally with each --cutoff (e.g. 2024-25)",
     )
     parser.add_argument(
@@ -52,6 +53,20 @@ def main(argv: list[str] | None = None) -> int:
         default=[],
         help="Optional gameweek number aligned with each --cutoff",
     )
+    parser.add_argument(
+        "--from-db-deadlines",
+        action="store_true",
+        help="Load cutoffs from Gameweek.deadline_time in the validation DB",
+    )
+    parser.add_argument(
+        "--season-code",
+        action="append",
+        default=[],
+        help="Season code(s) when using --from-db-deadlines",
+    )
+    parser.add_argument("--gw-min", type=int, default=None)
+    parser.add_argument("--gw-max", type=int, default=None)
+    parser.add_argument("--limit", type=int, default=None, help="Max cutoffs from DB")
     parser.add_argument(
         "--cache-root",
         type=Path,
@@ -80,26 +95,60 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Commit the import transaction (default rolls back unless set)",
     )
+    parser.add_argument(
+        "--evaluate",
+        action="store_true",
+        help="Attach chronological + signal-lift reports to the output",
+    )
     args = parser.parse_args(argv)
 
-    if len(args.season) != len(args.cutoff):
-        parser.error("provide exactly one --season per --cutoff")
-    gameweeks: list[int | None]
-    if not args.gameweek:
-        gameweeks = [None] * len(args.cutoff)
-    elif len(args.gameweek) != len(args.cutoff):
-        parser.error("when using --gameweek, provide one per --cutoff")
-    else:
-        gameweeks = [int(g) for g in args.gameweek]
+    cutoffs: list[DeadlineCutoff] = []
 
-    cutoffs = [
-        DeadlineCutoff(
-            season_code=season,
-            gameweek=gw,
-            cutoff=_parse_cutoff(cutoff),
+    if args.from_db_deadlines:
+        if not args.season_code:
+            parser.error("--from-db-deadlines requires at least one --season-code")
+        from fpl_intelligence.availability.historical.deadlines import (
+            cutoffs_summary,
+            load_deadline_cutoffs,
         )
-        for season, gw, cutoff in zip(args.season, gameweeks, args.cutoff, strict=True)
-    ]
+        from fpl_intelligence.db.session import validation_session_factory
+
+        Session = validation_session_factory()
+        with Session() as db:
+            cutoffs = load_deadline_cutoffs(
+                db,
+                args.season_code,
+                gw_min=args.gw_min,
+                gw_max=args.gw_max,
+                limit=args.limit,
+            )
+        if not cutoffs:
+            print(json.dumps({"error": "no deadlines found", "seasons": args.season_code}))
+            return 2
+        print(
+            json.dumps({"deadline_source": "db", **cutoffs_summary(cutoffs)}, indent=2),
+            flush=True,
+        )
+    else:
+        if not args.cutoff or not args.season:
+            parser.error("provide --cutoff/--season pairs, or --from-db-deadlines")
+        if len(args.season) != len(args.cutoff):
+            parser.error("provide exactly one --season per --cutoff")
+        gameweeks: list[int | None]
+        if not args.gameweek:
+            gameweeks = [None] * len(args.cutoff)
+        elif len(args.gameweek) != len(args.cutoff):
+            parser.error("when using --gameweek, provide one per --cutoff")
+        else:
+            gameweeks = [int(g) for g in args.gameweek]
+        cutoffs = [
+            DeadlineCutoff(
+                season_code=season,
+                gameweek=gw,
+                cutoff=_parse_cutoff(cutoff),
+            )
+            for season, gw, cutoff in zip(args.season, gameweeks, args.cutoff, strict=True)
+        ]
 
     report = materialize_cutoffs(
         args.cache_root,
@@ -124,9 +173,34 @@ def main(argv: list[str] | None = None) -> int:
                         "import exercised but rolled back; pass --commit to persist"
                     )
 
-    # Keep event bodies out of the default stdout report for size; counts only.
     payload = report.to_dict()
     payload["sample_events"] = collect_events(report)[:5]
+
+    if args.evaluate:
+        from fpl_intelligence.availability.historical.chronological import (
+            evaluate_materialize_report,
+        )
+        from fpl_intelligence.availability.historical.signal_lift import (
+            evaluate_signal_lift,
+        )
+
+        payload["chronological"] = evaluate_materialize_report(report).to_dict()
+        db = None
+        try:
+            from fpl_intelligence.db.session import validation_session_factory
+
+            Session = validation_session_factory()
+            db_cm = Session()
+            db = db_cm
+            payload["signal_lift"] = evaluate_signal_lift(report, db).to_dict()
+        except Exception as exc:  # noqa: BLE001
+            payload["signal_lift"] = evaluate_signal_lift(report, None).to_dict()
+            payload["signal_lift"]["notes"] = list(payload["signal_lift"].get("notes") or [])
+            payload["signal_lift"]["notes"].append(f"DB link skipped: {type(exc).__name__}: {exc}")
+        finally:
+            if db is not None:
+                db.close()
+
     print(json.dumps(payload, indent=2, default=str))
     return 0 if report.missing == 0 else 2
 

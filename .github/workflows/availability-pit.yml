@@ -12,7 +12,7 @@ permissions:
 jobs:
   unit:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
@@ -29,6 +29,7 @@ jobs:
           python -m pytest \
             tests/unit/test_pit_fplcache_availability.py \
             tests/unit/test_materialize_pit.py \
+            tests/unit/test_chronological_and_lift.py \
             -q
       - name: Run read-only live point-in-time preflight
         run: |
@@ -39,6 +40,12 @@ jobs:
       - name: Dry-run materialize deadline-adjacent snapshots
         run: |
           python scripts/materialize_availability_pit.py \
+            --cache-root data/fplcache_pit \
+            --cutoff 2024-08-16T16:00:00Z --season 2024-25 --gameweek 1 \
+            --cutoff 2025-08-15T16:00:00Z --season 2025-26 --gameweek 1
+      - name: Evaluate PIT chronological integrity and signal structure
+        run: |
+          python scripts/evaluate_availability_pit.py \
             --cache-root data/fplcache_pit \
             --cutoff 2024-08-16T16:00:00Z --season 2024-25 --gameweek 1 \
             --cutoff 2025-08-15T16:00:00Z --season 2025-26 --gameweek 1
