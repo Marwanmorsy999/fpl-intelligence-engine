@@ -120,10 +120,19 @@ class ResponseCache:
         value: Any = None,
         *,
         sensitive: bool = False,
+        ttl_seconds: float | None = None,
     ) -> None:
         """Cache ``value`` for ``endpoint``/``params``."""
         key = self.make_key(endpoint, params)
-        ttl = self._sensitive_ttl if sensitive else self._default_ttl
+        ttl = (
+            float(ttl_seconds)
+            if ttl_seconds is not None
+            else self._sensitive_ttl
+            if sensitive
+            else self._default_ttl
+        )
+        if ttl < 0:
+            raise ValueError("TTL value must be non-negative")
         self._store[key] = (self._clock(), ttl, value)
         self.stats.stores += 1
         if self._cache_dir is not None:

@@ -362,18 +362,17 @@ _response_lock = threading.Lock()
 async def _probe_fpl(settings: Any) -> tuple[str, str, str]:
     """FPL import reachability -> (status, detail, strategy)."""
     try:
-        from fpl_intelligence.data_providers.fpl_egress import (  # noqa: PLC0415
-            FplEgressChain,
-            validate_entry_payload,
-        )
+        from fpl_intelligence.data_providers.fpl_egress import validate_entry_payload
+        from fpl_intelligence.data_providers.registry import get_async_fpl_adapter
 
-        egress = FplEgressChain(
-            settings.fpl_base_url,
+        adapter = get_async_fpl_adapter(settings=settings)
+        await adapter.fetch(
+            "/api/entry/1/",
+            validator=validate_entry_payload,
             timeout=min(_PROBE_BUDGET_SECONDS, settings.egress_strategy_timeout),
-            cache_ttl=0,  # never cache a health probe
+            use_cache=False,
         )
-        await egress.fetch("/api/entry/1/", validator=validate_entry_payload)
-        return "ok", "reachable", egress.winning_strategy or "direct"
+        return "ok", "reachable", adapter.winning_strategy or "direct"
     except Exception:  # noqa: BLE001
         pass
     try:

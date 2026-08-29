@@ -24,7 +24,6 @@ from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from fpl_intelligence.api import deps
-from fpl_intelligence.config import get_settings
 from fpl_intelligence.fixtures.scanner import (
     NEUTRAL_FDR,
     TEAM_SHORT_NAMES,
@@ -83,16 +82,10 @@ async def load_fixtures(db: Session) -> list[dict[str, Any]]:
     if "pytest" in sys.modules or os.getenv("FPL_NO_NETWORK", "") == "1":
         return []
 
-    settings = get_settings()
-    from fpl_intelligence.data_providers.fpl_egress import FplEgressChain  # noqa: PLC0415
+    from fpl_intelligence.data_providers.registry import get_async_fpl_adapter
 
-    egress = FplEgressChain(
-        settings.fpl_base_url,
-        timeout=settings.egress_strategy_timeout,
-        cache_ttl=settings.egress_cache_ttl,
-    )
     try:
-        raw = await egress.fetch("/api/fixtures/")
+        raw = await get_async_fpl_adapter().fetch("/api/fixtures/", capability="fixtures")
     except Exception as exc:  # noqa: BLE001 - surfaced as an honest 503
         logger.warning("fixtures fetch failed: %s", exc)
         raise HTTPException(

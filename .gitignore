@@ -50,3 +50,4 @@ test_results.xml
 .playwright-mcp/
 .env.*
 !.env.example
+.env*

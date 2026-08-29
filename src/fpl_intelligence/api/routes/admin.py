@@ -33,6 +33,10 @@ from fpl_intelligence.collectors.official_fpl import OfficialFPLDataProvider
 from fpl_intelligence.config import get_settings
 from fpl_intelligence.data_providers.api_football import ApiFootballConnector
 from fpl_intelligence.data_providers.football_data_org import FootballDataOrgConnector
+from fpl_intelligence.data_providers.registry import (
+    build_default_registry,
+    fpl_ingestion_adapter,
+)
 from fpl_intelligence.db.models import (
     Gameweek,
     IngestionRun,
@@ -457,6 +461,10 @@ def _is_fpl_blocked(exc: BaseException) -> bool:
     """
     if isinstance(exc, httpx.HTTPStatusError):
         return exc.response.status_code in (403, 429)
+    if isinstance(exc, RuntimeError):
+        detail = str(exc).lower()
+        if "403" in detail or "429" in detail or "quota exhausted" in detail:
+            return True
     # httpx.HTTPError covers ConnectError, timeouts, TransportError, etc.
     return isinstance(exc, httpx.HTTPError)
 
@@ -520,6 +528,7 @@ def _run_fpl_ingest_fallback(
     others.
     """
     api_football = api_football or ApiFootballConnector()
+    api_football = build_default_registry(api_football=api_football).provider("api_football")
     football_data = football_data or FootballDataOrgConnector()
     started = datetime.now(UTC)
     run = IngestionRun(
@@ -599,7 +608,9 @@ def _run_scheduler_fallback(sink: Callable[..., None]) -> int:
     """
     ingested = 0
     today = datetime.now(UTC).strftime("%Y-%m-%d")
-    api_football = ApiFootballConnector()
+    api_football = build_default_registry(api_football=ApiFootballConnector()).provider(
+        "api_football"
+    )
     if api_football.is_enabled():
         try:
             for fact in api_football.collect_player_facts(date=today):
@@ -658,10 +669,12 @@ def _run_scheduler_pass() -> dict:
 
 def _run_fpl_ingest() -> dict:
     settings = get_settings()
-    provider = OfficialFPLDataProvider(
-        base_url=settings.fpl_base_url,
-        timeout=settings.request_timeout_seconds,
-        max_retries=settings.max_retries,
+    provider = fpl_ingestion_adapter(
+        provider_factory=lambda: OfficialFPLDataProvider(
+            base_url=settings.fpl_base_url,
+            timeout=settings.request_timeout_seconds,
+            max_retries=settings.max_retries,
+        )
     )
     db = SessionLocal()
     try:
@@ -2493,7 +2506,7 @@ async def detect_transfers_poll(
     import asyncio
     import time as _time
 
-    from fpl_intelligence.data_providers.fpl_egress import FplEgressChain
+    from fpl_intelligence.data_providers.registry import get_async_fpl_adapter
     from fpl_intelligence.squad.fpl_import import FplSquadImporter
     from fpl_intelligence.squad.models_db import SquadStateDB
     from fpl_intelligence.squad.service import SquadService
@@ -2506,11 +2519,7 @@ async def detect_transfers_poll(
         .limit(entry_limit)
     ).all()
 
-    egress = FplEgressChain(
-        settings.fpl_base_url,
-        timeout=settings.egress_strategy_timeout,
-        cache_ttl=60.0,
-    )
+    egress = get_async_fpl_adapter(settings=settings)
     importer = FplSquadImporter(egress=egress)
 
     for session_id, _updated_at in rows:

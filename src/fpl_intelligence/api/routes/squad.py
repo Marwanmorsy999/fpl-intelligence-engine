@@ -32,7 +32,6 @@ from fpl_intelligence.data_providers.decision_bridge import (
     FactCollectionService,
     FactOverrideProvider,
 )
-from fpl_intelligence.data_providers.fpl_egress import FplEgressChain
 from fpl_intelligence.data_providers.understat import (
     UnderstatConnector,
     build_stats_from_row,
@@ -1362,12 +1361,9 @@ async def import_squad_from_fpl(
     status line (winning mask or "blocked", next retry time) — never a bare 500.
     On success the sync-status line names the mask that reached FPL.
     """
-    settings = get_settings()
-    egress = FplEgressChain(
-        settings.fpl_base_url,
-        timeout=settings.egress_strategy_timeout,
-        cache_ttl=settings.egress_cache_ttl,
-    )
+    from fpl_intelligence.data_providers.registry import get_async_fpl_adapter
+
+    egress = get_async_fpl_adapter(settings=get_settings())
     importer = FplSquadImporter(egress=egress)
     try:
         result = await importer.build_squad_from_entry(payload.entry_id, db)
@@ -1637,16 +1633,11 @@ async def fpl_view(
         raise HTTPException(status_code=400, detail="session_id must be a numeric entry id")
 
     from fpl_intelligence.config import get_settings
-    from fpl_intelligence.data_providers.fpl_egress import FplEgressChain
+    from fpl_intelligence.data_providers.registry import get_async_fpl_adapter
     from fpl_intelligence.squad.fpl_import import FplSquadImporter
     from fpl_intelligence.squad.fpl_truth import fetch_fpl_truth, history_note
 
-    settings = get_settings()
-    egress = FplEgressChain(
-        settings.fpl_base_url,
-        timeout=settings.egress_strategy_timeout,
-        cache_ttl=settings.egress_cache_ttl,
-    )
+    egress = get_async_fpl_adapter(settings=get_settings())
     importer = FplSquadImporter(egress=egress)
 
     from fpl_intelligence.squad.fpl_import import FplApiUnavailable

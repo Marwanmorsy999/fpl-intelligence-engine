@@ -197,33 +197,23 @@ def projected_edge_lines(
 # --------------------------------------------------------------------------- #
 
 
-def _chain(cache_ttl: float = 300.0, *, timeout: float | None = None) -> Any:
-    from fpl_intelligence.config import get_settings
-    from fpl_intelligence.data_providers.fpl_egress import FplEgressChain
-
-    settings = get_settings()
-    return FplEgressChain(
-        settings.fpl_base_url,
-        timeout=timeout if timeout is not None else settings.egress_strategy_timeout,
-        cache_ttl=cache_ttl,
-    )
-
-
 async def fetch_entry_leagues(entry_id: int) -> list[dict[str, Any]]:
     """Live classic-league discovery for one entry via the masks.
 
     Reads ``leagues.classic`` from the entry payload itself — the 2026/27
     API retired the standalone ``/api/entry/{id}/leagues/`` route (it 404s).
     """
-    chain = _chain(cache_ttl=600.0)
-    payload = await chain.fetch(f"/api/entry/{int(entry_id)}/")
+    from fpl_intelligence.data_providers.registry import get_async_fpl_adapter
+
+    payload = await get_async_fpl_adapter().fetch(f"/api/entry/{int(entry_id)}/")
     return parse_entry_leagues(payload)
 
 
 async def fetch_standings(league_id: int) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Standings page 1 plus league meta via the masks."""
-    chain = _chain(cache_ttl=300.0)
-    payload = await chain.fetch(
+    from fpl_intelligence.data_providers.registry import get_async_fpl_adapter
+
+    payload = await get_async_fpl_adapter().fetch(
         f"/api/leagues-classic/{int(league_id)}/standings/?page_standings=1"
     )
     league_meta = payload.get("league")
@@ -262,9 +252,11 @@ PICKS_STRATEGY_TIMEOUT = 1.6
 
 async def fetch_entry_picks(entry_id: int, gameweek: int) -> dict[str, Any]:
     """Starters + captain element ids for one entry's gameweek."""
-    chain = _chain(cache_ttl=300.0, timeout=PICKS_STRATEGY_TIMEOUT)
-    payload = await chain.fetch(
-        f"/api/entry/{int(entry_id)}/event/{int(gameweek)}/picks/"
+    from fpl_intelligence.data_providers.registry import get_async_fpl_adapter
+
+    payload = await get_async_fpl_adapter().fetch(
+        f"/api/entry/{int(entry_id)}/event/{int(gameweek)}/picks/",
+        timeout=PICKS_STRATEGY_TIMEOUT,
     )
     picks = payload.get("picks") or []
     starters: list[int] = []

@@ -217,8 +217,8 @@ class OpenMeteoConnector:
             payload = response.json()
         except Exception:  # noqa: BLE001 - graceful degradation is the contract
             return None
-        if self._cache is not None and hasattr(self._cache, "set"):
-            self._cache.set(cache_key, payload, self._ttl)
+        if self._cache is not None:
+            self._cache.store(cache_key, value=payload, ttl_seconds=self._ttl)
         try:
             return parse_forecast_payload(
                 payload,

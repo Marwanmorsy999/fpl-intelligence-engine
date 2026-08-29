@@ -1,0 +1,14 @@
+name: Locked 2025-26 Holdout Evaluation (disabled)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  disabled:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Holdout pipeline moved to Historical Model Validation
+        run: echo "Holdout evaluation is executed by .github/workflows/model-validation.yml"

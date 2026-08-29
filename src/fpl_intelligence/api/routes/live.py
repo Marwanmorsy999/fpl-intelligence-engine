@@ -287,7 +287,7 @@ def _mask_status(
 
 
 # --------------------------------------------------------------------------- #
-# Egress chains (one per TTL class) + ESPN strip cache
+# Registry adapter + ESPN strip cache
 # --------------------------------------------------------------------------- #
 
 _chain_lock = threading.Lock()
@@ -295,22 +295,17 @@ _chains: dict[str, tuple[Any, Any]] = {}
 
 
 def _chain(kind: str) -> tuple[Any, Any]:
-    """(chain, ttl) for 'bootstrap' | 'picks' | 'live'."""
+    """(registry adapter, timeout) for 'bootstrap' | 'picks' | 'live'."""
     settings = get_settings()
-    from fpl_intelligence.data_providers.fpl_egress import FplEgressChain
+    from fpl_intelligence.data_providers.registry import get_async_fpl_adapter
 
     specs = {
         "bootstrap": (settings.egress_strategy_timeout, BOOTSTRAP_TTL),
         "picks": (settings.egress_strategy_timeout, PICKS_TTL),
         "live": (LIVE_STRATEGY_TIMEOUT, LIVE_TTL),
     }
-    timeout, ttl = specs[kind]
-    with _chain_lock:
-        hit = _chains.get(kind)
-        if hit is None or hit[1] != ttl:
-            chain = FplEgressChain(settings.fpl_base_url, timeout=timeout, cache_ttl=ttl)
-            _chains[kind] = (chain, ttl)
-        return _chains[kind]
+    timeout, _ttl = specs[kind]
+    return get_async_fpl_adapter(settings=settings), timeout
 
 
 _espn_cache: tuple[float, list[dict[str, Any]] | None] = (0.0, None)
@@ -400,9 +395,9 @@ async def live_matchday(
     # --- 1. bootstrap: current GW + name/team/pos maps ------------------------
     bootstrap: dict[str, Any] | None = None
     try:
-        chain, _ttl = _chain("bootstrap")
-        bootstrap = await chain.fetch("/api/bootstrap-static/")
-        masks["bootstrap"] = _mask_status(ok=True, strategy=chain.winning_strategy)
+        adapter, timeout = _chain("bootstrap")
+        bootstrap = await adapter.fetch("/api/bootstrap-static/", timeout=timeout)
+        masks["bootstrap"] = _mask_status(ok=True, strategy=adapter.winning_strategy)
     except Exception as exc:  # noqa: BLE001
         masks["bootstrap"] = _mask_status(exc)
         note_parts.append("bootstrap unavailable")
@@ -462,11 +457,11 @@ async def live_matchday(
         # v2.7.6-session-guard: never build an entry URL from a non-numeric id.
         if not str(session_id).strip().isdigit():
             raise ValueError("session_id is not a numeric FPL entry id")
-        chain, _ttl = _chain("picks")
-        picks_payload = await chain.fetch(
-            f"/api/entry/{int(session_id)}/event/{gameweek}/picks/"
+        adapter, timeout = _chain("picks")
+        picks_payload = await adapter.fetch(
+            f"/api/entry/{int(session_id)}/event/{gameweek}/picks/", timeout=timeout
         )
-        masks["picks"] = _mask_status(ok=True, strategy=chain.winning_strategy)
+        masks["picks"] = _mask_status(ok=True, strategy=adapter.winning_strategy)
         picks_source = "fpl-picks"
     except Exception as exc:  # noqa: BLE001
         masks["picks"] = _mask_status(exc)
@@ -499,9 +494,9 @@ async def live_matchday(
     live_payload: dict[str, Any] | None = None
     if not gw_finished:
         try:
-            chain, _ttl = _chain("live")
-            live_payload = await chain.fetch(f"/api/event/{gameweek}/live/")
-            masks["live"] = _mask_status(ok=True, strategy=chain.winning_strategy)
+            adapter, timeout = _chain("live")
+            live_payload = await adapter.fetch(f"/api/event/{gameweek}/live/", timeout=timeout)
+            masks["live"] = _mask_status(ok=True, strategy=adapter.winning_strategy)
         except Exception as exc:  # noqa: BLE001
             masks["live"] = _mask_status(exc)
             note_parts.append("live feed failed")

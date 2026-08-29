@@ -52,6 +52,17 @@ def _hash_payload(payload: Any) -> str:
     return hashlib.sha256(serialized).hexdigest()
 
 
+def _naive_utc(value: Any) -> Any:
+    """Normalize a datetime for in-memory key comparison.
+
+    SQLite roundtrips datetimes as naive; provider datetimes are tz-aware.
+    Key comparisons must use one canonical representation.
+    """
+    if isinstance(value, datetime) and value.tzinfo is not None:
+        return value.astimezone(UTC).replace(tzinfo=None)
+    return value
+
+
 def _make_json_safe(payload: Any) -> dict[str, Any]:
     """Convert a payload to a JSON-safe dict by serializing non-serializable types."""
     if isinstance(payload, dict):
@@ -358,10 +369,27 @@ def import_season(
         ]
 
         team_map: dict[str, Team] = {}
+        # Remote-database latency optimization: preload entity identity caches
+        # once instead of issuing two queries per team/player/row. The lookup
+        # semantics are identical to the per-row _get_or_create_* selects.
+        team_ext_cache: dict[tuple[str, str], int] = {
+            (te.provider, te.provider_team_id): te.team_id
+            for te in db.scalars(select(TeamExternalId)).all()
+        }
+        team_by_id: dict[int, Team] = {
+            t.id: t for t in db.scalars(select(Team)).all()
+        }
         for nt in norm_teams:
-            team = _get_or_create_team(
-                db, provider_name, nt["provider_team_id"], nt["name"], nt["short_name"]
-            )
+            ext_key = (provider_name, nt["provider_team_id"])
+            team_id_val = team_ext_cache.get(ext_key)
+            if team_id_val is not None and team_id_val in team_by_id:
+                team = team_by_id[team_id_val]
+            else:
+                team = _get_or_create_team(
+                    db, provider_name, nt["provider_team_id"], nt["name"], nt["short_name"]
+                )
+                team_by_id[team.id] = team
+                team_ext_cache[ext_key] = team.id
             team_map[nt["provider_team_id"]] = team
 
         known_team_ids = set(team_map.keys())
@@ -385,29 +413,42 @@ def import_season(
         ]
 
         player_map: dict[str, Player] = {}
+        player_ext_cache: dict[tuple[str, str], int] = {
+            (pe.provider, pe.provider_player_id): pe.player_id
+            for pe in db.scalars(select(PlayerExternalId)).all()
+        }
+        player_by_id: dict[int, Player] = {
+            p.id: p for p in db.scalars(select(Player)).all()
+        }
+        membership_keys: set[tuple[int, int, int]] = {
+            (m.player_id, m.team_id, m.season_id)
+            for m in db.scalars(select(PlayerTeamMembership)).all()
+        }
         for np_data in norm_players:
-            player = _get_or_create_player(
-                db,
-                provider_name,
-                np_data["provider_player_id"],
-                np_data["first_name"],
-                np_data["second_name"],
-                np_data["web_name"],
-                np_data["position_code"],
-            )
+            ext_key = (provider_name, np_data["provider_player_id"])
+            player_id_val = player_ext_cache.get(ext_key)
+            if player_id_val is not None and player_id_val in player_by_id:
+                player = player_by_id[player_id_val]
+            else:
+                player = _get_or_create_player(
+                    db,
+                    provider_name,
+                    np_data["provider_player_id"],
+                    np_data["first_name"],
+                    np_data["second_name"],
+                    np_data["web_name"],
+                    np_data["position_code"],
+                )
+                player_by_id[player.id] = player
+                player_ext_cache[ext_key] = player.id
             player_map[np_data["provider_player_id"]] = player
 
             # Create player-team membership
             team_id_str = np_data.get("team_id")
             if team_id_str and team_id_str in team_map:
-                existing_membership = db.scalar(
-                    select(PlayerTeamMembership).where(
-                        PlayerTeamMembership.player_id == player.id,
-                        PlayerTeamMembership.team_id == team_map[team_id_str].id,
-                        PlayerTeamMembership.season_id == season.id,
-                    )
-                )
-                if not existing_membership:
+                membership_key = (player.id, team_map[team_id_str].id, season.id)
+                if membership_key not in membership_keys:
+                    membership_keys.add(membership_key)
                     db.add(
                         PlayerTeamMembership(
                             player_id=player.id,
@@ -448,16 +489,38 @@ def import_season(
             report,
         )
 
+        # Gameweek-end reference stamps (PROVENANCE / OUTCOME_DATA_ONLY):
+        # For each gameweek, the latest *genuine* fixture kickoff_time from the
+        # source is the earliest moment the gameweek's final outcome state could
+        # exist. Historical outcome rows are stamped with this reference for
+        # both `available_at` and `ingested_at` (equal, so the
+        # `available_at <= ingested_at` invariant always holds). These are NOT
+        # claimed publication timestamps; the true retrieval time is recorded
+        # separately on RawRecord.retrieved_at / IngestionRun.started_at.
+        gameweek_end_reference: dict[int, Any] = {}
+        for af in accepted_fixtures:
+            gw_num = af.get("gameweek")
+            kickoff = af.get("kickoff_time")
+            if gw_num is None or kickoff is None:
+                continue
+            current = gameweek_end_reference.get(int(gw_num))
+            if current is None or kickoff > current:
+                gameweek_end_reference[int(gw_num)] = kickoff
+
+        gameweek_cache: dict[int, Gameweek] = {}
         for af in accepted_fixtures:
             gameweek_id = None
             gw_num = af.get("gameweek")
             if gw_num is not None:
-                gw = _get_or_create_gameweek(
-                    db,
-                    season.id,
-                    int(gw_num),
-                    f"Gameweek {gw_num}",
-                )
+                gw = gameweek_cache.get(int(gw_num))
+                if gw is None:
+                    gw = _get_or_create_gameweek(
+                        db,
+                        season.id,
+                        int(gw_num),
+                        f"Gameweek {gw_num}",
+                    )
+                    gameweek_cache[int(gw_num)] = gw
                 gameweek_id = gw.id
 
             _get_or_create_fixture(
@@ -533,6 +596,30 @@ def import_season(
                 "form",
                 "points_per_game",
             ]
+            # Remote-database latency optimization: per-season lookups loaded
+            # once (identical semantics to the per-row selects they replace).
+            gameweek_by_event: dict[int, Gameweek] = {
+                gw.provider_event_id: gw
+                for gw in db.scalars(
+                    select(Gameweek).where(Gameweek.season_id == season.id)
+                ).all()
+            }
+            existing_pgp_keys: set[tuple[int, int]] = set(
+                db.execute(
+                    select(
+                        PlayerGameweekPerformance.player_id,
+                        PlayerGameweekPerformance.gameweek_id,
+                    ).where(PlayerGameweekPerformance.season_id == season.id)
+                ).all()
+            )
+            membership_by_player: dict[int, int] = {
+                m.player_id: m.team_id
+                for m in db.scalars(
+                    select(PlayerTeamMembership).where(
+                        PlayerTeamMembership.season_id == season.id
+                    )
+                ).all()
+            }
             for nh in accepted_history:
                 pid = nh.get("provider_player_id")
                 gw_num = nh.get("gameweek")
@@ -559,34 +646,24 @@ def import_season(
                 if player is None:
                     continue
 
-                gw = db.scalar(
-                    select(Gameweek).where(
-                        Gameweek.season_id == season.id,
-                        Gameweek.provider_event_id == gw_num,
-                    )
-                )
+                gw = gameweek_by_event.get(gw_num)
                 if gw is None:
                     continue
 
-                existing_pgp = db.scalar(
-                    select(PlayerGameweekPerformance).where(
-                        PlayerGameweekPerformance.player_id == player.id,
-                        PlayerGameweekPerformance.gameweek_id == gw.id,
-                    )
-                )
-                if existing_pgp:
+                if (player.id, gw.id) in existing_pgp_keys:
                     continue
 
-                membership = db.scalar(
-                    select(PlayerTeamMembership).where(
-                        PlayerTeamMembership.player_id == player.id,
-                        PlayerTeamMembership.season_id == season.id,
-                    )
-                )
-                team_id_val = membership.team_id if membership else None
+                team_id_val = membership_by_player.get(player.id)
 
                 if team_id_val is None:
                     continue
+
+                # OUTCOME_DATA_ONLY provenance (see gameweek_end_reference
+                # above): both stamps equal the gameweek-end reference derived
+                # from genuine source kickoff times. Rows whose gameweek has no
+                # kickoff information keep NULL stamps and are consequently
+                # excluded from strict temporal features (fail-closed).
+                gw_end_stamp = gameweek_end_reference.get(gw_num)
 
                 db.add(
                     PlayerGameweekPerformance(
@@ -594,6 +671,8 @@ def import_season(
                         gameweek_id=gw.id,
                         season_id=season.id,
                         team_id=team_id_val,
+                        available_at=gw_end_stamp,
+                        ingested_at=gw_end_stamp,
                         minutes=nh.get("minutes"),
                         goals_scored=nh.get("goals_scored"),
                         assists=nh.get("assists"),
@@ -643,6 +722,14 @@ def import_season(
         if dataset in ("all", "fpl"):
             try:
                 snapshots_data = provider.get_fpl_snapshots(season_code)
+                # Temporal safety (Step: no fabricated timestamps): snapshot rows
+                # without a genuine source event_time are dropped here rather
+                # than being silently stamped with ingestion time by the
+                # normalizer. The FPLSnapshot unique key includes event_time, so
+                # a fabricated now() would also break idempotent re-imports.
+                snapshots_data = [
+                    s for s in snapshots_data if s.get("event_time") is not None
+                ]
                 norm_snapshots = [normalize_fpl_snapshot(s, provider_name) for s in snapshots_data]
 
                 # Real FPL data may contain multiple fixture rows per (player,
@@ -686,6 +773,16 @@ def import_season(
                             if ns.get(f) is not None:
                                 merged[f] = ns.get(f)
 
+                existing_snap_keys: set[tuple[int, int, Any]] = {
+                    (pid, gid, _naive_utc(et))
+                    for pid, gid, et in db.execute(
+                        select(
+                            FPLSnapshot.player_id,
+                            FPLSnapshot.gameweek_id,
+                            FPLSnapshot.event_time,
+                        ).where(FPLSnapshot.season_id == season.id)
+                    ).all()
+                }
                 for key in snap_order:
                     ns = snap_agg[key]
                     player = player_map.get(key[0])
@@ -693,26 +790,16 @@ def import_season(
                     if player is None:
                         continue
 
-                    gw = db.scalar(
-                        select(Gameweek).where(
-                            Gameweek.season_id == season.id,
-                            Gameweek.provider_event_id == int(gw_num),
-                        )
-                    )
+                    gw = gameweek_by_event.get(int(gw_num))
                     if gw is None:
                         continue
 
                     event_time = ns.get("event_time")
 
-                    existing_snap = db.scalar(
-                        select(FPLSnapshot).where(
-                            FPLSnapshot.player_id == player.id,
-                            FPLSnapshot.gameweek_id == gw.id,
-                            FPLSnapshot.event_time == event_time,
-                        )
-                    )
-                    if existing_snap:
+                    snap_key = (player.id, gw.id, _naive_utc(event_time))
+                    if snap_key in existing_snap_keys:
                         continue
+                    existing_snap_keys.add(snap_key)
 
                     db.add(
                         FPLSnapshot(

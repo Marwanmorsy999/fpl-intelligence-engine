@@ -1,20 +1,14 @@
 import typer
 
-from fpl_intelligence.collectors.official_fpl import OfficialFPLDataProvider
-from fpl_intelligence.config import get_settings
+from fpl_intelligence.data_providers.registry import fpl_ingestion_adapter
 from fpl_intelligence.db.session import SessionLocal
 from fpl_intelligence.ingestion.fpl import ingest_bootstrap, ingest_fixtures
 
 app = typer.Typer(add_completion=False)
 
 
-def _provider() -> OfficialFPLDataProvider:
-    settings = get_settings()
-    return OfficialFPLDataProvider(
-        base_url=settings.fpl_base_url,
-        timeout=settings.request_timeout_seconds,
-        max_retries=settings.max_retries,
-    )
+def _provider():
+    return fpl_ingestion_adapter()
 
 
 def _run(job: str) -> None:
