@@ -20,7 +20,10 @@ from sqlalchemy import event
 from sqlalchemy.engine import Engine
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
+from starlette.responses import HTMLResponse
+from starlette.responses import JSONResponse
+from starlette.responses import PlainTextResponse
+from starlette.responses import Response
 
 logger = logging.getLogger("fpl.performance")
 _request_id: ContextVar[str] = ContextVar("fpl_request_id", default="-")
@@ -47,7 +50,6 @@ class PhaseTimer:
             elapsed_ms = (time.perf_counter() - start) * 1000.0
             self.phases[name] = self.phases.get(name, 0.0) + elapsed_ms
 
-
     @property
     def total_ms(self) -> float:
         return (time.perf_counter() - self.started) * 1000.0
@@ -61,23 +63,6 @@ def current_request_id() -> str:
 def current_phase_timer() -> PhaseTimer | None:
     """Return the active request profiler, if this code runs inside a request."""
     return _current_timer.get()
-
-
-def timed_phase(name: str) -> Callable[[F], F]:
-    """Decorate a synchronous callable so its runtime accumulates into a phase."""
-
-    def decorator(fn: F) -> F:
-        @wraps(fn)
-        def wrapped(*args: Any, **kwargs: Any) -> Any:
-            timer = current_phase_timer()
-            if timer is None:
-                return fn(*args, **kwargs)
-            with timer.phase(name):
-                return fn(*args, **kwargs)
-
-        return cast(F, wrapped)
-
-    return decorator
 
 
 _SERIALIZATION_WRAPPED = False
@@ -106,8 +91,8 @@ def _wrap_response_render(response_cls: type[Response]) -> None:
 def install_serialization_timing() -> None:
     """Install process-wide response rendering hooks once.
 
-    The hooks are deliberately limited to Starlette's built-in response classes
-    used by this API. Only requests with an active PhaseTimer incur timing work.
+    The hooks are limited to Starlette's built-in response classes used by this
+    API. Only requests with an active PhaseTimer incur timing work.
     """
     global _SERIALIZATION_WRAPPED
     if _SERIALIZATION_WRAPPED:
