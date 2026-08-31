@@ -8,12 +8,12 @@ from fastapi.responses import RedirectResponse
 
 from fpl_intelligence import __version__
 from fpl_intelligence.api.cache import EdgeCachePolicyMiddleware
+from fpl_intelligence.api.deps import GetDB, assert_no_static_stub_in_production
 from fpl_intelligence.api.performance import (
     RequestProfilingMiddleware,
     install_fpl_egress_timing,
     install_serialization_timing,
 )
-from fpl_intelligence.api.deps import GetDB, assert_no_static_stub_in_production
 from fpl_intelligence.api.routes.admin import router as admin_router
 from fpl_intelligence.api.routes.analyst import router as analyst_router
 from fpl_intelligence.api.routes.assistant import router as assistant_router
@@ -164,7 +164,7 @@ async def health(db: GetDB) -> dict[str, str]:
 #   * /api/v1/decisions*   → 503 with a truthful detail (a skeleton report is
 #                            never fabricated).
 #   * everything else      → unchanged default behavior (plain 500 text).
-# --------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------
 from fastapi.responses import JSONResponse, PlainTextResponse  # noqa: E402
 
 
