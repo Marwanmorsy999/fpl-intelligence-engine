@@ -367,6 +367,23 @@ def _build_player_details(
         predictions = {}
     gw_preds = predictions.get(report.gameweek, {})
 
+    # Batch-resolve player rows once. The old implementation issued one
+    # SELECT per player in the report, turning dashboard enrichment into an
+    # N+1 database pattern on every uncached decisions request.
+    players_by_element: dict[int, Player] = {}
+    try:
+        if player_ids:
+            rows = db.scalars(
+                select(Player).where(Player.fpl_element_id.in_(player_ids))
+            ).all()
+            players_by_element = {
+                int(row.fpl_element_id): row
+                for row in rows
+                if row.fpl_element_id is not None
+            }
+    except Exception as exc:  # noqa: BLE001 - enrichment remains best-effort
+        logger.debug("batched player enrichment query failed: %s", exc)
+
     details: dict[str, PlayerDetail] = {}
     for pid in sorted(player_ids):
         # R1: every stored player_id is a canonical FPL element id. Resolve the
@@ -374,7 +391,7 @@ def _build_player_details(
         # from this same row, so a name can never be paired with another
         # player's price (which was the "Thiaw £15.5m" bug). Demo squads now
         # also store element ids, so there is exactly one code path here.
-        player: Player | None = db.scalar(select(Player).where(Player.fpl_element_id == pid))
+        player: Player | None = players_by_element.get(int(pid))
         if player is None:
             # Legacy fallback for rows seeded before the element-id migration:
             # the stored value is an internal auto-increment id.
