@@ -164,7 +164,7 @@ async def health(db: GetDB) -> dict[str, str]:
 #   * /api/v1/decisions*   → 503 with a truthful detail (a skeleton report is
 #                            never fabricated).
 #   * everything else      → unchanged default behavior (plain 500 text).
-# ---------------------------------------------------------------------------
+# --------------------------------------------------------------------------- #
 from fastapi.responses import JSONResponse, PlainTextResponse  # noqa: E402
 
 
