@@ -8,7 +8,11 @@ from fastapi.responses import RedirectResponse
 
 from fpl_intelligence import __version__
 from fpl_intelligence.api.cache import EdgeCachePolicyMiddleware
-from fpl_intelligence.api.performance import RequestProfilingMiddleware
+from fpl_intelligence.api.performance import (
+    RequestProfilingMiddleware,
+    install_fpl_egress_timing,
+    install_serialization_timing,
+)
 from fpl_intelligence.api.deps import GetDB, assert_no_static_stub_in_production
 from fpl_intelligence.api.routes.admin import router as admin_router
 from fpl_intelligence.api.routes.analyst import router as analyst_router
@@ -60,6 +64,13 @@ assert_no_static_stub_in_production()
 # request URLs (which embed the Telegram bot token) at INFO level. Mute those
 # loggers before any client is built so credentials never reach the log stream.
 silence_credential_leaking_loggers()
+
+# Phase 0 — install internal hooks once at process startup. They only do work
+# when a request-local PhaseTimer is active, so non-request/background code is
+# unaffected. These hooks measure actual DB execution, FPL egress, optimizer
+# prediction calls, and response-body serialization without changing results.
+install_fpl_egress_timing()
+install_serialization_timing()
 
 app = FastAPI(title="FPL Intelligence Engine", version=__version__)
 app.add_middleware(RequestProfilingMiddleware)
@@ -153,7 +164,7 @@ async def health(db: GetDB) -> dict[str, str]:
 #   * /api/v1/decisions*   → 503 with a truthful detail (a skeleton report is
 #                            never fabricated).
 #   * everything else      → unchanged default behavior (plain 500 text).
-# --------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------
 from fastapi.responses import JSONResponse, PlainTextResponse  # noqa: E402
 
 
