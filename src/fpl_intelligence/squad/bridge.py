@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from typing import Any
+
+from fpl_intelligence.api.performance import current_phase_timer
 from fpl_intelligence.optimization.chips import ChipSimulator
 from fpl_intelligence.optimization.domain import SquadState
-from fpl_intelligence.optimization.provider import DecisionPredictionProvider
+from fpl_intelligence.optimization.provider import DecisionPredictionProvider, PlayerPrediction
 from fpl_intelligence.optimization.rules import FPLRules
 from fpl_intelligence.optimization.squad import CaptainOptimizer, StartingXIOptimizer
 from fpl_intelligence.optimization.transfers import (
@@ -18,6 +21,37 @@ from fpl_intelligence.squad.models import (
     SquadStateCreate,
     TransferPlan,
 )
+
+
+class _TimedPredictionProvider(DecisionPredictionProvider):
+    """Thin proxy that accounts prediction-provider work as model inference."""
+
+    def __init__(self, provider: DecisionPredictionProvider) -> None:
+        self._provider = provider
+
+    def _call(self, fn: Any, *args: Any, **kwargs: Any) -> Any:
+        timer = current_phase_timer()
+        if timer is None:
+            return fn(*args, **kwargs)
+        with timer.phase("model_inference"):
+            return fn(*args, **kwargs)
+
+    def get_player_prediction(self, player_id: int, gameweek: int) -> PlayerPrediction:
+        return self._call(self._provider.get_player_prediction, player_id, gameweek)
+
+    def get_squad_predictions(
+        self, squad_players: list[int], gameweeks: list[int]
+    ) -> dict[int, dict[int, PlayerPrediction]]:
+        return self._call(self._provider.get_squad_predictions, squad_players, gameweeks)
+
+    def get_all_predictions(self, gameweek: int) -> dict[int, PlayerPrediction]:
+        return self._call(self._provider.get_all_predictions, gameweek)
+
+    def get_fixture_count(self, player_id: int, gameweek: int) -> int:
+        return self._call(self._provider.get_fixture_count, player_id, gameweek)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._provider, name)
 
 
 class DecisionOptimizerBridge:
@@ -41,11 +75,12 @@ class DecisionOptimizerBridge:
     ) -> None:
         self.provider = provider
         self.rules = rules or FPLRules()
-        self._starting_xi_opt = StartingXIOptimizer(provider, self.rules)
-        self._captain_opt = CaptainOptimizer(provider)
-        self._transfer_opt = TransferOptimizer(provider, self.rules)
-        self._multi_transfer = MultiTransferPlanner(self._transfer_opt, provider, self.rules)
-        self._chip_sim = ChipSimulator(provider, self.rules)
+        timed_provider = _TimedPredictionProvider(provider)
+        self._starting_xi_opt = StartingXIOptimizer(timed_provider, self.rules)
+        self._captain_opt = CaptainOptimizer(timed_provider)
+        self._transfer_opt = TransferOptimizer(timed_provider, self.rules)
+        self._multi_transfer = MultiTransferPlanner(self._transfer_opt, timed_provider, self.rules)
+        self._chip_sim = ChipSimulator(timed_provider, self.rules)
 
     def generate_decisions(
         self,
@@ -60,12 +95,24 @@ class DecisionOptimizerBridge:
             A :class:`DecisionReport` with optimized starting XI, bench
             order, captain, transfer plan, and chip recommendation.
         """
+        timer = current_phase_timer()
+        if timer is None:
+            return self._generate_decisions(squad)
+        with timer.phase("optimizer"):
+            return self._generate_decisions(squad)
+
+    def _generate_decisions(self, squad: SquadStateCreate) -> DecisionReport:
         gw = squad.gameweek
         player_positions = squad.player_positions or {}
         player_prices = squad.player_prices or {}
         player_teams = squad.player_teams or {}
 
-        opt_squad = self._to_domain_squad(squad)
+        timer = current_phase_timer()
+        if timer is None:
+            opt_squad = self._to_domain_squad(squad)
+        else:
+            with timer.phase("feature_assembly"):
+                opt_squad = self._to_domain_squad(squad)
 
         starting_xi, bench_order = self._optimize_xi(opt_squad, gw, player_positions)
         opt_squad.starting_xi = starting_xi
