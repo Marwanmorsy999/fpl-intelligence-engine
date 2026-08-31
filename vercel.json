@@ -1,6 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
+  "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" != \"main\" ] && [ \"$VERCEL_GIT_COMMIT_REF\" != \"master\" ]; then exit 0; fi; exit 1",
   "buildCommand": "pip install . && python -m fpl_intelligence.prod_migrate",
   "functions": {
     "api/index.py": {
@@ -11,7 +12,7 @@
       "maxDuration": 60
     }
   },
-    "crons": [
+  "crons": [
     {
       "path": "/api/v1/admin/daily",
       "schedule": "10 6 * * *"
