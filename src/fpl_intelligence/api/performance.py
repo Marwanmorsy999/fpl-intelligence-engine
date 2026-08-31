@@ -10,11 +10,12 @@ from __future__ import annotations
 import logging
 import time
 import uuid
+from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from functools import wraps
-from typing import Any, Iterator
+from typing import Any
 
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
@@ -24,7 +25,7 @@ from starlette.responses import HTMLResponse, JSONResponse, PlainTextResponse, R
 
 logger = logging.getLogger("fpl.performance")
 _request_id: ContextVar[str] = ContextVar("fpl_request_id", default="-")
-_current_timer: ContextVar["PhaseTimer | None"] = ContextVar(
+_current_timer: ContextVar[PhaseTimer | None] = ContextVar(
     "fpl_phase_timer", default=None
 )
 
