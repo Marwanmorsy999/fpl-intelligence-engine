@@ -20,10 +20,7 @@ from sqlalchemy import event
 from sqlalchemy.engine import Engine
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import HTMLResponse
-from starlette.responses import JSONResponse
-from starlette.responses import PlainTextResponse
-from starlette.responses import Response
+from starlette.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
 
 logger = logging.getLogger("fpl.performance")
 _request_id: ContextVar[str] = ContextVar("fpl_request_id", default="-")
