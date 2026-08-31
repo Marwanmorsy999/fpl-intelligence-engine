@@ -14,7 +14,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from functools import wraps
-from typing import Any, Callable, Iterator, TypeVar, cast
+from typing import Any, Iterator
 
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
@@ -30,8 +30,6 @@ _request_id: ContextVar[str] = ContextVar("fpl_request_id", default="-")
 _current_timer: ContextVar["PhaseTimer | None"] = ContextVar(
     "fpl_phase_timer", default=None
 )
-
-F = TypeVar("F", bound=Callable[..., Any])
 
 
 @dataclass(slots=True)
