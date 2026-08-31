@@ -79,7 +79,9 @@ class DecisionOptimizerBridge:
         self._starting_xi_opt = StartingXIOptimizer(timed_provider, self.rules)
         self._captain_opt = CaptainOptimizer(timed_provider)
         self._transfer_opt = TransferOptimizer(timed_provider, self.rules)
-        self._multi_transfer = MultiTransferPlanner(self._transfer_opt, timed_provider, self.rules)
+        self._multi_transfer = MultiTransferPlanner(
+            self._transfer_opt, timed_provider, self.rules
+        )
         self._chip_sim = ChipSimulator(timed_provider, self.rules)
 
     def generate_decisions(
