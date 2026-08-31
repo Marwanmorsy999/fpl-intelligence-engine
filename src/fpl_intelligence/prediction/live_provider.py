@@ -979,6 +979,10 @@ class LivePredictionProvider:
         #: (one call per player). The cache lives for the provider instance
         #: lifetime (one request), so each fresh request sees a cold cache.
         self._chain_cache: dict[int, PredictionChainResult] = {}
+        #: Per-request cache of fully materialized player predictions.
+        #: Optimizers ask for the same player/gameweek repeatedly; keeping the
+        #: object avoids rebuilding NumPy distributions thousands of times.
+        self._prediction_cache: dict[tuple[int, int], PlayerPrediction] = {}
 
     # -- lazily-built shared state ----------------------------------------------
 
@@ -1291,6 +1295,12 @@ class LivePredictionProvider:
                 else:
                     continue  # truly uncovered — omit rather than invent
 
+            cache_key = (int(result.gameweek), int(pid))
+            cached = self._prediction_cache.get(cache_key)
+            if cached is not None:
+                predictions[pid] = cached
+                continue
+
             pred = _make_prediction(
                 pid,
                 result.gameweek,
@@ -1311,6 +1321,7 @@ class LivePredictionProvider:
                 except Exception:
                     pred.breakdown = None
             predictions[pid] = pred
+            self._prediction_cache[cache_key] = pred
         return predictions
 
     # -- DecisionPredictionProvider protocol -------------------------------------
