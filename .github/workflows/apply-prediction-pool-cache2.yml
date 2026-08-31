@@ -1,0 +1,198 @@
+name: apply-prediction-pool-cache2
+
+on:
+  push:
+    branches: [perf/cache-full-prediction-pool]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply performance cache and regression tests
+        run: |
+          if grep -q '_all_predictions_cache' src/fpl_intelligence/prediction/live_provider.py; then
+            echo 'Patch already applied; nothing to do.'
+            exit 0
+          fi
+          python - <<'PY'
+          from pathlib import Path
+
+          source = Path('src/fpl_intelligence/prediction/live_provider.py')
+          text = source.read_text(encoding='utf-8')
+
+          old_cache = '''        #: Per-request cache of fully materialized player predictions.
+        #: Optimizers ask for the same player/gameweek repeatedly; keeping the
+        #: object avoids rebuilding NumPy distributions thousands of times.
+        self._prediction_cache: dict[tuple[int, int], PlayerPrediction] = {}
+'''
+          new_cache = '''        #: Per-request cache of fully materialized player predictions.
+        #: Optimizers ask for the same player/gameweek repeatedly; keeping the
+        #: object avoids rebuilding NumPy distributions thousands of times.
+        self._prediction_cache: dict[tuple[int, int], PlayerPrediction] = {}
+        #: Per-request cache of complete player pools returned by
+        #: :meth:`get_all_predictions`. Chip simulations can ask for the same
+        #: full gameweek pool repeatedly; cache the already-labelled mapping
+        #: instead of rebuilding/iterating the full player universe each time.
+        #: ``skip_materialized`` is part of the key so daily precompute calls
+        #: can never reuse a materialized-backed result accidentally.
+        self._all_predictions_cache: dict[
+            tuple[int, bool], dict[int, PlayerPrediction]
+        ] = {}
+'''
+          if old_cache not in text:
+              raise SystemExit('expected prediction cache block not found')
+          text = text.replace(old_cache, new_cache, 1)
+
+          old_preamble = '''        catalog = self.player_catalog()
+        try:
+'''
+          new_preamble = '''        cache_key = (int(gameweek), bool(skip_materialized))
+        cached = self._all_predictions_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        catalog = self.player_catalog()
+        try:
+'''
+          # Only the get_all_predictions occurrence is preceded by the method
+          # body immediately after its docstring; there is exactly one matching
+          # block in the provider source.
+          count = text.count(old_preamble)
+          if count != 1:
+              raise SystemExit(f'expected one method preamble, found {count}')
+          text = text.replace(old_preamble, new_preamble, 1)
+
+          old_return = '''        chain_result = self.resolve_chain(
+            int(gameweek), skip_materialized=skip_materialized
+        )
+        return self._label_predictions(chain_result, universe)
+'''
+          new_return = '''        chain_result = self.resolve_chain(
+            int(gameweek), skip_materialized=skip_materialized
+        )
+        predictions = self._label_predictions(chain_result, universe)
+        self._all_predictions_cache[cache_key] = predictions
+        return predictions
+'''
+          if old_return not in text:
+              raise SystemExit('expected get_all_predictions return block not found')
+          text = text.replace(old_return, new_return, 1)
+          source.write_text(text, encoding='utf-8')
+          PY
+
+          cat > tests/unit/test_live_prediction_pool_cache.py <<'PY'
+          from types import SimpleNamespace
+          from unittest.mock import Mock
+
+          from fpl_intelligence.prediction.live_provider import LivePredictionProvider
+
+
+          def _provider() -> LivePredictionProvider:
+              provider = LivePredictionProvider.__new__(LivePredictionProvider)
+              provider.session = Mock()
+              provider.session.execute.return_value.all.return_value = []
+              provider._all_predictions_cache = {}
+              provider.player_catalog = Mock(return_value={101: {}, 202: {}})
+              provider.resolve_chain = Mock()
+              provider._label_predictions = Mock()
+              return provider
+
+
+          def test_same_gameweek_uses_one_full_pool_build() -> None:
+              provider = _provider()
+              chain = SimpleNamespace(gameweek=3)
+              predictions = {101: SimpleNamespace(expected_points=7.25)}
+              provider.resolve_chain.return_value = chain
+              provider._label_predictions.return_value = predictions
+
+              first = provider.get_all_predictions(3)
+              second = provider.get_all_predictions(3)
+
+              assert first is second
+              assert first[101].expected_points == 7.25
+              provider.resolve_chain.assert_called_once_with(3, skip_materialized=False)
+              provider._label_predictions.assert_called_once_with(chain, [101, 202])
+
+
+          def test_different_gameweeks_keep_independent_pool_cache_entries() -> None:
+              provider = _provider()
+              provider.resolve_chain.side_effect = lambda gameweek, **_: SimpleNamespace(gameweek=gameweek)
+              provider._label_predictions.side_effect = (
+                  lambda chain, universe: {
+                      101: SimpleNamespace(expected_points=float(chain.gameweek))
+                  }
+              )
+
+              gw3 = provider.get_all_predictions(3)
+              gw4 = provider.get_all_predictions(4)
+              gw3_again = provider.get_all_predictions(3)
+
+              assert gw3[101].expected_points == 3.0
+              assert gw4[101].expected_points == 4.0
+              assert gw3_again is gw3
+              assert len(provider.resolve_chain.call_args_list) == 2
+              assert len(provider._label_predictions.call_args_list) == 2
+
+
+          def test_skip_materialized_is_independent_from_normal_pool_cache() -> None:
+              provider = _provider()
+              provider.resolve_chain.side_effect = lambda gameweek, **kwargs: SimpleNamespace(
+                  gameweek=gameweek, skip_materialized=kwargs['skip_materialized']
+              )
+              provider._label_predictions.side_effect = (
+                  lambda chain, universe: {
+                      101: SimpleNamespace(
+                          expected_points=10.0 if chain.skip_materialized else 5.0
+                      )
+                  }
+              )
+
+              normal = provider.get_all_predictions(3)
+              inline = provider.get_all_predictions(3, skip_materialized=True)
+              inline_again = provider.get_all_predictions(3, skip_materialized=True)
+
+              assert normal[101].expected_points == 5.0
+              assert inline[101].expected_points == 10.0
+              assert inline_again is inline
+              assert provider.resolve_chain.call_count == 2
+              assert provider.resolve_chain.call_args_list[0].kwargs == {'skip_materialized': False}
+              assert provider.resolve_chain.call_args_list[1].kwargs == {'skip_materialized': True}
+
+
+          def test_cached_results_preserve_prediction_values() -> None:
+              provider = _provider()
+              chain = SimpleNamespace(gameweek=5)
+              prediction = SimpleNamespace(
+                  expected_points=8.125,
+                  expected_minutes=72.0,
+                  start_probability=0.91,
+                  floor=3.0,
+                  ceiling=14.0,
+              )
+              provider.resolve_chain.return_value = chain
+              provider._label_predictions.return_value = {101: prediction}
+
+              first = provider.get_all_predictions(5)
+              second = provider.get_all_predictions(5)
+
+              assert second == first
+              assert second[101] is prediction
+              assert second[101].expected_points == 8.125
+              assert second[101].expected_minutes == 72.0
+              assert second[101].start_probability == 0.91
+              assert second[101].floor == 3.0
+              assert second[101].ceiling == 14.0
+          PY
+
+          python -m pytest -q tests/unit/test_live_prediction_pool_cache.py
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/fpl_intelligence/prediction/live_provider.py tests/unit/test_live_prediction_pool_cache.py
+          git commit -m 'perf: cache full prediction pools'
+          git push
