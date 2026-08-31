@@ -1,0 +1,56 @@
+name: Phase 0 instrumentation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/fpl_intelligence/api/main.py'
+      - 'src/fpl_intelligence/api/performance.py'
+      - 'src/fpl_intelligence/squad/bridge.py'
+      - '.github/workflows/phase0-instrumentation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: python -m pip install ".[dev]"
+
+      - name: Compile source
+        run: python -m compileall -q src
+
+      - name: Ruff lint
+        run: python -m ruff check src/fpl_intelligence/api/performance.py src/fpl_intelligence/api/main.py src/fpl_intelligence/squad/bridge.py
+
+      - name: PhaseTimer regression checks
+        run: |
+          python - <<'PY'
+          from fpl_intelligence.api.performance import PhaseTimer
+          import time
+
+          timer = PhaseTimer()
+          with timer.phase("db"):
+              time.sleep(0.001)
+          with timer.phase("db"):
+              time.sleep(0.001)
+
+          assert "db" in timer.phases
+          assert timer.phases["db"] >= 1.0, timer.phases
+          assert timer.total_ms >= timer.phases["db"]
+          print(timer.phases)
+          PY
+
+      - name: Decision bridge import smoke test
+        run: python -c "from fpl_intelligence.squad.bridge import DecisionOptimizerBridge; print(DecisionOptimizerBridge.__name__)"
