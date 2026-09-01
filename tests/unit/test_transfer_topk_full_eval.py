@@ -31,12 +31,17 @@ def _prediction(player_id: int, gameweek: int, expected_points: float) -> Player
 def test_generate_candidates_limits_full_transfer_evals() -> None:
     """Many valid pairs must not all receive full distribution evaluation."""
     squad_players = list(range(1, 16))
-    player_positions = {
-        **{1: 1, 2: 1},
-        **{i: 2 for i in range(3, 8)},
-        **{i: 3 for i in range(8, 13)},
-        **{i: 4 for i in range(13, 16)},
-    }
+    # Positions for the full candidate universe (squad + market targets).
+    player_positions = {i: ((i - 1) % 4) + 1 for i in range(1, 80)}
+    # Force a realistic 15-man squad shape for the owned players.
+    player_positions.update(
+        {
+            **{1: 1, 2: 1},
+            **{i: 2 for i in range(3, 8)},
+            **{i: 3 for i in range(8, 13)},
+            **{i: 4 for i in range(13, 16)},
+        }
+    )
     player_prices = {i: 5.0 for i in range(1, 80)}
     player_teams = {i: (i % 10) + 1 for i in range(1, 80)}
 
