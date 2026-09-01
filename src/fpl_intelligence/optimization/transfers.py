@@ -114,6 +114,45 @@ class MultiTransferPlanner:
         self.provider = provider
         self.rules = rules
 
+    def _horizon_expected_points(
+        self,
+        player_ids: list[int],
+        start_gameweek: int,
+        horizon: int,
+    ) -> dict[int, float]:
+        """Return lightweight expected-point sums for a player horizon.
+
+        The bulk provider deliberately omits predictive distributions, because
+        transfer candidate pruning needs only expected points. Using it here
+        avoids constructing thousands of NumPy samples just to rank targets.
+        Missing players fall back to the normal single-player provider path so
+        this optimization does not change coverage semantics.
+        """
+        totals = {int(pid): 0.0 for pid in player_ids}
+        wanted = set(totals)
+        for offset in range(horizon):
+            gw = start_gameweek + offset
+            try:
+                pool = self.provider.get_all_predictions(gw)
+            except Exception:
+                pool = {}
+            missing: list[int] = []
+            for pid in player_ids:
+                pred = pool.get(int(pid))
+                if pred is None:
+                    missing.append(int(pid))
+                else:
+                    totals[int(pid)] += float(pred.expected_points)
+            if missing:
+                for pid in missing:
+                    try:
+                        pred = self.provider.get_player_prediction(pid, gw)
+                    except Exception:
+                        continue
+                    if int(pid) in wanted:
+                        totals[int(pid)] += float(pred.expected_points)
+        return totals
+
     def generate_candidates(
         self,
         squad: SquadState,
@@ -136,24 +175,23 @@ class MultiTransferPlanner:
         best_eval = TransferEvaluation([], [], 0, 0.0, 0.0, 0.5, True, "Roll transfer.")
         best_action = roll_action
 
-        squad_evs = {}
-        for pid in squad.squad_players:
-            ev = sum(
-                self.provider.get_player_prediction(pid, squad.gameweek + i).expected_points
-                for i in range(horizon)
-            )
-            squad_evs[pid] = ev
+        # Bulk lightweight path: expected-point pruning does not require
+        # predictive distributions. Reuses the request-local full pools so the
+        # same GW is never regenerated across optimizer stages.
+        horizon_pools = self._horizon_expected_points(
+            all_players_pool,
+            squad.gameweek,
+            horizon,
+        )
 
+        squad_evs = {pid: horizon_pools.get(pid, 0.0) for pid in squad.squad_players}
         weakest_links = sorted(squad.squad_players, key=lambda p: squad_evs[p])[:3]
 
-        target_evs = {}
-        for pid in all_players_pool:
-            if pid not in squad.squad_players:
-                ev = sum(
-                    self.provider.get_player_prediction(pid, squad.gameweek + i).expected_points
-                    for i in range(horizon)
-                )
-                target_evs[pid] = ev
+        target_evs = {
+            pid: ev
+            for pid, ev in horizon_pools.items()
+            if pid not in squad.squad_players
+        }
 
         top_targets = []
         for pos in [1, 2, 3, 4]:
