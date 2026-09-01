@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
   "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" != \"main\" ] && [ \"$VERCEL_GIT_COMMIT_REF\" != \"master\" ]; then exit 0; fi; exit 1",
-  "buildCommand": "pip install . && if git rev-parse --verify HEAD^ >/dev/null 2>&1 && git diff --quiet HEAD^ HEAD -- migrations alembic.ini src/fpl_intelligence/prod_migrate.py; then echo 'vercel_build: no migration inputs changed — skipping prod_migrate'; else echo 'vercel_build: migration inputs changed — running prod_migrate'; python -m fpl_intelligence.prod_migrate; fi",
+  "buildCommand": "pip install . && python -m fpl_intelligence.prod_migrate",
   "functions": {
     "api/index.py": {
       "runtime": "@vercel/python@6.58.0",
