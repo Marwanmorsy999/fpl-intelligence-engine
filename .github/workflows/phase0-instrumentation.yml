@@ -7,7 +7,9 @@ on:
       - 'src/fpl_intelligence/api/main.py'
       - 'src/fpl_intelligence/api/performance.py'
       - 'src/fpl_intelligence/squad/bridge.py'
+      - 'src/fpl_intelligence/optimization/transfers.py'
       - 'tests/unit/test_fixture_count_cache.py'
+      - 'tests/unit/test_transfer_horizon_bulk_predictions.py'
       - '.github/workflows/phase0-instrumentation.yml'
 
 permissions:
@@ -33,7 +35,7 @@ jobs:
         run: python -m compileall -q src
 
       - name: Ruff lint
-        run: python -m ruff check src/fpl_intelligence/api/performance.py src/fpl_intelligence/api/main.py src/fpl_intelligence/squad/bridge.py tests/unit/test_fixture_count_cache.py
+        run: python -m ruff check src/fpl_intelligence/api/performance.py src/fpl_intelligence/api/main.py src/fpl_intelligence/squad/bridge.py src/fpl_intelligence/optimization/transfers.py tests/unit/test_fixture_count_cache.py tests/unit/test_transfer_horizon_bulk_predictions.py
 
       - name: PhaseTimer regression checks
         run: |
@@ -55,6 +57,9 @@ jobs:
 
       - name: Fixture count cache regression
         run: python -m pytest -q tests/unit/test_fixture_count_cache.py
+
+      - name: Transfer horizon regression
+        run: python -m pytest -q tests/unit/test_transfer_horizon_bulk_predictions.py
 
       - name: Decision bridge import smoke test
         run: python -c "from fpl_intelligence.squad.bridge import DecisionOptimizerBridge; print(DecisionOptimizerBridge.__name__)"
