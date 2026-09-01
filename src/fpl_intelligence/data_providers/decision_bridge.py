@@ -123,7 +123,12 @@ class FactOverrideProvider(DecisionPredictionProvider):
 
     def get_all_predictions(self, gameweek: int) -> dict[int, PlayerPrediction]:
         base = self._base.get_all_predictions(gameweek)
-        return {pid: self.get_player_prediction(pid, gameweek) for pid in base}
+        return {
+            pid: self._apply(self._overrides[pid], pred)
+            if pid in self._overrides
+            else pred
+            for pid, pred in base.items()
+        }
 
     def get_fixture_count(self, player_id: int, gameweek: int) -> int:
         return self._base.get_fixture_count(player_id, gameweek)
