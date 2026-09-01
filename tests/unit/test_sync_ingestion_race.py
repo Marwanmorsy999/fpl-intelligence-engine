@@ -38,7 +38,9 @@ def _player_gameweek_integrity_error() -> IntegrityError:
     return IntegrityError("INSERT", {}, original)
 
 
-def test_player_gameweek_conflict_retries_inside_second_savepoint(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_player_gameweek_conflict_retries_inside_second_savepoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     db = _Session()
     calls = 0
 
@@ -51,7 +53,9 @@ def test_player_gameweek_conflict_retries_inside_second_savepoint(monkeypatch: p
 
     monkeypatch.setattr(results_ingestion, "ingest_history_gameweek", _ingest)
 
-    result = results_ingestion._ingest_history_with_race_retry(db, 3, [{"element_id": 1}])
+    result = results_ingestion._ingest_history_with_race_retry(
+        db, 3, [{"element_id": 1}]
+    )
 
     assert result == {"stored": 1, "mirrored": 1}
     assert calls == 2
@@ -71,7 +75,9 @@ def test_unrelated_integrity_error_is_not_retried(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setattr(results_ingestion, "ingest_history_gameweek", _ingest)
 
     with pytest.raises(IntegrityError) as caught:
-        results_ingestion._ingest_history_with_race_retry(db, 3, [{"element_id": 1}])
+        results_ingestion._ingest_history_with_race_retry(
+            db, 3, [{"element_id": 1}]
+        )
 
     assert caught.value is error
     assert calls == 1
