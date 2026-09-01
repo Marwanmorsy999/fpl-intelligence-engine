@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Vercel build entrypoint lives at repository root because `scripts/**` is
+# excluded from the Python function bundle.
 pip install .
 
 # Only touch production DB state when migration inputs changed. Ordinary
