@@ -1,0 +1,112 @@
+name: temporary bounded decisions cache patch
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'perf/decisions-bounded-cache-v2'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 1
+
+      - name: Apply exact bounded-cache patch
+        env:
+          GIT_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/fpl_intelligence/api/routes/squad.py")
+          text = path.read_text()
+
+          assert "import contextlib\nimport logging\nimport threading\n" in text
+          text = text.replace(
+              "import contextlib\nimport logging\nimport threading\n",
+              "import contextlib\nfrom collections import OrderedDict\nimport logging\nimport threading\n",
+              1,
+          )
+
+          old_cache = '''_decisions_cache: dict[str, Any] = {}\n_decisions_cache_lock = threading.Lock()\n\n\ndef _decisions_cache_key'''
+          new_cache = '''_DECISIONS_CACHE_MAX_ENTRIES = 128\n_decisions_cache: OrderedDict[str, Any] = OrderedDict()\n_decisions_cache_lock = threading.Lock()\n\n\ndef _decisions_cache_key'''
+          assert text.count(old_cache) == 1, "unexpected decisions cache declaration shape"
+          text = text.replace(old_cache, new_cache, 1)
+
+          old_helpers = '''    return f"{session_id}:{iso}:{int(gameweek)}"\n\n\ndef _invalidate_decisions_cache'''
+          new_helpers = '''    return f"{session_id}:{iso}:{int(gameweek)}"\n\n\ndef _store_decision_cache(key: str, value: Any) -> None:\n    """Store a decision report while bounding warm-instance cache growth."""\n    with _decisions_cache_lock:\n        if key in _decisions_cache:\n            _decisions_cache[key] = value\n            return\n        if len(_decisions_cache) >= _DECISIONS_CACHE_MAX_ENTRIES:\n            _decisions_cache.popitem(last=False)\n        _decisions_cache[key] = value\n\n\ndef _invalidate_decisions_cache'''
+          assert text.count(old_helpers) == 1, "unexpected cache helper anchor"
+          text = text.replace(old_helpers, new_helpers, 1)
+
+          old_store = '''            cache_key = _decisions_cache_key(session_id, squad.updated_at, squad.gameweek)\n            with _decisions_cache_lock:\n                _decisions_cache[cache_key] = report.model_copy(deep=True)  # type: ignore[attr-defined]'''
+          new_store = '''            cache_key = _decisions_cache_key(session_id, squad.updated_at, squad.gameweek)\n            _store_decision_cache(\n                cache_key, report.model_copy(deep=True)  # type: ignore[attr-defined]\n            )'''
+          assert text.count(old_store) == 1, "unexpected cache store anchor"
+          text = text.replace(old_store, new_store, 1)
+
+          path.write_text(text)
+          print("squad.py bounded-cache patch applied")
+          PY
+
+          cat > tests/unit/test_decisions_cache_bound.py <<'PY'
+          """Regression coverage for the bounded decisions response cache."""
+
+          from __future__ import annotations
+
+          from types import SimpleNamespace
+
+          from fpl_intelligence.api.routes import squad
+
+
+          def _reset_cache() -> None:
+              with squad._decisions_cache_lock:
+                  squad._decisions_cache.clear()
+
+
+          def test_decisions_cache_evicts_oldest_entry_at_capacity() -> None:
+              _reset_cache()
+              try:
+                  for index in range(squad._DECISIONS_CACHE_MAX_ENTRIES):
+                      squad._store_decision_cache(f"k{index}", SimpleNamespace(value=index))
+
+                  squad._store_decision_cache("overflow", SimpleNamespace(value=999))
+
+                  assert len(squad._decisions_cache) == squad._DECISIONS_CACHE_MAX_ENTRIES
+                  assert "k0" not in squad._decisions_cache
+                  assert "k1" in squad._decisions_cache
+                  assert "overflow" in squad._decisions_cache
+              finally:
+                  _reset_cache()
+
+
+          def test_decisions_cache_replacement_does_not_evict() -> None:
+              _reset_cache()
+              try:
+                  for index in range(squad._DECISIONS_CACHE_MAX_ENTRIES):
+                      squad._store_decision_cache(f"k{index}", SimpleNamespace(value=index))
+
+                  replacement = SimpleNamespace(value=1234)
+                  squad._store_decision_cache("k17", replacement)
+
+                  assert len(squad._decisions_cache) == squad._DECISIONS_CACHE_MAX_ENTRIES
+                  assert squad._decisions_cache["k17"] is replacement
+                  assert "k0" in squad._decisions_cache
+              finally:
+                  _reset_cache()
+          PY
+
+          python -m compileall -q src
+          python -m ruff check src/fpl_intelligence/api/routes/squad.py tests/unit/test_decisions_cache_bound.py
+          python -m pytest -q tests/unit/test_decisions_cache_bound.py
+
+          rm .github/workflows/_tmp_bounded_decisions_cache.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/fpl_intelligence/api/routes/squad.py tests/unit/test_decisions_cache_bound.py .github/workflows/_tmp_bounded_decisions_cache.yml
+          git commit -m "perf(cache): bound decisions response cache"
+          git push origin "$GIT_BRANCH"
