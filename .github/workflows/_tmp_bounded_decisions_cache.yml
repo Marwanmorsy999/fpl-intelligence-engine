@@ -17,6 +17,9 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 1
 
+      - name: Install project dependencies
+        run: python -m pip install ".[dev]"
+
       - name: Apply exact bounded-cache patch
         env:
           GIT_BRANCH: ${{ github.event.pull_request.head.ref }}
