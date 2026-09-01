@@ -19,24 +19,82 @@ jobs:
           from pathlib import Path
           p = Path('src/fpl_intelligence/api/routes/squad.py')
           s = p.read_text()
-          old = '''    from fpl_intelligence.models.ensemble_xpts import (\n        calculate_ensemble_xpts,\n        collect_player_inputs,\n    )'''
-          new = '''    from fpl_intelligence.models.ensemble_xpts import (\n        calculate_ensemble_xpts,\n        collect_player_inputs_batch,\n    )'''
-          if old not in s:\n              raise SystemExit('phase2 ensemble import block not found')
+          old = '''    from fpl_intelligence.models.ensemble_xpts import (
+        calculate_ensemble_xpts,
+        collect_player_inputs,
+    )'''
+          new = '''    from fpl_intelligence.models.ensemble_xpts import (
+        calculate_ensemble_xpts,
+        collect_player_inputs_batch,
+    )'''
+          if old not in s:
+              raise SystemExit('phase2 ensemble import block not found')
           s = s.replace(old, new, 1)
 
-          old = '''    from types import SimpleNamespace\n\n    from fpl_intelligence.models.ensemble_xpts import get_points_history\n\n    watch_ids = (\n        set(report.starting_xi)\n        | ({int(report.captain.player_id)} if report.captain else set())\n        or set(squad_ids)\n    )'''
-          new = '''    from types import SimpleNamespace\n\n    watch_ids = (\n        set(report.starting_xi)\n        | ({int(report.captain.player_id)} if report.captain else set())\n        or set(squad_ids)\n    )'''
-          if old not in s:\n              raise SystemExit('phase2 watch import block not found')
+          old = '''    from types import SimpleNamespace
+
+    from fpl_intelligence.models.ensemble_xpts import get_points_history
+
+    watch_ids = (
+        set(report.starting_xi)
+        | ({int(report.captain.player_id)} if report.captain else set())
+        or set(squad_ids)
+    )'''
+          new = '''    from types import SimpleNamespace
+
+    watch_ids = (
+        set(report.starting_xi)
+        | ({int(report.captain.player_id)} if report.captain else set())
+        or set(squad_ids)
+    )'''
+          if old not in s:
+              raise SystemExit('phase2 watch import block not found')
           s = s.replace(old, new, 1)
 
-          old = '''    # --- 2.1 ensemble xPTS (with confidence interval) for the starting XI ----\n    ensemble: dict[str, Any] = {}\n    for el in sorted(watch_ids):\n        internal = id_map.get(el)\n        data = collect_player_inputs(db, internal) if internal else {}\n        data["baseline_xpts"] = xpts_all.get(el)\n        # FDR per element is not materialized yet → factor drops out honestly\n        # and weights renormalise inside the model.\n        stub = SimpleNamespace(fixture_difficulty=None)\n        ensemble[str(el)] = calculate_ensemble_xpts(stub, gameweek, data)'''
-          new = '''    # Batch all watched-player histories once. The previous loop executed one\n    # history query per player, then captain confidence executed another query\n    # for the captain. This keeps the exact same inputs while collapsing those\n    # repeated database round-trips to a single history query.\n    history_by_internal = collect_player_inputs_batch(\n        db, [pid for pid in id_map.values()]\n    )\n\n    # --- 2.1 ensemble xPTS (with confidence interval) for the starting XI ----\n    ensemble: dict[str, Any] = {}\n    for el in sorted(watch_ids):\n        internal = id_map.get(el)\n        data = dict(history_by_internal.get(internal, {})) if internal else {}\n        data["baseline_xpts"] = xpts_all.get(el)\n        # FDR per element is not materialized yet → factor drops out honestly\n        # and weights renormalise inside the model.\n        stub = SimpleNamespace(fixture_difficulty=None)\n        ensemble[str(el)] = calculate_ensemble_xpts(stub, gameweek, data)'''
-          if old not in s:\n              raise SystemExit('ensemble loop block not found')
+          old = '''    # --- 2.1 ensemble xPTS (with confidence interval) for the starting XI ----
+    ensemble: dict[str, Any] = {}
+    for el in sorted(watch_ids):
+        internal = id_map.get(el)
+        data = collect_player_inputs(db, internal) if internal else {}
+        data["baseline_xpts"] = xpts_all.get(el)
+        # FDR per element is not materialized yet → factor drops out honestly
+        # and weights renormalise inside the model.
+        stub = SimpleNamespace(fixture_difficulty=None)
+        ensemble[str(el)] = calculate_ensemble_xpts(stub, gameweek, data)'''
+          new = '''    # Batch all watched-player histories once. The previous loop executed one
+    # history query per player, then captain confidence executed another query
+    # for the captain. This keeps the exact same inputs while collapsing those
+    # repeated database round-trips to a single history query.
+    history_by_internal = collect_player_inputs_batch(
+        db, [pid for pid in id_map.values()]
+    )
+
+    # --- 2.1 ensemble xPTS (with confidence interval) for the starting XI ----
+    ensemble: dict[str, Any] = {}
+    for el in sorted(watch_ids):
+        internal = id_map.get(el)
+        data = dict(history_by_internal.get(internal, {})) if internal else {}
+        data["baseline_xpts"] = xpts_all.get(el)
+        # FDR per element is not materialized yet → factor drops out honestly
+        # and weights renormalise inside the model.
+        stub = SimpleNamespace(fixture_difficulty=None)
+        ensemble[str(el)] = calculate_ensemble_xpts(stub, gameweek, data)'''
+          if old not in s:
+              raise SystemExit('ensemble loop block not found')
           s = s.replace(old, new, 1)
 
-          old = '''    if top_el is not None and top_el in xpts_all:\n        internal = id_map.get(top_el)\n        hist = get_points_history(db, internal) if internal else []\n        recent5 = hist[-5:]'''
-          new = '''    if top_el is not None and top_el in xpts_all:\n        internal = id_map.get(top_el)\n        hist = (history_by_internal.get(internal, {}) if internal else {}).get(\n            "points_history", []\n        )\n        recent5 = hist[-5:]'''
-          if old not in s:\n              raise SystemExit('captain history block not found')
+          old = '''    if top_el is not None and top_el in xpts_all:
+        internal = id_map.get(top_el)
+        hist = get_points_history(db, internal) if internal else []
+        recent5 = hist[-5:]'''
+          new = '''    if top_el is not None and top_el in xpts_all:
+        internal = id_map.get(top_el)
+        hist = (history_by_internal.get(internal, {}) if internal else {}).get(
+            "points_history", []
+        )
+        recent5 = hist[-5:]'''
+          if old not in s:
+              raise SystemExit('captain history block not found')
           s = s.replace(old, new, 1)
 
           p.write_text(s)
