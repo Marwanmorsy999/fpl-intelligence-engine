@@ -29,10 +29,12 @@ class _TimedPredictionProvider(DecisionPredictionProvider):
     def __init__(self, provider: DecisionPredictionProvider) -> None:
         self._provider = provider
         self._prediction_cache: dict[tuple[int, int], PlayerPrediction] = {}
+        self._all_predictions_cache: dict[int, dict[int, PlayerPrediction]] = {}
 
     def clear_request_cache(self) -> None:
         """Discard predictions from the previous decision request."""
         self._prediction_cache.clear()
+        self._all_predictions_cache.clear()
 
     def _call(self, fn: Any, *args: Any, **kwargs: Any) -> Any:
         timer = current_phase_timer()
@@ -71,7 +73,12 @@ class _TimedPredictionProvider(DecisionPredictionProvider):
         return result
 
     def get_all_predictions(self, gameweek: int) -> dict[int, PlayerPrediction]:
+        cached = self._all_predictions_cache.get(gameweek)
+        if cached is not None:
+            return cached
+
         result = self._call(self._provider.get_all_predictions, gameweek)
+        self._all_predictions_cache[gameweek] = result
         for player_id, prediction in result.items():
             self._prediction_cache[(player_id, gameweek)] = prediction
         return result
