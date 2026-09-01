@@ -1,0 +1,31 @@
+name: One-shot DB N+1 patch
+on:
+  push:
+    branches:
+      - perf/db-phase2-batched-history
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch Phase 2 history access
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/fpl_intelligence/api/routes/squad.py')
+          s=p.read_text()
+          s=s.replace('        collect_player_inputs,\n','        collect_player_inputs_batch,\n',1)
+          s=s.replace('''    ensemble: dict[str, Any] = {}\n    for el in sorted(watch_ids):\n        internal = id_map.get(el)\n        data = collect_player_inputs(db, internal) if internal else {}\n        data["baseline_xpts"] = xpts_all.get(el)\n''','''    internal_watch_ids = sorted({internal for internal in id_map.values()})\n    history_by_internal = collect_player_inputs_batch(db, internal_watch_ids) if internal_watch_ids else {}\n    ensemble: dict[str, Any] = {}\n    for el in sorted(watch_ids):\n        internal = id_map.get(el)\n        data = dict(history_by_internal.get(internal, {})) if internal else {}\n        data["baseline_xpts"] = xpts_all.get(el)\n''',1)
+          s=s.replace('''        hist = get_points_history(db, internal) if internal else []\n''','''        hist = history_by_internal.get(internal, {}).get("points_history", []) if internal else []\n''',1)
+          s=s.replace('    from fpl_intelligence.models.ensemble_xpts import get_points_history\n\n','',1)
+          p.write_text(s)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/fpl_intelligence/api/routes/squad.py
+          git commit -m 'perf(decisions): batch phase2 player history queries'
+          git push
