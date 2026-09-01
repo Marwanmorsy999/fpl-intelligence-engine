@@ -68,7 +68,7 @@ def test_timed_provider_keeps_gameweeks_independent() -> None:
 def test_bulk_predictions_populate_shared_cache() -> None:
     provider = MagicMock()
     prediction = _prediction(1, 5)
-    provider.get_squad_predictions.return_value = {1: {5: prediction}}
+    provider.get_squad_predictions.return_value = {5: {1: prediction}}
 
     bridge = DecisionOptimizerBridge(provider=provider)
     timed = bridge._timed_provider
@@ -76,9 +76,26 @@ def test_bulk_predictions_populate_shared_cache() -> None:
     result = timed.get_squad_predictions([1], [5])
     cached = timed.get_player_prediction(1, 5)
 
-    assert cached is result[1][5]
+    assert cached is result[5][1]
     provider.get_squad_predictions.assert_called_once_with([1], [5])
     provider.get_player_prediction.assert_not_called()
+
+
+def test_bulk_predictions_do_not_crosswire_player_and_gameweek_keys() -> None:
+    provider = MagicMock()
+    prediction = _prediction(5, 1)
+    provider.get_squad_predictions.return_value = {1: {5: prediction}}
+    provider.get_player_prediction.return_value = _prediction(1, 5, 99.0)
+
+    bridge = DecisionOptimizerBridge(provider=provider)
+    timed = bridge._timed_provider
+
+    timed.get_squad_predictions([5], [1])
+    direct = timed.get_player_prediction(1, 5)
+
+    assert direct.player_id == 1
+    assert direct.gameweek == 5
+    provider.get_player_prediction.assert_called_once_with(1, 5)
 
 
 def test_request_cache_is_cleared_between_generate_decisions() -> None:

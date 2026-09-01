@@ -63,8 +63,10 @@ class _TimedPredictionProvider(DecisionPredictionProvider):
             squad_players,
             gameweeks,
         )
-        for player_id, by_gameweek in result.items():
-            for gameweek, prediction in by_gameweek.items():
+        # DecisionPredictionProvider returns {gameweek: {player_id: prediction}}.
+        # Populate the same request-local cache used by get_player_prediction().
+        for gameweek, by_player in result.items():
+            for player_id, prediction in by_player.items():
                 self._prediction_cache[(player_id, gameweek)] = prediction
         return result
 
