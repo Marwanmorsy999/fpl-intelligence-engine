@@ -81,8 +81,14 @@ class _TimedPredictionProvider(DecisionPredictionProvider):
 
         result = self._call(self._provider.get_all_predictions, gameweek)
         self._all_predictions_cache[gameweek] = result
+        # Bulk predictions intentionally omit predictive distributions. Do not
+        # put those lightweight objects into the full single-player cache: a
+        # later transfer evaluation needs the full distribution for variance
+        # and probability calculations. Full predictions may still populate
+        # the shared cache, preserving cross-optimizer reuse.
         for player_id, prediction in result.items():
-            self._prediction_cache[(player_id, gameweek)] = prediction
+            if prediction.distribution is not None and len(prediction.distribution) > 0:
+                self._prediction_cache[(player_id, gameweek)] = prediction
         return result
 
     def get_fixture_count(self, player_id: int, gameweek: int) -> int:
