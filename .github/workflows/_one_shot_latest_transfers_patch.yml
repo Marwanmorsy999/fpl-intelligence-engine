@@ -1,0 +1,40 @@
+name: One-shot latest transfers patch
+on:
+  pull_request:
+    branches:
+      - main
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.event.action == 'opened'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Replace latest transfer scan with grouped latest-row query
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/fpl_intelligence/api/routes/squad.py')
+          s=p.read_text()
+          old='''    latest_transfers: dict[int, tuple[int | None, int | None]] = {}\n    for el, tin, tout in db.execute(\n        select(\n            Player.fpl_element_id,\n            PlayerGameweekPerformance.transfers_in,\n            PlayerGameweekPerformance.transfers_out,\n        )\n        .join(\n            PlayerGameweekPerformance,\n            PlayerGameweekPerformance.player_id == Player.id,\n        )\n        .where(Player.fpl_element_id.isnot(None))\n        .order_by(PlayerGameweekPerformance.gameweek_id.desc())\n        .limit(5000)\n    ).all():\n        if int(el) not in latest_transfers:\n            latest_transfers[int(el)] = (tin, tout)'''
+          new='''    # Fetch exactly one latest performance row per FPL element. The former\n    # global ORDER BY/LIMIT scanned ~115k rows on production before discarding\n    # almost all of them; grouping by player lets PostgreSQL use the existing\n    # (player_id, gameweek_id) uniqueness and returns only the 1.5k latest rows.\n    latest_by_player = (\n        select(\n            PlayerGameweekPerformance.player_id.label("player_id"),\n            func.max(PlayerGameweekPerformance.gameweek_id).label("latest_gameweek_id"),\n        )\n        .group_by(PlayerGameweekPerformance.player_id)\n        .subquery()\n    )\n    latest_transfers: dict[int, tuple[int | None, int | None]] = {}\n    for el, tin, tout in db.execute(\n        select(\n            Player.fpl_element_id,\n            PlayerGameweekPerformance.transfers_in,\n            PlayerGameweekPerformance.transfers_out,\n        )\n        .join(latest_by_player, latest_by_player.c.player_id == Player.id)\n        .join(\n            PlayerGameweekPerformance,\n            (PlayerGameweekPerformance.player_id == latest_by_player.c.player_id)\n            & (PlayerGameweekPerformance.gameweek_id == latest_by_player.c.latest_gameweek_id),\n        )\n        .where(Player.fpl_element_id.isnot(None))\n    ).all():\n        latest_transfers[int(el)] = (tin, tout)'''
+          if old not in s: raise SystemExit('latest transfer block not found')
+          s=s.replace(old,new,1)
+          old='''    from sqlalchemy import select\n\n    from fpl_intelligence.db.models import Player, PlayerGameweekPerformance\n'''
+          new='''    from sqlalchemy import func, select\n\n    from fpl_intelligence.db.models import Player, PlayerGameweekPerformance\n'''
+          if old not in s: raise SystemExit('phase2 import block not found')
+          s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/fpl_intelligence/api/routes/squad.py
+          git commit -m 'perf(decisions): fetch latest transfer rows efficiently'
+          git push
+          rm .github/workflows/_one_shot_latest_transfers_patch.yml
+          git add .github/workflows/_one_shot_latest_transfers_patch.yml
+          git commit -m 'chore(ci): remove one-shot latest transfers patch'
+          git push
