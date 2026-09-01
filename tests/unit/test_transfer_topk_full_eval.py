@@ -8,10 +8,10 @@ from fpl_intelligence.optimization.domain import ActionType, SquadState
 from fpl_intelligence.optimization.provider import PlayerPrediction
 from fpl_intelligence.optimization.rules import FPLRules
 from fpl_intelligence.optimization.transfers import (
+    _MAX_FULL_TRANSFER_EVALS,
     MultiTransferPlanner,
     TransferEvaluation,
     TransferOptimizer,
-    _MAX_FULL_TRANSFER_EVALS,
 )
 
 
