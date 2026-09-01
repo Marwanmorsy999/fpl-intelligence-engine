@@ -1144,7 +1144,7 @@ async def _attach_phase2_insights(
     from fpl_intelligence.models.captaincy import captain_confidence_detail
     from fpl_intelligence.models.ensemble_xpts import (
         calculate_ensemble_xpts,
-        collect_player_inputs,
+        collect_player_inputs_batch,
     )
     from fpl_intelligence.prediction.live_provider import load_player_catalog
     from fpl_intelligence.sync.materialized_models import (
@@ -1237,8 +1237,6 @@ async def _attach_phase2_insights(
     # --- element -> internal-id map + fact table for the watched players -----
     from types import SimpleNamespace
 
-    from fpl_intelligence.models.ensemble_xpts import get_points_history
-
     watch_ids = (
         set(report.starting_xi)
         | ({int(report.captain.player_id)} if report.captain else set())
@@ -1262,10 +1260,17 @@ async def _attach_phase2_insights(
             minutes_by_el[int(el)] = float(minutes or 0.0)
 
     # --- 2.1 ensemble xPTS (with confidence interval) for the starting XI ----
+    # Batch watched-player histories into one SQL statement.
+    internal_watch_ids = sorted({internal for internal in id_map.values()})
+    history_by_internal = (
+        collect_player_inputs_batch(db, internal_watch_ids)
+        if internal_watch_ids
+        else {}
+    )
     ensemble: dict[str, Any] = {}
     for el in sorted(watch_ids):
         internal = id_map.get(el)
-        data = collect_player_inputs(db, internal) if internal else {}
+        data = dict(history_by_internal.get(internal, {})) if internal else {}
         data["baseline_xpts"] = xpts_all.get(el)
         # FDR per element is not materialized yet → factor drops out honestly
         # and weights renormalise inside the model.
@@ -1291,7 +1296,7 @@ async def _attach_phase2_insights(
     }
     if top_el is not None and top_el in xpts_all:
         internal = id_map.get(top_el)
-        hist = get_points_history(db, internal) if internal else []
+        hist = history_by_internal.get(internal, {}).get("points_history", []) if internal else []
         recent5 = hist[-5:]
         detail = captain_confidence_detail(
             SimpleNamespace(
