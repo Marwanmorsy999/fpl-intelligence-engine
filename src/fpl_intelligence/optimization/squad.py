@@ -108,7 +108,14 @@ class CaptainOptimizer:
         if not best_candidate:
             best_candidate = evaluated[candidates[0]]
 
-        action = CandidateAction(action_type=ActionType.CAPTAIN)
+        # CandidateAction has no dedicated captain-player field. The existing
+        # bridge reads `transfers_in[0]` for captain recommendations, so carry
+        # the selected captain ID there. CAPTAIN actions are never interpreted
+        # as actual transfers by the optimizer pipeline.
+        action = CandidateAction(
+            action_type=ActionType.CAPTAIN,
+            transfers_in=[best_candidate.player_id],
+        )
         return Recommendation(
             action=action,
             expected_gain=best_candidate.expected_points,
