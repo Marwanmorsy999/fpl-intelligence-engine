@@ -1138,7 +1138,7 @@ async def _attach_phase2_insights(
     no live network. Each sub-analysis stays independent so a missing table
     degrades its own section only, per the Phase 2 Safety rule.
     """
-    from sqlalchemy import select
+    from sqlalchemy import func, select
 
     from fpl_intelligence.db.models import Player, PlayerGameweekPerformance
     from fpl_intelligence.models.captaincy import captain_confidence_detail
@@ -1178,6 +1178,18 @@ async def _attach_phase2_insights(
 
     # --- market rows for the tools (£m prices converted from tenth-units) ----
     catalog = load_player_catalog()
+    # Fetch exactly one latest performance row per FPL element. The former
+    # global ORDER BY/LIMIT scanned ~115k rows on production before discarding
+    # almost all of them; grouping by player reduces the result to the latest
+    # row for each player and leverages the existing unique player/GW index.
+    latest_by_player = (
+        select(
+            PlayerGameweekPerformance.player_id.label("player_id"),
+            func.max(PlayerGameweekPerformance.gameweek_id).label("latest_gameweek_id"),
+        )
+        .group_by(PlayerGameweekPerformance.player_id)
+        .subquery()
+    )
     latest_transfers: dict[int, tuple[int | None, int | None]] = {}
     for el, tin, tout in db.execute(
         select(
@@ -1185,16 +1197,15 @@ async def _attach_phase2_insights(
             PlayerGameweekPerformance.transfers_in,
             PlayerGameweekPerformance.transfers_out,
         )
+        .join(latest_by_player, latest_by_player.c.player_id == Player.id)
         .join(
             PlayerGameweekPerformance,
-            PlayerGameweekPerformance.player_id == Player.id,
+            (PlayerGameweekPerformance.player_id == latest_by_player.c.player_id)
+            & (PlayerGameweekPerformance.gameweek_id == latest_by_player.c.latest_gameweek_id),
         )
         .where(Player.fpl_element_id.isnot(None))
-        .order_by(PlayerGameweekPerformance.gameweek_id.desc())
-        .limit(5000)
     ).all():
-        if int(el) not in latest_transfers:
-            latest_transfers[int(el)] = (tin, tout)
+        latest_transfers[int(el)] = (tin, tout)
 
     def _market_row(el: int) -> dict[str, Any]:
         row = dict(catalog.get(int(el), {}) or {})
