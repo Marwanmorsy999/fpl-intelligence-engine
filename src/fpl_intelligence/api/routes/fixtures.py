@@ -292,11 +292,8 @@ async def fixture_scan(
     rows = parse_fixtures(await load_fixtures(db))
     if not rows:
         raise HTTPException(status_code=503, detail="No upcoming fixtures published yet.")
-    # Phase 21.1 (T2): the target GW follows the official FPL clock at request
-    # time; the horizon shows the next five gameweeks with UNPLAYED fixtures.
     try:
         from fpl_intelligence.sync.gameweek_clock import resolve_target_gameweek
-
         target_gw = await resolve_target_gameweek(db, fallback=int(squad.gameweek))
     except Exception:
         target_gw = int(squad.gameweek)
@@ -310,7 +307,6 @@ async def fixture_scan(
 
     prices = squad.player_prices or {}
     positions = squad.player_positions or {}
-
     players_out: list[dict[str, Any]] = []
     starter_avgs: list[float] = []
     for idx, pid in enumerate(squad.player_ids):
@@ -318,23 +314,19 @@ async def fixture_scan(
         runs = player_run(team, rows_by_gw, horizon, team_names=team_names)
         real_runs = [r for r in runs if r.opponent_id != 0]
         avg = round(average_fdr(real_runs), 2) if real_runs else NEUTRAL_FDR
-        # First 11 entries are starters under the FPL picks convention.
         if idx < 11:
             starter_avgs.append(avg)
-        players_out.append(
-            {
-                "player_id": pid,
-                "web_name": "",
-                "position": positions.get(pid),
-                "price": prices.get(pid),
-                "is_starter": idx < 11,
-                "runs": [r.__dict__ for r in runs],
-                "avg_fdr": avg,
-                "swing": round(NEUTRAL_FDR - avg, 2),
-            }
-        )
+        players_out.append({
+            "player_id": pid,
+            "web_name": "",
+            "position": positions.get(pid),
+            "price": prices.get(pid),
+            "is_starter": idx < 11,
+            "runs": [r.__dict__ for r in runs],
+            "avg_fdr": avg,
+            "swing": round(NEUTRAL_FDR - avg, 2),
+        })
 
-    # Fill display names from the ingested player table (best effort).
     names = _resolve_player_names(db, squad.player_ids)
     for p in players_out:
         p["web_name"] = names.get(p["player_id"], f"Player {p['player_id']}")
@@ -373,13 +365,29 @@ def next_gameeeks_safe(rows: Any, current_gw: int) -> list[int]:
 
 
 def _resolve_player_names(db: Session, pids: list[int]) -> dict[int, str]:
+    """Resolve player names in bulk while preserving legacy-id fallback semantics."""
     from sqlalchemy import select  # noqa: PLC0415
 
     from fpl_intelligence.db.models import Player  # noqa: PLC0415
 
+    unique_pids = sorted(set(int(pid) for pid in pids))
+    if not unique_pids:
+        return {}
+
     names: dict[int, str] = {}
-    for pid in set(pids):
-        row = db.scalar(select(Player).where(Player.fpl_element_id == pid)) or db.get(Player, pid)
-        if row is not None:
-            names[pid] = row.web_name
+
+    rows = db.scalars(
+        select(Player).where(Player.fpl_element_id.in_(unique_pids))
+    ).all()
+    for row in rows:
+        if row.fpl_element_id is not None:
+            names[int(row.fpl_element_id)] = row.web_name
+
+    missing = [pid for pid in unique_pids if pid not in names]
+    if missing:
+        legacy_rows = db.scalars(select(Player).where(Player.id.in_(missing))).all()
+        for row in legacy_rows:
+            if row.id is not None and row.web_name:
+                names[int(row.id)] = row.web_name
+
     return names
