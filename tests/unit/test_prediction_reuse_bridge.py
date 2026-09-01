@@ -98,6 +98,40 @@ def test_bulk_predictions_do_not_crosswire_player_and_gameweek_keys() -> None:
     provider.get_player_prediction.assert_called_once_with(1, 5)
 
 
+def test_all_predictions_are_reused_per_gameweek() -> None:
+    provider = MagicMock()
+    prediction = _prediction(1, 5)
+    provider.get_all_predictions.return_value = {1: prediction}
+
+    bridge = DecisionOptimizerBridge(provider=provider)
+    timed = bridge._timed_provider
+
+    first = timed.get_all_predictions(5)
+    second = timed.get_all_predictions(5)
+
+    assert first is second
+    assert first[1] is prediction
+    provider.get_all_predictions.assert_called_once_with(5)
+
+
+def test_all_prediction_cache_is_gameweek_scoped() -> None:
+    provider = MagicMock()
+    gw5 = {1: _prediction(1, 5)}
+    gw6 = {1: _prediction(1, 6)}
+    provider.get_all_predictions.side_effect = [gw5, gw6]
+
+    bridge = DecisionOptimizerBridge(provider=provider)
+    timed = bridge._timed_provider
+
+    first = timed.get_all_predictions(5)
+    second = timed.get_all_predictions(6)
+    first_again = timed.get_all_predictions(5)
+
+    assert first is first_again
+    assert first is not second
+    assert provider.get_all_predictions.call_count == 2
+
+
 def test_request_cache_is_cleared_between_generate_decisions() -> None:
     provider = MagicMock()
     provider.get_player_prediction.side_effect = lambda pid, gw: _prediction(pid, gw)
@@ -116,17 +150,24 @@ def test_request_cache_is_cleared_between_generate_decisions() -> None:
     )
 
     bridge.generate_decisions(squad)
-    first_request_calls = provider.get_player_prediction.call_count
+    first_request_player_calls = provider.get_player_prediction.call_count
+    first_request_pool_calls = provider.get_all_predictions.call_count
+
     bridge.generate_decisions(squad)
-    second_request_calls = provider.get_player_prediction.call_count - first_request_calls
+    second_request_player_calls = provider.get_player_prediction.call_count - first_request_player_calls
+    second_request_pool_calls = provider.get_all_predictions.call_count - first_request_pool_calls
 
-    assert first_request_calls > 0
-    assert second_request_calls == first_request_calls
+    assert first_request_player_calls > 0
+    assert first_request_pool_calls > 0
+    assert second_request_player_calls == first_request_player_calls
+    assert second_request_pool_calls == first_request_pool_calls
 
 
-def test_decision_optimizers_share_identical_prediction_objects() -> None:
+def test_decision_optimizers_share_unique_player_gameweek_predictions() -> None:
     provider = MagicMock()
-    provider.get_player_prediction.side_effect = lambda pid, gw: _prediction(pid, gw, float(pid))
+    provider.get_player_prediction.side_effect = lambda pid, gw: _prediction(
+        pid, gw, float(pid)
+    )
     provider.get_fixture_count.return_value = 1
     provider.get_all_predictions.return_value = {
         pid: _prediction(pid, 1, float(pid)) for pid in range(1, 16)
@@ -143,8 +184,9 @@ def test_decision_optimizers_share_identical_prediction_objects() -> None:
 
     bridge.generate_decisions(squad)
 
-    # XI + captain + transfer/chip paths may request the same player/GW, but
-    # the underlying provider must resolve each unique key only once per request.
+    # Starting XI + captain + transfer/chip paths may request the same
+    # player/GW, but the underlying provider must resolve each unique key only
+    # once per request.
     calls = provider.get_player_prediction.call_args_list
     keys = [(call.args[0], call.args[1]) for call in calls]
     assert len(keys) == len(set(keys))
