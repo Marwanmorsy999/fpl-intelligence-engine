@@ -1,0 +1,53 @@
+name: One-shot batch Phase 2 history
+on:
+  push:
+    branches:
+      - perf/decisions-batch-phase2-history-v2
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref_name }}
+      - name: Batch Phase 2 history access
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/fpl_intelligence/api/routes/squad.py')
+          s = p.read_text()
+          old = '''    from fpl_intelligence.models.ensemble_xpts import (\n        calculate_ensemble_xpts,\n        collect_player_inputs,\n    )'''
+          new = '''    from fpl_intelligence.models.ensemble_xpts import (\n        calculate_ensemble_xpts,\n        collect_player_inputs_batch,\n    )'''
+          if old not in s:\n              raise SystemExit('phase2 ensemble import block not found')
+          s = s.replace(old, new, 1)
+
+          old = '''    from types import SimpleNamespace\n\n    from fpl_intelligence.models.ensemble_xpts import get_points_history\n\n    watch_ids = (\n        set(report.starting_xi)\n        | ({int(report.captain.player_id)} if report.captain else set())\n        or set(squad_ids)\n    )'''
+          new = '''    from types import SimpleNamespace\n\n    watch_ids = (\n        set(report.starting_xi)\n        | ({int(report.captain.player_id)} if report.captain else set())\n        or set(squad_ids)\n    )'''
+          if old not in s:\n              raise SystemExit('phase2 watch import block not found')
+          s = s.replace(old, new, 1)
+
+          old = '''    # --- 2.1 ensemble xPTS (with confidence interval) for the starting XI ----\n    ensemble: dict[str, Any] = {}\n    for el in sorted(watch_ids):\n        internal = id_map.get(el)\n        data = collect_player_inputs(db, internal) if internal else {}\n        data["baseline_xpts"] = xpts_all.get(el)\n        # FDR per element is not materialized yet → factor drops out honestly\n        # and weights renormalise inside the model.\n        stub = SimpleNamespace(fixture_difficulty=None)\n        ensemble[str(el)] = calculate_ensemble_xpts(stub, gameweek, data)'''
+          new = '''    # Batch all watched-player histories once. The previous loop executed one\n    # history query per player, then captain confidence executed another query\n    # for the captain. This keeps the exact same inputs while collapsing those\n    # repeated database round-trips to a single history query.\n    history_by_internal = collect_player_inputs_batch(\n        db, [pid for pid in id_map.values()]\n    )\n\n    # --- 2.1 ensemble xPTS (with confidence interval) for the starting XI ----\n    ensemble: dict[str, Any] = {}\n    for el in sorted(watch_ids):\n        internal = id_map.get(el)\n        data = dict(history_by_internal.get(internal, {})) if internal else {}\n        data["baseline_xpts"] = xpts_all.get(el)\n        # FDR per element is not materialized yet → factor drops out honestly\n        # and weights renormalise inside the model.\n        stub = SimpleNamespace(fixture_difficulty=None)\n        ensemble[str(el)] = calculate_ensemble_xpts(stub, gameweek, data)'''
+          if old not in s:\n              raise SystemExit('ensemble loop block not found')
+          s = s.replace(old, new, 1)
+
+          old = '''    if top_el is not None and top_el in xpts_all:\n        internal = id_map.get(top_el)\n        hist = get_points_history(db, internal) if internal else []\n        recent5 = hist[-5:]'''
+          new = '''    if top_el is not None and top_el in xpts_all:\n        internal = id_map.get(top_el)\n        hist = (history_by_internal.get(internal, {}) if internal else {}).get(\n            "points_history", []\n        )\n        recent5 = hist[-5:]'''
+          if old not in s:\n              raise SystemExit('captain history block not found')
+          s = s.replace(old, new, 1)
+
+          p.write_text(s)
+          PY
+          python -m compileall -q src/fpl_intelligence/api/routes/squad.py
+          python -m pytest -q tests/unit/test_phase15_live_prediction_route.py tests/unit/test_phase15_3_cache_behavior.py tests/optimization/test_optimization.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/fpl_intelligence/api/routes/squad.py
+          git commit -m 'perf(decisions): batch Phase 2 player history queries'
+          git push origin HEAD:${{ github.ref_name }}
+          git rm .github/workflows/_one_shot_batch_history.yml
+          git commit -m 'chore(ci): remove one-shot batch history runner'
+          git push origin HEAD:${{ github.ref_name }}
