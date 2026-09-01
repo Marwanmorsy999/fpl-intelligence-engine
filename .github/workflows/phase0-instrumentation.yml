@@ -13,6 +13,7 @@ on:
       - 'src/fpl_intelligence/sync/results_ingestion.py'
       - 'tests/unit/test_fixture_count_cache.py'
       - 'tests/unit/test_transfer_horizon_bulk_predictions.py'
+      - 'tests/unit/test_transfer_topk_full_eval.py'
       - 'tests/unit/test_captain_recommendation_id.py'
       - 'tests/unit/test_fixture_player_names_batch.py'
       - 'tests/unit/test_sync_ingestion_race.py'
@@ -55,6 +56,10 @@ jobs:
         if: hashFiles('tests/unit/test_transfer_horizon_bulk_predictions.py') != ''
         run: python -m ruff check tests/unit/test_transfer_horizon_bulk_predictions.py
 
+      - name: Ruff lint transfer top-K full-eval regression
+        if: hashFiles('tests/unit/test_transfer_topk_full_eval.py') != ''
+        run: python -m ruff check tests/unit/test_transfer_topk_full_eval.py
+
       - name: Ruff lint captain regression
         if: hashFiles('tests/unit/test_captain_recommendation_id.py') != ''
         run: python -m ruff check tests/unit/test_captain_recommendation_id.py
@@ -90,6 +95,10 @@ jobs:
       - name: Transfer horizon regression
         if: hashFiles('tests/unit/test_transfer_horizon_bulk_predictions.py') != ''
         run: python -m pytest -q tests/unit/test_transfer_horizon_bulk_predictions.py
+
+      - name: Transfer top-K full-eval regression
+        if: hashFiles('tests/unit/test_transfer_topk_full_eval.py') != ''
+        run: python -m pytest -q tests/unit/test_transfer_topk_full_eval.py
 
       - name: Captain recommendation regression
         if: hashFiles('tests/unit/test_captain_recommendation_id.py') != ''

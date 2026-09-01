@@ -15,6 +15,12 @@ from fpl_intelligence.optimization.domain import (
 from fpl_intelligence.optimization.provider import DecisionPredictionProvider
 from fpl_intelligence.optimization.rules import FPLRules
 
+# Cap expensive full-distribution transfer evaluations. Candidates are ranked
+# first with lightweight horizon EV (bulk pools); only the top-K pairs receive
+# full predictive-distribution evaluation. K is large enough to keep the best
+# lightweight candidate while cutting repeated NumPy distribution work.
+_MAX_FULL_TRANSFER_EVALS = 8
+
 
 @dataclass
 class TransferEvaluation:
@@ -166,20 +172,21 @@ class MultiTransferPlanner:
         Compares:
         - Roll transfer (0 transfers)
         - 1 Free Transfer (if available)
-        - Hits (if net EV is positive)
-        """
-        all_players_pool = list(player_positions.keys())
+        - Hits (if net EV is positive after the hit)
 
-        # 1. Option A: Roll transfer
+        Uses lightweight bulk horizon ranking first, then full distribution
+        evaluation only for the top-K candidate pairs.
+        """
+        # 1. Evaluate Roll (do nothing)
         roll_action = CandidateAction(action_type=ActionType.ROLL, horizon=horizon)
-        best_eval = TransferEvaluation([], [], 0, 0.0, 0.0, 0.5, True, "Roll transfer.")
+        best_eval = TransferEvaluation([], [], 0, 0.0, 0.0, 0.5, True, "Roll")
         best_action = roll_action
 
-        # Bulk lightweight path: expected-point pruning does not require
+        # 2. Horizon EV pools for squad + market ranking
         # predictive distributions. Reuses the request-local full pools so the
-        # same GW is never regenerated across optimizer stages.
+        # same gameweek is not reconstructed for every candidate.
         horizon_pools = self._horizon_expected_points(
-            all_players_pool,
+            list(player_positions.keys()),
             squad.gameweek,
             horizon,
         )
@@ -199,10 +206,13 @@ class MultiTransferPlanner:
             pos_targets = sorted(pos_targets, key=lambda p: target_evs[p], reverse=True)[:10]
             top_targets.extend(pos_targets)
 
-        # 3. Evaluate 1-transfer combinations
+        # 3. Rank valid 1-transfer combinations with lightweight horizon EV,
+        # then fully evaluate only the top-K pairs (distribution-aware).
+        ranked_pairs: list[tuple[float, int, int]] = []
         for p_out in weakest_links:
             pos_out = player_positions[p_out]
             price_out = player_prices.get(p_out, 0.0)
+            out_ev = squad_evs.get(p_out, 0.0)
 
             for p_in in top_targets:
                 if player_positions[p_in] != pos_out:
@@ -219,24 +229,29 @@ class MultiTransferPlanner:
                 if current_from_team >= self.rules.max_players_per_club:
                     continue
 
-                eval_obj = self.optimizer.evaluate_transfer(squad, p_out, p_in, horizon)
+                light_delta = float(target_evs.get(p_in, 0.0)) - float(out_ev)
+                ranked_pairs.append((light_delta, p_out, p_in))
 
-                flexibility_penalty = (
-                    0.5
-                    if squad.free_transfers > 0
-                    and squad.rolled_transfers < self.rules.max_rolled_transfers
-                    else 0.0
+        ranked_pairs.sort(key=lambda item: item[0], reverse=True)
+        for _light_delta, p_out, p_in in ranked_pairs[:_MAX_FULL_TRANSFER_EVALS]:
+            eval_obj = self.optimizer.evaluate_transfer(squad, p_out, p_in, horizon)
+
+            flexibility_penalty = (
+                0.5
+                if squad.free_transfers > 0
+                and squad.rolled_transfers < self.rules.max_rolled_transfers
+                else 0.0
+            )
+
+            if eval_obj.net_points - flexibility_penalty > best_eval.net_points:
+                best_eval = eval_obj
+                best_action = CandidateAction(
+                    action_type=ActionType.TRANSFER,
+                    transfers_in=[p_in],
+                    transfers_out=[p_out],
+                    hit_cost=eval_obj.hit_cost,
+                    horizon=horizon,
                 )
-
-                if eval_obj.net_points - flexibility_penalty > best_eval.net_points:
-                    best_eval = eval_obj
-                    best_action = CandidateAction(
-                        action_type=ActionType.TRANSFER,
-                        transfers_in=[p_in],
-                        transfers_out=[p_out],
-                        hit_cost=eval_obj.hit_cost,
-                        horizon=horizon,
-                    )
 
         action_type_str = (
             "Hit"
