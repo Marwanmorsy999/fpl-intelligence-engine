@@ -1,0 +1,90 @@
+name: One-shot lightweight prediction pool patch
+
+on:
+  push:
+    branches:
+      - perf/full-pool-lightweight-predictions
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: perf/full-pool-lightweight-predictions
+      - name: Apply lightweight full-pool path
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          live = Path('src/fpl_intelligence/prediction/live_provider.py')
+          text = live.read_text(encoding='utf-8')
+
+          text = text.replace(
+              'def _make_prediction(\n    player_id: int,\n    gameweek: int,\n    expected_points: float,\n    *,\n    expected_minutes: float,\n    start_probability: float,\n    source: str,\n    data_quality: str,\n    confidence: float,\n    data_completeness: float,\n) -> LabeledPlayerPrediction:',
+              'def _make_prediction(\n    player_id: int,\n    gameweek: int,\n    expected_points: float,\n    *,\n    expected_minutes: float,\n    start_probability: float,\n    source: str,\n    data_quality: str,\n    confidence: float,\n    data_completeness: float,\n    include_distribution: bool = True,\n) -> LabeledPlayerPrediction:'
+          )
+          old = '''    points = _clamp(round(float(expected_points), 3), 0.0, 30.0)\n    samples = _distribution_for(points, seed=player_id * 1000 + gameweek)\n    return LabeledPlayerPrediction(\n        player_id=player_id,\n        gameweek=gameweek,\n        expected_points=points,\n        expected_minutes=round(float(expected_minutes), 1),\n        start_probability=round(_clamp(float(start_probability), 0.0, 1.0), 3),\n        distribution=samples,\n        floor=round(float(np.percentile(samples, 10)), 3),\n        ceiling=round(float(np.percentile(samples, 90)), 3),\n'''
+          new = '''    points = _clamp(round(float(expected_points), 3), 0.0, 30.0)\n    if include_distribution:\n        samples = _distribution_for(points, seed=player_id * 1000 + gameweek)\n        floor = round(float(np.percentile(samples, 10)), 3)\n        ceiling = round(float(np.percentile(samples, 90)), 3)\n    else:\n        # Full-pool chip ranking consumes only expected_points. Keep the\n        # prediction object valid without paying for 2,000 NumPy samples per\n        # player. A later full player/squad request uses a distinct cache key.\n        samples = np.empty(0, dtype=float)\n        floor = points\n        ceiling = points\n    return LabeledPlayerPrediction(\n        player_id=player_id,\n        gameweek=gameweek,\n        expected_points=points,\n        expected_minutes=round(float(expected_minutes), 1),\n        start_probability=round(_clamp(float(start_probability), 0.0, 1.0), 3),\n        distribution=samples,\n        floor=floor,\n        ceiling=ceiling,\n'''
+          if old not in text:
+              raise SystemExit('live_provider _make_prediction block not found')
+          text = text.replace(old, new, 1)
+
+          text = text.replace(
+              'self._prediction_cache: dict[tuple[int, int], PlayerPrediction] = {}',
+              'self._prediction_cache: dict[tuple[int, int, bool], PlayerPrediction] = {}',
+              1,
+          )
+          text = text.replace(
+              '        result: PredictionChainResult,\n        player_ids: list[int],\n    ) -> dict[int, PlayerPrediction]:',
+              '        result: PredictionChainResult,\n        player_ids: list[int],\n        *,\n        include_distribution: bool = True,\n    ) -> dict[int, PlayerPrediction]:',
+              1,
+          )
+          text = text.replace(
+              '            cache_key = (int(result.gameweek), int(pid))',
+              '            cache_key = (int(result.gameweek), int(pid), include_distribution)',
+              1,
+          )
+          text = text.replace(
+              '                data_completeness=float(extras.get("compl", defaults["compl"])),\n            )',
+              '                data_completeness=float(extras.get("compl", defaults["compl"])),\n                include_distribution=include_distribution,\n            )',
+              1,
+          )
+          text = text.replace(
+              '        return self._label_predictions(chain_result, universe)\n',
+              '        return self._label_predictions(\n            chain_result, universe, include_distribution=False\n        )\n',
+              1,
+          )
+          live.write_text(text, encoding='utf-8')
+
+          bridge = Path('src/fpl_intelligence/data_providers/decision_bridge.py')
+          text = bridge.read_text(encoding='utf-8')
+          old = '''    def get_all_predictions(self, gameweek: int) -> dict[int, PlayerPrediction]:\n        base = self._base.get_all_predictions(gameweek)\n        return {pid: self.get_player_prediction(pid, gameweek) for pid in base}\n'''
+          new = '''    def get_all_predictions(self, gameweek: int) -> dict[int, PlayerPrediction]:\n        base = self._base.get_all_predictions(gameweek)\n        return {\n            pid: self._apply(self._overrides[pid], pred)\n            if pid in self._overrides\n            else pred\n            for pid, pred in base.items()\n        }\n'''
+          if old not in text:
+              raise SystemExit('decision_bridge get_all_predictions block not found')
+          bridge.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          wrapper = Path('src/fpl_intelligence/availability/prediction_wrapper.py')
+          text = wrapper.read_text(encoding='utf-8')
+          old = '''    def get_all_predictions(self, gameweek: int) -> dict:\n        base_preds = self._base.get_all_predictions(gameweek)\n        return {pid: self.get_player_prediction(pid, gameweek) for pid in base_preds}\n'''
+          new = '''    def get_all_predictions(self, gameweek: int) -> dict:\n        base_preds = self._base.get_all_predictions(gameweek)\n        return {\n            pid: PlayerPrediction(\n                player_id=pid,\n                gameweek=gameweek,\n                expected_points=adj["expected_points"],\n                expected_minutes=adj["expected_minutes"],\n                start_probability=adj["start_probability"],\n                distribution=adj["distribution"],\n                floor=adj["floor"],\n                ceiling=adj["ceiling"],\n                confidence=pred.confidence,\n                data_completeness=pred.data_completeness,\n            )\n            for pid, pred in base_preds.items()\n            for adj in [self._adjust(pred, pid, gameweek)]\n        }\n'''
+          if old not in text:
+              raise SystemExit('availability get_all_predictions block not found')
+          wrapper.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          test = Path('tests/unit/test_phase15_4_lightweight_pool.py')
+          test.write_text('''from __future__ import annotations\n\nimport numpy as np\n\nfrom fpl_intelligence.optimization.provider import PlayerPrediction\nfrom fpl_intelligence.prediction.live_provider import _make_prediction\n\n\ndef test_lightweight_prediction_skips_distribution_sampling() -> None:\n    pred = _make_prediction(10, 3, 7.25, expected_minutes=60, start_probability=0.8, source="materialized-chain", data_quality="precomputed-daily-materialize", confidence=0.75, data_completeness=0.85, include_distribution=False)\n    assert pred.expected_points == 7.25\n    assert pred.distribution.size == 0\n    assert pred.floor == 7.25\n    assert pred.ceiling == 7.25\n\n\ndef test_full_prediction_still_has_distribution() -> None:\n    pred = _make_prediction(10, 3, 7.25, expected_minutes=60, start_probability=0.8, source="materialized-chain", data_quality="precomputed-daily-materialize", confidence=0.75, data_completeness=0.85)\n    assert pred.expected_points == 7.25\n    assert pred.distribution.size == 2000\n    assert np.isfinite(pred.distribution).all()\n    assert pred.floor <= pred.ceiling\n''', encoding='utf-8')
+          PY
+
+          rm .github/workflows/_one_shot_lightweight_pool_patch.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/fpl_intelligence/prediction/live_provider.py src/fpl_intelligence/data_providers/decision_bridge.py src/fpl_intelligence/availability/prediction_wrapper.py tests/unit/test_phase15_4_lightweight_pool.py .github/workflows/_one_shot_lightweight_pool_patch.yml
+          git commit -m 'perf(prediction): skip distributions for full player pool [skip ci]'
+          git push origin HEAD:perf/full-pool-lightweight-predictions
