@@ -11,16 +11,13 @@ class _ScalarRows:
     def __init__(self, rows: list[object]) -> None:
         self._rows = rows
 
-    def scalars(self) -> "_ScalarRows":
-        return self
-
     def all(self) -> list[object]:
         return self._rows
 
 
 def test_player_names_use_batched_element_and_legacy_queries() -> None:
-    provider = MagicMock()
-    provider.execute.side_effect = [
+    db = MagicMock()
+    db.scalars.side_effect = [
         _ScalarRows([
             MagicMock(fpl_element_id=101, id=9001, web_name="Alpha"),
             MagicMock(fpl_element_id=202, id=9002, web_name="Beta"),
@@ -30,8 +27,8 @@ def test_player_names_use_batched_element_and_legacy_queries() -> None:
         ]),
     ]
 
-    names = _resolve_player_names(provider, [101, 202, 101, 9003])
+    names = _resolve_player_names(db, [101, 202, 101, 9003])
 
     assert names == {101: "Alpha", 202: "Beta", 9003: "Gamma"}
-    assert provider.execute.call_count == 2
-    provider.get.assert_not_called()
+    assert db.scalars.call_count == 2
+    db.get.assert_not_called()
