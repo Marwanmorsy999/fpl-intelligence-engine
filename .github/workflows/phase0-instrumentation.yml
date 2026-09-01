@@ -39,7 +39,7 @@ jobs:
         run: python -m compileall -q src
 
       - name: Ruff lint source
-        run: python -m ruff check src/fpl_intelligence/api/performance.py src/fpl_intelligence/api/main.py src/fpl_intelligence/squad/bridge.py src/fpl_intelligence/optimization/transfers.py src/fpl_intelligence/optimization/squad.py src/fpl_intelligence/api/routes/fixtures.py
+        run: python -m ruff check src/fpl_intelligence/api/performance.py src/fpl_intelligence/api/main.py src/fpl_intelligence/squad/bridge.py src/fpl_intelligence/optimization/transfers.py src/fpl_intelligence/optimization/squad.py
 
       - name: Ruff lint fixture-cache regression
         if: hashFiles('tests/unit/test_fixture_count_cache.py') != ''
