@@ -10,10 +10,12 @@ on:
       - 'src/fpl_intelligence/optimization/transfers.py'
       - 'src/fpl_intelligence/optimization/squad.py'
       - 'src/fpl_intelligence/api/routes/fixtures.py'
+      - 'src/fpl_intelligence/sync/results_ingestion.py'
       - 'tests/unit/test_fixture_count_cache.py'
       - 'tests/unit/test_transfer_horizon_bulk_predictions.py'
       - 'tests/unit/test_captain_recommendation_id.py'
       - 'tests/unit/test_fixture_player_names_batch.py'
+      - 'tests/unit/test_sync_ingestion_race.py'
       - '.github/workflows/phase0-instrumentation.yml'
 
 permissions:
@@ -41,6 +43,10 @@ jobs:
       - name: Ruff lint source
         run: python -m ruff check src/fpl_intelligence/api/performance.py src/fpl_intelligence/api/main.py src/fpl_intelligence/squad/bridge.py src/fpl_intelligence/optimization/transfers.py src/fpl_intelligence/optimization/squad.py
 
+      - name: Ruff lint results-ingestion regression source
+        if: hashFiles('src/fpl_intelligence/sync/results_ingestion.py') != ''
+        run: python -m ruff check src/fpl_intelligence/sync/results_ingestion.py
+
       - name: Ruff lint fixture-cache regression
         if: hashFiles('tests/unit/test_fixture_count_cache.py') != ''
         run: python -m ruff check tests/unit/test_fixture_count_cache.py
@@ -56,6 +62,10 @@ jobs:
       - name: Ruff lint fixture player-name regression
         if: hashFiles('tests/unit/test_fixture_player_names_batch.py') != ''
         run: python -m ruff check tests/unit/test_fixture_player_names_batch.py
+
+      - name: Ruff lint sync ingestion race regression
+        if: hashFiles('tests/unit/test_sync_ingestion_race.py') != ''
+        run: python -m ruff check tests/unit/test_sync_ingestion_race.py
 
       - name: PhaseTimer regression checks
         run: |
@@ -88,6 +98,10 @@ jobs:
       - name: Fixture player-name regression
         if: hashFiles('tests/unit/test_fixture_player_names_batch.py') != ''
         run: python -m pytest -q tests/unit/test_fixture_player_names_batch.py
+
+      - name: Sync ingestion race regression
+        if: hashFiles('tests/unit/test_sync_ingestion_race.py') != ''
+        run: python -m pytest -q tests/unit/test_sync_ingestion_race.py
 
       - name: Decision bridge import smoke test
         run: python -c "from fpl_intelligence.squad.bridge import DecisionOptimizerBridge; print(DecisionOptimizerBridge.__name__)"
