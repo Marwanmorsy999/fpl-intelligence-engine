@@ -30,11 +30,13 @@ class _TimedPredictionProvider(DecisionPredictionProvider):
         self._provider = provider
         self._prediction_cache: dict[tuple[int, int], PlayerPrediction] = {}
         self._all_predictions_cache: dict[int, dict[int, PlayerPrediction]] = {}
+        self._fixture_count_cache: dict[tuple[int, int], int] = {}
 
     def clear_request_cache(self) -> None:
-        """Discard predictions from the previous decision request."""
+        """Discard predictions and fixture counts from the previous decision request."""
         self._prediction_cache.clear()
         self._all_predictions_cache.clear()
+        self._fixture_count_cache.clear()
 
     def _call(self, fn: Any, *args: Any, **kwargs: Any) -> Any:
         timer = current_phase_timer()
@@ -84,7 +86,14 @@ class _TimedPredictionProvider(DecisionPredictionProvider):
         return result
 
     def get_fixture_count(self, player_id: int, gameweek: int) -> int:
-        return self._call(self._provider.get_fixture_count, player_id, gameweek)
+        key = (player_id, gameweek)
+        cached = self._fixture_count_cache.get(key)
+        if cached is not None:
+            return cached
+
+        count = self._call(self._provider.get_fixture_count, player_id, gameweek)
+        self._fixture_count_cache[key] = int(count)
+        return int(count)
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._provider, name)

@@ -7,6 +7,7 @@ on:
       - 'src/fpl_intelligence/api/main.py'
       - 'src/fpl_intelligence/api/performance.py'
       - 'src/fpl_intelligence/squad/bridge.py'
+      - 'tests/unit/test_fixture_count_cache.py'
       - '.github/workflows/phase0-instrumentation.yml'
 
 permissions:
@@ -32,7 +33,7 @@ jobs:
         run: python -m compileall -q src
 
       - name: Ruff lint
-        run: python -m ruff check src/fpl_intelligence/api/performance.py src/fpl_intelligence/api/main.py src/fpl_intelligence/squad/bridge.py
+        run: python -m ruff check src/fpl_intelligence/api/performance.py src/fpl_intelligence/api/main.py src/fpl_intelligence/squad/bridge.py tests/unit/test_fixture_count_cache.py
 
       - name: PhaseTimer regression checks
         run: |
@@ -51,6 +52,9 @@ jobs:
           assert timer.total_ms >= timer.phases["db"]
           print(timer.phases)
           PY
+
+      - name: Fixture count cache regression
+        run: python -m pytest -q tests/unit/test_fixture_count_cache.py
 
       - name: Decision bridge import smoke test
         run: python -c "from fpl_intelligence.squad.bridge import DecisionOptimizerBridge; print(DecisionOptimizerBridge.__name__)"
