@@ -36,8 +36,20 @@ jobs:
       - name: Compile source
         run: python -m compileall -q src
 
-      - name: Ruff lint
-        run: python -m ruff check src/fpl_intelligence/api/performance.py src/fpl_intelligence/api/main.py src/fpl_intelligence/squad/bridge.py src/fpl_intelligence/optimization/transfers.py src/fpl_intelligence/optimization/squad.py tests/unit/test_fixture_count_cache.py tests/unit/test_transfer_horizon_bulk_predictions.py tests/unit/test_captain_recommendation_id.py
+      - name: Ruff lint source
+        run: python -m ruff check src/fpl_intelligence/api/performance.py src/fpl_intelligence/api/main.py src/fpl_intelligence/squad/bridge.py src/fpl_intelligence/optimization/transfers.py src/fpl_intelligence/optimization/squad.py
+
+      - name: Ruff lint fixture-cache regression
+        if: hashFiles('tests/unit/test_fixture_count_cache.py') != ''
+        run: python -m ruff check tests/unit/test_fixture_count_cache.py
+
+      - name: Ruff lint transfer-horizon regression
+        if: hashFiles('tests/unit/test_transfer_horizon_bulk_predictions.py') != ''
+        run: python -m ruff check tests/unit/test_transfer_horizon_bulk_predictions.py
+
+      - name: Ruff lint captain regression
+        if: hashFiles('tests/unit/test_captain_recommendation_id.py') != ''
+        run: python -m ruff check tests/unit/test_captain_recommendation_id.py
 
       - name: PhaseTimer regression checks
         run: |
@@ -56,12 +68,15 @@ jobs:
           PY
 
       - name: Fixture count cache regression
+        if: hashFiles('tests/unit/test_fixture_count_cache.py') != ''
         run: python -m pytest -q tests/unit/test_fixture_count_cache.py
 
       - name: Transfer horizon regression
+        if: hashFiles('tests/unit/test_transfer_horizon_bulk_predictions.py') != ''
         run: python -m pytest -q tests/unit/test_transfer_horizon_bulk_predictions.py
 
       - name: Captain recommendation regression
+        if: hashFiles('tests/unit/test_captain_recommendation_id.py') != ''
         run: python -m pytest -q tests/unit/test_captain_recommendation_id.py
 
       - name: Decision bridge import smoke test
