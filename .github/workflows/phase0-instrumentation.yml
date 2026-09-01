@@ -9,9 +9,11 @@ on:
       - 'src/fpl_intelligence/squad/bridge.py'
       - 'src/fpl_intelligence/optimization/transfers.py'
       - 'src/fpl_intelligence/optimization/squad.py'
+      - 'src/fpl_intelligence/api/routes/fixtures.py'
       - 'tests/unit/test_fixture_count_cache.py'
       - 'tests/unit/test_transfer_horizon_bulk_predictions.py'
       - 'tests/unit/test_captain_recommendation_id.py'
+      - 'tests/unit/test_fixture_player_names_batch.py'
       - '.github/workflows/phase0-instrumentation.yml'
 
 permissions:
@@ -37,7 +39,7 @@ jobs:
         run: python -m compileall -q src
 
       - name: Ruff lint source
-        run: python -m ruff check src/fpl_intelligence/api/performance.py src/fpl_intelligence/api/main.py src/fpl_intelligence/squad/bridge.py src/fpl_intelligence/optimization/transfers.py src/fpl_intelligence/optimization/squad.py
+        run: python -m ruff check src/fpl_intelligence/api/performance.py src/fpl_intelligence/api/main.py src/fpl_intelligence/squad/bridge.py src/fpl_intelligence/optimization/transfers.py src/fpl_intelligence/optimization/squad.py src/fpl_intelligence/api/routes/fixtures.py
 
       - name: Ruff lint fixture-cache regression
         if: hashFiles('tests/unit/test_fixture_count_cache.py') != ''
@@ -50,6 +52,10 @@ jobs:
       - name: Ruff lint captain regression
         if: hashFiles('tests/unit/test_captain_recommendation_id.py') != ''
         run: python -m ruff check tests/unit/test_captain_recommendation_id.py
+
+      - name: Ruff lint fixture player-name regression
+        if: hashFiles('tests/unit/test_fixture_player_names_batch.py') != ''
+        run: python -m ruff check tests/unit/test_fixture_player_names_batch.py
 
       - name: PhaseTimer regression checks
         run: |
@@ -78,6 +84,10 @@ jobs:
       - name: Captain recommendation regression
         if: hashFiles('tests/unit/test_captain_recommendation_id.py') != ''
         run: python -m pytest -q tests/unit/test_captain_recommendation_id.py
+
+      - name: Fixture player-name regression
+        if: hashFiles('tests/unit/test_fixture_player_names_batch.py') != ''
+        run: python -m pytest -q tests/unit/test_fixture_player_names_batch.py
 
       - name: Decision bridge import smoke test
         run: python -c "from fpl_intelligence.squad.bridge import DecisionOptimizerBridge; print(DecisionOptimizerBridge.__name__)"
