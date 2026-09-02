@@ -19,6 +19,7 @@ import contextlib
 import logging
 import threading
 import time
+from collections import OrderedDict
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
@@ -76,7 +77,25 @@ GetDB = deps.GetDB
 # --------------------------------------------------------------------------- #
 # v2.5.3 — per-session decisions cache keyed by snapshot updated_at
 # --------------------------------------------------------------------------- #
-_decisions_cache: dict[str, Any] = {}
+_DECISIONS_CACHE_MAX_ENTRIES = 256
+
+
+class _BoundedDecisionsCache(OrderedDict[str, Any]):
+    'Dict-compatible FIFO cache with a hard entry bound.'
+
+    def __init__(self, max_entries: int) -> None:
+        if max_entries <= 0:
+            raise ValueError("max_entries must be positive")
+        self._max_entries = max_entries
+        super().__init__()
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        super().__setitem__(key, value)
+        while len(self) > self._max_entries:
+            self.popitem(last=False)
+
+
+_decisions_cache = _BoundedDecisionsCache(_DECISIONS_CACHE_MAX_ENTRIES)
 _decisions_cache_lock = threading.Lock()
 
 
