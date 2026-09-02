@@ -157,12 +157,15 @@ jobs:
                   assert len(_decisions_cache) == 0
           PY
 
+          python -m pip install --quiet -e ".[dev]"
           python -m pytest -q tests/unit/test_decisions_cache.py
+          python -m ruff check src/fpl_intelligence/api/routes/squad.py tests/unit/test_decisions_cache.py
           python -m compileall -q src/fpl_intelligence
 
           git rm -f .github/workflows/_tmp_bounded_decisions_cache.yml
+          git rm -f cache_patch_trigger.txt || true
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/fpl_intelligence/api/routes/squad.py tests/unit/test_decisions_cache.py .github/workflows/_tmp_bounded_decisions_cache.yml
+          git add src/fpl_intelligence/api/routes/squad.py tests/unit/test_decisions_cache.py .github/workflows/_tmp_bounded_decisions_cache.yml cache_patch_trigger.txt
           git commit -m "perf(api): bound decisions response cache"
           git push
