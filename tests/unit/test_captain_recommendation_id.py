@@ -10,6 +10,7 @@ from fpl_intelligence.optimization.domain import ActionType, SquadState
 from fpl_intelligence.optimization.provider import PlayerPrediction
 from fpl_intelligence.optimization.rules import FPLRules
 from fpl_intelligence.optimization.squad import CaptainOptimizer, StartingXIOptimizer
+from fpl_intelligence.squad.bridge import DecisionOptimizerBridge
 
 
 def _prediction(player_id: int, expected_points: float) -> PlayerPrediction:
@@ -106,3 +107,31 @@ def test_starting_xi_uses_one_batched_prediction_fetch() -> None:
     assert sorted(starting_xi + bench) == players
     provider.get_squad_predictions.assert_called_once_with(players, [3])
     provider.get_player_prediction.assert_not_called()
+
+
+def test_timed_batch_provider_skips_all_cached_pairs() -> None:
+    provider = MagicMock()
+    timed = DecisionOptimizerBridge(provider=provider)._timed_provider
+    first = _prediction(123, 6.0)
+    second = _prediction(456, 7.0)
+    timed._prediction_cache[(123, 3)] = first
+    timed._prediction_cache[(456, 3)] = second
+
+    result = timed.get_squad_predictions([123, 456], [3])
+
+    assert result == {3: {123: first, 456: second}}
+    provider.get_squad_predictions.assert_not_called()
+
+
+def test_timed_batch_provider_fetches_only_missing_pairs() -> None:
+    provider = MagicMock()
+    timed = DecisionOptimizerBridge(provider=provider)._timed_provider
+    cached = _prediction(123, 6.0)
+    missing = _prediction(456, 7.0)
+    timed._prediction_cache[(123, 3)] = cached
+    provider.get_squad_predictions.return_value = {3: {456: missing}}
+
+    result = timed.get_squad_predictions([123, 456], [3])
+
+    assert result == {3: {123: cached, 456: missing}}
+    provider.get_squad_predictions.assert_called_once_with([456], [3])
