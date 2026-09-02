@@ -35,9 +35,7 @@ class CachedLivePredictionProvider(LivePredictionProvider):
             understat_snapshot_path=understat_snapshot_path,
             provider_registry=provider_registry,
         )
-        self._all_predictions_cache: dict[
-            tuple[int, bool], dict[int, PlayerPrediction]
-        ] = {}
+        self._all_predictions_cache: dict[tuple[int, bool], dict[int, PlayerPrediction]] = {}
         self._fixture_count_cache: dict[tuple[int, int], int] = {}
 
     def get_all_predictions(
