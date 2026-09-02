@@ -48,7 +48,8 @@ class _TimedPredictionProvider(DecisionPredictionProvider):
     def get_player_prediction(self, player_id: int, gameweek: int) -> PlayerPrediction:
         key = (player_id, gameweek)
         cached = self._prediction_cache.get(key)
-        if cached is not None:
+        cached_distribution = getattr(cached, "distribution", None) if cached is not None else None
+        if cached is not None and cached_distribution is not None and len(cached_distribution) > 0:
             return cached
 
         prediction = self._call(
@@ -71,6 +72,8 @@ class _TimedPredictionProvider(DecisionPredictionProvider):
                 player_id: self._prediction_cache[(player_id, gameweek)]
                 for player_id in normalized_players
                 if (player_id, gameweek) in self._prediction_cache
+                and getattr(self._prediction_cache[(player_id, gameweek)], "distribution", None) is not None
+                and len(self._prediction_cache[(player_id, gameweek)].distribution) > 0
             }
             result[gameweek] = cached_by_player
 
@@ -89,8 +92,11 @@ class _TimedPredictionProvider(DecisionPredictionProvider):
             )
             by_player = fetched.get(gameweek, {})
             for player_id, prediction in by_player.items():
-                self._prediction_cache[(int(player_id), gameweek)] = prediction
-                result[gameweek][int(player_id)] = prediction
+                normalized_id = int(player_id)
+                result[gameweek][normalized_id] = prediction
+                distribution = getattr(prediction, "distribution", None)
+                if distribution is not None and len(distribution) > 0:
+                    self._prediction_cache[(normalized_id, gameweek)] = prediction
 
         return result
 
