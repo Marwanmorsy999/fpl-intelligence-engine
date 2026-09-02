@@ -62,16 +62,36 @@ class _TimedPredictionProvider(DecisionPredictionProvider):
     def get_squad_predictions(
         self, squad_players: list[int], gameweeks: list[int]
     ) -> dict[int, dict[int, PlayerPrediction]]:
-        result = self._call(
-            self._provider.get_squad_predictions,
-            squad_players,
-            gameweeks,
-        )
-        # DecisionPredictionProvider returns {gameweek: {player_id: prediction}}.
-        # Populate the same request-local cache used by get_player_prediction().
-        for gameweek, by_player in result.items():
+        normalized_players = [int(pid) for pid in squad_players]
+        normalized_gameweeks = sorted({int(gw) for gw in gameweeks})
+        result: dict[int, dict[int, PlayerPrediction]] = {}
+
+        for gameweek in normalized_gameweeks:
+            cached_by_player = {
+                player_id: self._prediction_cache[(player_id, gameweek)]
+                for player_id in normalized_players
+                if (player_id, gameweek) in self._prediction_cache
+            }
+            result[gameweek] = cached_by_player
+
+            missing = [
+                player_id
+                for player_id in normalized_players
+                if player_id not in cached_by_player
+            ]
+            if not missing:
+                continue
+
+            fetched = self._call(
+                self._provider.get_squad_predictions,
+                missing,
+                [gameweek],
+            )
+            by_player = fetched.get(gameweek, {})
             for player_id, prediction in by_player.items():
-                self._prediction_cache[(player_id, gameweek)] = prediction
+                self._prediction_cache[(int(player_id), gameweek)] = prediction
+                result[gameweek][int(player_id)] = prediction
+
         return result
 
     def get_all_predictions(self, gameweek: int) -> dict[int, PlayerPrediction]:
