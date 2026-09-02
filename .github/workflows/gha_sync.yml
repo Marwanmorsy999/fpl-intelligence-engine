@@ -1,31 +1,50 @@
-name: Transfer Sync
+name: Transfer Sync (Manual Production)
 
+# Preview branch safety: this workflow must never silently mutate production.
+# The normal daily production work is owned by the single Vercel Cron on main.
+# This Actions workflow is an incident/recovery tool only and requires an
+# explicit production confirmation when dispatched.
 on:
-  # Phase 4.1 — free-tier scheduling lives in GitHub Actions (2 000 runner-minutes
-  # per month on the free plan is far cheaper than burning Vercel Cron budget).
-  # 07:30 UTC daily; well away from the 06:10 UTC daily job so the load is spread.
-  schedule:
-    - cron: "30 7 * * *"
   workflow_dispatch:
+    inputs:
+      confirm_production_sync:
+        description: "Explicitly authorize a production transfer sync run"
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
+concurrency:
+  group: production-transfer-sync
+  cancel-in-progress: false
+
 jobs:
   transfer-sync:
+    if: ${{ inputs.confirm_production_sync == true }}
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout production branch
+        uses: actions/checkout@v6
+        with:
+          ref: main
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
+          cache: pip
 
       - name: Install
-        run: pip install .
+        run: python -m pip install .
+
+      - name: Verify production ref
+        run: |
+          test "$(git branch --show-current)" = "main"
+          test "$(git rev-parse --abbrev-ref HEAD)" = "main"
+          echo "Running production sync from $(git rev-parse HEAD)"
 
       - name: Run transfer auto-detection
         env:
