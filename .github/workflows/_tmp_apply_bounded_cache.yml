@@ -1,0 +1,87 @@
+name: temporary apply bounded decisions cache
+
+on:
+  push:
+    branches:
+      - perf/bounded-decisions-cache-final
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Apply cache patch
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/fpl_intelligence/api/routes/squad.py")
+          lines = path.read_text().splitlines()
+          if any("_BoundedDecisionsCache" in line for line in lines):
+              raise SystemExit("bounded cache already present")
+
+          out = []
+          inserted_import = False
+          replaced_cache = False
+          cache_block = [
+              "_DECISIONS_CACHE_MAX_ENTRIES = 256",
+              "",
+              "",
+              "class _BoundedDecisionsCache(OrderedDict[str, Any]):",
+              "    'Dict-compatible FIFO cache with a hard entry bound.'",
+              "",
+              "    def __init__(self, max_entries: int) -> None:",
+              "        if max_entries <= 0:",
+              "            raise ValueError(\"max_entries must be positive\")",
+              "        self._max_entries = max_entries",
+              "        super().__init__()",
+              "",
+              "    def __setitem__(self, key: str, value: Any) -> None:",
+              "        super().__setitem__(key, value)",
+              "        while len(self) > self._max_entries:",
+              "            self.popitem(last=False)",
+              "",
+              "",
+              "_decisions_cache = _BoundedDecisionsCache(_DECISIONS_CACHE_MAX_ENTRIES)",
+              "_decisions_cache_lock = threading.Lock()",
+          ]
+
+          i = 0
+          while i < len(lines):
+              line = lines[i]
+              if line == "import time" and not inserted_import:
+                  out.extend([line, "from collections import OrderedDict"])
+                  inserted_import = True
+                  i += 1
+                  continue
+              if line == "_decisions_cache: dict[str, Any] = {}":
+                  out.extend(cache_block)
+                  replaced_cache = True
+                  i += 1
+                  if i < len(lines) and lines[i] == "_decisions_cache_lock = threading.Lock()":
+                      i += 1
+                  continue
+              out.append(line)
+              i += 1
+
+          if not replaced_cache or not inserted_import:
+              raise SystemExit("expected cache declaration/import anchor not found")
+          path.write_text("\n".join(out) + "\n")
+          PY
+
+          git rm -f .github/workflows/_tmp_apply_bounded_cache.yml
+          git rm -f .github/workflows/_tmp_bounded_decisions_cache.yml || true
+          git rm -f cache_patch_trigger.txt || true
+          git rm -f cache_patch_trigger_2.txt || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/fpl_intelligence/api/routes/squad.py .github/workflows/_tmp_apply_bounded_cache.yml .github/workflows/_tmp_bounded_decisions_cache.yml cache_patch_trigger.txt cache_patch_trigger_2.txt
+          git commit -m "perf(api): bound decisions response cache"
+          git push
