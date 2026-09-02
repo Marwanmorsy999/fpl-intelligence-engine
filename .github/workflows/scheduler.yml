@@ -16,11 +16,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Validate production deployment target
+        env:
+          VERCEL_DEPLOY_URL: ${{ secrets.VERCEL_DEPLOY_URL }}
+        run: |
+          test -n "$VERCEL_DEPLOY_URL" || { echo "VERCEL_DEPLOY_URL is required" >&2; exit 1; }
+          case "$VERCEL_DEPLOY_URL" in
+            https://fpl-intelligence-engine-foundation.vercel.app) ;;
+            *) echo "VERCEL_DEPLOY_URL must be the production deployment hostname" >&2; exit 1 ;;
+          esac
+
       - name: Invoke the consolidated daily job
         env:
           VERCEL_DEPLOY_URL: ${{ secrets.VERCEL_DEPLOY_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
+          test -n "$CRON_SECRET" || { echo "CRON_SECRET is required" >&2; exit 1; }
           curl -fsS -X POST \
             "$VERCEL_DEPLOY_URL/api/v1/admin/daily" \
             -H "Authorization: Bearer $CRON_SECRET" \
