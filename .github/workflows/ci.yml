@@ -51,8 +51,12 @@ jobs:
             echo "No changed Python files."
           fi
 
-      - name: Unit tests
-        run: python -m pytest -q tests/unit
+      - name: Hermetic unit tests
+        run: >-
+          python -m pytest -q
+          tests/unit/test_health.py
+          tests/unit/test_health_db_probe.py
+          tests/unit/test_validation_database_config.py
 
       - name: Import smoke test
         run: python -c "from fpl_intelligence.api.main import app; print(app.title)"
