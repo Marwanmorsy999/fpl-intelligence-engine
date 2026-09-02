@@ -49,7 +49,7 @@ class CaptainOptimizer:
         for pid in candidates:
             pred = predictions.get(int(pid))
             if pred is None:
-                continue
+                pred = self.provider.get_player_prediction(pid, gameweek)
 
             if pred.distribution is not None and len(pred.distribution) > 0:
                 dist = pred.distribution
@@ -184,7 +184,7 @@ class StartingXIOptimizer:
         for pid in squad_players:
             pred = batch.get(int(pid))
             if pred is None:
-                continue
+                pred = self.provider.get_player_prediction(pid, gameweek)
             # Use actual distribution expected value (better minutes factoring)
             if pred.distribution is not None and len(pred.distribution) > 0:
                 ev = float(np.mean(pred.distribution))
