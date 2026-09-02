@@ -5,8 +5,8 @@ from datetime import UTC, datetime
 
 def test_decisions_cache_is_bounded_and_evicts_oldest() -> None:
     from fpl_intelligence.api.routes.squad import (
-        _BoundedDecisionsCache,
         _DECISIONS_CACHE_MAX_ENTRIES,
+        _BoundedDecisionsCache,
     )
 
     cache = _BoundedDecisionsCache(3)
@@ -48,8 +48,8 @@ def test_session_invalidation_preserves_other_sessions() -> None:
     _invalidate_decisions_cache("A")
 
     with _decisions_cache_lock:
-        assert all(not key.startswith("A:") for key in _decisions_cache.keys())
-        assert any(key.startswith("B:") for key in _decisions_cache.keys())
+        assert all(not key.startswith("A:") for key in _decisions_cache)
+        assert any(key.startswith("B:") for key in _decisions_cache)
         _decisions_cache.clear()
 
 

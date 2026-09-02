@@ -264,10 +264,18 @@ async def save_local_squad_swap(
     svc = SquadService(session=db)
     cur = svc.get_effective_squad(session_id=body.session_id)
     if cur is None:
-        raise HTTPException(status_code=404, detail="No squad saved for this session — import your team first.")
-    shadow_ids = build_shadow_squad(list(cur.player_ids), int(body.element_out), int(body.element_in))
+        raise HTTPException(
+            status_code=404,
+            detail="No squad saved for this session — import your team first.",
+        )
+    shadow_ids = build_shadow_squad(
+        list(cur.player_ids), int(body.element_out), int(body.element_in)
+    )
     if shadow_ids is None:
-        raise HTTPException(status_code=422, detail="Staged transfer invalid: OUT not in squad or IN already owned.")
+        raise HTTPException(
+            status_code=422,
+            detail="Staged transfer invalid: OUT not in squad or IN already owned.",
+        )
 
     # Resolve catalog for price/position/team enrichment.
     try:
