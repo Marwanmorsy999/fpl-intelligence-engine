@@ -1,28 +1,56 @@
-name: Daily Job Trigger (Vercel)
+name: Daily Job Trigger (Production Manual)
 
-# Phase 20.4 — vercel.json owns THE single schedule (10 6 * * * UTC) pointing
-# at POST /api/v1/admin/daily. This workflow exists only as a manual dispatch
-# tool: run the same consolidated daily job on demand (incident recovery,
-# verification). No other cron paths remain anywhere in the repo.
+# Production scheduling is owned by the single Vercel Cron in main/vercel.json.
+# This workflow is intentionally manual-only for incident recovery and
+# verification, so Actions never creates a second daily cron path.
 on:
   workflow_dispatch:
+    inputs:
+      confirm_production_job:
+        description: "Explicitly authorize the production daily job"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
 
 concurrency:
-  group: daily-job
+  group: production-daily-job
   cancel-in-progress: false
 
 jobs:
   run-daily:
+    if: ${{ inputs.confirm_production_job == true }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Invoke the consolidated daily job
+      - name: Validate configuration
         env:
           VERCEL_DEPLOY_URL: ${{ secrets.VERCEL_DEPLOY_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          curl -fsS -X POST \
+          test -n "$VERCEL_DEPLOY_URL"
+          test -n "$CRON_SECRET"
+          echo "Target: $VERCEL_DEPLOY_URL"
+
+      - name: Invoke the consolidated production daily job
+        env:
+          VERCEL_DEPLOY_URL: ${{ secrets.VERCEL_DEPLOY_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          response="$(curl --fail-with-body --silent --show-error --max-time 55 \
+            -X POST \
             "$VERCEL_DEPLOY_URL/api/v1/admin/daily" \
             -H "Authorization: Bearer $CRON_SECRET" \
             -H "Content-Type: application/json" \
-            -d '{}'
+            -d '{}')"
+          printf '%s\n' "$response"
+          python - <<'PY' "$response"
+          import json
+          import sys
+          payload = json.loads(sys.argv[1])
+          if payload.get("ok") is False:
+              raise SystemExit(f"daily job reported failure: {payload}")
+          print("daily job response accepted")
+          PY
