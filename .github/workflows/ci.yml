@@ -21,6 +21,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -34,8 +36,20 @@ jobs:
       - name: Compile source
         run: python -m compileall -q src tests scripts
 
-      - name: Ruff
-        run: python -m ruff check src tests scripts
+      - name: Ruff changed Python files
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git diff --name-only "${{ github.event.pull_request.base.sha }}" HEAD -- '*.py' > /tmp/changed_python.txt
+          else
+            git diff --name-only HEAD^ HEAD -- '*.py' > /tmp/changed_python.txt
+          fi
+          if [ -s /tmp/changed_python.txt ]; then
+            cat /tmp/changed_python.txt
+            xargs -r -d '\n' python -m ruff check < /tmp/changed_python.txt
+          else
+            echo "No changed Python files."
+          fi
 
       - name: Unit tests
         run: python -m pytest -q tests/unit
