@@ -38,6 +38,7 @@ class CachedLivePredictionProvider(LivePredictionProvider):
         self._all_predictions_cache: dict[
             tuple[int, bool], dict[int, PlayerPrediction]
         ] = {}
+        self._fixture_count_cache: dict[tuple[int, int], int] = {}
 
     def get_all_predictions(
         self, gameweek: int, *, skip_materialized: bool = False
@@ -54,3 +55,23 @@ class CachedLivePredictionProvider(LivePredictionProvider):
         )
         self._all_predictions_cache[cache_key] = predictions
         return predictions
+
+    def get_fixture_count(self, player_id: int, gameweek: int) -> int:
+        """Return cached fixture count for this request when available.
+
+        The Phase 6 decision bridge wraps this provider in ``_TimedPredictionProvider``
+        which has its own request-local cache for ``get_fixture_count``. Direct
+        callers (e.g. Phase 9.4 ``PredictionContextBuilder``) skip the bridge and
+        hit this provider directly. Caching here removes duplicate
+        ``gameweek + membership + fixtures`` query sequences for any caller
+        within the same request, regardless of whether the caller goes through
+        the bridge or the raw provider.
+        """
+        cache_key = (int(player_id), int(gameweek))
+        cached = self._fixture_count_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        count = super().get_fixture_count(int(player_id), int(gameweek))
+        self._fixture_count_cache[cache_key] = int(count)
+        return int(count)
