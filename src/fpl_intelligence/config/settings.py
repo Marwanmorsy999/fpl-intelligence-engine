@@ -57,6 +57,18 @@ class Settings(BaseSettings):
     # never accept unauthenticated writes.
     sync_push_token: str = ""
 
+    # --- Phase 22 — shared cache (issue #22) -------------------------------
+    # Provider-neutral shared cache backend. Selects the implementation used
+    # by :func:`fpl_intelligence.cache.build_shared_cache`:
+    #   * ``memory``   — process-local dict (default for local + tests)
+    #   * ``upstash``  — Upstash Redis REST API (free tier compatible)
+    #   * ``null``     — every read misses; every write is dropped
+    shared_cache_backend: str = "memory"
+    upstash_rest_url: str = ""
+    upstash_rest_token: str = ""
+    upstash_timeout_seconds: float = 2.0
+    shared_cache_namespace: str = "fpl"
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
