@@ -1,0 +1,87 @@
+name: temporary cache lint fixes
+
+on:
+  push:
+    branches:
+      - perf/bounded-decisions-cache-final
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Apply fixes, validate, and clean up
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/fpl_intelligence/api/routes/squad.py")
+          text = path.read_text()
+          text = text.replace(
+              '        raise HTTPException(status_code=404, detail="No squad saved for this session — import your team first.")',
+              '        raise HTTPException(\n'
+              '            status_code=404,\n'
+              '            detail="No squad saved for this session — import your team first.",\n'
+              '        )',
+          )
+          text = text.replace(
+              '    shadow_ids = build_shadow_squad(list(cur.player_ids), int(body.element_out), int(body.element_in))',
+              '    shadow_ids = build_shadow_squad(\n'
+              '        list(cur.player_ids), int(body.element_out), int(body.element_in)\n'
+              '    )',
+          )
+          text = text.replace(
+              '        raise HTTPException(status_code=422, detail="Staged transfer invalid: OUT not in squad or IN already owned.")',
+              '        raise HTTPException(\n'
+              '            status_code=422,\n'
+              '            detail="Staged transfer invalid: OUT not in squad or IN already owned.",\n'
+              '        )',
+          )
+          path.write_text(text)
+
+          test = Path("tests/unit/test_decisions_cache.py")
+          text = test.read_text()
+          text = text.replace(
+              '        _BoundedDecisionsCache,\n        _DECISIONS_CACHE_MAX_ENTRIES,',
+              '        _DECISIONS_CACHE_MAX_ENTRIES,\n        _BoundedDecisionsCache,',
+          )
+          text = text.replace(
+              'all(not key.startswith("A:") for key in _decisions_cache.keys())',
+              'all(not key.startswith("A:") for key in _decisions_cache)',
+          )
+          text = text.replace(
+              'any(key.startswith("B:") for key in _decisions_cache.keys())',
+              'any(key.startswith("B:") for key in _decisions_cache)',
+          )
+          test.write_text(text)
+          PY
+
+          set +e
+          python -m ruff check src/fpl_intelligence/api/routes/squad.py tests/unit/test_decisions_cache.py
+          RUFF=$?
+          python -m pytest -q tests/unit/test_decisions_cache.py
+          PYTEST=$?
+          python -m compileall -q src
+          COMPILE=$?
+          set -e
+
+          rm -f .github/workflows/_tmp_fix_cache_lint.yml
+          rm -f cache_patch_trigger_3.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if [ "$RUFF" -eq 0 ] && [ "$PYTEST" -eq 0 ] && [ "$COMPILE" -eq 0 ]; then
+            git commit -m "style: fix cache lint findings"
+            git push
+            exit 0
+          fi
+          git commit -m "style: cleanup temporary cache lint workflow" || true
+          git push
+          exit 1
