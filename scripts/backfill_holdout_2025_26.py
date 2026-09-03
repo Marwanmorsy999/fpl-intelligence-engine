@@ -23,7 +23,7 @@ from sqlalchemy import func, select
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from fpl_intelligence.db.models import Fixture, Season, TeamExternalId, TeamMatchPerformance  # noqa: E402
-from fpl_intelligence.db.session import validation_session_factory, writable_validation_session_factory  # noqa: E402
+from fpl_intelligence.db.session import validation_session_factory, validation_write_session_factory  # noqa: E402
 from fpl_intelligence.ingestion.historical import import_season  # noqa: E402
 from fpl_intelligence.providers.real_fpl import RealFPLProvider  # noqa: E402
 from fpl_intelligence.providers.real_football_stats import RealFootballStatsProvider  # noqa: E402
@@ -208,7 +208,7 @@ def main() -> int:
             print({"holdout": HOLDOUT, **base, **team, "read_only": True})
         return 0
 
-    session_factory = writable_validation_session_factory()
+    session_factory = validation_write_session_factory()
     with session_factory() as db:
         season = db.scalar(select(Season).where(Season.code == HOLDOUT))
         if season is None:
