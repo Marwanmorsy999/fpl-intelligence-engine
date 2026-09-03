@@ -42,12 +42,9 @@ def upgrade() -> None:
     # the UNIQUE constraint with a PRIMARY KEY backed by that index.
     op.execute(
         "CREATE UNIQUE INDEX predictions_current_pk_idx "
-        "ON public.predictions_current (\"gameweek\", \"element_id\")"
+        'ON public.predictions_current ("gameweek", "element_id")'
     )
-    op.execute(
-        "ALTER TABLE public.predictions_current "
-        "DROP CONSTRAINT uq_pred_current_gw_element"
-    )
+    op.execute("ALTER TABLE public.predictions_current DROP CONSTRAINT uq_pred_current_gw_element")
     op.execute(
         "ALTER TABLE public.predictions_current "
         "ADD CONSTRAINT predictions_current_pkey "
@@ -72,14 +69,11 @@ def upgrade() -> None:
 def downgrade() -> None:
     # Dropping the PK drops its backing index. Recreate the original
     # UNIQUE constraint to restore the pre-migration invariant.
-    op.execute(
-        "ALTER TABLE public.predictions_current "
-        "DROP CONSTRAINT predictions_current_pkey"
-    )
+    op.execute("ALTER TABLE public.predictions_current DROP CONSTRAINT predictions_current_pkey")
     op.execute(
         "ALTER TABLE public.predictions_current "
         "ADD CONSTRAINT uq_pred_current_gw_element "
-        "UNIQUE (\"gameweek\", \"element_id\")"
+        'UNIQUE ("gameweek", "element_id")'
     )
 
     op.drop_index(

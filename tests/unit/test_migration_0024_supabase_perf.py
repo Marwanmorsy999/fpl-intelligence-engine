@@ -1,9 +1,21 @@
 """Validate migration 0024 (supabase_perf_evidence) DDL contract.
 
-Migration 0024 issues only ``op.execute(...)`` (PK promotion) and
-``op.create_index(...)`` (two new indexes). The downgrade issues
-``op.execute(...)`` (DROP CONSTRAINT) and ``op.drop_index(...)`` for
-the two new indexes.
+Migration 0024 issues only ``op.execute(...)`` (3 statements in
+upgrade, 2 in downgrade) and ``op.create_index(...)`` (two new
+performance indexes). The PK change is a 3-step process because
+PostgreSQL does not allow an index already owned by a UNIQUE
+constraint to be reused directly with ``PRIMARY KEY USING INDEX``:
+
+    1. CREATE UNIQUE INDEX predictions_current_pk_idx
+       ON public.predictions_current ("gameweek", "element_id")
+    2. ALTER TABLE public.predictions_current
+       DROP CONSTRAINT uq_pred_current_gw_element
+    3. ALTER TABLE public.predictions_current
+       ADD CONSTRAINT predictions_current_pkey
+       PRIMARY KEY USING INDEX predictions_current_pk_idx
+
+This is the standard Postgres procedure documented in
+https://www.postgresql.org/docs/current/sql-altertable.html.
 
 This test is a pure-Python contract test — no database. It loads
 the migration module, drives ``upgrade()`` and ``downgrade()``
@@ -73,6 +85,18 @@ class _Recorder:
         raise NotImplementedError("0024 must not drop tables")
 
 
+# --- helpers ---------------------------------------------------------------
+
+
+def _norm(sql: str) -> str:
+    """Normalize a SQL string for comparison: collapse whitespace, uppercase."""
+    return " ".join(sql.split()).upper()
+
+
+def _execute_calls_normalized(rec: _Recorder) -> list[str]:
+    return [_norm(s) for s in rec.execute_sql]
+
+
 # --- metadata --------------------------------------------------------------
 
 
@@ -87,21 +111,105 @@ def test_migration_metadata() -> None:
 # --- upgrade ---------------------------------------------------------------
 
 
-def test_upgrade_promotes_unique_to_pk(monkeypatch: pytest.MonkeyPatch) -> None:
-    """PK promotion uses the existing UNIQUE index ``uq_pred_current_gw_element``."""
+def test_upgrade_creates_standalone_unique_index_first(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Step 1: standalone UNIQUE index on (gameweek, element_id).
+
+    Required because Postgres will not let us promote an index that
+    is still owned by the existing UNIQUE constraint.
+    """
     mig = _load_migration()
     rec = _Recorder()
     monkeypatch.setattr(mig, "op", rec)
     mig.upgrade()
-    pk_sqls = [s for s in rec.execute_sql if "PRIMARY KEY" in s]
-    assert len(pk_sqls) == 1
-    pk_sql = pk_sqls[0]
-    assert "predictions_current" in pk_sql
-    assert "predictions_current_pkey" in pk_sql
-    # The crucial ``USING INDEX`` clause: the migration must reuse the
-    # existing UNIQUE index rather than building a new one.
-    assert "USING INDEX" in pk_sql
-    assert "uq_pred_current_gw_element" in pk_sql
+    creates = [s for s in rec.execute_sql if s.upper().startswith("CREATE UNIQUE INDEX")]
+    assert len(creates) == 1, _execute_calls_normalized(rec)
+    create = _norm(creates[0])
+    assert "PREDICTIONS_CURRENT_PK_IDX" in create
+    assert "PREDICTIONS_CURRENT" in create
+    assert '"GAMEWEEK"' in create
+    assert '"ELEMENT_ID"' in create
+
+
+def test_upgrade_drops_existing_unique_constraint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Step 2: drop the existing UNIQUE constraint.
+
+    This frees the (gameweek, element_id) uniqueness invariant to be
+    re-asserted by the new PK in step 3.
+    """
+    mig = _load_migration()
+    rec = _Recorder()
+    monkeypatch.setattr(mig, "op", rec)
+    mig.upgrade()
+    drops = [
+        s
+        for s in rec.execute_sql
+        if s.upper().startswith("ALTER TABLE") and "DROP CONSTRAINT" in s.upper()
+    ]
+    assert len(drops) == 1, _execute_calls_normalized(rec)
+    drop = _norm(drops[0])
+    assert "PREDICTIONS_CURRENT" in drop
+    assert "UQ_PRED_CURRENT_GW_ELEMENT" in drop
+
+
+def test_upgrade_promotes_to_pk_with_using_index(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Step 3: add the PK using the new standalone index.
+
+    The crucial contract: the PK must reference the *new* index
+    (predictions_current_pk_idx), NOT the original UNIQUE
+    (uq_pred_current_gw_element), because the original UNIQUE has
+    already been dropped in step 2.
+    """
+    mig = _load_migration()
+    rec = _Recorder()
+    monkeypatch.setattr(mig, "op", rec)
+    mig.upgrade()
+    add_pk_sqls = [
+        s
+        for s in rec.execute_sql
+        if s.upper().startswith("ALTER TABLE") and "ADD CONSTRAINT" in s.upper()
+    ]
+    assert len(add_pk_sqls) == 1, _execute_calls_normalized(rec)
+    add = _norm(add_pk_sqls[0])
+    assert "PREDICTIONS_CURRENT_PKEY" in add
+    assert "PRIMARY KEY" in add
+    assert "USING INDEX PREDICTIONS_CURRENT_PK_IDX" in add
+    # The original UNIQUE must NOT be referenced.
+    assert "UQ_PRED_CURRENT_GW_ELEMENT" not in add
+
+
+def test_upgrade_step_ordering(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The 3 PK-alteration steps must occur in the documented order.
+
+    1. CREATE UNIQUE INDEX
+    2. ALTER TABLE ... DROP CONSTRAINT
+    3. ALTER TABLE ... ADD CONSTRAINT ... PRIMARY KEY USING INDEX
+    """
+    mig = _load_migration()
+    rec = _Recorder()
+    monkeypatch.setattr(mig, "op", rec)
+    mig.upgrade()
+    step1_at = next(
+        i for i, s in enumerate(rec.execute_sql) if s.upper().startswith("CREATE UNIQUE INDEX")
+    )
+    step2_at = next(
+        i
+        for i, s in enumerate(rec.execute_sql)
+        if s.upper().startswith("ALTER TABLE") and "DROP CONSTRAINT" in s.upper()
+    )
+    step3_at = next(
+        i
+        for i, s in enumerate(rec.execute_sql)
+        if s.upper().startswith("ALTER TABLE") and "ADD CONSTRAINT" in s.upper()
+    )
+    assert step1_at < step2_at < step3_at, (
+        f"step order wrong: create={step1_at}, drop={step2_at}, add={step3_at}"
+    )
 
 
 def test_upgrade_creates_computed_at_index(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -132,23 +240,44 @@ def test_upgrade_creates_primary_source_id_index(monkeypatch: pytest.MonkeyPatch
     assert unique is False
 
 
-def test_upgrade_creates_exactly_two_indexes(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Schema-drift guard: 0024 must create exactly two indexes."""
+def test_upgrade_creates_exactly_two_perf_indexes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The two performance indexes (``predictions_current_computed_at_idx``
+    and ``ix_availability_events_primary_source_id``) are created via
+    ``op.create_index``. The PK-backup index
+    ``predictions_current_pk_idx`` is created via raw SQL, so it
+    must NOT appear here.
+    """
     mig = _load_migration()
     rec = _Recorder()
     monkeypatch.setattr(mig, "op", rec)
     mig.upgrade()
     assert len(rec.create_index_calls) == 2
+    names = {c[0] for c in rec.create_index_calls}
+    assert names == {
+        "predictions_current_computed_at_idx",
+        "ix_availability_events_primary_source_id",
+    }
+    # Drift guard: the PK-backup index must never be created via op.create_index.
+    assert "predictions_current_pk_idx" not in names
 
 
-def test_upgrade_executes_exactly_one_pk_alter(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Schema-drift guard: 0024 must issue exactly one ALTER for the PK."""
+def test_upgrade_executes_three_pk_alter_sql(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The PK swap is a 3-step process: 3 op.execute() calls."""
     mig = _load_migration()
     rec = _Recorder()
     monkeypatch.setattr(mig, "op", rec)
     mig.upgrade()
-    pk_sqls = [s for s in rec.execute_sql if "PRIMARY KEY" in s]
-    assert len(pk_sqls) == 1
+    # Filter to the PK-swap SQL only (CREATE UNIQUE + ALTER TABLE).
+    pk_swap = [
+        s
+        for s in rec.execute_sql
+        if "PREDICTIONS_CURRENT_PK_IDX" in s.upper()
+        or "PREDICTIONS_CURRENT_PKEY" in s.upper()
+        or "UQ_PRED_CURRENT_GW_ELEMENT" in s.upper()
+    ]
+    assert len(pk_swap) == 3, _execute_calls_normalized(rec)
 
 
 def test_upgrade_does_not_create_or_drop_tables(
@@ -168,21 +297,48 @@ def test_upgrade_does_not_create_or_drop_tables(
 # --- downgrade -------------------------------------------------------------
 
 
-def test_downgrade_drops_pk_constraint(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Downgrade must drop the PK constraint, not the underlying UNIQUE."""
+def test_downgrade_drops_pk_constraint_first(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Downgrade step 1: DROP CONSTRAINT predictions_current_pkey.
+
+    Postgres drops the backing index automatically.
+    """
     mig = _load_migration()
     rec = _Recorder()
     monkeypatch.setattr(mig, "op", rec)
     mig.downgrade()
     drop_pk_sqls = [
-        s for s in rec.execute_sql if "DROP CONSTRAINT" in s and "predictions_current_pkey" in s
+        s
+        for s in rec.execute_sql
+        if "DROP CONSTRAINT" in s.upper() and "PREDICTIONS_CURRENT_PKEY" in s.upper()
     ]
-    assert len(drop_pk_sqls) == 1
-    # The underlying UNIQUE index is not dropped — only the PK
-    # constraint that referenced it.
-    for sql in rec.execute_sql:
-        assert "DROP INDEX" not in sql
-        assert "uq_pred_current_gw_element" not in sql
+    assert len(drop_pk_sqls) == 1, _execute_calls_normalized(rec)
+
+
+def test_downgrade_recreates_unique_constraint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Downgrade step 2: re-add the original UNIQUE constraint.
+
+    This restores the pre-migration invariant on (gameweek, element_id).
+    """
+    mig = _load_migration()
+    rec = _Recorder()
+    monkeypatch.setattr(mig, "op", rec)
+    mig.downgrade()
+    add_unique_sqls = [
+        s
+        for s in rec.execute_sql
+        if "ADD CONSTRAINT" in s.upper()
+        and "UNIQUE" in s.upper()
+        and "UQ_PRED_CURRENT_GW_ELEMENT" in s.upper()
+    ]
+    assert len(add_unique_sqls) == 1, _execute_calls_normalized(rec)
+    add = _norm(add_unique_sqls[0])
+    assert "PREDICTIONS_CURRENT" in add
+    assert '"GAMEWEEK"' in add
+    assert '"ELEMENT_ID"' in add
 
 
 def test_downgrade_drops_both_indexes(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -195,25 +351,6 @@ def test_downgrade_drops_both_indexes(monkeypatch: pytest.MonkeyPatch) -> None:
         "ix_availability_events_primary_source_id",
         "predictions_current_computed_at_idx",
     }
-
-
-def test_downgrade_drops_indexes_with_if_exists(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The recorder stubs ``op.drop_index`` which uses
-    ``DROP INDEX IF EXISTS`` semantics in the migration source.
-    """
-    mig = _load_migration()
-    rec = _Recorder()
-    monkeypatch.setattr(mig, "op", rec)
-    mig.downgrade()
-    # Two drop_index calls, each with the matching table_name.
-    for name, table_name in rec.drop_index_calls:
-        assert name in {
-            "ix_availability_events_primary_source_id",
-            "predictions_current_computed_at_idx",
-        }
-        assert table_name is not None
 
 
 def test_downgrade_creates_no_indexes(monkeypatch: pytest.MonkeyPatch) -> None:
