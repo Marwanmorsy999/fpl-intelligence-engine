@@ -1,0 +1,86 @@
+name: Ruff Fix Fast
+
+on:
+  push:
+    branches: [fix/ci-ruff-final2-20260906]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install package
+        run: python -m pip install -e ".[dev]"
+      - name: Apply targeted fixes
+        run: |
+          python -m ruff format src tests scripts
+          python -m ruff check --unsafe-fixes --fix src tests scripts || true
+          python - <<'PY'
+          from pathlib import Path
+
+          pairs = {
+              "scripts/phase25_gate1_live_verify.py": [
+                  ('            handler = lambda m: errors.append(m.text[:140]) if m.type == "error" else None\n', '            def handle_console_message(msg, errors=errors):\n'
+                   '                if msg.type == "error":\n'
+                   '                    errors.append(msg.text[:140])\n\n'
+                   '            handler = handle_console_message\n'),
+                  ('        resp_handler = lambda r: api_status.__setitem__(0, r.status) if "/drawer" in r.url else None\n', '        def handle_response(response):\n'
+                   '            if "/drawer" in response.url:\n'
+                   '                api_status[0] = response.status\n\n'
+                   '        resp_handler = handle_response\n'),
+                  ('        planner = page.goto(BASE + "/planner", wait_until="domcontentloaded")\n', '        page.goto(BASE + "/planner", wait_until="domcontentloaded")\n'),
+              ],
+              "scripts/qa_gate26.py": [
+                  ('                    "() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2"\n', '                    "() => document.documentElement.scrollWidth > "\n                    "document.documentElement.clientWidth + 2"\n'),
+                  ('                        const r=el.getBoundingClientRect(); return r.width>0&&r.height>0&&(r.width<44||r.height<44)&&getComputedStyle(el).display!==\'none\';\n', '                        const r=el.getBoundingClientRect();\n'
+                   '                        return r.width>0&&r.height>0&&(r.width<44||r.height<44)\n'
+                   '                          &&getComputedStyle(el).display!==\'none\';\n'),
+                  ('                      }); return els.slice(0,3).map(e=>e.tagName+\'.\'+e.className.slice(0,40)+\' \'+Math.round(e.getBoundingClientRect().width)+\'x\'+Math.round(e.getBoundingClientRect().height));\n', '                      });\n'
+                   '                      return els.slice(0,3).map(e=>e.tagName+\'.\'+e.className.slice(0,40)+\' \'\n'
+                   '                        +Math.round(e.getBoundingClientRect().width)+\'x\'\n'
+                   '                        +Math.round(e.getBoundingClientRect().height));\n'),
+              ],
+              "scripts/run_backtests.py": [
+                  ('transfer 64% of gameweeks, showing strong bias towards rolling when EV differences are marginal.', 'transfer 64% of gameweeks, showing strong bias towards rolling when EV differences are\n'
+                   'marginal.'),
+                  ('compared to simple expected points bench order, by properly prioritizing players with higher minute certainty.', 'compared to simple expected points bench order, by properly prioritizing players\n'
+                   'with higher minute certainty.'),
+                  ('rotation risks during DGWs, avoiding players historically subbed early. BGWs navigated predominantly with rolled transfers or Free Hit.', 'rotation risks during DGWs, avoiding players historically subbed early.\n'
+                   'BGWs navigated predominantly with rolled transfers or Free Hit.'),
+                  ('Confidence metrics are predictive of actual outcomes. P10/P90 estimations tightly bracketed real world outcomes in 82% of evaluations.', 'Confidence metrics are predictive of actual outcomes. P10/P90 estimations\n'
+                   'tightly bracketed real world outcomes in 82% of evaluations.'),
+              ],
+          }
+          for name, repls in pairs.items():
+              p = Path(name)
+              text = p.read_text()
+              for old, new in repls:
+                  text = text.replace(old, new)
+              p.write_text(text)
+          PY
+      - name: Verify and commit
+        run: |
+          set +e
+          python -m ruff check src tests scripts > ruff-output.txt 2>&1
+          status=$?
+          cat ruff-output.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ "$status" -eq 0 ]; then
+            rm -f ruff-output.txt
+            git add src tests scripts
+            git commit -m "fix: clean Ruff gate" || true
+          else
+            git add src tests scripts ruff-output.txt
+            git commit -m "chore: capture remaining Ruff diagnostics" || true
+          fi
+          git push || true
+          exit 0
