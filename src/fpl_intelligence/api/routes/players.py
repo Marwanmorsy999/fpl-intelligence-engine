@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import difflib
+import json
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Query, Request
@@ -20,6 +22,7 @@ GetDB = deps.GetDB
 _RELEVANCE_CUTOFF = 0.45
 _PREFIX_BONUS = 0.25
 _catalog_cache: dict[int, dict[str, Any]] | None = None
+_seed_codes_cache: dict[int, int] | None = None
 
 
 def _catalog() -> dict[int, dict[str, Any]]:
@@ -30,9 +33,36 @@ def _catalog() -> dict[int, dict[str, Any]]:
     return _catalog_cache
 
 
+def _seed_codes() -> dict[int, int]:
+    """Read immutable FPL element codes once without opening PostgreSQL."""
+    global _seed_codes_cache
+    if _seed_codes_cache is not None:
+        return _seed_codes_cache
+    candidates = [
+        Path("data") / "seed" / "fpl_bootstrap_seed.json",
+        Path(__file__).resolve().parents[4] / "data" / "seed" / "fpl_bootstrap_seed.json",
+    ]
+    for path in candidates:
+        try:
+            if not path.is_file():
+                continue
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            _seed_codes_cache = {
+                int(row["id"]): int(row["code"])
+                for row in raw.get("players", [])
+                if isinstance(row, dict) and row.get("id") is not None and row.get("code") is not None
+            }
+            return _seed_codes_cache
+        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+            continue
+    _seed_codes_cache = {}
+    return _seed_codes_cache
+
+
 def _reset_catalog_cache() -> None:
-    global _catalog_cache
+    global _catalog_cache, _seed_codes_cache
     _catalog_cache = None
+    _seed_codes_cache = None
 
 
 def _test_override_db(request: Request) -> Any | None:
@@ -120,14 +150,13 @@ async def list_players(
     if db is not None:
         return _db_players(db, team)
 
+    codes = _seed_codes()
     out: list[PlayerSummary] = []
     for element_id, row in _catalog().items():
         team_id = int(row["team"]) if row.get("team") else None
         if team is not None and team_id != team:
             continue
-        code = row.get("code")
-        if code is None:
-            code = row.get("fpl_code")
+        code = row.get("code") or row.get("fpl_code") or codes.get(int(element_id))
         out.append(
             PlayerSummary(
                 id=int(element_id),
