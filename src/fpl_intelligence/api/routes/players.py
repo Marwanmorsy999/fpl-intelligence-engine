@@ -291,11 +291,11 @@ async def search_players(
                 ownership_pct=float(ownership) if ownership is not None else None,
                 team_short=str((cat or {}).get("team_short") or "") or None,
                 relevance=relevance,
-                score=(float(xpts) if xpts is not None else 0.0) * 0.75 + relevance * 0.25,
+                score=round(0.7 * relevance + 0.3 * min(1.0, (float(xpts) if xpts is not None else 0.0) / 10.0), 4),
             )
         )
     if sort == "relevance":
-        hits.sort(key=lambda h: (-float(h.relevance or 0), -(float(h.xpts or 0))))
+        hits.sort(key=lambda h: (-float(h.score or 0), -float(h.relevance or 0)))
     elif sort == "xpts":
         hits.sort(key=lambda h: -(float(h.xpts or -1)))
     elif sort == "price":
