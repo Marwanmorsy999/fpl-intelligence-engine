@@ -24,6 +24,7 @@ from typing import Any
 
 import httpx
 
+from fpl_intelligence.cache.shared_cache import SharedCache
 from fpl_intelligence.data_providers.cache import ResponseCache
 from fpl_intelligence.live_intelligence.rate_limit import (
     MonotonicClock,
@@ -63,6 +64,7 @@ class BaseDataConnector(ABC):  # noqa: B024 - shared plumbing, not a standalone 
         self,
         *,
         cache: ResponseCache | None = None,
+        shared_cache: SharedCache | None = None,
         http_client: httpx.Client | None = None,
         timeout: float = 20.0,
         headers: Mapping[str, str] | None = None,
@@ -72,6 +74,7 @@ class BaseDataConnector(ABC):  # noqa: B024 - shared plumbing, not a standalone 
         sleep: SleepFn = time.sleep,
     ) -> None:
         self._cache = cache or ResponseCache()
+        self._shared_cache = shared_cache
         self._http_client = http_client
         self._owns_client = http_client is None
         self._timeout = timeout
@@ -115,12 +118,39 @@ class BaseDataConnector(ABC):  # noqa: B024 - shared plumbing, not a standalone 
     ) -> Any:
         """Cache-first GET returning parsed JSON, or a typed error.
 
+        Order of lookups: shared cache (cross-process) -> per-instance
+        cache (in-process) -> network. The shared cache layer is opt-in:
+        call sites that opt in benefit from cross-process deduplication
+        (Upstash Redis in production, in-memory dict in tests). When the
+        shared cache is not configured the per-instance cache is the only
+        layer.
+
         Rate limiting happens *before* the request so a burst can never trigger
         a 429. On any HTTP/parse failure a typed :class:`DataConnectorError` is
         raised — the caller (orchestrator, injector) decides what to do.
         """
-        cached = self._cache.get(endpoint, dict(params) if params else None, sensitive=sensitive)
+        params_dict = dict(params) if params else None
+
+        # 1. Shared cache (cross-process).
+        if self._shared_cache is not None:
+            try:
+                cached = self._shared_cache.get(self.name, params_dict)
+                if cached is not None:
+                    return cached
+            except Exception:  # noqa: BLE001 — never let cache break a request
+                logger.debug("shared cache lookup failed for %s", endpoint)
+
+        # 2. Per-instance cache (in-process burst absorption).
+        cached = self._cache.get(endpoint, params_dict, sensitive=sensitive)
         if cached is not None:
+            # Promote to shared cache on a hit so the next cold process
+            # skips the network roundtrip too.
+            if self._shared_cache is not None:
+                try:
+                    ttl = self._cache._sensitive_ttl if sensitive else self._cache._default_ttl  # noqa: SLF001
+                    self._shared_cache.set(self.name, params_dict, cached, ttl_seconds=ttl)
+                except Exception:  # noqa: BLE001
+                    pass
             return cached
 
         self._rate.acquire()
@@ -144,5 +174,12 @@ class BaseDataConnector(ABC):  # noqa: B024 - shared plumbing, not a standalone 
         except ValueError as exc:
             raise DataParseError(f"{self.name} payload is not valid JSON: {exc}") from exc
 
-        self._cache.store(endpoint, dict(params) if params else None, payload, sensitive=sensitive)
+        self._cache.store(endpoint, params_dict, payload, sensitive=sensitive)
+        # Mirror into the shared cache so the next process hits there.
+        if self._shared_cache is not None:
+            try:
+                ttl = self._cache._sensitive_ttl if sensitive else self._cache._default_ttl  # noqa: SLF001
+                self._shared_cache.set(self.name, params_dict, payload, ttl_seconds=ttl)
+            except Exception:  # noqa: BLE001
+                pass
         return payload
