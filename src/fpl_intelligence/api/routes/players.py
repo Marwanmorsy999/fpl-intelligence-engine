@@ -12,6 +12,7 @@ from sqlalchemy import select
 from fpl_intelligence.api import deps
 from fpl_intelligence.db.models import Player
 from fpl_intelligence.sync.materialized_models import _latest_xpts_map
+from fpl_intelligence.sync.models import IngestedGameweekDB
 
 router = APIRouter()
 GetDB = deps.GetDB
@@ -124,6 +125,9 @@ async def list_players(
         team_id = int(row["team"]) if row.get("team") else None
         if team is not None and team_id != team:
             continue
+        code = row.get("code")
+        if code is None:
+            code = row.get("fpl_code")
         out.append(
             PlayerSummary(
                 id=int(element_id),
@@ -132,10 +136,45 @@ async def list_players(
                 team=team_id,
                 position=int(row["position"]) if row.get("position") else None,
                 price=float(row["price"]) if row.get("price") is not None else None,
-                code=None,
+                code=int(code) if code is not None else None,
             )
         )
     return out
+
+
+@router.get("/drawer/{player_id}")
+async def player_drawer_compat(player_id: int, db: GetDB) -> dict[str, Any]:
+    """Compatibility endpoint for the original squad-page drawer contract.
+
+    The deep drawer remains at /player/{player_id}/drawer?session_id=..., but
+    the My Team page only needs the materialized last-five form bars. Keep this
+    compatibility route tiny and read-only so legacy clients stop generating
+    404s without adding live-network or write-path work.
+    """
+    try:
+        rows = db.execute(
+            select(
+                IngestedGameweekDB.gameweek,
+                IngestedGameweekDB.total_points,
+                IngestedGameweekDB.minutes,
+            )
+            .where(IngestedGameweekDB.element_id == int(player_id))
+            .order_by(IngestedGameweekDB.gameweek.desc())
+            .limit(5)
+        ).all()
+        return {
+            "player_id": int(player_id),
+            "form_bars": [
+                {"gw": int(gw), "points": points, "minutes": minutes}
+                for gw, points, minutes in sorted(rows)
+            ],
+        }
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return {"player_id": int(player_id), "form_bars": []}
 
 
 class PlayerSearchHit(PlayerSummary):
