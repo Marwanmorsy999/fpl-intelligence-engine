@@ -1,0 +1,62 @@
+name: Finalize CI Fix
+
+on:
+  push:
+    branches: [fix/ruff-real-ci-20260906]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: fix/ruff-real-ci-20260906
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install Ruff
+        run: python -m pip install "ruff>=0.9,<1"
+
+      - name: Finalize confirmed findings
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          def replace(path: str, old: str, new: str) -> None:
+              p = Path(path)
+              s = p.read_text()
+              if old not in s:
+                  raise SystemExit(f"expected text not found in {path}: {old!r}")
+              p.write_text(s.replace(old, new, 1))
+          replace("src/fpl_intelligence/prediction/team_strength_live.py", "import logging\n", "import contextlib\nimport logging\n")
+          replace("src/fpl_intelligence/squad/sync_job.py", "import asyncio\n", "import asyncio\nimport contextlib\n")
+          replace("src/fpl_intelligence/web/dashboard.py", "import json\n", "import contextlib\nimport json\n")
+          replace("src/fpl_intelligence/track_record/fomo.py", "                delta = int(user_pts) - int(rec_pts)\n", "")
+          replace("src/fpl_intelligence/track_record/fomo.py", "            cost = int(rec_pts * 2) - int(user_pts * 2) if rec_pts is not None else 0\n", "")
+          PY
+          python -m ruff check src tests scripts --fix --unsafe-fixes --select F,I,B,UP,SIM
+          python -m ruff check src tests scripts
+          python -m compileall -q src tests scripts
+
+      - name: Remove temporary diagnostics and workflow
+        run: |
+          rm -f ruff-current.txt fix-step.txt
+          git rm .github/workflows/finalize-ci-fix.yml
+          git rm .github/workflows/apply-ruff-fixes.yml
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml scripts/phase25_gate1_live_verify.py src/fpl_intelligence/api/deps.py src/fpl_intelligence/api/routes/drawer.py src/fpl_intelligence/api/routes/fixtures.py src/fpl_intelligence/api/routes/players.py src/fpl_intelligence/prediction/team_strength_live.py src/fpl_intelligence/squad/fpl_import.py src/fpl_intelligence/squad/sync_job.py src/fpl_intelligence/sync/gameweek_clock.py src/fpl_intelligence/track_record/fomo.py src/fpl_intelligence/web/dashboard.py tests/unit/test_phase7_availability.py
+          git commit -m "fix: clear remaining CI lint blockers"
+          git push origin HEAD:fix/ruff-real-ci-20260906
