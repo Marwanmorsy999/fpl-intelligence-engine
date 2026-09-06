@@ -17,18 +17,17 @@
       "schedule": "10 6 * * *"
     }
   ],
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/v1/telegram/webhook",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/api/v1/admin/(.*)",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/api/index.py"
+      "src": "/(?<path>.*)",
+      "dest": "/api/index.py",
+      "transforms": [
+        {
+          "type": "request.path",
+          "op": "set",
+          "args": "/$path"
+        }
+      ]
     }
   ]
 }
