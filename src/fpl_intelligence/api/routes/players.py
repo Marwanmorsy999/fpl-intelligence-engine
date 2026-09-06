@@ -8,7 +8,6 @@ from typing import Any
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from fpl_intelligence.api import deps
 from fpl_intelligence.db.models import Player
@@ -26,6 +25,7 @@ def _catalog() -> dict[int, dict[str, Any]]:
     global _catalog_cache
     if _catalog_cache is None:
         from fpl_intelligence.prediction.live_provider import load_player_catalog
+
         _catalog_cache = load_player_catalog()
     return _catalog_cache
 
@@ -33,15 +33,6 @@ def _catalog() -> dict[int, dict[str, Any]]:
 def _reset_catalog_cache() -> None:
     global _catalog_cache
     _catalog_cache = None
-
-
-def _player_price(perf_price: float | None, fpl_element_id: int | None) -> float | None:
-    if perf_price is not None:
-        return float(perf_price)
-    if fpl_element_id is None:
-        return None
-    row = _catalog().get(int(fpl_element_id))
-    return float(row["price"]) if row and row.get("price") is not None else None
 
 
 class PlayerSummary(BaseModel):
@@ -56,32 +47,23 @@ class PlayerSummary(BaseModel):
 
 @router.get("/players", response_model=list[PlayerSummary])
 async def list_players(
-    db: GetDB,
     team: int | None = Query(None, description="Optional team ID to filter players by."),
 ) -> list[PlayerSummary]:
-    """List current FPL players with one compact identity query.
-
-    Current team, position and price come from the immutable bootstrap catalog;
-    this avoids scanning the large historical membership/performance tables on
-    every dashboard load.
-    """
-    players = db.execute(select(Player).order_by(Player.id)).scalars().all()
-    catalog = _catalog()
+    """List the committed current FPL catalog without opening the DB."""
     out: list[PlayerSummary] = []
-    for p in players:
-        row = catalog.get(int(p.fpl_element_id)) if p.fpl_element_id is not None else None
-        team_id = int(row["team"]) if row and row.get("team") else None
+    for element_id, row in _catalog().items():
+        team_id = int(row["team"]) if row.get("team") else None
         if team is not None and team_id != team:
             continue
         out.append(
             PlayerSummary(
-                id=p.id,
-                fpl_element_id=p.fpl_element_id,
-                web_name=p.web_name or (row or {}).get("web_name", f"Player {p.id}"),
+                id=int(element_id),
+                fpl_element_id=int(element_id),
+                web_name=str(row.get("web_name") or f"Player {element_id}"),
                 team=team_id,
-                position=(int(row["position"]) if row and row.get("position") else p.position_code),
-                price=(float(row["price"]) if row and row.get("price") is not None else None),
-                code=p.fpl_code,
+                position=int(row["position"]) if row.get("position") else None,
+                price=float(row["price"]) if row.get("price") is not None else None,
+                code=None,
             )
         )
     return out
@@ -136,7 +118,7 @@ async def search_players(
         cat = catalog.get(int(p.fpl_element_id)) if p.fpl_element_id is not None else None
         position_value = int((cat or {}).get("position") or p.position_code or 0) or None
         team_value = int((cat or {}).get("team") or 0) or None
-        price_value = _player_price(None, p.fpl_element_id)
+        price_value = float((cat or {}).get("price")) if (cat or {}).get("price") is not None else None
         if position is not None and position_value != position:
             continue
         if team is not None and team_value != team:
@@ -148,20 +130,22 @@ async def search_players(
             continue
         xpts = xpts_map.get(p.fpl_element_id) if p.fpl_element_id is not None else None
         score = round(0.7 * relevance + 0.3 * min(1.0, (xpts or 0.0) / 10.0), 4)
-        hits.append(PlayerSearchHit(
-            id=p.id,
-            fpl_element_id=p.fpl_element_id,
-            web_name=p.web_name or (cat or {}).get("web_name", f"Player {p.id}"),
-            team=team_value,
-            position=position_value,
-            price=price_value,
-            code=p.fpl_code,
-            xpts=xpts,
-            ownership_pct=(cat or {}).get("selected_by_percent"),
-            team_short=(cat or {}).get("team_short"),
-            relevance=round(relevance, 4),
-            score=score,
-        ))
+        hits.append(
+            PlayerSearchHit(
+                id=p.id,
+                fpl_element_id=p.fpl_element_id,
+                web_name=p.web_name or (cat or {}).get("web_name", f"Player {p.id}"),
+                team=team_value,
+                position=position_value,
+                price=price_value,
+                code=p.fpl_code,
+                xpts=xpts,
+                ownership_pct=(cat or {}).get("selected_by_percent"),
+                team_short=(cat or {}).get("team_short"),
+                relevance=round(relevance, 4),
+                score=score,
+            )
+        )
     if sort == "xpts":
         hits.sort(key=lambda h: (h.xpts is None, -(h.xpts or 0.0)))
     elif sort == "price":
