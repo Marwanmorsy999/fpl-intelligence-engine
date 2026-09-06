@@ -38,6 +38,7 @@ dev = [
   "respx>=0.22,<1",
   "ruff>=0.9,<1",
   "mypy>=1.14,<2",
+  "playwright>=1.50,<2",
 ]
 
 [project.scripts]
@@ -57,8 +58,6 @@ select = ["E", "F", "I", "B", "UP", "SIM"]
 addopts = "-q"
 pythonpath = ["src"]
 asyncio_mode = "auto"
-# Explicit discovery root: a bare `pytest` must always collect the ENTIRE tests/
-# tree (unit, integration, optimization, prediction). Do not narrow this.
 testpaths = ["tests"]
 
 [tool.mypy]
