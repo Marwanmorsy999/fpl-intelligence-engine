@@ -25,7 +25,7 @@ from typing import Any
 DEFAULT_RULES: dict[str, Any] = {
     "rules_version": "default-official",
     "points": {
-        "goal": {"GK": 6, "DEF": 6, "MID": 5, "FWD": 4},
+        "goal": {"GK": 10, "DEF": 6, "MID": 5, "FWD": 4},
         "assist": 3,
         "clean_sheet": {"GK": 4, "DEF": 4, "MID": 1},
         "appearance_minutes_60_plus": 2,
