@@ -70,7 +70,7 @@ class TestEgressTextMode:
         with pytest.raises(FplEgressExhaustedError) as excinfo:
             await chain.fetch("/league/EPL/2026")
         tried = [name for name, _err in excinfo.value.attempts]
-        assert tried == ["direct", "allorigins", "corsproxy", "codetabs", "env_proxy"]
+        assert tried == ["direct", "env_proxy", "allorigins", "corsproxy", "codetabs"]
 
     @respx.mock
     async def test_fetch_text_codetabs_fallback(self) -> None:
@@ -88,16 +88,16 @@ class TestEgressTextMode:
         chain = FplEgressChain("https://fpl.test")
         assert [name for name, _fn in chain._strategies()] == [
             "direct",
+            "env_proxy",
             "allorigins",
             "corsproxy",
             "codetabs",
-            "env_proxy",
         ]
         assert [name for name, _fn in chain._mask_strategies()] == [
+            "env_proxy",
             "allorigins",
             "corsproxy",
             "codetabs",
-            "env_proxy",
         ]
 
     @respx.mock
@@ -110,7 +110,7 @@ class TestEgressTextMode:
         with pytest.raises(FplEgressExhaustedError) as excinfo:
             await chain.fetch_text("/league/EPL/2026")
         tried = [name for name, _err in excinfo.value.attempts]
-        assert tried == ["direct", "allorigins", "corsproxy", "codetabs", "env_proxy"]
+        assert tried == ["direct", "env_proxy", "allorigins", "corsproxy", "codetabs"]
         assert chain.winning_strategy is None
 
 

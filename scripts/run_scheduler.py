@@ -34,6 +34,7 @@ variables (``SLACK_WEBHOOK_URL``, ``SMTP_HOST``, ``SMTP_USERNAME``,
 Exit codes: ``0`` success, ``1`` usage/configuration error, ``2`` provider/
 network error.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -144,9 +145,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--email-from", default=None, help="Sender address for email.")
     parser.add_argument("--email-to", default=None, help="Comma-separated recipients.")
-    parser.add_argument(
-        "--smtp-host", default=os.environ.get("SMTP_HOST") or "localhost"
-    )
+    parser.add_argument("--smtp-host", default=os.environ.get("SMTP_HOST") or "localhost")
     parser.add_argument("--smtp-port", type=int, default=25)
     parser.add_argument("--smtp-user", default=os.environ.get("SMTP_USERNAME"))
     parser.add_argument("--smtp-password", default=os.environ.get("SMTP_PASSWORD"))
@@ -205,17 +204,13 @@ def build_notifiers(args: argparse.Namespace) -> list[Notifier]:
 
     if args.notify == "slack":
         if not args.slack_webhook_url:
-            raise ValueError(
-                "--notify slack requires --slack-webhook-url or SLACK_WEBHOOK_URL."
-            )
+            raise ValueError("--notify slack requires --slack-webhook-url or SLACK_WEBHOOK_URL.")
         return [SlackNotifier(args.slack_webhook_url)]
 
     # email
     recipients = [a.strip() for a in (args.email_to or "").split(",") if a.strip()]
     if not args.email_from or not recipients:
-        raise ValueError(
-            "--notify email requires --email-from and --email-to (comma-separated)."
-        )
+        raise ValueError("--notify email requires --email-from and --email-to (comma-separated).")
     return [
         EmailNotifier(
             args.email_from,
@@ -248,9 +243,7 @@ def _print_run(run: SchedulerRunReport, *, dry_run: bool) -> None:
     if run.alerts:
         print("  alerts         :")
         for alert in run.alerts:
-            print(
-                f"    - [{alert.alert_type.value}/{alert.severity.value}] {alert.title}"
-            )
+            print(f"    - [{alert.alert_type.value}/{alert.severity.value}] {alert.title}")
     if run.notifications is not None:
         notifications = run.notifications
         print(
@@ -294,9 +287,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         connectors = build_connectors(args)
 
-        def ingest(
-            raw: RawItem, *, connector: SourceConnector, dry_run: bool
-        ) -> Any:
+        def ingest(raw: RawItem, *, connector: SourceConnector, dry_run: bool) -> Any:
             return ingest_raw_text(
                 db,
                 source_id=raw.source_id,

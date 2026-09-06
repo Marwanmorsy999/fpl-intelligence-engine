@@ -124,4 +124,4 @@ def test_preflight_rejects_invalid_temporal_provenance(capsys: pytest.CaptureFix
     }
 
     assert _print_report(report) == 1
-    assert "invalid temporal provenance" in capsys.readouterr().out
+    assert "invalid historical temporal provenance" in capsys.readouterr().out

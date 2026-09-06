@@ -6,7 +6,11 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fpl_intelligence.availability.historical.materialize_pit import MaterializeReport
-from fpl_intelligence.availability.historical.temporal import AvailabilityTimestamps, classify_temporal, is_event_eligible_before_cutoff
+from fpl_intelligence.availability.historical.temporal import (
+    AvailabilityTimestamps,
+    classify_temporal,
+    is_event_eligible_before_cutoff,
+)
 from fpl_intelligence.availability.models import TemporalClass
 
 

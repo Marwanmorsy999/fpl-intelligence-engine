@@ -17,6 +17,7 @@ import logging
 from typing import Any
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from fpl_intelligence.sync.models import IngestedGameweekDB
@@ -139,6 +140,44 @@ def _gw_sources(db: Session, gameweek: int) -> set[str]:
     }
 
 
+def _is_player_gameweek_race(exc: IntegrityError) -> bool:
+    """Return True only for the known concurrent ``uq_player_gameweek`` race."""
+    constraint_name = getattr(getattr(exc, "orig", None), "diag", None)
+    constraint_name = getattr(constraint_name, "constraint_name", None)
+    if constraint_name == "uq_player_gameweek":
+        return True
+    return "uq_player_gameweek" in str(exc)
+
+
+def _ingest_history_with_race_retry(
+    db: Session,
+    gameweek: int,
+    rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Run history ingestion in a savepoint and retry one known race.
+
+    ``ingest_history_gameweek`` is intentionally idempotent, but its
+    select-then-insert mirror into ``PlayerGameweekPerformance`` can still race
+    when two ingestion workers see the same missing row. A nested transaction
+    confines the unique-constraint failure to a savepoint, so the outer sync
+    transaction remains usable. Only the known ``uq_player_gameweek`` conflict
+    is retried; unrelated integrity errors still fail loudly.
+    """
+    try:
+        with db.begin_nested():
+            return ingest_history_gameweek(db, gameweek, rows, source="fpl-live")
+    except IntegrityError as exc:
+        if not _is_player_gameweek_race(exc):
+            raise
+        logger.info(
+            "player-gameweek insert raced for GW%s; retrying idempotent ingest",
+            gameweek,
+        )
+
+    with db.begin_nested():
+        return ingest_history_gameweek(db, gameweek, rows, source="fpl-live")
+
+
 async def ingest_finished_gameweeks(
     db: Session,
     *,
@@ -180,7 +219,7 @@ async def ingest_finished_gameweeks(
             logger.warning("event/%s/live fetch failed via %s", gw, note)
             report["skipped"].append({"gameweek": gw, "reason": f"fetch failed ({note})"})
             continue
-        result = ingest_history_gameweek(db, gw, rows, source="fpl-live")
+        result = _ingest_history_with_race_retry(db, gw, rows)
         db.commit()
         report["ingested"].append({"gameweek": gw, "via": note, **result})
         logger.info(

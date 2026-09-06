@@ -21,13 +21,24 @@ from playwright.sync_api import sync_playwright
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
-BASE = sys.argv[1] if len(sys.argv) > 1 else (
-    "https://fpl-intelligence-engine-foundation.vercel.app"
+BASE = (
+    sys.argv[1] if len(sys.argv) > 1 else ("https://fpl-intelligence-engine-foundation.vercel.app")
 )
 PAGES = [
-    "/dashboard", "/decisions", "/targets", "/league", "/live", "/my-team",
-    "/planner", "/assistant", "/track-record", "/compare", "/chips",
-    "/crunch", "/sources", "/connect",
+    "/dashboard",
+    "/decisions",
+    "/targets",
+    "/league",
+    "/live",
+    "/my-team",
+    "/planner",
+    "/assistant",
+    "/track-record",
+    "/compare",
+    "/chips",
+    "/crunch",
+    "/sources",
+    "/connect",
 ]
 OUT = Path("_gate25_proof")
 
@@ -94,7 +105,9 @@ def main() -> int:
         ribbon = page.locator('[data-testid="exec-ribbon"]').count()
         bottom = page.locator('[data-testid="bottom-nav"]').count()
         more_btn = page.locator("#moreBtn").count()
-        emit(f"sticky ribbon present: {bool(ribbon)} · bottom tabs: {bool(bottom)} · More button: {bool(more_btn)}")
+        emit(
+            f"sticky ribbon present: {bool(ribbon)} · bottom tabs: {bool(bottom)} · More button: {bool(more_btn)}"
+        )
         if not ribbon or not bottom or not more_btn:
             failures.append("gate-1 UI landmark missing (ribbon/tabs/More)")
         page.locator("#moreBtn").click()

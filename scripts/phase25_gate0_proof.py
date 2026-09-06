@@ -87,10 +87,10 @@ def main() -> int:
                 ev = t.get("horizon_ev")
                 ev_txt = "EV unavailable" if ev is None else f"horizon EV {ev:+.1f}"
                 emit(
-                    f'  GW{t["gameweek"]}: IN {t.get("name_in") or t.get("element_in")}'
-                    f' OUT {t.get("name_out") or t.get("element_out")}'
-                    f' · hit {t.get("cost", 0)} · {ev_txt}'
-                    f' · [{t.get("source")}]'
+                    f"  GW{t['gameweek']}: IN {t.get('name_in') or t.get('element_in')}"
+                    f" OUT {t.get('name_out') or t.get('element_out')}"
+                    f" · hit {t.get('cost', 0)} · {ev_txt}"
+                    f" · [{t.get('source')}]"
                 )
             how = rows[0].get("how_computed")
             emit(f"how computed: {how}")
@@ -141,18 +141,16 @@ def main() -> int:
                 ok_demos += 1
         fb_ledger = None
         if ok_demos == 2:
-            fb_ledger = _get(
-                client, "/api/v1/transfers/ledger", {"entry_id": demo_ids[0]}
-            )
+            fb_ledger = _get(client, "/api/v1/transfers/ledger", {"entry_id": demo_ids[0]})
             emit(f"status: {fb_ledger.get('status')} · source: {fb_ledger.get('source')}")
             fb_rows = fb_ledger.get("transfers") or []
             for t in fb_rows[:6]:
                 ev = t.get("horizon_ev")
                 ev_txt = "EV unavailable" if ev is None else f"EV {ev:+.1f}"
                 emit(
-                    f'  GW{t["gameweek"]}: IN {t.get("name_in") or t.get("element_in")}'
-                    f' OUT {t.get("name_out") or t.get("element_out")} · {ev_txt}'
-                    f' · [{t.get("source")}]'
+                    f"  GW{t['gameweek']}: IN {t.get('name_in') or t.get('element_in')}"
+                    f" OUT {t.get('name_out') or t.get('element_out')} · {ev_txt}"
+                    f" · [{t.get('source')}]"
                 )
             if not fb_rows:
                 emit("(no roster delta captured)")
@@ -174,10 +172,7 @@ def main() -> int:
         for pid in ALPHA_IDS:
             t = by_id.get(pid)
             if t is None:
-                emit(
-                    f"element {pid}: absent from materialized predictions "
-                    "(honest unavailable)"
-                )
+                emit(f"element {pid}: absent from materialized predictions (honest unavailable)")
                 failures.append(f"element {pid} has no materialized prediction row")
                 continue
             own = t.get("own_p")
@@ -195,8 +190,10 @@ def main() -> int:
         else:
             failures.append("targets payload lacks how_computed line")
         focus = targets.get("next_gw_focus") or {}
-        emit(f"next-GW focus: GW{focus.get('gameweek')} buys="
-             f"{[b.get('web_name') for b in focus.get('buys') or []]}")
+        emit(
+            f"next-GW focus: GW{focus.get('gameweek')} buys="
+            f"{[b.get('web_name') for b in focus.get('buys') or []]}"
+        )
         emit(f"position averages shown: {targets.get('position_avgs')}")
         emit()
 

@@ -43,8 +43,13 @@ class CaptainOptimizer:
     ) -> dict[int, CaptainCandidate]:
         """Evaluate a list of captain candidates."""
         results = {}
+        predictions = self.provider.get_squad_predictions(candidates, [gameweek]).get(
+            int(gameweek), {}
+        )
         for pid in candidates:
-            pred = self.provider.get_player_prediction(pid, gameweek)
+            pred = predictions.get(int(pid))
+            if pred is None:
+                pred = self.provider.get_player_prediction(pid, gameweek)
 
             if pred.distribution is not None and len(pred.distribution) > 0:
                 dist = pred.distribution
@@ -108,7 +113,14 @@ class CaptainOptimizer:
         if not best_candidate:
             best_candidate = evaluated[candidates[0]]
 
-        action = CandidateAction(action_type=ActionType.CAPTAIN)
+        # CandidateAction has no dedicated captain-player field. The existing
+        # bridge reads `transfers_in[0]` for captain recommendations, so carry
+        # the selected captain ID there. CAPTAIN actions are never interpreted
+        # as actual transfers by the optimizer pipeline.
+        action = CandidateAction(
+            action_type=ActionType.CAPTAIN,
+            transfers_in=[best_candidate.player_id],
+        )
         return Recommendation(
             action=action,
             expected_gain=best_candidate.expected_points,
@@ -166,8 +178,13 @@ class StartingXIOptimizer:
             Tuple of (starting_xi, bench_order).
         """
         predictions = {}
+        batch = self.provider.get_squad_predictions(squad_players, [gameweek]).get(
+            int(gameweek), {}
+        )
         for pid in squad_players:
-            pred = self.provider.get_player_prediction(pid, gameweek)
+            pred = batch.get(int(pid))
+            if pred is None:
+                pred = self.provider.get_player_prediction(pid, gameweek)
             # Use actual distribution expected value (better minutes factoring)
             if pred.distribution is not None and len(pred.distribution) > 0:
                 ev = float(np.mean(pred.distribution))

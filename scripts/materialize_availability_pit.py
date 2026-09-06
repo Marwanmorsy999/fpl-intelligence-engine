@@ -3,6 +3,7 @@
 No production connection is used here. --import targets the existing validation
 session factory and --commit is refused unless chronology/entity gates pass.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -12,7 +13,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from fpl_intelligence.availability.historical.chronological import evaluate_materialize_report
-from fpl_intelligence.availability.historical.materialize_pit import DeadlineCutoff, collect_events, import_materialized, materialize_cutoffs
+from fpl_intelligence.availability.historical.materialize_pit import (
+    DeadlineCutoff,
+    collect_events,
+    import_materialized,
+    materialize_cutoffs,
+)
 from fpl_intelligence.availability.historical.signal_lift import evaluate_signal_lift
 
 # Known validation Supabase project. A commit is rejected unless DATABASE_URL
@@ -37,7 +43,10 @@ def _dt(value: str) -> datetime:
 
 def _cutoffs_from_args(args: argparse.Namespace) -> list[DeadlineCutoff]:
     if args.from_verified_deadlines:
-        from fpl_intelligence.availability.historical.verified_deadlines import load_verified_deadline_cutoffs
+        from fpl_intelligence.availability.historical.verified_deadlines import (
+            load_verified_deadline_cutoffs,
+        )
+
         return load_verified_deadline_cutoffs(
             args.season_code or None,
             gw_min=args.gw_min,
@@ -49,17 +58,25 @@ def _cutoffs_from_args(args: argparse.Namespace) -> list[DeadlineCutoff]:
             raise SystemExit("--from-db-deadlines requires --season-code")
         from fpl_intelligence.availability.historical.deadlines import load_deadline_cutoffs
         from fpl_intelligence.db.session import validation_session_factory
+
         Session = validation_session_factory()
         with Session() as db:
-            return load_deadline_cutoffs(db, args.season_code, gw_min=args.gw_min, gw_max=args.gw_max, limit=args.limit)
+            return load_deadline_cutoffs(
+                db, args.season_code, gw_min=args.gw_min, gw_max=args.gw_max, limit=args.limit
+            )
     if not args.cutoff or not args.season:
-        raise SystemExit("provide --cutoff/--season pairs, --from-verified-deadlines, or --from-db-deadlines")
+        raise SystemExit(
+            "provide --cutoff/--season pairs, --from-verified-deadlines, or --from-db-deadlines"
+        )
     if len(args.cutoff) != len(args.season):
         raise SystemExit("provide exactly one --season per --cutoff")
     gameweeks = [int(g) for g in args.gameweek] if args.gameweek else [None] * len(args.cutoff)
     if len(gameweeks) != len(args.cutoff):
         raise SystemExit("provide exactly one --gameweek per --cutoff")
-    return [DeadlineCutoff(season, gw, _dt(cutoff)) for season, gw, cutoff in zip(args.season, gameweeks, args.cutoff, strict=True)]
+    return [
+        DeadlineCutoff(season, gw, _dt(cutoff))
+        for season, gw, cutoff in zip(args.season, gameweeks, args.cutoff, strict=True)
+    ]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -90,7 +107,9 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"error": "no deadline cutoffs available"}, indent=2))
         return 2
 
-    report = materialize_cutoffs(args.cache_root, cutoffs, search_days=args.search_days, force=args.force)
+    report = materialize_cutoffs(
+        args.cache_root, cutoffs, search_days=args.search_days, force=args.force
+    )
     chronology = evaluate_materialize_report(report)
     db = None
     lift = evaluate_signal_lift(report, None)
@@ -98,9 +117,11 @@ def main(argv: list[str] | None = None) -> int:
         try:
             if args.do_import:
                 from fpl_intelligence.db.session import validation_write_session_factory
+
                 Session = validation_write_session_factory()
             else:
                 from fpl_intelligence.db.session import validation_session_factory
+
                 Session = validation_session_factory()
             db = Session()
             lift = evaluate_signal_lift(report, db)
@@ -120,7 +141,9 @@ def main(argv: list[str] | None = None) -> int:
         "gates": {
             "snapshots_found": report.missing == 0,
             "events_present": report.event_count > 0,
-            "chronology_ok": report.event_count > 0 and chronology.ineligible == 0 and chronology.missing_timestamp == 0,
+            "chronology_ok": report.event_count > 0
+            and chronology.ineligible == 0
+            and chronology.missing_timestamp == 0,
             "signal_direction_ok": lift.to_dict().get("signal_direction_ok", False),
         },
     }
@@ -131,7 +154,9 @@ def main(argv: list[str] | None = None) -> int:
         import_result = import_materialized(db, report, strict_backtest_safe=True)
         payload["import_result"] = import_result
         audit = import_result.get("resolver_audit", {})
-        resolution_ok = (audit.get("ambiguous", 0) or 0) == 0 and (audit.get("unmatched", 0) or 0) == 0
+        resolution_ok = (audit.get("ambiguous", 0) or 0) == 0 and (
+            audit.get("unmatched", 0) or 0
+        ) == 0
         gates_ok = (
             payload["gates"]["snapshots_found"]
             and payload["gates"]["events_present"]

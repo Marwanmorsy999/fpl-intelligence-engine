@@ -82,9 +82,7 @@ class PredictionCurrentDB(Base):
     source: Mapped[str | None] = mapped_column(String(60))
     data_quality: Mapped[str | None] = mapped_column(String(60))
     breakdown: Mapped[dict[str, Any] | None] = mapped_column(JSON)
-    computed_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
         UniqueConstraint("gameweek", "element_id", name="uq_pred_current_gw_element"),
@@ -105,8 +103,9 @@ def _latest_xpts_map(db: Any) -> dict[int, float]:
     if newest is None:
         return {}
     rows = db.execute(
-        select(PredictionCurrentDB.element_id, PredictionCurrentDB.expected_points)
-        .where(PredictionCurrentDB.gameweek == int(newest))
+        select(PredictionCurrentDB.element_id, PredictionCurrentDB.expected_points).where(
+            PredictionCurrentDB.gameweek == int(newest)
+        )
     ).all()
     return {int(eid): float(pts) for eid, pts in rows}
 
@@ -145,9 +144,7 @@ class AssistantBriefDB(Base):
     payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
-    __table_args__ = (
-        UniqueConstraint("session_id", "gameweek", name="uq_brief_session_gw"),
-    )
+    __table_args__ = (UniqueConstraint("session_id", "gameweek", name="uq_brief_session_gw"),)
 
 
 class ProviderRefreshDB(Base):
@@ -166,3 +163,49 @@ class ProviderRefreshDB(Base):
     player_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     payload: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class DecisionSnapshotDB(Base):
+    """Phase 23 — precomputed decision report snapshots (issue #23).
+
+    One canonical row per ``(session_id, gameweek, model_version,
+    data_snapshot_id)``. ``model_version`` distinguishes schema changes
+    in the optimizer payload; ``data_snapshot_id`` distinguishes
+    different input data versions (e.g. predictions_current snapshot
+    timestamp) so a recompute against new data does not collide with
+    the prior artifact.
+
+    The ``refresh_state`` column carries the :class:`RefreshState`
+    lifecycle (``fresh`` / ``refreshing`` / ``stale`` / ``unavailable``)
+    so the request path can return the snapshot with an honest state
+    instead of claiming success when none exists.
+
+    Concurrency: writers take a Postgres advisory lock keyed by
+    ``(session_id, gameweek)`` before transitioning to ``refreshing``.
+    A second worker losing the race observes the existing row and
+    short-circuits its own rebuild.
+    """
+
+    __tablename__ = "decision_snapshots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    session_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    gameweek: Mapped[int] = mapped_column(Integer, nullable=False)
+    model_version: Mapped[str] = mapped_column(String(60), nullable=False)
+    data_snapshot_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    refresh_state: Mapped[str] = mapped_column(String(20), nullable=False, default="fresh")
+    generated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    refresh_window_seconds: Mapped[float] = mapped_column(Float, nullable=False, default=900.0)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "session_id",
+            "gameweek",
+            "model_version",
+            "data_snapshot_id",
+            name="uq_decision_snapshot_identity",
+        ),
+    )

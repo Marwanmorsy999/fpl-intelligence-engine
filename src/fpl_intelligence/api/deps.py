@@ -111,9 +111,88 @@ def get_prediction_provider(db: GetDB) -> DecisionPredictionProvider:
 
         return StaticPredictionProvider()
 
-    from fpl_intelligence.prediction.live_provider import LivePredictionProvider
+    from fpl_intelligence.prediction.cached_live_provider import CachedLivePredictionProvider
+    from fpl_intelligence.prediction.gameweek_resolve import safe_fixture_count
+    from fpl_intelligence.prediction.live_provider import (
+        ChainLevel,
+        PredictionChainResult,
+    )
+    from fpl_intelligence.prediction.team_strength_live import (
+        apply_multipliers_to_points,
+        compute_team_strength_multipliers,
+        ensure_registry_entry,
+        player_team_map_from_catalog,
+    )
 
-    return LivePredictionProvider(session=db)
+    provider = CachedLivePredictionProvider(session=db)
+    # Production hotfix: provider_event_id is unique per season only. The stock
+    # get_fixture_count used an unscoped scalar_one_or_none() which raises
+    # MultipleResultsFound after historical seasons are ingested and turns
+    # /decisions into a 503. Bind a season-scoped implementation instead.
+    # The wrapper shares the provider's request-local cache so direct callers
+    # (e.g. Phase 9.4 PredictionContextBuilder) and bridge-wrapped callers
+    # (Phase 6 optimizers) deduplicate the gameweek + fixture lookups within
+    # one request.
+    def _cached_fixture_count(player_id: int, gameweek: int) -> int:
+        cache_key = (int(player_id), int(gameweek))
+        cached = provider._fixture_count_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        count = safe_fixture_count(db, int(player_id), int(gameweek))
+        provider._fixture_count_cache[cache_key] = int(count)
+        return int(count)
+
+    provider.get_fixture_count = _cached_fixture_count  # type: ignore[method-assign]
+
+    # Stage 2 activation: holdout-approved Team Strength EWMA modulates live xPTS.
+    try:
+        ensure_registry_entry(db)
+    except Exception:  # noqa: BLE001 — registry is bookkeeping only
+        pass
+
+    _orig_resolve = provider.resolve_chain
+
+    def _resolve_with_team_strength(
+        gameweek: int, *, skip_materialized: bool = False
+    ) -> PredictionChainResult:
+        if gameweek in provider._chain_cache:
+            return provider._chain_cache[gameweek]
+        result = _orig_resolve(gameweek, skip_materialized=skip_materialized)
+        try:
+            ts = compute_team_strength_multipliers(db, int(gameweek))
+        except Exception:  # noqa: BLE001
+            return result
+        notes = dict(result.resolved.notes)
+        notes["team_strength"] = dict(ts.notes)
+        points = dict(result.resolved.points)
+        if ts.applied:
+            try:
+                team_map = player_team_map_from_catalog(provider.player_catalog())
+                points = apply_multipliers_to_points(points, team_map, ts.multipliers)
+            except Exception:  # noqa: BLE001
+                notes["team_strength"] = {
+                    **dict(ts.notes),
+                    "applied": False,
+                    "status": "error",
+                    "reason": "apply_failed",
+                }
+        resolved = ChainLevel(
+            source=result.resolved.source,
+            data_quality=result.resolved.data_quality,
+            points=points,
+            covered=len(points),
+            notes=notes,
+            per_player=dict(result.resolved.per_player),
+        )
+        adjusted = PredictionChainResult(
+            gameweek=result.gameweek, levels=list(result.levels), resolved=resolved
+        )
+        provider._chain_cache[gameweek] = adjusted
+        provider.last_result = adjusted
+        return adjusted
+
+    provider.resolve_chain = _resolve_with_team_strength  # type: ignore[method-assign]
+    return provider
 
 
 def get_prediction_builder(

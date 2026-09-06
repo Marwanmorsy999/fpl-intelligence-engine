@@ -235,9 +235,20 @@ def _make_prediction(
     data_quality: str,
     confidence: float,
     data_completeness: float,
+    include_distribution: bool = True,
 ) -> LabeledPlayerPrediction:
     points = _clamp(round(float(expected_points), 3), 0.0, 30.0)
-    samples = _distribution_for(points, seed=player_id * 1000 + gameweek)
+    if include_distribution:
+        samples = _distribution_for(points, seed=player_id * 1000 + gameweek)
+        floor = round(float(np.percentile(samples, 10)), 3)
+        ceiling = round(float(np.percentile(samples, 90)), 3)
+    else:
+        # Full-pool chip ranking consumes only expected_points. Keep the
+        # prediction object valid without paying for 2,000 NumPy samples per
+        # player. A later full player/squad request uses a distinct cache key.
+        samples = np.empty(0, dtype=float)
+        floor = points
+        ceiling = points
     return LabeledPlayerPrediction(
         player_id=player_id,
         gameweek=gameweek,
@@ -245,8 +256,8 @@ def _make_prediction(
         expected_minutes=round(float(expected_minutes), 1),
         start_probability=round(_clamp(float(start_probability), 0.0, 1.0), 3),
         distribution=samples,
-        floor=round(float(np.percentile(samples, 10)), 3),
-        ceiling=round(float(np.percentile(samples, 90)), 3),
+        floor=floor,
+        ceiling=ceiling,
         confidence=round(_clamp(float(confidence), 0.0, 1.0), 3),
         data_completeness=round(_clamp(float(data_completeness), 0.0, 1.0), 3),
         source=source,
@@ -483,14 +494,29 @@ def _percentile_ranks(catalog: dict[int, dict[str, Any]]) -> dict[int, float]:
     return {pid: idx / (n - 1) for idx, (pid, _) in enumerate(priced)}
 
 
-def _fixtures_for_gameweek(db: Session, gameweek: int) -> list[dict[str, int]]:
-    """Resolve ``[{home_team_id, away_team_id}]`` for a provider gameweek."""
-    from fpl_intelligence.db.models import Fixture, Gameweek
+def _resolve_gameweek_id(db: Session, gameweek: int) -> int | None:
+    """Resolve a provider gameweek to the newest available season row."""
+    from fpl_intelligence.db.models import Gameweek, Season
 
+    return db.execute(
+        select(Gameweek.id)
+        .join(Season, Gameweek.season_id == Season.id)
+        .where(Gameweek.provider_event_id == int(gameweek))
+        .order_by(Season.code.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+
+
+def _fixtures_for_gameweek(db: Session, gameweek: int) -> list[dict[str, int]]:
+    """Resolve fixtures for the newest season containing ``gameweek``."""
+    from fpl_intelligence.db.models import Fixture
+
+    gw_id = _resolve_gameweek_id(db, int(gameweek))
+    if gw_id is None:
+        return []
     rows = db.execute(
         select(Fixture.home_team_id, Fixture.away_team_id)
-        .join(Gameweek, Fixture.gameweek_id == Gameweek.id)
-        .where(Gameweek.provider_event_id == gameweek)
+        .where(Fixture.gameweek_id == gw_id)
     ).all()
     return [{"home_team_id": int(home), "away_team_id": int(away)} for home, away in rows]
 
@@ -964,6 +990,10 @@ class LivePredictionProvider:
         #: (one call per player). The cache lives for the provider instance
         #: lifetime (one request), so each fresh request sees a cold cache.
         self._chain_cache: dict[int, PredictionChainResult] = {}
+        #: Per-request cache of fully materialized player predictions.
+        #: Optimizers ask for the same player/gameweek repeatedly; keeping the
+        #: object avoids rebuilding NumPy distributions thousands of times.
+        self._prediction_cache: dict[tuple[int, int, bool], PlayerPrediction] = {}
 
     # -- lazily-built shared state ----------------------------------------------
 
@@ -1249,6 +1279,8 @@ class LivePredictionProvider:
         self,
         result: PredictionChainResult,
         player_ids: list[int],
+        *,
+        include_distribution: bool = True,
     ) -> dict[int, PlayerPrediction]:
         """Convert resolved chain numbers into labelled player predictions."""
         resolved = result.resolved
@@ -1276,6 +1308,12 @@ class LivePredictionProvider:
                 else:
                     continue  # truly uncovered — omit rather than invent
 
+            cache_key = (int(result.gameweek), int(pid), include_distribution)
+            cached = self._prediction_cache.get(cache_key)
+            if cached is not None:
+                predictions[pid] = cached
+                continue
+
             pred = _make_prediction(
                 pid,
                 result.gameweek,
@@ -1286,6 +1324,7 @@ class LivePredictionProvider:
                 data_quality=quality,
                 confidence=float(extras.get("conf", defaults["conf"])),
                 data_completeness=float(extras.get("compl", defaults["compl"])),
+                include_distribution=include_distribution,
             )
             # v2.3.2: propagate breakdown terms so materialized and proxy levels
             # both render the four-chip decomposition in the drawer.
@@ -1296,6 +1335,7 @@ class LivePredictionProvider:
                 except Exception:
                     pred.breakdown = None
             predictions[pid] = pred
+            self._prediction_cache[cache_key] = pred
         return predictions
 
     # -- DecisionPredictionProvider protocol -------------------------------------
@@ -1356,7 +1396,9 @@ class LivePredictionProvider:
         chain_result = self.resolve_chain(
             int(gameweek), skip_materialized=skip_materialized
         )
-        return self._label_predictions(chain_result, universe)
+        return self._label_predictions(
+            chain_result, universe, include_distribution=False
+        )
 
     def get_fixture_count(self, player_id: int, gameweek: int) -> int:
         """Return the number of fixtures ``player_id``'s team has in ``gameweek``.
@@ -1368,15 +1410,12 @@ class LivePredictionProvider:
         """
         from fpl_intelligence.db.models import (
             Fixture,
-            Gameweek,
             PlayerTeamMembership,
         )
 
         # Resolve the internal gameweek row id from the provider_event_id, which
         # is what the FPL-facing gameweek number maps to.
-        gw_row = self.session.execute(
-            select(Gameweek.id).where(Gameweek.provider_event_id == int(gameweek))
-        ).scalar_one_or_none()
+        gw_row = _resolve_gameweek_id(self.session, int(gameweek))
         if gw_row is None:
             return 1
 

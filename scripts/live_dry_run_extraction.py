@@ -38,6 +38,7 @@ Usage
 Exit codes: ``0`` success, ``1`` configuration error, ``2`` provider error,
 ``3`` schema-verification failure.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -185,8 +186,7 @@ def verify_schema_mapping(result: ExtractionResult) -> list[str]:
         label = f"availability[{index}] ({draft.player_name})"
         if draft.evidence_type not in set(EvidenceType):
             problems.append(
-                f"{label}: evidence_type {draft.evidence_type!r} is not a "
-                "Phase 7 EvidenceType"
+                f"{label}: evidence_type {draft.evidence_type!r} is not a Phase 7 EvidenceType"
             )
         if draft.status_mentioned not in set(AvailabilityStatus):
             problems.append(

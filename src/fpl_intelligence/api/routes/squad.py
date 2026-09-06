@@ -19,6 +19,7 @@ import contextlib
 import logging
 import threading
 import time
+from collections import OrderedDict
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
@@ -76,7 +77,25 @@ GetDB = deps.GetDB
 # --------------------------------------------------------------------------- #
 # v2.5.3 — per-session decisions cache keyed by snapshot updated_at
 # --------------------------------------------------------------------------- #
-_decisions_cache: dict[str, Any] = {}
+_DECISIONS_CACHE_MAX_ENTRIES = 256
+
+
+class _BoundedDecisionsCache(OrderedDict[str, Any]):
+    'Dict-compatible FIFO cache with a hard entry bound.'
+
+    def __init__(self, max_entries: int) -> None:
+        if max_entries <= 0:
+            raise ValueError("max_entries must be positive")
+        self._max_entries = max_entries
+        super().__init__()
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        super().__setitem__(key, value)
+        while len(self) > self._max_entries:
+            self.popitem(last=False)
+
+
+_decisions_cache = _BoundedDecisionsCache(_DECISIONS_CACHE_MAX_ENTRIES)
 _decisions_cache_lock = threading.Lock()
 
 
@@ -245,10 +264,18 @@ async def save_local_squad_swap(
     svc = SquadService(session=db)
     cur = svc.get_effective_squad(session_id=body.session_id)
     if cur is None:
-        raise HTTPException(status_code=404, detail="No squad saved for this session — import your team first.")
-    shadow_ids = build_shadow_squad(list(cur.player_ids), int(body.element_out), int(body.element_in))
+        raise HTTPException(
+            status_code=404,
+            detail="No squad saved for this session — import your team first.",
+        )
+    shadow_ids = build_shadow_squad(
+        list(cur.player_ids), int(body.element_out), int(body.element_in)
+    )
     if shadow_ids is None:
-        raise HTTPException(status_code=422, detail="Staged transfer invalid: OUT not in squad or IN already owned.")
+        raise HTTPException(
+            status_code=422,
+            detail="Staged transfer invalid: OUT not in squad or IN already owned.",
+        )
 
     # Resolve catalog for price/position/team enrichment.
     try:
@@ -367,6 +394,23 @@ def _build_player_details(
         predictions = {}
     gw_preds = predictions.get(report.gameweek, {})
 
+    # Batch-resolve player rows once. The old implementation issued one
+    # SELECT per player in the report, turning dashboard enrichment into an
+    # N+1 database pattern on every uncached decisions request.
+    players_by_element: dict[int, Player] = {}
+    try:
+        if player_ids:
+            rows = db.scalars(
+                select(Player).where(Player.fpl_element_id.in_(player_ids))
+            ).all()
+            players_by_element = {
+                int(row.fpl_element_id): row
+                for row in rows
+                if row.fpl_element_id is not None
+            }
+    except Exception as exc:  # noqa: BLE001 - enrichment remains best-effort
+        logger.debug("batched player enrichment query failed: %s", exc)
+
     details: dict[str, PlayerDetail] = {}
     for pid in sorted(player_ids):
         # R1: every stored player_id is a canonical FPL element id. Resolve the
@@ -374,7 +418,7 @@ def _build_player_details(
         # from this same row, so a name can never be paired with another
         # player's price (which was the "Thiaw £15.5m" bug). Demo squads now
         # also store element ids, so there is exactly one code path here.
-        player: Player | None = db.scalar(select(Player).where(Player.fpl_element_id == pid))
+        player: Player | None = players_by_element.get(int(pid))
         if player is None:
             # Legacy fallback for rows seeded before the element-id migration:
             # the stored value is an internal auto-increment id.
@@ -1121,7 +1165,7 @@ async def _attach_phase2_insights(
     no live network. Each sub-analysis stays independent so a missing table
     degrades its own section only, per the Phase 2 Safety rule.
     """
-    from sqlalchemy import select
+    from sqlalchemy import func, select
 
     from fpl_intelligence.db.models import Player, PlayerGameweekPerformance
     from fpl_intelligence.models.captaincy import captain_confidence_detail
@@ -1161,6 +1205,18 @@ async def _attach_phase2_insights(
 
     # --- market rows for the tools (£m prices converted from tenth-units) ----
     catalog = load_player_catalog()
+    # Fetch exactly one latest performance row per FPL element. The former
+    # global ORDER BY/LIMIT scanned ~115k rows on production before discarding
+    # almost all of them; grouping by player reduces the result to the latest
+    # row for each player and leverages the existing unique player/GW index.
+    latest_by_player = (
+        select(
+            PlayerGameweekPerformance.player_id.label("player_id"),
+            func.max(PlayerGameweekPerformance.gameweek_id).label("latest_gameweek_id"),
+        )
+        .group_by(PlayerGameweekPerformance.player_id)
+        .subquery()
+    )
     latest_transfers: dict[int, tuple[int | None, int | None]] = {}
     for el, tin, tout in db.execute(
         select(
@@ -1168,16 +1224,15 @@ async def _attach_phase2_insights(
             PlayerGameweekPerformance.transfers_in,
             PlayerGameweekPerformance.transfers_out,
         )
+        .join(latest_by_player, latest_by_player.c.player_id == Player.id)
         .join(
             PlayerGameweekPerformance,
-            PlayerGameweekPerformance.player_id == Player.id,
+            (PlayerGameweekPerformance.player_id == latest_by_player.c.player_id)
+            & (PlayerGameweekPerformance.gameweek_id == latest_by_player.c.latest_gameweek_id),
         )
         .where(Player.fpl_element_id.isnot(None))
-        .order_by(PlayerGameweekPerformance.gameweek_id.desc())
-        .limit(5000)
     ).all():
-        if int(el) not in latest_transfers:
-            latest_transfers[int(el)] = (tin, tout)
+        latest_transfers[int(el)] = (tin, tout)
 
     def _market_row(el: int) -> dict[str, Any]:
         row = dict(catalog.get(int(el), {}) or {})

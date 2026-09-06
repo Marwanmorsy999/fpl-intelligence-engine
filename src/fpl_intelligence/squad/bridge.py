@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from typing import Any
+
+from fpl_intelligence.api.performance import current_phase_timer
 from fpl_intelligence.optimization.chips import ChipSimulator
 from fpl_intelligence.optimization.domain import SquadState
-from fpl_intelligence.optimization.provider import DecisionPredictionProvider
+from fpl_intelligence.optimization.provider import DecisionPredictionProvider, PlayerPrediction
 from fpl_intelligence.optimization.rules import FPLRules
 from fpl_intelligence.optimization.squad import CaptainOptimizer, StartingXIOptimizer
 from fpl_intelligence.optimization.transfers import (
@@ -18,6 +21,114 @@ from fpl_intelligence.squad.models import (
     SquadStateCreate,
     TransferPlan,
 )
+
+
+class _TimedPredictionProvider(DecisionPredictionProvider):
+    """Timed prediction proxy with request-local prediction reuse."""
+
+    def __init__(self, provider: DecisionPredictionProvider) -> None:
+        self._provider = provider
+        self._prediction_cache: dict[tuple[int, int], PlayerPrediction] = {}
+        self._all_predictions_cache: dict[int, dict[int, PlayerPrediction]] = {}
+        self._fixture_count_cache: dict[tuple[int, int], int] = {}
+
+    def clear_request_cache(self) -> None:
+        """Discard predictions and fixture counts from the previous decision request."""
+        self._prediction_cache.clear()
+        self._all_predictions_cache.clear()
+        self._fixture_count_cache.clear()
+
+    def _call(self, fn: Any, *args: Any, **kwargs: Any) -> Any:
+        timer = current_phase_timer()
+        if timer is None:
+            return fn(*args, **kwargs)
+        with timer.phase("model_inference"):
+            return fn(*args, **kwargs)
+
+    def get_player_prediction(self, player_id: int, gameweek: int) -> PlayerPrediction:
+        key = (player_id, gameweek)
+        cached = self._prediction_cache.get(key)
+        cached_distribution = getattr(cached, "distribution", None) if cached is not None else None
+        if cached is not None and cached_distribution is not None and len(cached_distribution) > 0:
+            return cached
+
+        prediction = self._call(
+            self._provider.get_player_prediction,
+            player_id,
+            gameweek,
+        )
+        self._prediction_cache[key] = prediction
+        return prediction
+
+    def get_squad_predictions(
+        self, squad_players: list[int], gameweeks: list[int]
+    ) -> dict[int, dict[int, PlayerPrediction]]:
+        normalized_players = [int(pid) for pid in squad_players]
+        normalized_gameweeks = sorted({int(gw) for gw in gameweeks})
+        result: dict[int, dict[int, PlayerPrediction]] = {}
+
+        for gameweek in normalized_gameweeks:
+            cached_by_player = {
+                player_id: self._prediction_cache[(player_id, gameweek)]
+                for player_id in normalized_players
+                if (player_id, gameweek) in self._prediction_cache
+                and getattr(self._prediction_cache[(player_id, gameweek)], "distribution", None) is not None
+                and len(self._prediction_cache[(player_id, gameweek)].distribution) > 0
+            }
+            result[gameweek] = cached_by_player
+
+            missing = [
+                player_id
+                for player_id in normalized_players
+                if player_id not in cached_by_player
+            ]
+            if not missing:
+                continue
+
+            fetched = self._call(
+                self._provider.get_squad_predictions,
+                missing,
+                [gameweek],
+            )
+            by_player = fetched.get(gameweek, {})
+            for player_id, prediction in by_player.items():
+                normalized_id = int(player_id)
+                result[gameweek][normalized_id] = prediction
+                distribution = getattr(prediction, "distribution", None)
+                if distribution is not None and len(distribution) > 0:
+                    self._prediction_cache[(normalized_id, gameweek)] = prediction
+
+        return result
+
+    def get_all_predictions(self, gameweek: int) -> dict[int, PlayerPrediction]:
+        cached = self._all_predictions_cache.get(gameweek)
+        if cached is not None:
+            return cached
+
+        result = self._call(self._provider.get_all_predictions, gameweek)
+        self._all_predictions_cache[gameweek] = result
+        # Bulk predictions intentionally omit predictive distributions. Do not
+        # put those lightweight objects into the full single-player cache: a
+        # later transfer evaluation needs the full distribution for variance
+        # and probability calculations. Full predictions may still populate
+        # the shared cache, preserving cross-optimizer reuse.
+        for player_id, prediction in result.items():
+            if prediction.distribution is not None and len(prediction.distribution) > 0:
+                self._prediction_cache[(player_id, gameweek)] = prediction
+        return result
+
+    def get_fixture_count(self, player_id: int, gameweek: int) -> int:
+        key = (player_id, gameweek)
+        cached = self._fixture_count_cache.get(key)
+        if cached is not None:
+            return cached
+
+        count = self._call(self._provider.get_fixture_count, player_id, gameweek)
+        self._fixture_count_cache[key] = int(count)
+        return int(count)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._provider, name)
 
 
 class DecisionOptimizerBridge:
@@ -41,11 +152,15 @@ class DecisionOptimizerBridge:
     ) -> None:
         self.provider = provider
         self.rules = rules or FPLRules()
-        self._starting_xi_opt = StartingXIOptimizer(provider, self.rules)
-        self._captain_opt = CaptainOptimizer(provider)
-        self._transfer_opt = TransferOptimizer(provider, self.rules)
-        self._multi_transfer = MultiTransferPlanner(self._transfer_opt, provider, self.rules)
-        self._chip_sim = ChipSimulator(provider, self.rules)
+        timed_provider = _TimedPredictionProvider(provider)
+        self._timed_provider = timed_provider
+        self._starting_xi_opt = StartingXIOptimizer(timed_provider, self.rules)
+        self._captain_opt = CaptainOptimizer(timed_provider)
+        self._transfer_opt = TransferOptimizer(timed_provider, self.rules)
+        self._multi_transfer = MultiTransferPlanner(
+            self._transfer_opt, timed_provider, self.rules
+        )
+        self._chip_sim = ChipSimulator(timed_provider, self.rules)
 
     def generate_decisions(
         self,
@@ -60,22 +175,35 @@ class DecisionOptimizerBridge:
             A :class:`DecisionReport` with optimized starting XI, bench
             order, captain, transfer plan, and chip recommendation.
         """
+        self._timed_provider.clear_request_cache()
+        timer = current_phase_timer()
+        if timer is None:
+            return self._generate_decisions(squad)
+        with timer.phase("optimizer"):
+            return self._generate_decisions(squad)
+
+    def _generate_decisions(self, squad: SquadStateCreate) -> DecisionReport:
         gw = squad.gameweek
         player_positions = squad.player_positions or {}
         player_prices = squad.player_prices or {}
         player_teams = squad.player_teams or {}
 
-        opt_squad = self._to_domain_squad(squad)
+        timer = current_phase_timer()
+        if timer is None:
+            opt_squad = self._to_domain_squad(squad)
+        else:
+            with timer.phase("feature_assembly"):
+                opt_squad = self._to_domain_squad(squad)
 
-        starting_xi, bench_order = self._optimize_xi(opt_squad, gw, player_positions)
+        starting_xi, bench_order = self._timed_optimize_xi(opt_squad, gw, player_positions)
         opt_squad.starting_xi = starting_xi
         opt_squad.bench_order = bench_order
 
-        captain_rec = self._recommend_captain(opt_squad, gw)
-        transfer_plan = self._plan_transfers(
+        captain_rec = self._timed_recommend_captain(opt_squad, gw)
+        transfer_plan = self._timed_plan_transfers(
             opt_squad, gw, player_positions, player_prices, player_teams
         )
-        chip_rec = self._recommend_chip(opt_squad, gw)
+        chip_rec = self._timed_recommend_chip(opt_squad, gw)
 
         return DecisionReport(
             gameweek=gw,
@@ -86,6 +214,60 @@ class DecisionOptimizerBridge:
             transfer_plan=transfer_plan,
             chip_recommendation=chip_rec,
         )
+
+    def _timed_phase(self, name: str, fn: Any, *args: Any, **kwargs: Any) -> Any:
+        """Run an optimizer component with optional fine-grained timing."""
+        timer = current_phase_timer()
+        if timer is None:
+            return fn(*args, **kwargs)
+        with timer.phase(name):
+            return fn(*args, **kwargs)
+
+    def _timed_optimize_xi(
+        self,
+        squad: SquadState,
+        gw: int,
+        player_positions: dict[int, int],
+    ) -> tuple[list[int], list[int]]:
+        return self._timed_phase(
+            "optimizer_starting_xi",
+            self._optimize_xi,
+            squad,
+            gw,
+            player_positions,
+        )
+
+    def _timed_recommend_captain(
+        self,
+        squad: SquadState,
+        gw: int,
+    ) -> CaptainRecommendation | None:
+        return self._timed_phase("optimizer_captain", self._recommend_captain, squad, gw)
+
+    def _timed_plan_transfers(
+        self,
+        squad: SquadState,
+        gw: int,
+        player_positions: dict[int, int],
+        player_prices: dict[int, float],
+        player_teams: dict[int, int],
+    ) -> TransferPlan | None:
+        return self._timed_phase(
+            "optimizer_transfers",
+            self._plan_transfers,
+            squad,
+            gw,
+            player_positions,
+            player_prices,
+            player_teams,
+        )
+
+    def _timed_recommend_chip(
+        self,
+        squad: SquadState,
+        gw: int,
+    ) -> ChipRecommendation | None:
+        return self._timed_phase("optimizer_chip", self._recommend_chip, squad, gw)
 
     def _to_domain_squad(self, squad: SquadStateCreate) -> SquadState:
         """Convert the API-level squad payload to the optimization-domain SquadState."""

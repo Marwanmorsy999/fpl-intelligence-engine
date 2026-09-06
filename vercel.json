@@ -1,7 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-  "buildCommand": "pip install . && python -m fpl_intelligence.prod_migrate",
+  "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" != \"main\" ] && [ \"$VERCEL_GIT_COMMIT_REF\" != \"master\" ]; then exit 0; fi; exit 1",
+  "buildCommand": "bash vercel_build.sh",
   "functions": {
     "api/index.py": {
       "includeFiles": "{src/**,migrations/**,config/**,data/seed/**,data/set_piece_takers.json,alembic.ini,pyproject.toml,requirements.txt}",

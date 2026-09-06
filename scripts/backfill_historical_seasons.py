@@ -60,10 +60,7 @@ TARGET_SEASONS = ("2022-23", "2023-24", "2024-25")
 
 def _season_rows(db, model, season_id: int) -> int:
     return int(
-        db.scalar(
-            select(func.count()).select_from(model).where(model.season_id == season_id)
-        )
-        or 0
+        db.scalar(select(func.count()).select_from(model).where(model.season_id == season_id)) or 0
     )
 
 
@@ -193,9 +190,7 @@ def _dry_run(db, provider: RealFPLProvider, season_code: str) -> dict[str, objec
             "duplicate_candidates": len(report.duplicate_candidates),
             "warnings": len(report.warnings),
             "critical_errors": len(report.critical_errors),
-            "critical_detail": [
-                f"[{e.category}] {e.message}" for e in report.critical_errors[:10]
-            ],
+            "critical_detail": [f"[{e.category}] {e.message}" for e in report.critical_errors[:10]],
         },
     }
 

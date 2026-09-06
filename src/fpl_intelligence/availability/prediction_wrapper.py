@@ -58,7 +58,22 @@ class AvailabilityAwarePredictionProvider(DecisionPredictionProvider):
 
     def get_all_predictions(self, gameweek: int) -> dict:
         base_preds = self._base.get_all_predictions(gameweek)
-        return {pid: self.get_player_prediction(pid, gameweek) for pid in base_preds}
+        return {
+            pid: PlayerPrediction(
+                player_id=pid,
+                gameweek=gameweek,
+                expected_points=adj["expected_points"],
+                expected_minutes=adj["expected_minutes"],
+                start_probability=adj["start_probability"],
+                distribution=adj["distribution"],
+                floor=adj["floor"],
+                ceiling=adj["ceiling"],
+                confidence=pred.confidence,
+                data_completeness=pred.data_completeness,
+            )
+            for pid, pred in base_preds.items()
+            for adj in [self._adjust(pred, pid, gameweek)]
+        }
 
     def get_fixture_count(self, player_id: int, gameweek: int) -> int:
         return self._base.get_fixture_count(player_id, gameweek)

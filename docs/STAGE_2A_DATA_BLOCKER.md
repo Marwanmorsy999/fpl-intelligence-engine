@@ -1,85 +1,39 @@
 # Stage 2A Data Blocker
 
-Status: blocked in the current operator environment (2026-08-28).
+Status: **historical database is present; validation preflight corrected 2026-08-29**.
 
-The strict minutes validation run is blocked because `DATABASE_URL` is not
-configured in the validation environment. The preflight and runner fail closed
-with:
+## What the latest Actions run proved
 
-`DATABASE_URL is not configured for this validation run.`
+GitHub Actions successfully connected to the configured canonical PostgreSQL database and reported the required historical seasons. The previous blocker text saying `DATABASE_URL` was missing is stale and no longer describes the operator environment.
 
-The preflight result in this environment is:
+Observed historical coverage from the run:
 
-```text
-source: unavailable
-availability: unavailable (DATABASE_URL is not configured for this validation run.)
-```
+- `2022-23`: 778 players, 380 fixtures, 37 gameweeks, 24,957 canonical player-GW rows
+- `2023-24`: 865 players, 380 fixtures, 38 gameweeks, 28,742 canonical player-GW rows
+- `2024-25`: 804 players, 380 fixtures, 38 gameweeks, 27,231 canonical player-GW rows
 
-## Configuration path
+The database therefore contains the expected canonical historical source for Stage 2A.
 
-The validation scripts use the existing `Settings` configuration and its
-`.env` support, or the process environment variable `DATABASE_URL`. The
-validation session accepts only an explicitly configured PostgreSQL URL and
-does not use the local development fallback.
+## Temporal provenance
 
-The application settings default to the development placeholder
-`postgresql+psycopg://fpl:fpl@localhost:5432/fpl`. In a non-production app
-context, `src/fpl_intelligence/db/session.py` converts that placeholder to the
-local SQLite development fallback. Validation deliberately bypasses that
-conversion: it rejects the placeholder and SQLite, so a missing remote URL
-cannot silently become a localhost or local-file validation run.
+The historical backfill intentionally stores real gameweek-end `available_at` and `ingested_at` timestamps and leaves `Gameweek.deadline_time` NULL because the historical mirror does not publish genuine FPL deadlines. The minutes validator already implements the documented conservative fallback: the decision boundary is derived from the latest genuine kickoff of the previous gameweek rather than inventing a deadline.
 
-## Deployment source
+The current-season 2026-27 data contains the pre-existing 15,899-row `available_at > ingested_at` condition. That live-path condition is outside Stage 2A historical validation and must not be treated as a defect in the imported 2022-23 through 2024-25 validation dataset.
 
-Production Vercel receives `DATABASE_URL` from its deployment environment.
-GitHub Actions receives the same variable from the repository Actions secret
-named `DATABASE_URL`, as used by the existing sync workflow. The value is not
-stored in source control or this document. The canonical source is the
-PostgreSQL `player_gameweek_performances` table, joined to `gameweeks` and
-`seasons` by the existing `TrainingDataBuilder` and strict walk-forward
-evaluator.
+The preflight has therefore been corrected to:
 
-## Local operator action
+- scope timestamp, entity-resolution, duplicate, and critical-value checks to the required historical seasons;
+- allow the documented NULL historical gameweek deadlines and report that the conservative ordering fallback will be used;
+- continue to inspect only the canonical PostgreSQL data with SELECT-only queries.
 
-Run the preflight and evaluator from a shell where the existing remote
-Supabase PostgreSQL connection is supplied as `DATABASE_URL`:
+## Workflow behavior
 
-```text
-python scripts/preflight_minutes_validation.py
-python scripts/evaluate_minutes_walkforward.py --report docs/STAGE_2A_MINUTES_VALIDATION.md
-```
+The validation workflow now fails immediately when the historical preflight reports a genuine blocker. It no longer continues into a 45-minute minutes-validation job after a failed preflight. The workflow timeout was also increased to 90 minutes to avoid discarding a valid run solely because the chronological model evaluation is expensive.
 
-The preflight performs `SELECT`-only queries and must report, for each required
-season, player count, fixture count, Gameweek count, and historical performance
-row count. It also reports temporal timestamp coverage, player/team/fixture
-mapping failures, duplicate rows, missing critical values, and invalid
-timestamps before the evaluator is run. Do not run migrations as part of this
-validation.
+The minutes evaluator uses the optimized cached implementation on the validation branch while preserving the existing model, feature, cutoff, and scoring semantics.
 
-## Canonical historical data
+## Required next step
 
-Remote canonical row counts and season coverage could not be verified from
-this local environment because the remote connection variable was absent.
-Therefore the presence of `2022-23`, `2023-24`, and `2024-25` in the remote
-database is **unverified**, not asserted either way. The required source
-remains the existing `player_gameweek_performances` table, joined to
-`gameweeks` and `seasons`; no substitute or fabricated data is permitted.
+Run `Historical Model Validation` on `feature/intelligence-validation` with `validation_target=minutes` first. A successful preflight should complete quickly and then the optimized minutes walk-forward evaluation should run. Only after the minutes run completes should the full `all` target be used.
 
-## Required operator action
-
-From a shell with the existing remote canonical PostgreSQL URL configured by
-the deployment operator, run:
-
-```text
-python scripts/preflight_minutes_validation.py
-python scripts/evaluate_minutes_walkforward.py --report docs/STAGE_2A_MINUTES_VALIDATION.md
-```
-
-Proceed to evaluation only when preflight reports all three seasons, usable
-temporal provenance, and no schema or entity-resolution blocker. The commands
-perform no writes, migrations, deployment, or production job triggers.
-
-Code changes made for this stage: the validation URL boundary was already
-present; the preflight was expanded to cover the required checks and the
-blocker is documented here. No model, statistical method, production
-configuration, or deployment behavior was changed.
+No production database writes, migrations, or holdout-season data changes are part of this validation workflow.

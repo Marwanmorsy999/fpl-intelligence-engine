@@ -373,13 +373,29 @@ def next_gameeeks_safe(rows: Any, current_gw: int) -> list[int]:
 
 
 def _resolve_player_names(db: Session, pids: list[int]) -> dict[int, str]:
+    """Resolve player names in bulk while preserving legacy-id fallback semantics."""
     from sqlalchemy import select  # noqa: PLC0415
 
     from fpl_intelligence.db.models import Player  # noqa: PLC0415
 
+    unique_pids = sorted(set(int(pid) for pid in pids))
+    if not unique_pids:
+        return {}
+
     names: dict[int, str] = {}
-    for pid in set(pids):
-        row = db.scalar(select(Player).where(Player.fpl_element_id == pid)) or db.get(Player, pid)
-        if row is not None:
-            names[pid] = row.web_name
+
+    rows = db.scalars(
+        select(Player).where(Player.fpl_element_id.in_(unique_pids))
+    ).all()
+    for row in rows:
+        if row.fpl_element_id is not None:
+            names[int(row.fpl_element_id)] = row.web_name
+
+    missing = [pid for pid in unique_pids if pid not in names]
+    if missing:
+        legacy_rows = db.scalars(select(Player).where(Player.id.in_(missing))).all()
+        for row in legacy_rows:
+            if row.id is not None and row.web_name:
+                names[int(row.id)] = row.web_name
+
     return names
