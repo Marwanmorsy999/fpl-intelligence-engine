@@ -294,7 +294,6 @@ async def search_players(
                 score=(float(xpts) if xpts is not None else 0.0) * 0.75 + relevance * 0.25,
             )
         )
-    reverse = sort in {"xpts", "price", "ownership"}
     if sort == "relevance":
         hits.sort(key=lambda h: (-float(h.relevance or 0), -(float(h.xpts or 0))))
     elif sort == "xpts":

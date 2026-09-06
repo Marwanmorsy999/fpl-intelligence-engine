@@ -42,7 +42,6 @@ from fpl_intelligence.live_intelligence.bridge import (  # noqa: E402
 from fpl_intelligence.squad.models import SquadStateCreate  # noqa: E402
 from fpl_intelligence.squad.service import SquadService  # noqa: E402
 
-
 # --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #

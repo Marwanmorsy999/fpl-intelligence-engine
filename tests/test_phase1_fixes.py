@@ -7,17 +7,13 @@ These tests verify the three P0 bugs are fixed:
 """
 from __future__ import annotations
 
-import json
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from fpl_intelligence.api.main import app
 from fpl_intelligence.db.base import Base
-
 
 # ---------------------------------------------------------------------------
 # Shared test DB fixture
@@ -62,7 +58,7 @@ class TestSquadPushBankConversion:
 
     def test_bank_tenths_converted_to_pounds(self, db_session):
         """squad_push with bank=45 (FPL tenths) should store 4.5 (£m)."""
-        from fpl_intelligence.api.routes.sync import squad_push, SquadPushPayload, PickItem
+        from fpl_intelligence.api.routes.sync import PickItem, SquadPushPayload
 
         # Patch catalog so prices are available
         catalog = {1000 + i: {"price": 5.0, "team": 1, "position": 2} for i in range(15)}

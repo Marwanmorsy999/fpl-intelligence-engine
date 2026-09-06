@@ -19,15 +19,13 @@ This file proves:
 from __future__ import annotations
 
 from collections.abc import Generator
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from fpl_intelligence.api import deps
-
 
 # ---------------------------------------------------------------------------
 # Helpers

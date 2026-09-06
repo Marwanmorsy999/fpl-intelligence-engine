@@ -4,7 +4,11 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from fpl_intelligence.availability.historical.chronological import evaluate_materialize_report
-from fpl_intelligence.availability.historical.materialize_pit import DeadlineCutoff, MaterializedSnapshot, MaterializeReport
+from fpl_intelligence.availability.historical.materialize_pit import (
+    DeadlineCutoff,
+    MaterializedSnapshot,
+    MaterializeReport,
+)
 
 
 def _event(captured_at: datetime) -> dict[str, object]:

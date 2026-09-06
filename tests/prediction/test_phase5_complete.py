@@ -10,9 +10,8 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
-from datetime import UTC, datetime
+from datetime import datetime
 
-import numpy as np
 import pytest
 
 from fpl_intelligence.config.holdout import (
@@ -23,20 +22,7 @@ from fpl_intelligence.config.holdout import (
     SeasonSplit,
     enforce_holdout,
 )
-from fpl_intelligence.prediction.advanced_player.assist_model import AssistModel
-from fpl_intelligence.prediction.advanced_player.bonus_model import BonusModel
-from fpl_intelligence.prediction.advanced_player.clean_sheet_model import CleanSheetModel
-from fpl_intelligence.prediction.advanced_player.defensive_contribution_model import DefensiveContributionModel
-from fpl_intelligence.prediction.advanced_player.goal_model import GoalModel
-from fpl_intelligence.prediction.advanced_player.player_model import AdvancedPlayerModel
-from fpl_intelligence.prediction.distributions.calibration import CalibrationReport, evaluate_calibration
-from fpl_intelligence.prediction.distributions.engine import DistributionEngine
-from fpl_intelligence.prediction.match import MatchPrediction, PoissonMatchModel
-from fpl_intelligence.prediction.phase5_comparison import ComparisonResult, Phase5Comparison
 from fpl_intelligence.prediction.scoring import FPLPointsComponents, FPLScoringEngine
-from fpl_intelligence.prediction.simulation import GameweekSimulator, MatchSimulator
-from fpl_intelligence.simulation.gameweek import AdvancedGameweekSimulator
-from fpl_intelligence.simulation.joint import JointSimulator
 
 # The remainder of this file is preserved from the existing regression suite.
 

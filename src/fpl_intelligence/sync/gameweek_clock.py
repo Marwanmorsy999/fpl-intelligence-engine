@@ -101,6 +101,7 @@ async def resolve_target_gameweek(db: Any, fallback: int = 1) -> int:
         return int(target)
     try:
         from sqlalchemy import select
+
         from fpl_intelligence.fixtures.scanner import infer_current_gameweek, parse_fixtures
         from fpl_intelligence.sync.materialized_models import FixturesCacheDB
 
@@ -132,6 +133,7 @@ def resolve_season_gw_ceiling_sync(db: Any, fallback: int | None = None) -> int 
 
     try:
         from sqlalchemy import select
+
         from fpl_intelligence.fixtures.scanner import infer_current_gameweek, parse_fixtures
         from fpl_intelligence.sync.materialized_models import FixturesCacheDB
 

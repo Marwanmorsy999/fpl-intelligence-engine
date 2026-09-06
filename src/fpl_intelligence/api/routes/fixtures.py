@@ -169,10 +169,7 @@ def _fixtures_for_players(
     """Build {player_id: {team_id, fixtures:[...up to N...]}} keyed by str(id)."""
     out: dict[str, Any] = {}
     for pid, team_id in players.items():
-        if team_id:
-            runs = player_run(team_id, rows_by_gw, horizon, team_names=team_names)
-        else:
-            runs = []
+        runs = player_run(team_id, rows_by_gw, horizon, team_names=team_names) if team_id else []
         real_runs = [r for r in runs if r.opponent_id != 0][: _FIXTURES_PER_PLAYER]
         out[str(pid)] = {
             "team_id": team_id or None,
