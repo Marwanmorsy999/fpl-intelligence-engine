@@ -27,12 +27,14 @@ def main() -> int:
     try:
         session_factory = validation_session_factory()
         with session_factory() as db:
-            result = FastMinutesWalkForwardEvaluator(
-                db, feature_version=FEATURE_VERSION
-            ).run(args.seasons, initial_train_folds=args.initial_train_folds)
+            result = FastMinutesWalkForwardEvaluator(db, feature_version=FEATURE_VERSION).run(
+                args.seasons, initial_train_folds=args.initial_train_folds
+            )
     except (RuntimeError, SQLAlchemyError) as exc:
-        message = str(exc).splitlines()[0] if isinstance(exc, RuntimeError) else (
-            f"database access failed: {type(exc).__name__}"
+        message = (
+            str(exc).splitlines()[0]
+            if isinstance(exc, RuntimeError)
+            else (f"database access failed: {type(exc).__name__}")
         )
         result = ValidationResult(
             rows=[],

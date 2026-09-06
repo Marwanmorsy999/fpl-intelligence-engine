@@ -35,19 +35,13 @@ def run() -> int:
 
         page.on(
             "console",
-            lambda msg: console_errors.append(msg.text)
-            if msg.type == "error"
-            else None,
+            lambda msg: console_errors.append(msg.text) if msg.type == "error" else None,
         )
-        page.on(
-            "pageerror", lambda exc: console_errors.append(f"pageerror: {exc}")
-        )
+        page.on("pageerror", lambda exc: console_errors.append(f"pageerror: {exc}"))
 
         # Seed the persistent session BEFORE any app JS runs.
         page.goto(BASE + "/sources", wait_until="domcontentloaded")
-        page.evaluate(
-            "key => localStorage.setItem('fpl_session_id', key)", SESSION
-        )
+        page.evaluate("key => localStorage.setItem('fpl_session_id', key)", SESSION)
 
         # --- Decisions (the big one) -------------------------------------
         page.goto(BASE + "/dashboard", wait_until="networkidle")

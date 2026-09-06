@@ -18,6 +18,7 @@ event-loop behaviour is preserved.
 
 Exit codes: ``0`` success, ``1`` configuration error.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -49,12 +50,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
-    "--dry-run",
-    action="store_true",
-    help=(
-        "Start an interactive REPL that prints responses to stdout "
-        "instead of calling the Telegram API."
-    ),
+        "--dry-run",
+        action="store_true",
+        help=(
+            "Start an interactive REPL that prints responses to stdout "
+            "instead of calling the Telegram API."
+        ),
     )
     parser.add_argument(
         "--token",

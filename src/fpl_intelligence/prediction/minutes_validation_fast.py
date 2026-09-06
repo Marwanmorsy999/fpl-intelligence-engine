@@ -30,7 +30,6 @@ from fpl_intelligence.prediction.minutes import (
     SimpleRecentMinutesBaseline,
 )
 from fpl_intelligence.prediction.minutes_parallel import ParallelMinutesModel
-from fpl_intelligence.prediction.training import TrainingDataset
 from fpl_intelligence.prediction.minutes_validation import (
     BLEND_WEIGHTS,
     MIN_TRAIN_ROWS,
@@ -40,6 +39,7 @@ from fpl_intelligence.prediction.minutes_validation import (
     blend_prediction,
     select_blend_weight,
 )
+from fpl_intelligence.prediction.training import TrainingDataset
 
 
 @dataclass(frozen=True)

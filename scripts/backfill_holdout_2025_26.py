@@ -22,11 +22,19 @@ from sqlalchemy import func, select
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from fpl_intelligence.db.models import Fixture, Season, TeamExternalId, TeamMatchPerformance  # noqa: E402
-from fpl_intelligence.db.session import validation_session_factory, writable_validation_session_factory  # noqa: E402
+from fpl_intelligence.db.models import (  # noqa: E402
+    Fixture,
+    Season,
+    TeamExternalId,
+    TeamMatchPerformance,
+)
+from fpl_intelligence.db.session import (  # noqa: E402
+    validation_session_factory,
+    validation_write_session_factory,
+)
 from fpl_intelligence.ingestion.historical import import_season  # noqa: E402
-from fpl_intelligence.providers.real_fpl import RealFPLProvider  # noqa: E402
 from fpl_intelligence.providers.real_football_stats import RealFootballStatsProvider  # noqa: E402
+from fpl_intelligence.providers.real_fpl import RealFPLProvider  # noqa: E402
 
 HOLDOUT = "2025-26"
 
@@ -53,7 +61,8 @@ def _base_counts(db) -> dict[str, int]:
     if season is None:
         raise RuntimeError(f"locked holdout season {HOLDOUT} is not present")
     fixtures = int(
-        db.scalar(select(func.count()).select_from(Fixture).where(Fixture.season_id == season.id)) or 0
+        db.scalar(select(func.count()).select_from(Fixture).where(Fixture.season_id == season.id))
+        or 0
     )
     scored = int(
         db.scalar(
@@ -117,15 +126,21 @@ def _ensure_team_match_layer(db, provider: RealFPLProvider, season_id: int) -> d
             raise RuntimeError(f"no canonical team mapping for real_fpl team {provider_team_id}")
         for stat in fpl_stats.get_team_match_stats(HOLDOUT, provider_team_id):
             provider_fixture_id = str(stat["provider_fixture_id"])
-            fixture_id = canonical_fixture_by_provider_id.get(str(_fixture_id_to_int(provider_fixture_id)))
+            fixture_id = canonical_fixture_by_provider_id.get(
+                str(_fixture_id_to_int(provider_fixture_id))
+            )
             if fixture_id is None:
-                raise RuntimeError(f"no canonical fixture mapping for provider fixture {provider_fixture_id}")
+                raise RuntimeError(
+                    f"no canonical fixture mapping for provider fixture {provider_fixture_id}"
+                )
             if (canonical_team_id, fixture_id) in existing:
                 continue
 
             provider_fixture = provider_fixture_by_id.get(provider_fixture_id)
             if provider_fixture is None:
-                raise RuntimeError(f"provider fixture {provider_fixture_id} missing from fixture source")
+                raise RuntimeError(
+                    f"provider fixture {provider_fixture_id} missing from fixture source"
+                )
             gw = int(provider_fixture["gameweek"])
             end_reference = gw_end.get(gw)
             if end_reference is None:
@@ -133,7 +148,9 @@ def _ensure_team_match_layer(db, provider: RealFPLProvider, season_id: int) -> d
 
             single_fixture_gw = team_gw_counts[(provider_team_id, gw)] == 1
             expected_goals = stat.get("expected_goals") if single_fixture_gw else None
-            expected_goals_conceded = stat.get("expected_goals_conceded") if single_fixture_gw else None
+            expected_goals_conceded = (
+                stat.get("expected_goals_conceded") if single_fixture_gw else None
+            )
             db.add(
                 TeamMatchPerformance(
                     team_id=canonical_team_id,
@@ -143,7 +160,11 @@ def _ensure_team_match_layer(db, provider: RealFPLProvider, season_id: int) -> d
                     goals_scored=int(stat.get("goals_scored") or 0),
                     goals_conceded=int(stat.get("goals_conceded") or 0),
                     expected_goals=float(expected_goals) if expected_goals is not None else None,
-                    expected_goals_conceded=(float(expected_goals_conceded) if expected_goals_conceded is not None else None),
+                    expected_goals_conceded=(
+                        float(expected_goals_conceded)
+                        if expected_goals_conceded is not None
+                        else None
+                    ),
                     available_at=end_reference,
                     ingested_at=end_reference,
                 )
@@ -158,7 +179,12 @@ def _ensure_team_match_layer(db, provider: RealFPLProvider, season_id: int) -> d
 def _verify_team_match_layer(db, season_id: int) -> dict[str, int]:
     """Read-only verification of the canonical Team Strength source."""
     total = int(
-        db.scalar(select(func.count()).select_from(TeamMatchPerformance).where(TeamMatchPerformance.season_id == season_id)) or 0
+        db.scalar(
+            select(func.count())
+            .select_from(TeamMatchPerformance)
+            .where(TeamMatchPerformance.season_id == season_id)
+        )
+        or 0
     )
     temporal = int(
         db.scalar(
@@ -202,13 +228,15 @@ def main() -> int:
         with session_factory() as db:
             season = db.scalar(select(Season).where(Season.code == HOLDOUT))
             if season is None:
-                raise RuntimeError("--verify-only requested but the locked 2025-26 season is absent")
+                raise RuntimeError(
+                    "--verify-only requested but the locked 2025-26 season is absent"
+                )
             base = _base_counts(db)
             team = _verify_team_match_layer(db, int(season.id))
             print({"holdout": HOLDOUT, **base, **team, "read_only": True})
         return 0
 
-    session_factory = writable_validation_session_factory()
+    session_factory = validation_write_session_factory()
     with session_factory() as db:
         season = db.scalar(select(Season).where(Season.code == HOLDOUT))
         if season is None:

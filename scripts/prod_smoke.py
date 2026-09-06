@@ -102,9 +102,9 @@ def _check_league_state(parsed: dict[str, object]) -> str:
     """
     has_rank = bool(parsed.get("your_rank") is not None or parsed.get("standings_top"))
     status = str(parsed.get("status") or "")
-    honest_chip = status in {
-        "degraded", "refreshing", "stale", "no-league", "error"
-    } or bool(parsed.get("note"))
+    honest_chip = status in {"degraded", "refreshing", "stale", "no-league", "error"} or bool(
+        parsed.get("note")
+    )
     if has_rank or honest_chip:
         return ""
     return " league-no-rank-and-no-honest-state"
@@ -130,8 +130,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--session-id",
         default=None,
-        help="FPL entry id; falls back to $FPL_SESSION_ID then "
-        f"{DEFAULT_SESSION_ID}",
+        help=f"FPL entry id; falls back to $FPL_SESSION_ID then {DEFAULT_SESSION_ID}",
     )
     parser.add_argument(
         "--expect-version",
@@ -143,11 +142,7 @@ def main(argv: list[str] | None = None) -> int:
     # v2.7.5: honor --session-id > $FPL_SESSION_ID > DEFAULT_SESSION_ID.
     # (The documented default was previously never applied, so unattended
     # runs silently requested session_id=None.)
-    session_id = (
-        args.session_id
-        or os.environ.get("FPL_SESSION_ID")
-        or DEFAULT_SESSION_ID
-    )
+    session_id = args.session_id or os.environ.get("FPL_SESSION_ID") or DEFAULT_SESSION_ID
     expect_version = args.expect_version
 
     failures: list[str] = []
@@ -189,9 +184,7 @@ def main(argv: list[str] | None = None) -> int:
         if status >= 500:
             detail += f" body={body[:200]!r}"
         verdict = "OK" if ok else "FAIL"
-        print(
-            f"  [{verdict}] {label:<20} {status}  {elapsed:5.1f}s{detail}"
-        )
+        print(f"  [{verdict}] {label:<20} {status}  {elapsed:5.1f}s{detail}")
         results[label] = {"status": status, "ok": ok}
         if not ok:
             failures.append(f"{label}: HTTP {status}{detail}")

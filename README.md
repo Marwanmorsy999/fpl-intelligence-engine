@@ -2,33 +2,38 @@
 
 A free-first, data-driven Fantasy Premier League intelligence platform designed to combine FPL data, football performance data, public news, availability information, statistical models, simulation, optimization, and an AI analyst layer.
 
-## Current milestone
+## Branch Strategy
 
-Foundation scaffold:
+- **`main`** — Production branch (deploys to production)
+- **`master`** — Preview branch (preview deployments)
+- Feature branches follow pattern: `feat/`, `fix/`, `perf/`, `chore/`
 
-- Python 3.12 project structure
-- Docker Compose with PostgreSQL 16
-- FastAPI health endpoint
-- SQLAlchemy/Alembic database foundation
-- Season-versioned FPL rules configuration
-- Official FPL provider adapter abstraction
-- Idempotent ingestion run tracking
-- Bootstrap/static-data ingestion
-- Fixture ingestion
-- CLI commands
-- Initial unit tests
-
-## Architecture principle
+## Architecture
 
 The LLM is not the source of truth. The platform is organized as:
 
-`raw data -> normalized data -> features -> models -> predictions -> optimization -> AI analyst -> outputs`
+```
+raw data -> normalized data -> features -> models -> predictions -> optimization -> AI analyst -> outputs
+```
 
 Every data point that can affect historical decisions must preserve provenance and timing so future backtesting can enforce strict no-look-ahead rules.
 
-## Local setup
+## Key Modules
 
-1. Copy `.env.example` to `.env`.
+| Module | Purpose |
+|--------|---------|
+| `prediction/` | Minutes prediction, team strength, xG models |
+| `optimization/` | Decision optimization (XI, captain, transfers, chips) |
+| `backtesting/` | Decision quality metrics, chip scenarios, PIT shadow mode |
+| `sync/` | Historical data ingestion, prediction ledger |
+| `data_providers/` | FPL API, Understat, API-Football, egress chain |
+| `availability/` | Player availability and PIT compliance |
+| `squad/` | Squad management, bridge to optimization |
+| `cache/` | Shared caching with Upstash Redis backend |
+
+## Local Setup
+
+1. Copy `.env.example` to `.env` and configure
 2. Start PostgreSQL:
 
 ```bash
@@ -60,6 +65,25 @@ python -m fpl_intelligence.cli fpl-bootstrap
 python -m fpl_intelligence.cli fpl-fixtures
 python -m fpl_intelligence.cli fpl-all
 ```
+
+## Testing
+
+```bash
+# Run all unit tests
+python -m pytest tests/unit -q
+
+# Run with coverage
+python -m pytest tests/unit --cov=fpl_intelligence
+
+# Run specific test file
+python -m pytest tests/unit/test_phase19_sync.py -v
+```
+
+## Deployment
+
+- **Vercel** — Preview and production deployments via `vercel.json`
+- **Database migrations** — Managed via Alembic, applied automatically on deploy when migration inputs change
+- **Daily jobs** — Scheduled via Vercel Cron at `10 6 * * *` UTC
 
 ## Important
 

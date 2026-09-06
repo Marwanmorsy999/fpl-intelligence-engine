@@ -117,11 +117,7 @@ def test_vercel_json_references_the_config_schema() -> None:
 def test_vercel_json_build_command_installs_the_project() -> None:
     """The build must install the package (or its pinned requirements)."""
     build = _load_vercel().get("buildCommand", "").strip()
-    assert build.startswith("pip install"), f"unexpected buildCommand: {build!r}"
-    install_part = build.split("&&")[0].strip()
-    assert install_part.endswith(".") or "requirements.txt" in install_part, (
-        f"buildCommand must install this project: {build!r}"
-    )
+    assert build == "bash vercel_build.sh", f"unexpected buildCommand: {build!r}"
 
 
 def test_vercel_json_build_command_applies_migrations() -> None:
@@ -129,10 +125,11 @@ def test_vercel_json_build_command_applies_migrations() -> None:
 
     The 0021 gap (missing ``local_squad_state``) 500'd /league and
     /league/trajectory; the schema must move with the code, never behind it.
+    The build is delegated to vercel_build.sh which runs prod_migrate when needed.
     """
-    build = _load_vercel().get("buildCommand", "")
-    assert "python -m fpl_intelligence.prod_migrate" in build, (
-        f"buildCommand must run the migration step: {build!r}"
+    vercel_build = Path("vercel_build.sh").read_text(encoding="utf-8")
+    assert "python -m fpl_intelligence.prod_migrate" in vercel_build, (
+        "vercel_build.sh must run the migration step"
     )
 
 

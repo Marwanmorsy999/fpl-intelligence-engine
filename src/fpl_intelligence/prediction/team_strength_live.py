@@ -81,10 +81,11 @@ def compute_team_strength_multipliers(
     """
     cutoff = cutoff_time or datetime.now(UTC)
     try:
+        from sqlalchemy import select
+
+        from fpl_intelligence.db.models import Fixture
         from fpl_intelligence.prediction.gameweek_resolve import resolve_gameweek_id
         from fpl_intelligence.prediction.team_strength_engine import TeamStrengthEngine
-        from fpl_intelligence.db.models import Fixture
-        from sqlalchemy import select
     except Exception as exc:  # noqa: BLE001
         logger.warning("team strength live import failed: %s", exc)
         return TeamStrengthLiveResult({}, _neutral_notes(f"import_failed:{type(exc).__name__}"))
@@ -222,8 +223,9 @@ def ensure_registry_entry(db: Session) -> bool:
     non-fatal — registry is bookkeeping, not required for live scoring.
     """
     try:
-        from fpl_intelligence.prediction.models import ModelRegistryEntry
         from sqlalchemy import select
+
+        from fpl_intelligence.prediction.models import ModelRegistryEntry
     except Exception as exc:  # noqa: BLE001
         logger.warning("team strength registry import failed: %s", exc)
         return False

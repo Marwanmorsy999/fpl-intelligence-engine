@@ -25,6 +25,7 @@ always masked in the report output.
 Exit codes: ``0`` ready/build ok, ``1`` usage/configuration error, ``2``
 deployment error.
 """
+
 from __future__ import annotations
 
 import argparse
