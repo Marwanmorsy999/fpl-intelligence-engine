@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import difflib
 import json
 from pathlib import Path
@@ -50,7 +51,11 @@ def _seed_codes() -> dict[int, int]:
             _seed_codes_cache = {
                 int(row["id"]): int(row["code"])
                 for row in raw.get("players", [])
-                if isinstance(row, dict) and row.get("id") is not None and row.get("code") is not None
+                if (
+                    isinstance(row, dict)
+                    and row.get("id") is not None
+                    and row.get("code") is not None
+                )
             }
             return _seed_codes_cache
         except (OSError, json.JSONDecodeError, TypeError, ValueError):
@@ -199,10 +204,8 @@ async def player_drawer_compat(player_id: int, db: GetDB) -> dict[str, Any]:
             ],
         }
     except Exception:
-        try:
+        with contextlib.suppress(Exception):
             db.rollback()
-        except Exception:
-            pass
         return {"player_id": int(player_id), "form_bars": []}
 
 
