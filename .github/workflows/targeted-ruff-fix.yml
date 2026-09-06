@@ -66,10 +66,10 @@ jobs:
           p = Path("tests/unit/test_phase7_availability.py")
           s = p.read_text()
           if "from sqlalchemy.orm import Session\n" not in s:
-              marker = "import pytest\n\n"
+              marker = "import pytest\n"
               if marker not in s:
                   raise SystemExit("pytest import marker not found")
-              s = s.replace(marker, marker + "from sqlalchemy.orm import Session\n\n", 1)
+              s = s.replace(marker, marker + "from sqlalchemy.orm import Session\n", 1)
               p.write_text(s)
 
           pp = Path("pyproject.toml")
