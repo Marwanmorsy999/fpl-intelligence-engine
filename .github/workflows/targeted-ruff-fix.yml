@@ -1,4 +1,4 @@
-name: Targeted Ruff Fix
+name: Targeted Ruff Diagnostics
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  fix:
+  diagnose:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -27,72 +27,19 @@ jobs:
       - name: Install Ruff
         run: python -m pip install "ruff>=0.9,<1"
 
-      - name: Apply only known fixes
+      - name: Capture Ruff output
         run: |
-          python - <<'PY'
-          from pathlib import Path
+          set +e
+          python -m ruff check src tests scripts --output-format=full > ruff-current.txt 2>&1
+          status=$?
+          echo "ruff_exit=$status" >> ruff-current.txt
+          exit 0
 
-          def replace(path: str, old: str, new: str) -> None:
-              p = Path(path)
-              s = p.read_text()
-              if old not in s:
-                  raise SystemExit(f"expected text not found in {path}: {old!r}")
-              p.write_text(s.replace(old, new, 1))
-
-          replace(
-              "scripts/phase25_gate1_live_verify.py",
-              '            handler = lambda m: errors.append(m.text[:140]) if m.type == "error" else None\n',
-              '            def handler(m, errors=errors):\n                return errors.append(m.text[:140]) if m.type == "error" else None\n',
-          )
-
-          replace(
-              "src/fpl_intelligence/api/routes/fixtures.py",
-              "from sqlalchemy import delete\n",
-              "from sqlalchemy import delete, select\n",
-          )
-
-          replace(
-              "src/fpl_intelligence/prediction/team_strength_live.py",
-              'logger.warning("team strength fixture query failed: %s", exp)',
-              'logger.warning("team strength fixture query failed: %s", exc)',
-          )
-
-          replace(
-              "src/fpl_intelligence/squad/sync_job.py",
-              "except (asyncio.CancelledError, TimeoutError):",
-              "except asyncio.CancelledError:",
-          )
-
-          p = Path("tests/unit/test_phase7_availability.py")
-          s = p.read_text()
-          if "from sqlalchemy.orm import Session\n" not in s:
-              marker = "import pytest\n"
-              if marker not in s:
-                  raise SystemExit("pytest import marker not found")
-              s = s.replace(marker, marker + "from sqlalchemy.orm import Session\n", 1)
-              p.write_text(s)
-
-          pp = Path("pyproject.toml")
-          s = pp.read_text()
-          needle = '[tool.ruff.lint]\nselect = ["E", "F", "I", "B", "UP", "SIM"]\n'
-          replacement = '[tool.ruff.lint]\nselect = ["E", "F", "I", "B", "UP", "SIM"]\nextend-ignore = ["E501"]\n'
-          if needle not in s:
-              raise SystemExit("expected Ruff config not found")
-          pp.write_text(s.replace(needle, replacement, 1))
-          PY
-
-          python -m ruff check src tests scripts --fix --select B023,SIM102,SIM105
-          python -m ruff check src tests scripts
-
-      - name: Commit and push
+      - name: Commit diagnostics
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pyproject.toml scripts/phase25_gate1_live_verify.py src/fpl_intelligence/api/routes/fixtures.py src/fpl_intelligence/prediction/team_strength_live.py src/fpl_intelligence/squad/sync_job.py tests/unit/test_phase7_availability.py
+          git add ruff-current.txt
           git rm .github/workflows/targeted-ruff-fix.yml
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-            exit 0
-          fi
-          git commit -m "fix: clear real Ruff CI blockers"
-          git push origin HEAD:fix/ruff-real-ci-20260906
+          git commit -m "ci: capture current Ruff diagnostics" || true
+          git push origin HEAD:fix/ruff-real-ci-20260906 || true
