@@ -18,13 +18,17 @@ class _ScalarRows:
 def test_player_names_use_batched_element_and_legacy_queries() -> None:
     db = MagicMock()
     db.scalars.side_effect = [
-        _ScalarRows([
-            MagicMock(fpl_element_id=101, id=9001, web_name="Alpha"),
-            MagicMock(fpl_element_id=202, id=9002, web_name="Beta"),
-        ]),
-        _ScalarRows([
-            MagicMock(fpl_element_id=None, id=9003, web_name="Gamma"),
-        ]),
+        _ScalarRows(
+            [
+                MagicMock(fpl_element_id=101, id=9001, web_name="Alpha"),
+                MagicMock(fpl_element_id=202, id=9002, web_name="Beta"),
+            ]
+        ),
+        _ScalarRows(
+            [
+                MagicMock(fpl_element_id=None, id=9003, web_name="Gamma"),
+            ]
+        ),
     ]
 
     names = _resolve_player_names(db, [101, 202, 101, 9003])

@@ -4,6 +4,7 @@ Strict PIT rule: the snapshot capture time is the information-availability time;
 football event time is never substituted for it. This module is read-only with
 respect to the database and only consumes locally materialized snapshots.
 """
+
 from __future__ import annotations
 
 import json
@@ -25,6 +26,7 @@ FPLCACHE_RAW_BASE = "https://raw.githubusercontent.com/Randdalf/fplcache/main/ca
 @dataclass(frozen=True)
 class SnapshotRef:
     """Immutable local snapshot plus its capture time."""
+
     captured_at: datetime
     path: Path
 
@@ -72,7 +74,9 @@ class PointInTimeFPLCacheAvailabilityProvider(HistoricalAvailabilityProvider):
                     if start_utc <= captured <= end_utc:
                         out.append(SnapshotRef(captured, path))
             cursor += timedelta(days=1)
-        return sorted({(r.captured_at, r.path): r for r in out}.values(), key=lambda r: r.captured_at)
+        return sorted(
+            {(r.captured_at, r.path): r for r in out}.values(), key=lambda r: r.captured_at
+        )
 
     def latest_before(self, cutoff: datetime, *, search_days: int = 3) -> SnapshotRef | None:
         if cutoff.tzinfo is None:
@@ -108,7 +112,11 @@ class PointInTimeFPLCacheAvailabilityProvider(HistoricalAvailabilityProvider):
             if _is_default_available(status_code, chance_this, news):
                 continue
             status = _map_status(status_code, chance_this)
-            event_type = parse_event_type([news, status_code]) if news else _event_type_from_status(status_code)
+            event_type = (
+                parse_event_type([news, status_code])
+                if news
+                else _event_type_from_status(status_code)
+            )
             provider_event_id = f"{captured.isoformat()}:{season}:{player_id}"
             events.append(
                 {

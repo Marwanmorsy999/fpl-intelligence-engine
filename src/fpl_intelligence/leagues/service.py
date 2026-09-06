@@ -109,14 +109,10 @@ def pick_default_league(leagues: list[dict[str, Any]]) -> dict[str, Any] | None:
 
     private = [lg for lg in leagues if lg.get("private")]
     if private:
-        return sorted(
-            private, key=lambda x: (-(x.get("member_count") or 0), x["league_id"])
-        )[0]
+        return sorted(private, key=lambda x: (-(x.get("member_count") or 0), x["league_id"]))[0]
     non_global = [lg for lg in leagues if not _is_global(lg)]
     candidates = non_global if non_global else leagues
-    return sorted(
-        candidates, key=lambda x: (-(x.get("member_count") or 0), x["league_id"])
-    )[0]
+    return sorted(candidates, key=lambda x: (-(x.get("member_count") or 0), x["league_id"]))[0]
 
 
 def ownership_insights(
@@ -174,9 +170,7 @@ def projected_edge_lines(
     user_total = round(sum(float(xpts_by_element.get(p, 0.0)) for p in rec_xi), 2)
     lines: list[dict[str, Any]] = []
     for entry_key, xi in rival_xis.items():
-        rival_total = round(
-            sum(float(xpts_by_element.get(p, 0.0)) for p in xi), 2
-        )
+        rival_total = round(sum(float(xpts_by_element.get(p, 0.0)) for p in xi), 2)
         gap = round(user_total - rival_total, 2)
         lines.append(
             {
@@ -351,8 +345,7 @@ async def refresh_league_cache(
         if gws_used:
             rivals_picks["gameweek"] = max(gws_used.items(), key=lambda kv: kv[1])[0]
         rivals_picks["partial"] = bool(
-            meta.get("member_count")
-            and int(meta["member_count"] or 0) > len(rows)
+            meta.get("member_count") and int(meta["member_count"] or 0) > len(rows)
         )
 
     now = datetime.now(UTC)
@@ -376,9 +369,9 @@ def upsert_entry_leagues(db: Session, entry_id: int, leagues: list[dict[str, Any
     now = datetime.now(UTC)
     existing = {
         int(row.league_id)
-        for row in db.execute(
-            select(EntryLeagueDB).where(EntryLeagueDB.entry_id == int(entry_id))
-        ).scalars().all()
+        for row in db.execute(select(EntryLeagueDB).where(EntryLeagueDB.entry_id == int(entry_id)))
+        .scalars()
+        .all()
     }
     added = 0
     for lg in leagues:
@@ -415,18 +408,18 @@ def stored_entry_leagues(db: Session, entry_id: int) -> list[dict[str, Any]]:
     # v2.7.6-session-guard: callers pass the raw ``session_id`` string, which
     # can arrive as "None"/empty/garbage from the frontend. Degrade to an
     # empty list instead of crashing on int("None").
-    if (
-        not entry_id
-        or str(entry_id) == "None"
-        or not str(entry_id).strip().isdigit()
-    ):
+    if not entry_id or str(entry_id) == "None" or not str(entry_id).strip().isdigit():
         return []
 
-    rows = db.execute(
-        select(EntryLeagueDB)
-        .where(EntryLeagueDB.entry_id == int(entry_id))
-        .order_by(EntryLeagueDB.member_count.desc().nulls_last())
-    ).scalars().all()
+    rows = (
+        db.execute(
+            select(EntryLeagueDB)
+            .where(EntryLeagueDB.entry_id == int(entry_id))
+            .order_by(EntryLeagueDB.member_count.desc().nulls_last())
+        )
+        .scalars()
+        .all()
+    )
     return [
         {
             "league_id": r.league_id,

@@ -22,7 +22,7 @@ def test_model_validation_workflow_does_not_upload_or_print_credentials() -> Non
     workflow = WORKFLOW.read_text(encoding="utf-8").lower()
 
     assert "echo ${{ secrets.database_url }}" not in workflow
-    assert "print(os.environ[\"database_url\"])" not in workflow
+    assert 'print(os.environ["database_url"])' not in workflow
     for environment_file in (".env", ".env.local", ".env.production.local"):
         assert f"path: {environment_file}" not in workflow
     assert "upload-artifact" in workflow

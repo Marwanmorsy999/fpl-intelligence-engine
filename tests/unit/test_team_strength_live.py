@@ -43,9 +43,7 @@ def test_ewma_fixture_lambdas_differ_for_strong_vs_weak() -> None:
     for day in range(2, 12):
         event = datetime(2024, 1, day, tzinfo=UTC)
         known = event + timedelta(hours=2)
-        rows.append(
-            TeamMatch(1, day, "2023-24", event, known, known, True, 3.0, 0.5, None, None)
-        )
+        rows.append(TeamMatch(1, day, "2023-24", event, known, known, True, 3.0, 0.5, None, None))
     for day in range(2, 12):
         event = datetime(2024, 1, day, tzinfo=UTC)
         known = event + timedelta(hours=2)

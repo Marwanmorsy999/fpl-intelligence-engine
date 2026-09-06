@@ -1,3 +1,4 @@
+import contextlib
 """v2.5.6 — async sync-now job registry + background task.
 
 * POST /squad/sync-now starts a background task keyed by session_id,
@@ -78,14 +79,12 @@ def clear_job(session_id: str) -> None:
     with _lock:
         _jobs.pop(str(session_id), None)
         t = _tasks.pop(str(session_id), None)
-        try:
+        with contextlib.suppress(Exception):
             if t is not None:
                 if hasattr(t, "is_alive"):
                     pass
                 elif hasattr(t, "done") and not t.done():
                     t.cancel()
-        except Exception:
-            pass
 
 
 def clear_all_jobs() -> None:
@@ -93,15 +92,13 @@ def clear_all_jobs() -> None:
         for sid in list(_jobs.keys()):
             _jobs.pop(sid, None)
         for sid, t in list(_tasks.items()):
-            try:
+            with contextlib.suppress(Exception):
                 # Thread case: is_alive / no cancel. Task case: done / cancel.
                 if hasattr(t, "is_alive"):
                     # Thread — just drop it; daemon threads die with process.
                     pass
                 elif hasattr(t, "done") and not t.done():
                     t.cancel()
-            except Exception:
-                pass
             _tasks.pop(sid, None)
 
 
@@ -109,47 +106,39 @@ def clear_all_jobs() -> None:
 # Background execution
 # ---------------------------------------------------------------------------
 
+
 def _get_importer_cls():
     """Return the importer class, preferring a mocked version if patched."""
-    # Prefer a MagicMock class if either location has been patched
-    try:
+    with contextlib.suppress(Exception):
         import fpl_intelligence.api.routes.squad as _squad_mod  # noqa: PLC0415
 
         rc = getattr(_squad_mod, "FplSquadImporter", None)
         if rc is not None and hasattr(rc, "_mock_name"):
             return rc
-    except Exception:
-        pass
-    try:
+    with contextlib.suppress(Exception):
         import fpl_intelligence.squad.fpl_import as _fpl_mod  # noqa: PLC0415
 
         fc = getattr(_fpl_mod, "FplSquadImporter", None)
         if fc is not None and hasattr(fc, "_mock_name"):
             return fc
-    except Exception:
-        pass
     from fpl_intelligence.squad.fpl_import import FplSquadImporter  # noqa: PLC0415
 
     return FplSquadImporter
 
 
 def _get_egress_cls():
-    try:
+    with contextlib.suppress(Exception):
         import fpl_intelligence.api.routes.squad as _squad_mod  # noqa: PLC0415
 
         rc = getattr(_squad_mod, "FplEgressChain", None)
         if rc is not None and hasattr(rc, "_mock_name"):
             return rc
-    except Exception:
-        pass
-    try:
+    with contextlib.suppress(Exception):
         import fpl_intelligence.data_providers.fpl_egress as _eg_mod  # noqa: PLC0415
 
         fc = getattr(_eg_mod, "FplEgressChain", None)
         if fc is not None and hasattr(fc, "_mock_name"):
             return fc
-    except Exception:
-        pass
     from fpl_intelligence.data_providers.fpl_egress import FplEgressChain  # noqa: PLC0415
 
     return FplEgressChain
@@ -178,7 +167,9 @@ async def _run_sync_job(
     # Create isolated DB session for this task
     from sqlalchemy.orm import sessionmaker
 
-    SessionTmp = sessionmaker(bind=engine_bind, autoflush=False, autocommit=False, expire_on_commit=False)
+    SessionTmp = sessionmaker(
+        bind=engine_bind, autoflush=False, autocommit=False, expire_on_commit=False
+    )
     db = SessionTmp()
     try:
         # before snapshot for banner
@@ -197,11 +188,15 @@ async def _run_sync_job(
 
         try:
             result = await asyncio.wait_for(
-                importer.build_squad_from_entry(int(session_id), db, force_next_gw=bool(next_gw_flag)),
+                importer.build_squad_from_entry(
+                    int(session_id), db, force_next_gw=bool(next_gw_flag)
+                ),
                 timeout=_INTERNAL_TIMEOUT,
             )
         except TimeoutError:
-            logger.warning("sync-now job %s timeout after %ss for %s", job_id, _INTERNAL_TIMEOUT, session_id)
+            logger.warning(
+                "sync-now job %s timeout after %ss for %s", job_id, _INTERNAL_TIMEOUT, session_id
+            )
             _set_job(
                 str(session_id),
                 {
@@ -226,10 +221,8 @@ async def _run_sync_job(
                 )
                 db.commit()
             except Exception:
-                try:
+                with contextlib.suppress(Exception):
                     db.rollback()
-                except Exception:
-                    pass
             return
         except (asyncio.CancelledError, TimeoutError):
             _set_job(
@@ -244,19 +237,31 @@ async def _run_sync_job(
         except FplEntryNotFound:
             _set_job(
                 str(session_id),
-                {"state": "failed", "error": "Could not find FPL Team ID.", "finished_at": _now_iso()},
+                {
+                    "state": "failed",
+                    "error": "Could not find FPL Team ID.",
+                    "finished_at": _now_iso(),
+                },
             )
             return
         except FplPicksNotSaved:
             _set_job(
                 str(session_id),
-                {"state": "failed", "error": "Picks not saved yet — try again closer to deadline.", "finished_at": _now_iso()},
+                {
+                    "state": "failed",
+                    "error": "Picks not saved yet — try again closer to deadline.",
+                    "finished_at": _now_iso(),
+                },
             )
             return
         except FplRateLimitBlocked:
             _set_job(
                 str(session_id),
-                {"state": "failed", "error": "FPL API blocked by rate limit — please Retry in a minute.", "finished_at": _now_iso()},
+                {
+                    "state": "failed",
+                    "error": "FPL API blocked by rate limit — please Retry in a minute.",
+                    "finished_at": _now_iso(),
+                },
             )
             return
         except (FplApiUnavailable, FplEgressError, FplImportError) as exc:
@@ -264,7 +269,11 @@ async def _run_sync_job(
             msg = str(exc)[:400] if str(exc) else "FPL API temporarily unavailable"
             _set_job(
                 str(session_id),
-                {"state": "failed", "error": f"FPL API temporarily unavailable: {msg}", "finished_at": _now_iso()},
+                {
+                    "state": "failed",
+                    "error": f"FPL API temporarily unavailable: {msg}",
+                    "finished_at": _now_iso(),
+                },
             )
             try:
                 from fpl_intelligence.sync.models import SyncLogDB
@@ -281,16 +290,18 @@ async def _run_sync_job(
                 )
                 db.commit()
             except Exception:
-                try:
+                with contextlib.suppress(Exception):
                     db.rollback()
-                except Exception:
-                    pass
             return
         except Exception as exc:  # noqa: BLE001
             logger.exception("sync-now job %s failed for %s: %s", job_id, session_id, exc)
             _set_job(
                 str(session_id),
-                {"state": "failed", "error": "Sync failed: upstream unavailable — please Retry.", "finished_at": _now_iso()},
+                {
+                    "state": "failed",
+                    "error": "Sync failed: upstream unavailable — please Retry.",
+                    "finished_at": _now_iso(),
+                },
             )
             return
 
@@ -298,12 +309,10 @@ async def _run_sync_job(
         from fpl_intelligence.squad.service import SquadService
 
         saved = SquadService(session=db).set_squad(result.squad, session_id=str(session_id))
-        try:
+        with contextlib.suppress(Exception):
             from fpl_intelligence.api.routes.squad import _invalidate_decisions_cache
 
             _invalidate_decisions_cache(str(session_id))
-        except Exception:
-            pass
 
         # sync_log
         try:
@@ -325,10 +334,8 @@ async def _run_sync_job(
             )
             db.commit()
         except Exception:
-            try:
+            with contextlib.suppress(Exception):
                 db.rollback()
-            except Exception:
-                pass
 
         # Transfer detection for banner
         detected = None
@@ -389,7 +396,9 @@ async def _run_sync_job(
                 timeout=_INTERNAL_TIMEOUT,
             )
             picks_next_status = truth.picks_next_status
-            ids_hash_current = hash(tuple(truth.picks_current_ids)) if truth.picks_current_ids else None
+            ids_hash_current = (
+                hash(tuple(truth.picks_current_ids)) if truth.picks_current_ids else None
+            )
             ids_hash_next = hash(tuple(truth.picks_next_ids)) if truth.picks_next_ids else None
 
             saved_ids = set(before_ids)
@@ -406,8 +415,10 @@ async def _run_sync_job(
                     f"Synced! GW{pending_gw} squad rebuilt from official FPL "
                     f"history. IN: {ins_txt} OUT: {outs_txt}"
                 )
-            elif result.no_pending_transfer and truth.picks_next_status == 404 and (
-                not truth.next_transfers_count
+            elif (
+                result.no_pending_transfer
+                and truth.picks_next_status == 404
+                and (not truth.next_transfers_count)
             ):
                 # Branch C — nothing confirmed on FPL for the target GW yet.
                 chose_rule = "no_confirmed_transfer"
@@ -436,9 +447,7 @@ async def _run_sync_job(
             chose_rule = "error_fallback"
             if result.rebuilt_from_history:
                 chose_rule = "rebuilt_from_history"
-                banner = (
-                    f"Synced! GW{gw_label} squad rebuilt from official FPL history."
-                )
+                banner = f"Synced! GW{gw_label} squad rebuilt from official FPL history."
             elif result.no_pending_transfer:
                 chose_rule = "no_confirmed_transfer"
                 banner = (
@@ -470,10 +479,8 @@ async def _run_sync_job(
             },
         )
     finally:
-        try:
+        with contextlib.suppress(Exception):
             db.close()
-        except Exception:
-            pass
         with _lock:
             _tasks.pop(str(session_id), None)
 
@@ -491,13 +498,10 @@ def start_sync_job(session_id: str, next_gw: bool, engine_bind: Any) -> tuple[di
                 alive = False
             if handle and alive:
                 return dict(existing), handle
-            # Also check asyncio Task case for backwards compat
-            try:
+            with contextlib.suppress(Exception):
                 done = getattr(handle, "done", lambda: True)()
                 if handle and not done:
                     return dict(existing), handle
-            except Exception:
-                pass
     job = create_job(str(session_id), bool(next_gw))
     job_id = job["job_id"]
 
@@ -506,10 +510,15 @@ def start_sync_job(session_id: str, next_gw: bool, engine_bind: Any) -> tuple[di
             asyncio.run(_run_sync_job(str(session_id), bool(next_gw), job_id, engine_bind))
         except Exception as exc:  # noqa: BLE001
             logger.exception("sync job thread failed for %s: %s", session_id, exc)
-            try:
-                _set_job(str(session_id), {"state": "failed", "error": "Sync failed — please Retry.", "finished_at": _now_iso()})
-            except Exception:
-                pass
+            with contextlib.suppress(Exception):
+                _set_job(
+                    str(session_id),
+                    {
+                        "state": "failed",
+                        "error": "Sync failed — please Retry.",
+                        "finished_at": _now_iso(),
+                    },
+                )
 
     import threading as _th
 
@@ -520,7 +529,9 @@ def start_sync_job(session_id: str, next_gw: bool, engine_bind: Any) -> tuple[di
     return dict(job), th
 
 
-async def wait_for_job_fast(handle: Any, timeout: float = _FAST_PATH_TIMEOUT, session_id: str | None = None) -> bool:
+async def wait_for_job_fast(
+    handle: Any, timeout: float = _FAST_PATH_TIMEOUT, session_id: str | None = None
+) -> bool:
     """Poll registry for completion within timeout; returns True if done/failed."""
     # handle is a Thread or Task; we poll the job state instead of awaiting
     # session_id may be inferred from handle if needed, but caller should pass via closure

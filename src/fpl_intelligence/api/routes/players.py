@@ -30,6 +30,7 @@ def _catalog() -> dict[int, dict[str, Any]]:
     global _catalog_cache
     if _catalog_cache is None:
         from fpl_intelligence.prediction.live_provider import load_player_catalog
+
         _catalog_cache = load_player_catalog()
     return _catalog_cache
 
@@ -258,14 +259,21 @@ async def search_players(
         cat = catalog.get(int(p.fpl_element_id)) if p.fpl_element_id is not None else None
         position_value = int((cat or {}).get("position") or p.position_code or 0) or None
         team_value = int((cat or {}).get("team") or 0) or None
-        price_value = float((cat or {}).get("price")) if (cat or {}).get("price") is not None else None
+        price_value = (
+            float((cat or {}).get("price")) if (cat or {}).get("price") is not None else None
+        )
         if position is not None and position_value != position:
             continue
         if team is not None and team_value != team:
             continue
         if max_price is not None and (price_value is None or price_value > max_price):
             continue
-        relevance = _relevance(q, p.web_name, " ".join(filter(None, (p.first_name, p.second_name))), (cat or {}).get("web_name"))
+        relevance = _relevance(
+            q,
+            p.web_name,
+            " ".join(filter(None, (p.first_name, p.second_name))),
+            (cat or {}).get("web_name"),
+        )
         if relevance < _RELEVANCE_CUTOFF:
             continue
         xpts = xpts_map.get(p.fpl_element_id) if p.fpl_element_id is not None else None

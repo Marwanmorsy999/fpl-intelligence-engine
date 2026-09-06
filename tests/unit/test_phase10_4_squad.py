@@ -442,6 +442,7 @@ class TestBannerHonestyRules:
 
         # Poll sync-status for the honesty fields
         import time
+
         for _ in range(10):
             status_resp = client.get("/api/v1/squad/sync-status", params={"session_id": "1234568"})
             if status_resp.status_code == 200:
@@ -479,6 +480,7 @@ class TestBannerHonestyRules:
         assert resp.status_code in (200, 202)
 
         import time
+
         for _ in range(10):
             status_resp = client.get("/api/v1/squad/sync-status", params={"session_id": "1234569"})
             if status_resp.status_code == 200:

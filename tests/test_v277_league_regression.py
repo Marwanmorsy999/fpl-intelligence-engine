@@ -85,9 +85,7 @@ class TestMiddlewareScope:
             "app object exported by api/index.py."
         )
 
-    def test_db_exception_through_index_app_returns_200_degraded(
-        self, db_session: Session
-    ) -> None:
+    def test_db_exception_through_index_app_returns_200_degraded(self, db_session: Session) -> None:
         """Forcing a DB failure via the index app never returns a raw 500."""
         from api.index import app as index_app  # type: ignore[import]
 
@@ -112,9 +110,7 @@ class TestMiddlewareScope:
 class TestLeagueRefreshNever500:
     """POST /league/refresh must return 200 even when _ensure_tables blows up."""
 
-    def test_refresh_db_exception_returns_200_error_chip(
-        self, db_session: Session
-    ) -> None:
+    def test_refresh_db_exception_returns_200_error_chip(self, db_session: Session) -> None:
         from fpl_intelligence.api.main import app
 
         app.dependency_overrides[deps._get_db_session] = _exploding_db_override
@@ -129,9 +125,7 @@ class TestLeagueRefreshNever500:
             )
             body = r.json()
             # Must carry an honest status — never raw traceback
-            assert body.get("status") in {
-                "error", "no-league", "refreshing", "stale", "ok"
-            }, body
+            assert body.get("status") in {"error", "no-league", "refreshing", "stale", "ok"}, body
             assert "Traceback" not in r.text
         finally:
             app.dependency_overrides.pop(deps._get_db_session, None)
@@ -163,9 +157,7 @@ class TestLeagueRefreshNever500:
 class TestLeagueOverviewNever500:
     """GET /league must return 200 even when the DB explodes (v2.7.4 contract)."""
 
-    def test_league_overview_db_exception_returns_200(
-        self, db_session: Session
-    ) -> None:
+    def test_league_overview_db_exception_returns_200(self, db_session: Session) -> None:
         from fpl_intelligence.api.main import app
 
         app.dependency_overrides[deps._get_db_session] = _exploding_db_override
@@ -190,15 +182,17 @@ class TestLeagueTrajectoryNever500:
         app.dependency_overrides[deps._get_db_session] = _exploding_db_override
         try:
             client = TestClient(app, raise_server_exceptions=False)
-            r = client.get(
-                "/api/v1/league/trajectory", params={"session_id": "2295006"}
-            )
+            r = client.get("/api/v1/league/trajectory", params={"session_id": "2295006"})
             assert r.status_code == 200, (
                 f"league/trajectory must never 500, got {r.status_code}: {r.text[:400]}"
             )
             body = r.json()
             assert body.get("status") in {
-                "unavailable", "no-league", "no-cache", "no-predictions", "degraded"
+                "unavailable",
+                "no-league",
+                "no-cache",
+                "no-predictions",
+                "degraded",
             }, body
         finally:
             app.dependency_overrides.pop(deps._get_db_session, None)

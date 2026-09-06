@@ -32,7 +32,8 @@ def _assert_validation_database_target() -> None:
         raise SystemExit("--commit requires DATABASE_URL for the validation database")
     if VALIDATION_PROJECT_REF not in url:
         raise SystemExit(
-            "refusing --commit: DATABASE_URL does not identify the approved validation Supabase project"
+            "refusing --commit: DATABASE_URL does not identify the approved "
+            "validation Supabase project"
         )
 
 

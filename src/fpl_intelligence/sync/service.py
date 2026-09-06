@@ -187,11 +187,7 @@ def ingest_history_gameweek(
             total_points = int(el.get("total_points") or 0)
         except (KeyError, TypeError, ValueError):
             continue
-        payload = {
-            k: v
-            for k, v in el.items()
-            if k not in ("element_id",) and v is not None
-        }
+        payload = {k: v for k, v in el.items() if k not in ("element_id",) and v is not None}
         existing = db.scalar(
             select(IngestedGameweekDB).where(
                 IngestedGameweekDB.gameweek == gameweek,
@@ -276,9 +272,11 @@ def ingest_history_gameweek(
         for e in elements
         if isinstance(e.get("element_id"), int) or str(e.get("element_id", "")).isdigit()
     }
-    ledger_rows = db.execute(
-        select(PredictionLedgerDB).where(PredictionLedgerDB.gameweek == gameweek)
-    ).scalars().all()
+    ledger_rows = (
+        db.execute(select(PredictionLedgerDB).where(PredictionLedgerDB.gameweek == gameweek))
+        .scalars()
+        .all()
+    )
     for row in ledger_rows:
         if row.actual is None and row.element_id in actuals:
             row.actual = actuals[row.element_id]
@@ -458,9 +456,7 @@ def _user_xi_for_gameweek(db: Session, session_key: str, gameweek: int) -> list[
     from fpl_intelligence.squad.models_db import SquadStateDB
 
     try:
-        row = db.scalar(
-            select(SquadStateDB).where(SquadStateDB.session_id == str(session_key))
-        )
+        row = db.scalar(select(SquadStateDB).where(SquadStateDB.session_id == str(session_key)))
     except Exception:  # noqa: BLE001 - grading never crashes on read errors
         return []
     if row is None or not isinstance(row.squad_json, dict):
@@ -485,12 +481,16 @@ def score_pending_recommendations(
     actuals for a referenced player, unknown user XI) the row is graded
     NEUTRAL with an explicit reason instead.
     """
-    pending = db.execute(
-        select(RecommendationDB).where(
-            RecommendationDB.scored_at.is_(None),
-            RecommendationDB.gameweek <= up_to_gameweek,
+    pending = (
+        db.execute(
+            select(RecommendationDB).where(
+                RecommendationDB.scored_at.is_(None),
+                RecommendationDB.gameweek <= up_to_gameweek,
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     if not pending:
         return 0
     actuals_by_gw: dict[int, dict[int, int]] = {}
@@ -504,9 +504,7 @@ def score_pending_recommendations(
     for gw, element_id, pts in rows:
         actuals_by_gw.setdefault(int(gw), {})[int(element_id)] = int(pts or 0)
 
-    resolve_xi = user_xi_resolver or (
-        lambda key, gw: _user_xi_for_gameweek(db, key, gw)
-    )
+    resolve_xi = user_xi_resolver or (lambda key, gw: _user_xi_for_gameweek(db, key, gw))
 
     def _unscoreable(reason: str) -> dict[str, Any]:
         return {"verdict": NEUTRAL, "delta": 0, "reason": reason}
@@ -523,9 +521,7 @@ def score_pending_recommendations(
                 actual,
             )
             if result is None:
-                result = _unscoreable(
-                    "unscoreable: captain or alternative results missing"
-                )
+                result = _unscoreable("unscoreable: captain or alternative results missing")
         elif rec.rec_type == "transfer":
             hit = int(rec.detail.get("hit_cost", 0) or 0)
             result = score_transfer(
@@ -535,9 +531,7 @@ def score_pending_recommendations(
                 hit_cost=hit,
             )
             if result is None:
-                result = _unscoreable(
-                    "unscoreable: transfer-in/out results missing"
-                )
+                result = _unscoreable("unscoreable: transfer-in/out results missing")
         elif rec.rec_type == "chip":
             # Chips are graded qualitatively until per-chip replay exists;
             # mark scored without inventing a delta.
@@ -548,9 +542,7 @@ def score_pending_recommendations(
             }
         elif rec.rec_type == "xi":
             user_xi = list(resolve_xi(rec.session_key, rec.gameweek)) or []
-            result = score_xi(
-                [int(p) for p in rec.subject.get("xi", [])], user_xi, actual
-            )
+            result = score_xi([int(p) for p in rec.subject.get("xi", [])], user_xi, actual)
             if result is None:
                 result = _unscoreable(
                     "unscoreable: "
@@ -577,9 +569,7 @@ def _element_name_map(db: Session) -> dict[int, str]:
     table and, for rows not yet mirrored, the bootstrap seed catalog.
     """
     names: dict[int, str] = {}
-    for element_id, web_name in db.execute(
-        select(Player.fpl_element_id, Player.web_name)
-    ).all():
+    for element_id, web_name in db.execute(select(Player.fpl_element_id, Player.web_name)).all():
         if element_id is not None and web_name:
             names[int(element_id)] = str(web_name)
     if len(names) >= 100:
@@ -598,11 +588,15 @@ def _element_name_map(db: Session) -> dict[int, str]:
 
 def track_record_payload(db: Session, session_key: str) -> dict[str, Any]:
     """Full track-record read model for one entry (with resolved names)."""
-    recs = db.execute(
-        select(RecommendationDB)
-        .where(RecommendationDB.session_key == session_key)
-        .order_by(RecommendationDB.gameweek.desc(), RecommendationDB.created_at.desc())
-    ).scalars().all()
+    recs = (
+        db.execute(
+            select(RecommendationDB)
+            .where(RecommendationDB.session_key == session_key)
+            .order_by(RecommendationDB.gameweek.desc(), RecommendationDB.created_at.desc())
+        )
+        .scalars()
+        .all()
+    )
     names = _element_name_map(db)
 
     def _nm(pid: Any) -> str | None:
@@ -669,11 +663,7 @@ def track_record_payload(db: Session, session_key: str) -> dict[str, Any]:
             "hits": hits,
             "hit_rate": round(hits / len(graded), 3) if graded else None,
             "net_points": sum(int(s.get("delta") or 0) for s in graded),
-            "last_5": [
-                c
-                for c in cards
-                if c["score"] is not None
-            ][:5],
+            "last_5": [c for c in cards if c["score"] is not None][:5],
         },
     }
 
@@ -702,8 +692,6 @@ def calibration_snapshot(db: Session) -> dict[str, Any]:
         .order_by(PredictionLedgerDB.gameweek)
     ).all()
     payload["forecast_arms"] = [
-        {"gameweek": int(gw), "rows": int(n), "graded": False}
-        for gw, n in arm_rows
-        if n
+        {"gameweek": int(gw), "rows": int(n), "graded": False} for gw, n in arm_rows if n
     ]
     return payload

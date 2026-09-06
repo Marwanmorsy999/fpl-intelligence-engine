@@ -173,7 +173,7 @@ def _fixtures_for_players(
             runs = player_run(team_id, rows_by_gw, horizon, team_names=team_names)
         else:
             runs = []
-        real_runs = [r for r in runs if r.opponent_id != 0][: _FIXTURES_PER_PLAYER]
+        real_runs = [r for r in runs if r.opponent_id != 0][:_FIXTURES_PER_PLAYER]
         out[str(pid)] = {
             "team_id": team_id or None,
             "fixtures": [
@@ -196,7 +196,9 @@ def _fixtures_for_players(
 async def fixtures_get(
     db: GetDB,
     response: Response,
-    session_id: str | None = Query(None, description="Per-user session key (resolves the effective FPL 15)."),
+    session_id: str | None = Query(
+        None, description="Per-user session key (resolves the effective FPL 15)."
+    ),
     player_ids: str | None = Query(None, description="Comma-separated player ids, e.g. '1,2,3'."),
     team_id: int | None = Query(None, description="Return upcoming fixtures for this FPL team id."),
 ) -> dict[str, Any]:
@@ -218,9 +220,7 @@ async def fixtures_get(
     if session_id:
         squad = SquadService(session=db).get_effective_squad(session_id=session_id, mode="fpl")
         if squad is None:
-            raise HTTPException(
-                status_code=404, detail="No squad saved for this session"
-            )
+            raise HTTPException(status_code=404, detail="No squad saved for this session")
         squad_players = _resolve_player_teams(
             db, list(squad.player_ids), hint_teams=squad.player_teams
         )
@@ -248,9 +248,7 @@ async def fixtures_get(
     horizon = next_unplayed_gameweeks(rows, current_gw, _FIXTURES_PER_PLAYER)
 
     response.headers["Cache-Control"] = "no-store"
-    by_player = _fixtures_for_players(
-        db, rows, team_names, squad_players, horizon, rows_by_gw
-    )
+    by_player = _fixtures_for_players(db, rows, team_names, squad_players, horizon, rows_by_gw)
     by_team: dict[str, list[dict[str, Any]]] = {}
     if team_id is not None:
         runs = player_run(int(team_id), rows_by_gw, horizon, team_names=team_names)
@@ -265,7 +263,7 @@ async def fixtures_get(
             }
             for r in runs
             if r.opponent_id != 0
-        ][: _FIXTURES_PER_PLAYER]
+        ][:_FIXTURES_PER_PLAYER]
     return {
         "session_id": session_id,
         "gameweek": current_gw,
@@ -384,9 +382,7 @@ def _resolve_player_names(db: Session, pids: list[int]) -> dict[int, str]:
 
     names: dict[int, str] = {}
 
-    rows = db.scalars(
-        select(Player).where(Player.fpl_element_id.in_(unique_pids))
-    ).all()
+    rows = db.scalars(select(Player).where(Player.fpl_element_id.in_(unique_pids))).all()
     for row in rows:
         if row.fpl_element_id is not None:
             names[int(row.fpl_element_id)] = row.web_name

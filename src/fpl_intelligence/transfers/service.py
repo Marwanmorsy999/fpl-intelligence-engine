@@ -121,12 +121,10 @@ async def fetch_official_transfers(
 
     def _validate(data: Any) -> None:
         if not isinstance(data, dict) or not (
-            isinstance(data.get("history"), list)
-            or isinstance(data.get("current"), list)
+            isinstance(data.get("history"), list) or isinstance(data.get("current"), list)
         ):
             raise ValueError(
-                f"history payload missing 'current'/'history' list (got "
-                f"{type(data).__name__})"
+                f"history payload missing 'current'/'history' list (got {type(data).__name__})"
             )
 
     cfg = get_settings()
@@ -286,9 +284,7 @@ def compute_horizon_ev(
     return enriched
 
 
-def persist_ledger(
-    db: Session, entry_id: str, rows: list[dict[str, Any]], source: str
-) -> int:
+def persist_ledger(db: Session, entry_id: str, rows: list[dict[str, Any]], source: str) -> int:
     """Idempotent upsert of ledger rows; returns rows written."""
     now = datetime.now(UTC)
     written = 0
@@ -363,9 +359,7 @@ async def build_ledger(db: Session, entry_id: str | int) -> dict[str, Any]:
     strategy: str | None = None
     raw_excerpt: list[dict[str, Any]] = []
     try:
-        rows, strategy, raw_excerpt = await fetch_official_transfers(
-            int(entry_id), with_raw=True
-        )
+        rows, strategy, raw_excerpt = await fetch_official_transfers(int(entry_id), with_raw=True)
     except Exception as exc:  # noqa: BLE001 — honest fallback below
         logger.info("official history unavailable for %s: %s", eid, type(exc).__name__)
         rows = snapshot_diff_rows(db, eid)
@@ -385,13 +379,15 @@ async def build_ledger(db: Session, entry_id: str | int) -> dict[str, Any]:
             )
 
     if rows:
-        names = _names_for(db, {r["element_in"] for r in rows if r.get("element_in")}
-                           | {r["element_out"] for r in rows if r.get("element_out")})
+        names = _names_for(
+            db,
+            {r["element_in"] for r in rows if r.get("element_in")}
+            | {r["element_out"] for r in rows if r.get("element_out")},
+        )
         for r in rows:
             r["name_in"] = names.get(r.get("element_in")) if r.get("element_in") else None
             r["name_out"] = names.get(r.get("element_out")) if r.get("element_out") else None
         persist_ledger(db, eid, rows, source)
-    
 
     try:
         stored = (
@@ -432,8 +428,7 @@ async def build_ledger(db: Session, entry_id: str | int) -> dict[str, Any]:
     # Recompute EV over the persisted view too so the response is complete.
     enriched_all = compute_horizon_ev(db, ledger, start_gw=None)
     ev_by_key = {
-        (r["gameweek"], r.get("element_in"), r.get("element_out")): r
-        for r in enriched_all
+        (r["gameweek"], r.get("element_in"), r.get("element_out")): r for r in enriched_all
     }
     for row in ledger:
         hit = ev_by_key.get((row["gameweek"], row.get("element_in"), row.get("element_out")))

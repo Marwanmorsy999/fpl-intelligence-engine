@@ -73,9 +73,7 @@ def test_calibration_error_is_zero_for_reliable_predictions() -> None:
 
 
 def test_report_is_deterministic_and_has_promotion_gate() -> None:
-    result = ValidationResult(
-        [_row(1, 90)], [{"gameweek": 4, "n_predictions": 1}], {}, ["2023-24"]
-    )
+    result = ValidationResult([_row(1, 90)], [{"gameweek": 4, "n_predictions": 1}], {}, ["2023-24"])
 
     first = render_report(result)
     second = render_report(result)

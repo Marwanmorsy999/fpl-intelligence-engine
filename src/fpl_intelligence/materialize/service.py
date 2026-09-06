@@ -76,8 +76,7 @@ def _now() -> datetime:
 async def ingest_vaastav_results(db: Session, season_code: str) -> dict[str, Any]:
     """Upsert last-N gameweek results; tolerate not-yet-published GWs."""
     existing_gws = {
-        int(gw)
-        for (gw,) in db.execute(select(IngestedGameweekDB.gameweek).distinct()).all()
+        int(gw) for (gw,) in db.execute(select(IngestedGameweekDB.gameweek).distinct()).all()
     }
 
     # Determine candidate window from whatever fixtures we can see first.
@@ -189,8 +188,7 @@ async def refresh_news_cache(db: Session) -> dict[str, Any]:
 
     items = parse_feed(xml_text) if xml_text else []
     serialized = [
-        {"title": item.title, "link": item.link, "published": item.published}
-        for item in items
+        {"title": item.title, "link": item.link, "published": item.published} for item in items
     ]
     db.execute(delete(NewsCacheDB))
     db.add(
@@ -220,9 +218,7 @@ async def refresh_element_facts(db: Session, season_code: str) -> dict[str, Any]
     try:
         from sqlalchemy import text as sa_text
 
-        db.execute(
-            sa_text("ALTER TABLE element_facts ADD COLUMN IF NOT EXISTS now_cost INTEGER")
-        )
+        db.execute(sa_text("ALTER TABLE element_facts ADD COLUMN IF NOT EXISTS now_cost INTEGER"))
         db.commit()
     except Exception:  # noqa: BLE001 — sqlite lacks IF NOT EXISTS on ADD COLUMN
         db.rollback()
@@ -288,9 +284,7 @@ async def precompute_predictions(
             preds = provider.get_all_predictions(gw)
         if not preds:
             raise RuntimeError("chain produced no predictions")
-        db.execute(
-            delete(PredictionCurrentDB).where(PredictionCurrentDB.gameweek == gw)
-        )
+        db.execute(delete(PredictionCurrentDB).where(PredictionCurrentDB.gameweek == gw))
         for pid, pred in preds.items():
             xg = xa = None
             breakdown = getattr(pred, "breakdown", None)
@@ -300,9 +294,7 @@ async def precompute_predictions(
                     element_id=int(pid),
                     expected_points=float(pred.expected_points),
                     minutes_estimate=(
-                        float(pred.expected_minutes)
-                        if pred.expected_minutes is not None
-                        else None
+                        float(pred.expected_minutes) if pred.expected_minutes is not None else None
                     ),
                     start_prob=(
                         float(pred.start_probability)
@@ -371,10 +363,7 @@ def load_cached_fixtures(db: Session) -> list[dict[str, Any]]:
     """Fresh-enough raw fixtures payload, or ``[]`` when absent."""
     row = db.scalar(
         select(FixturesCacheDB)
-        .where(
-            FixturesCacheDB.fetched_at
-            >= _now() - timedelta(seconds=FIXTURES_MAX_AGE_SECONDS)
-        )
+        .where(FixturesCacheDB.fetched_at >= _now() - timedelta(seconds=FIXTURES_MAX_AGE_SECONDS))
         .order_by(FixturesCacheDB.id.desc())
     )
     if row is None or not isinstance(row.payload, list):
@@ -386,9 +375,7 @@ def load_cached_news_items(db: Session) -> tuple[list[dict[str, Any]], datetime 
     """Fresh-enough BBC items plus their fetch timestamp."""
     row = db.scalar(
         select(NewsCacheDB)
-        .where(
-            NewsCacheDB.fetched_at >= _now() - timedelta(seconds=NEWS_MAX_AGE_SECONDS)
-        )
+        .where(NewsCacheDB.fetched_at >= _now() - timedelta(seconds=NEWS_MAX_AGE_SECONDS))
         .order_by(NewsCacheDB.id.desc())
     )
     if row is None or not isinstance(row.payload, list):

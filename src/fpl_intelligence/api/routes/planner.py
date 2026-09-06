@@ -121,9 +121,7 @@ async def planner_overview(
         buy_c = _best_buy(db, next_gw, catalog, rival_picks, squad_ids)
 
     prices = squad.player_prices or {}
-    weakest_out = (
-        min(squad_ids, key=lambda p: float(prices.get(p, 0.0))) if squad_ids else None
-    )
+    weakest_out = min(squad_ids, key=lambda p: float(prices.get(p, 0.0))) if squad_ids else None
 
     def _ev_of(cand: dict[str, Any] | None, gw: int) -> float | None:
         """Buy EV = target xPTS − cheapest sellable player's xPTS − 0 hit."""
@@ -141,9 +139,9 @@ async def planner_overview(
     ev_a = _ev_of(buy_a, target_gw)
     plan_steps: list[dict[str, Any]] = []
     if buy_a is not None:
-        out_name = (
-            catalog.get(weakest_out, {}).get("web_name") if weakest_out else None
-        ) or (f"Player {weakest_out}" if weakest_out else "—")
+        out_name = (catalog.get(weakest_out, {}).get("web_name") if weakest_out else None) or (
+            f"Player {weakest_out}" if weakest_out else "—"
+        )
         plan_steps.append(
             {
                 "gameweek": target_gw,

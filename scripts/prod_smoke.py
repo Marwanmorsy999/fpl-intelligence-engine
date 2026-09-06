@@ -192,12 +192,10 @@ def main(argv: list[str] | None = None) -> int:
         if label == "health":
             served = str(parsed.get("version") or "")
             if expect_version is None:
-                try:
+                with contextlib.suppress(Exception):
                     from fpl_intelligence import __version__ as local_ver
 
                     expect_version = ".".join(local_ver.split(".")[:3])
-                except Exception:  # noqa: BLE001 — run outside repo checkout
-                    pass
             if expect_version and not served.startswith(expect_version):
                 failures.append(
                     f"health: version mismatch — served {served!r}, "

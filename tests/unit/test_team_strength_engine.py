@@ -90,10 +90,7 @@ def test_methods_produce_distinct_strength_and_fixture_signatures_on_controlled_
         make_row(1, day, goals[i], conceded[i], day % 2 == 0, xg=xg[i])
         for i, day in enumerate(range(2, 10))
     ]
-    rows += [
-        make_row(2, day, 1, 2, day % 2 == 0, xg=0.6)
-        for day in range(2, 10)
-    ]
+    rows += [make_row(2, day, 1, 2, day % 2 == 0, xg=0.6) for day in range(2, 10)]
     engine = TeamStrengthEngine(rows)
 
     estimates = {

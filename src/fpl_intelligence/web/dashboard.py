@@ -101,6 +101,7 @@ def _register_dashboard_routes() -> None:
 
     def _page_handler(filename: str):
         if filename == "dashboard.html" and _sentry_dsn_for_pages:
+
             async def _serve() -> HTMLResponse:
                 html = (_STATIC_DIR / filename).read_text(encoding="utf-8")
                 snippet = _sentry_browser_snippet(_sentry_dsn_for_pages)
@@ -149,9 +150,13 @@ def _register_dashboard_routes() -> None:
         from fpl_intelligence.squad.models_db import SquadStateDB
 
         try:
-            row = db.execute(  # type: ignore[union-attr]
-                _select(SquadStateDB.session_id).order_by(SquadStateDB.updated_at.desc())
-            ).scalars().first()
+            row = (
+                db.execute(  # type: ignore[union-attr]
+                    _select(SquadStateDB.session_id).order_by(SquadStateDB.updated_at.desc())
+                )
+                .scalars()
+                .first()
+            )
             return str(row) if row else None
         except Exception:
             return None

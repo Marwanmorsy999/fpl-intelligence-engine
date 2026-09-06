@@ -4,6 +4,7 @@ GET /api/v1/chips/plans?session_id=&start_gw=2&horizon=8
 Horizon optimizer: simulate chips starting from start_gw over horizon GWs,
 rank by projected total points, respect used chips, return top-3 plans.
 """
+
 # ruff: noqa: E501
 from __future__ import annotations
 
@@ -25,6 +26,7 @@ GetDB = deps.GetDB
 
 # chip type canonical names used by ChipSimulator / FPLRules
 CANONICAL_CHIPS = ["wildcard", "free_hit", "bench_boost", "triple_captain"]
+
 
 def _canonicalize_available(raw: list[str]) -> list[str]:
     out: list[str] = []
@@ -77,6 +79,7 @@ def _canonicalize_available(raw: list[str]) -> list[str]:
             uniq.append(c)
     return uniq or out
 
+
 def _domain_squad_from_payload(squad_payload) -> tuple[SquadState, dict]:
     prices = squad_payload.player_prices or {}
     squad_value = sum(prices.get(pid, 8.0) for pid in squad_payload.player_ids)
@@ -105,7 +108,10 @@ def _domain_squad_from_payload(squad_payload) -> tuple[SquadState, dict]:
     )
     return domain, {"rules": rules}
 
-def _baseline_xpts(provider, domain: SquadState, gw: int, baseline_positions: dict[int, int] | None) -> dict[str, Any]:  # noqa: E501
+
+def _baseline_xpts(
+    provider, domain: SquadState, gw: int, baseline_positions: dict[int, int] | None
+) -> dict[str, Any]:  # noqa: E501
     """Estimate baseline XI xPTS for gw using current squad's players.
 
     Fix 1.3: only include players with a real xPTS prediction (> 0) in the
@@ -121,8 +127,7 @@ def _baseline_xpts(provider, domain: SquadState, gw: int, baseline_positions: di
         # Only keep players present in the squad; skip zero/missing predictions.
         squad_set = set(int(p) for p in domain.squad_players)
         valid_pids = [
-            pid for pid in gw_preds
-            if int(pid) in squad_set and gw_preds[pid].expected_points > 0
+            pid for pid in gw_preds if int(pid) in squad_set and gw_preds[pid].expected_points > 0
         ]
         if not valid_pids:
             # Fallback: include all squad players even with zero xPTS
@@ -140,6 +145,7 @@ def _baseline_xpts(provider, domain: SquadState, gw: int, baseline_positions: di
     except Exception as exc:
         logger.warning("baseline xpts failed gw%s: %s", gw, exc)
         return {"xpts": 0.0, "detail": str(exc)}
+
 
 @router.get("/plans", include_in_schema=False)
 async def chip_plans(
@@ -217,13 +223,24 @@ async def chip_plans(
     best_plans: list[dict[str, Any]] = []
     # If no chips, return baseline plan
     if not canonical:
-        best_plans.append({
-            "label": "No chips available — hold",
-            "chips": [],
-            "total_ev": baseline_total,
-            "total_gain": 0.0,
-            "breakdown": [{"gameweek": gw, "action": "hold", "chip": None, "xpts": baseline_per_gw[gw], "gain": 0.0} for gw in horizon_gws],
-        })
+        best_plans.append(
+            {
+                "label": "No chips available — hold",
+                "chips": [],
+                "total_ev": baseline_total,
+                "total_gain": 0.0,
+                "breakdown": [
+                    {
+                        "gameweek": gw,
+                        "action": "hold",
+                        "chip": None,
+                        "xpts": baseline_per_gw[gw],
+                        "gain": 0.0,
+                    }
+                    for gw in horizon_gws
+                ],
+            }
+        )
     else:
         # Generate all plans: for each subset of chips and each assignment to GWs
         # Limit horizon to 8, chips up to 4 -> total combinations ~ (8+1)^4 ~ 6561, still fine
@@ -239,7 +256,11 @@ async def chip_plans(
             if len(used_gws) != len(set(used_gws)):
                 continue  # two chips same GW not allowed
             # signature for dedupe (sorted by chip placement)
-            sig = tuple(sorted((chips_list[i], assignment[i]) for i in range(n) if assignment[i] is not None))
+            sig = tuple(
+                sorted(
+                    (chips_list[i], assignment[i]) for i in range(n) if assignment[i] is not None
+                )
+            )
             if sig in seen_signatures:
                 continue
             seen_signatures.add(sig)
@@ -257,39 +278,68 @@ async def chip_plans(
                 if chip:
                     gain = float(chip_gains.get(chip, {}).get(gw, 0.0))
                     total_gain += gain
-                    breakdown.append({"gameweek": gw, "action": f"play {chip}", "chip": chip, "xpts": round(base_x + gain, 2), "gain": round(gain, 2)})
+                    breakdown.append(
+                        {
+                            "gameweek": gw,
+                            "action": f"play {chip}",
+                            "chip": chip,
+                            "xpts": round(base_x + gain, 2),
+                            "gain": round(gain, 2),
+                        }
+                    )
                 else:
-                    breakdown.append({"gameweek": gw, "action": "hold", "chip": None, "xpts": round(base_x, 2), "gain": 0.0})
+                    breakdown.append(
+                        {
+                            "gameweek": gw,
+                            "action": "hold",
+                            "chip": None,
+                            "xpts": round(base_x, 2),
+                            "gain": 0.0,
+                        }
+                    )
             total_ev = round(baseline_total + total_gain, 2)
             # Skip plans that play no chips if we have chips (baseline is 0 gain)
             # Keep at least one "no chips" plan for reference
             label_parts: list[str] = []
             for gw in sorted(gw_to_chip.keys()):
                 chip = gw_to_chip[gw]
-                label_parts.append(f"{chip.replace('_',' ').title()} GW{gw}")
+                label_parts.append(f"{chip.replace('_', ' ').title()} GW{gw}")
             label = " + ".join(label_parts) if label_parts else "Hold (no chip)"
             if label_parts:
-                label += f" = +{round(total_gain,1)} EV"
-            best_plans.append({
-                "label": label,
-                "chips": [{"chip": chip, "gw": gw} for gw, chip in sorted(gw_to_chip.items())],
-                "total_ev": total_ev,
-                "total_gain": round(total_gain, 2),
-                "breakdown": breakdown,
-            })
+                label += f" = +{round(total_gain, 1)} EV"
+            best_plans.append(
+                {
+                    "label": label,
+                    "chips": [{"chip": chip, "gw": gw} for gw, chip in sorted(gw_to_chip.items())],
+                    "total_ev": total_ev,
+                    "total_gain": round(total_gain, 2),
+                    "breakdown": breakdown,
+                }
+            )
         # rank by total_gain desc, then total_ev
         best_plans.sort(key=lambda p: (-float(p["total_gain"]), -float(p["total_ev"])))
         # keep top 3 non-zero plus baseline? Spec says show top-3 plans even if some are zero? Keep top 3 by gain.
         # Ensure we have at least 3 plans: if less than 3, pad with hold
         if len(best_plans) < 3:
             while len(best_plans) < 3:
-                best_plans.append({
-                    "label": f"Hold (no chip) #{len(best_plans)+1}",
-                    "chips": [],
-                    "total_ev": baseline_total,
-                    "total_gain": 0.0,
-                    "breakdown": [{"gameweek": gw, "action": "hold", "chip": None, "xpts": baseline_per_gw[gw], "gain": 0.0} for gw in horizon_gws],
-                })
+                best_plans.append(
+                    {
+                        "label": f"Hold (no chip) #{len(best_plans) + 1}",
+                        "chips": [],
+                        "total_ev": baseline_total,
+                        "total_gain": 0.0,
+                        "breakdown": [
+                            {
+                                "gameweek": gw,
+                                "action": "hold",
+                                "chip": None,
+                                "xpts": baseline_per_gw[gw],
+                                "gain": 0.0,
+                            }
+                            for gw in horizon_gws
+                        ],
+                    }
+                )
         # But ensure worst plan isn't duplicate hold
         # Take top 3 by gain, but if top gain is 0, still show holds
         best_plans = best_plans[:3]

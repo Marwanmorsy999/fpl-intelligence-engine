@@ -53,11 +53,13 @@ class TestParseFixtures:
 
 class TestHorizon:
     def test_infer_current_from_unfinished(self):
-        rows = parse_fixtures([
-            _raw_fixture(7, 1, 2, finished=True),
-            _raw_fixture(8, 3, 4),
-            _raw_fixture(9, 5, 6),
-        ])
+        rows = parse_fixtures(
+            [
+                _raw_fixture(7, 1, 2, finished=True),
+                _raw_fixture(8, 3, 4),
+                _raw_fixture(9, 5, 6),
+            ]
+        )
         assert infer_current_gameweek(rows) == 8
 
     def test_next_gameweeks_window(self):
@@ -74,10 +76,12 @@ class TestHorizon:
 
 class TestPlayerRun:
     def test_home_and_away_projection(self):
-        rows = parse_fixtures([
-            _raw_fixture(8, 1, 2, hd=2, ad=4),
-            _raw_fixture(9, 3, 1, hd=5, ad=3),
-        ])
+        rows = parse_fixtures(
+            [
+                _raw_fixture(8, 1, 2, hd=2, ad=4),
+                _raw_fixture(9, 3, 1, hd=5, ad=3),
+            ]
+        )
         by_gw: dict[int, list] = {}
         for r in rows:
             by_gw.setdefault(r.event, []).append(r)
@@ -97,10 +101,12 @@ class TestPlayerRun:
         assert runs[1].difficulty == 3
 
     def test_average_fdr(self):
-        rows = parse_fixtures([
-            _raw_fixture(8, 1, 2, hd=2, ad=4),
-            _raw_fixture(9, 3, 1, hd=5, ad=3),
-        ])
+        rows = parse_fixtures(
+            [
+                _raw_fixture(8, 1, 2, hd=2, ad=4),
+                _raw_fixture(9, 3, 1, hd=5, ad=3),
+            ]
+        )
         by_gw: dict[int, list] = {}
         for r in rows:
             by_gw.setdefault(r.event, []).append(r)
@@ -123,11 +129,13 @@ class TestSwingScore:
 
 class TestEasiestRuns:
     def test_ranks_easiest_first_and_excludes_squad_clubs(self):
-        rows = parse_fixtures([
-            _raw_fixture(8, 1, 2, hd=5, ad=5),
-            _raw_fixture(8, 3, 4, hd=2, ad=2),
-            _raw_fixture(8, 6, 7, hd=2, ad=3),
-        ])
+        rows = parse_fixtures(
+            [
+                _raw_fixture(8, 1, 2, hd=5, ad=5),
+                _raw_fixture(8, 3, 4, hd=2, ad=2),
+                _raw_fixture(8, 6, 7, hd=2, ad=3),
+            ]
+        )
         by_gw = {8: rows}
         out = easiest_team_runs(by_gw, [8], top=2, exclude_teams={1})
         names = [t.short_name for t in out]

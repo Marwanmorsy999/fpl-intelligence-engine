@@ -67,11 +67,7 @@ def compute_regret(db: Any, session_id: str, gameweek: int | None = None) -> dic
     # Choose GW: max ingested that has actuals — bounded by the current season.
     chosen_gw = gameweek
     clamped_note = ""
-    if (
-        ceiling is not None
-        and chosen_gw is not None
-        and int(chosen_gw) > int(ceiling)
-    ):
+    if ceiling is not None and chosen_gw is not None and int(chosen_gw) > int(ceiling):
         clamped_note = (
             f"Requested GW{int(chosen_gw)} is beyond the current season's "
             f"GW{ceiling} range — graded within-range instead."
@@ -162,7 +158,11 @@ def compute_regret(db: Any, session_id: str, gameweek: int | None = None) -> dic
                     best_alt = None
                 if best_alt is not None:
                     best_pts = int(actuals.get(best_alt, 0))
-                    cost = int(best_pts * 2) - int(user_pts * 2) if score.get("captain_points") is not None else int(best_pts) - int(user_pts)
+                    cost = (
+                        int(best_pts * 2) - int(user_pts * 2)
+                        if score.get("captain_points") is not None
+                        else int(best_pts) - int(user_pts)
+                    )
                 else:
                     cost = int(rec_pts * 2) - int(user_pts * 2) if rec_pts is not None else 0
                 # Simpler: delta between rec captain (doubled) vs user captain
@@ -222,7 +222,9 @@ def compute_regret(db: Any, session_id: str, gameweek: int | None = None) -> dic
                 "graded_transfers": len(graded),
                 "right": right,
                 "rate": rate,
-                "line": f"Alpha Capture Rate: {int(rate*100)}% of graded transfer calls were right" if rate is not None else "No graded transfers yet.",
+                "line": f"Alpha Capture Rate: {int(rate * 100)}% of graded transfer calls were right"
+                if rate is not None
+                else "No graded transfers yet.",
                 "how_computed": "Graded transfer recommendations: right/(right+wrong) from RecommendationDB scores.",
             }
         else:
@@ -250,14 +252,15 @@ def compute_regret(db: Any, session_id: str, gameweek: int | None = None) -> dic
         d = int(captain_regret["delta"])
         if d > 0:
             rec_name = str(captain_regret.get("recommended_captain", "engine pick"))
-            # Try to resolve names
-            try:
+            with contextlib.suppress(Exception):
                 from fpl_intelligence.prediction.live_provider import load_player_catalog
 
                 cat = load_player_catalog()
-                rec_name = cat.get(int(rec_name), {}).get("web_name", rec_name) if str(rec_name).isdigit() else rec_name
-            except Exception:
-                pass
+                rec_name = (
+                    cat.get(int(rec_name), {}).get("web_name", rec_name)
+                    if str(rec_name).isdigit()
+                    else rec_name
+                )
             cost_line = f"You lost {abs(d)} pts and ranks by ignoring the {rec_name} captain recommendation."
         elif d == 0:
             cost_line = "Your captain matched the engine — no regret this GW."

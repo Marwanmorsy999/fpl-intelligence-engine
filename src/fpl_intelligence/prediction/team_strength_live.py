@@ -1,3 +1,4 @@
+import contextlib
 """Live activation of holdout-approved Team Strength EWMA.
 
 Stage 2 locked holdout (2025-26) approved:
@@ -124,9 +125,7 @@ def compute_team_strength_multipliers(
         return TeamStrengthLiveResult({}, _neutral_notes(f"from_db:{exp}"))
 
     try:
-        estimates = engine.estimate_all(
-            cutoff, method=TS_METHOD, window=TS_WINDOW, decay=TS_DECAY
-        )
+        estimates = engine.estimate_all(cutoff, method=TS_METHOD, window=TS_WINDOW, decay=TS_DECAY)
     except Exception as exc:  # noqa: BLE001
         logger.warning("team strength estimate_all failed: %s", exc)
         return TeamStrengthLiveResult({}, _neutral_notes(f"estimate:{type(exc).__name__}"))
@@ -197,7 +196,9 @@ def apply_multipliers_to_points(
     out: dict[int, float] = {}
     for pid, xp in points.items():
         team_id = team_by_player.get(int(pid))
-        mult = multipliers.get(int(team_id), TS_BLANK_MULT) if team_id is not None else TS_BLANK_MULT
+        mult = (
+            multipliers.get(int(team_id), TS_BLANK_MULT) if team_id is not None else TS_BLANK_MULT
+        )
         out[int(pid)] = round(float(xp) * float(mult), 6)
     return out
 
@@ -244,32 +245,38 @@ def ensure_registry_entry(db: Session) -> bool:
     if existing is not None:
         if existing.status != "active":
             try:
-                actives = db.execute(
-                    select(ModelRegistryEntry).where(
-                        ModelRegistryEntry.model_name == TS_MODEL_NAME,
-                        ModelRegistryEntry.status == "active",
+                actives = (
+                    db.execute(
+                        select(ModelRegistryEntry).where(
+                            ModelRegistryEntry.model_name == TS_MODEL_NAME,
+                            ModelRegistryEntry.status == "active",
+                        )
                     )
-                ).scalars().all()
+                    .scalars()
+                    .all()
+                )
                 for row in actives:
                     row.status = "staged"
                 existing.status = "active"
                 db.commit()
             except Exception as exp:
                 logger.warning("team strength registry promote failed: %s", exp)
-                try:
+                with contextlib.suppress(Exception):
                     db.rollback()
-                except Exception:
-                    pass
                 return False
         return True
 
     try:
-        actives = db.execute(
-            select(ModelRegistryEntry).where(
-                ModelRegistryEntry.model_name == TS_MODEL_NAME,
-                ModelRegistryEntry.status == "active",
+        actives = (
+            db.execute(
+                select(ModelRegistryEntry).where(
+                    ModelRegistryEntry.model_name == TS_MODEL_NAME,
+                    ModelRegistryEntry.status == "active",
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         for row in actives:
             row.status = "staged"
 
@@ -301,8 +308,6 @@ def ensure_registry_entry(db: Session) -> bool:
         return True
     except Exception as exp:
         logger.warning("team strength registry insert failed: %s", type(exp).__name__)
-        try:
+        with contextlib.suppress(Exception):
             db.rollback()
-        except Exception:
-            pass
         return False

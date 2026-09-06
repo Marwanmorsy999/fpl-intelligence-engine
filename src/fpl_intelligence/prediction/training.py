@@ -188,14 +188,10 @@ class TrainingDataBuilder:
 
         if target_perfs:
             target_player_ids = sorted(set(perf.player_id for perf in target_perfs))
-            perfs_by_player = self._fetch_all_player_performances(
-                target_player_ids, cutoff_time
-            )
+            perfs_by_player = self._fetch_all_player_performances(target_player_ids, cutoff_time)
             for perf in target_perfs:
                 pid = perf.player_id
-                feat = self._compute_player_features_from_performances(
-                    perfs_by_player.get(pid, [])
-                )
+                feat = self._compute_player_features_from_performances(perfs_by_player.get(pid, []))
                 if feat is not None:
                     features[pid] = feat
                     targets[pid] = self._extract_target(perf, target)

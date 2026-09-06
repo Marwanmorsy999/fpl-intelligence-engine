@@ -123,12 +123,7 @@ async def fetch_event_live(
 
 
 def _gw_row_count(db: Session, gameweek: int) -> int:
-    return int(
-        db.scalar(
-            select(func.count()).where(IngestedGameweekDB.gameweek == gameweek)
-        )
-        or 0
-    )
+    return int(db.scalar(select(func.count()).where(IngestedGameweekDB.gameweek == gameweek)) or 0)
 
 
 def _gw_sources(db: Session, gameweek: int) -> set[str]:

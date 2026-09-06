@@ -45,10 +45,7 @@ def test_generate_candidates_limits_full_transfer_evals() -> None:
     player_prices = {i: 5.0 for i in range(1, 80)}
     player_teams = {i: (i % 10) + 1 for i in range(1, 80)}
 
-    bulk_pool = {
-        i: _prediction(i, 3, 4.0 if i < 16 else 10.0 + (i % 5))
-        for i in range(1, 80)
-    }
+    bulk_pool = {i: _prediction(i, 3, 4.0 if i < 16 else 10.0 + (i % 5)) for i in range(1, 80)}
 
     provider = MagicMock()
     provider.get_all_predictions.return_value = bulk_pool

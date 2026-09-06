@@ -111,7 +111,9 @@ async def _lookup_badge(name: str, tsdb_team_id: str | None) -> str | None:
                 if badge:
                     return str(badge)
         if tsdb_team_id:
-            detail_url = f"https://www.thesportsdb.com/api/v1/json/3/lookupteam.php?id={tsdb_team_id}"
+            detail_url = (
+                f"https://www.thesportsdb.com/api/v1/json/3/lookupteam.php?id={tsdb_team_id}"
+            )
             async with httpx.AsyncClient(timeout=6, follow_redirects=True) as client:
                 r = await client.get(detail_url)
                 if r.status_code == 200:

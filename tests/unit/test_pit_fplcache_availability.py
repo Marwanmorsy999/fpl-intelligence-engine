@@ -1,4 +1,5 @@
 """Unit tests for immutable fplcache PIT extraction."""
+
 from __future__ import annotations
 
 import json
@@ -6,7 +7,10 @@ import lzma
 from datetime import UTC, datetime
 from pathlib import Path
 
-from fpl_intelligence.availability.historical.pit_fplcache import PointInTimeFPLCacheAvailabilityProvider, SnapshotRef
+from fpl_intelligence.availability.historical.pit_fplcache import (
+    PointInTimeFPLCacheAvailabilityProvider,
+    SnapshotRef,
+)
 
 
 def _write_snapshot(path: Path, elements: list[dict[str, object]]) -> None:

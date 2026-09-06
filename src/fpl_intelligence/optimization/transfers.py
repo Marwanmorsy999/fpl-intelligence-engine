@@ -195,9 +195,7 @@ class MultiTransferPlanner:
         weakest_links = sorted(squad.squad_players, key=lambda p: squad_evs[p])[:3]
 
         target_evs = {
-            pid: ev
-            for pid, ev in horizon_pools.items()
-            if pid not in squad.squad_players
+            pid: ev for pid, ev in horizon_pools.items() if pid not in squad.squad_players
         }
 
         top_targets = []

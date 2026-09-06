@@ -45,9 +45,7 @@ class TransferLogDB(Base):
     horizon_gws: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
-    __table_args__ = (
-        UniqueConstraint("entry_id", "transfer_id", name="uq_transfer_entry_tid"),
-    )
+    __table_args__ = (UniqueConstraint("entry_id", "transfer_id", name="uq_transfer_entry_tid"),)
 
 
 class SquadSnapshotDB(Base):

@@ -80,9 +80,7 @@ def instrumented(page: Page) -> Iterator[Page]:
     yield page
     # With everything mocked to 200, ANY bad response is a regression.
     audited = [
-        (status, url)
-        for status, url in bad_responses
-        if not url.rstrip("/").endswith("/health")
+        (status, url) for status, url in bad_responses if not url.rstrip("/").endswith("/health")
     ]
     assert audited == [], f"unexpected HTTP >=400 responses seen: {audited}"
     assert console_errors == [], f"console.error lines seen: {console_errors}"

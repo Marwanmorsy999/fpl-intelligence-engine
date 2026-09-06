@@ -130,9 +130,7 @@ def _user_squad(db: Any, session_key: str) -> dict[str, Any] | None:
         SquadService._ensure_local_table(db)
         try:
             local_row = db.scalar(
-                select(LocalSquadStateDB).where(
-                    LocalSquadStateDB.session_id == str(session_key)
-                )
+                select(LocalSquadStateDB).where(LocalSquadStateDB.session_id == str(session_key))
             )
             if local_row is not None and isinstance(local_row.squad_json, dict):
                 return local_row.squad_json
@@ -141,9 +139,7 @@ def _user_squad(db: Any, session_key: str) -> dict[str, Any] | None:
             with contextlib.suppress(Exception):
                 db.rollback()
     try:
-        row = db.scalar(
-            select(SquadStateDB).where(SquadStateDB.session_id == str(session_key))
-        )
+        row = db.scalar(select(SquadStateDB).where(SquadStateDB.session_id == str(session_key)))
     except Exception as exc:  # noqa: BLE001 — never fail a league render
         logger.warning("squad_state read failed; treating as no squad: %s", exc)
         with contextlib.suppress(Exception):
@@ -205,13 +201,11 @@ def _name_map(db: Any) -> dict[int, str]:
     from fpl_intelligence.prediction.live_provider import load_player_catalog
 
     names: dict[int, str] = {}
-    try:
+    with contextlib.suppress(Exception):
         for pid, row in load_player_catalog().items():
             name = str(row.get("web_name") or "")
             if name:
                 names[int(pid)] = name
-    except Exception:  # noqa: BLE001 — display-only enrichment
-        pass
     return names
 
 
@@ -298,9 +292,7 @@ async def _league_overview_impl(
     # a "None" session must degrade to no-league, never raise ValueError.
     if not leagues and str(session_id).strip().isdigit():
         try:
-            discovered = await asyncio.wait_for(
-                fetch_entry_leagues(int(session_id)), timeout=8.0
-            )
+            discovered = await asyncio.wait_for(fetch_entry_leagues(int(session_id)), timeout=8.0)
             if discovered:
                 upsert_entry_leagues(db, int(session_id), discovered)
                 leagues = stored_entry_leagues(db, session_id)
@@ -311,9 +303,7 @@ async def _league_overview_impl(
     selection_row = db.get(LeagueSelectionDB, str(session_id))
     chosen: dict[str, Any] | None = None
     if league_id is not None:
-        chosen = next(
-            (lg for lg in leagues if lg["league_id"] == int(league_id)), None
-        )
+        chosen = next((lg for lg in leagues if lg["league_id"] == int(league_id)), None)
     elif selection_row is not None:
         chosen = next(
             (lg for lg in leagues if lg["league_id"] == selection_row.league_id),
@@ -376,15 +366,10 @@ async def _league_overview_impl(
                     fetched = cache_row.refreshed_at
                     if fetched.tzinfo is None:
                         fetched = fetched.replace(tzinfo=UTC)
-                    age = max(
-                        0.0, (datetime.now(UTC) - fetched).total_seconds()
-                    )
+                    age = max(0.0, (datetime.now(UTC) - fetched).total_seconds())
                     payload["cache_age_seconds"] = round(age, 1)
                     payload["status"] = "ok"
-                    picks_gw = int(
-                        (cache_row.rivals_picks or {}).get("gameweek")
-                        or target_gw
-                    )
+                    picks_gw = int((cache_row.rivals_picks or {}).get("gameweek") or target_gw)
                     payload.update(
                         _build_view(
                             db,
@@ -402,8 +387,7 @@ async def _league_overview_impl(
                 diag = f"{type(exc).__name__}: {exc}"
         payload["status"] = "refreshing"
         payload["note"] = (
-            "refreshing… (the standings pull is still warming — reload in a "
-            "few seconds)"
+            "refreshing… (the standings pull is still warming — reload in a few seconds)"
         )
         payload["diag"] = diag or "cooldown active — retry shortly"
         return payload
@@ -419,8 +403,9 @@ async def _league_overview_impl(
             db,
             cache_row,
             session_id,
-            gameweek=int((cache_row.rivals_picks or {}).get("gameweek")
-                         or await _target_gameweek(db, 1)),
+            gameweek=int(
+                (cache_row.rivals_picks or {}).get("gameweek") or await _target_gameweek(db, 1)
+            ),
         )
     )
     return payload
@@ -448,13 +433,9 @@ def _build_view(
     standings = [r for r in (cache_row.standings or []) if isinstance(r, dict)]
     rp = cache_row.rivals_picks or {}
     picks_map: dict[str, list[int]] = {
-        k: [int(p) for p in v]
-        for k, v in (rp.get("picks") or {}).items()
-        if isinstance(v, list)
+        k: [int(p) for p in v] for k, v in (rp.get("picks") or {}).items() if isinstance(v, list)
     }
-    captains: dict[str, int] = {
-        k: int(v) for k, v in (rp.get("captains") or {}).items() if v
-    }
+    captains: dict[str, int] = {k: int(v) for k, v in (rp.get("captains") or {}).items() if v}
 
     mine = next((r for r in standings if int(r["entry_id"]) == int(session_key)), None)
     user_rank = int(mine["rank"]) if mine and mine.get("rank") is not None else None
@@ -493,9 +474,7 @@ def _build_view(
 
     note_parts: list[str] = []
     if rp.get("partial"):
-        note_parts.append(
-            "league larger than the cached page — showing standings page 1 only"
-        )
+        note_parts.append("league larger than the cached page — showing standings page 1 only")
 
     return {
         "league_name": cache_row.name,
@@ -506,9 +485,7 @@ def _build_view(
         "ownership_insights": insights,
         "your_differentials": my_differentials,
         "projected_edge": edge,
-        "captain_insight": _captain_insight(
-            my_captain, captains, names, len(picks_map)
-        ),
+        "captain_insight": _captain_insight(my_captain, captains, names, len(picks_map)),
         "recommended_xi_source": rec_source,
         "picks_gameweek": rp.get("gameweek"),
         "honest_notes": note_parts,
@@ -527,8 +504,7 @@ def _captain_insight(
     label = names.get(int(my_captain), f"Player {my_captain}")
     if same == 0:
         line = (
-            f"{label} is your captain differential — none of "
-            f"{rivals_count} top rivals captain him"
+            f"{label} is your captain differential — none of {rivals_count} top rivals captain him"
         )
     else:
         line = f"{same} of {rivals_count} top rivals also captain {label}"
@@ -590,9 +566,7 @@ async def league_refresh(
         return {
             "session_id": body.session_id,
             "status": "error",
-            "note": (
-                f"league refresh failed ({type(exc).__name__}); retry shortly"
-            ),
+            "note": (f"league refresh failed ({type(exc).__name__}); retry shortly"),
             "diag": f"{type(exc).__name__}: {exc}",
         }
 
@@ -614,7 +588,11 @@ async def _league_refresh_impl(db: Any, body: LeagueRefreshBody) -> dict[str, An
                 upsert_entry_leagues(db, int(body.session_id), discovered)
                 leagues = _stored(db, body.session_id)
         except Exception as exc:  # noqa: BLE001
-            return {"status": "error", "note": f"league auto-detect failed ({type(exc).__name__})", "session_id": body.session_id}
+            return {
+                "status": "error",
+                "note": f"league auto-detect failed ({type(exc).__name__})",
+                "session_id": body.session_id,
+            }
 
     target_league_id = body.league_id
     if target_league_id is None:
@@ -625,7 +603,11 @@ async def _league_refresh_impl(db: Any, body: LeagueRefreshBody) -> dict[str, An
             default = pick_default(leagues)
             target_league_id = int(default["league_id"]) if default else None
     if target_league_id is None:
-        return {"status": "no-league", "note": "No classic league detected yet.", "session_id": body.session_id}
+        return {
+            "status": "no-league",
+            "note": "No classic league detected yet.",
+            "session_id": body.session_id,
+        }
 
     target_gw = body.gameweek
     if target_gw is None:
@@ -637,15 +619,27 @@ async def _league_refresh_impl(db: Any, body: LeagueRefreshBody) -> dict[str, An
             timeout=_REFRESH_INLINE_BUDGET,
         )
     except TimeoutError:
-        return {"status": "refreshing", "note": "Inline budget exceeded — retry shortly.", "league_id": target_league_id}
+        return {
+            "status": "refreshing",
+            "note": "Inline budget exceeded — retry shortly.",
+            "league_id": target_league_id,
+        }
     except Exception as exc:  # noqa: BLE001
         db.rollback()
-        return {"status": "error", "note": f"{type(exc).__name__}: {exc}", "league_id": target_league_id}
+        return {
+            "status": "error",
+            "note": f"{type(exc).__name__}: {exc}",
+            "league_id": target_league_id,
+        }
 
     # Return fresh view (mirrors GET /league success path)
     cache_row = db.get(LeagueCacheDB, int(target_league_id))
     if cache_row is None or not (cache_row.standings or []):
-        return {"status": "stale", "note": "No cached standings yet.", "league_id": target_league_id}
+        return {
+            "status": "stale",
+            "note": "No cached standings yet.",
+            "league_id": target_league_id,
+        }
     view = _build_view(
         db,
         cache_row,
@@ -696,7 +690,9 @@ async def league_fomo(
     response: Response,
     db: deps.GetDB,
     session_id: str = Query(..., description="FPL entry id (= saved session key)."),
-    gameweek: int | None = Query(None, description="Gameweek to grade (defaults to latest ingested)."),
+    gameweek: int | None = Query(
+        None, description="Gameweek to grade (defaults to latest ingested)."
+    ),
 ) -> dict[str, Any]:
     """Phase 27 Gate 1 (S2) — FOMO & Regret engine."""
     response.headers["Cache-Control"] = "no-store"

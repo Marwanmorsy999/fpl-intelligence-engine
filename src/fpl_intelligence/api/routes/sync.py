@@ -1,3 +1,4 @@
+import contextlib
 """Phase 19.0/19.1 — machine-to-machine sync endpoints.
 
 Three push routes (bookmarklet, Google Apps Script fetcher, GitHub Actions)
@@ -78,9 +79,7 @@ class BookmarkletCorsMiddleware(BaseHTTPMiddleware):
     list authoritative wherever it applies (this one only fills gaps).
     """
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         if request.url.path not in _PUSH_PATHS:
             return await call_next(request)
         if request.method == "OPTIONS":
@@ -103,7 +102,7 @@ def _require_push_auth(
         )
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Unauthorized")
-    supplied = authorization[len("Bearer "):]
+    supplied = authorization[len("Bearer ") :]
     if not hmac.compare_digest(supplied, expected):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
@@ -129,7 +128,9 @@ class SquadPushPayload(BaseModel):
     picks: list[PickItem] = Field(..., min_length=15, max_length=15)
     bank: float = 0.0
     transfers: dict[str, Any] | None = None
-    picks_gw: int | None = Field(default=None, description="v2.5.3 truth GW — when set, overrides gameweek")
+    picks_gw: int | None = Field(
+        default=None, description="v2.5.3 truth GW — when set, overrides gameweek"
+    )
 
 
 class LivePushPayload(BaseModel):
@@ -209,7 +210,7 @@ async def squad_push(payload: SquadPushPayload, db: GetDB) -> dict[str, Any]:
     # ribbon always shows real team_value instead of £100.0m / £0.0m defaults.
     player_prices: dict[int, float] = {}
     player_teams: dict[int, int] = {}
-    try:
+    with contextlib.suppress(Exception):
         from fpl_intelligence.prediction.live_provider import load_player_catalog  # noqa: PLC0415
 
         catalog = load_player_catalog()
@@ -219,8 +220,6 @@ async def squad_push(payload: SquadPushPayload, db: GetDB) -> dict[str, Any]:
                 player_prices[int(pid)] = float(row["price"])
             if row.get("team") is not None:
                 player_teams[int(pid)] = int(row["team"])
-    except Exception:  # noqa: BLE001 — enrichment only, never break the push
-        pass
 
     # If catalog prices unavailable (empty catalog), fall back to £5.0m per
     # player so team_value shows something honest rather than £0.0m.
@@ -251,15 +250,10 @@ async def squad_push(payload: SquadPushPayload, db: GetDB) -> dict[str, Any]:
     saved: SquadStateResponse = SquadService(session=db).set_squad(
         squad, session_id=str(payload.entry_id)
     )
-    # Cache invalidation: bump is implicit via updated_at in the row; ensure
-    # any in-process decisions cache keyed by updated_at will miss on next fetch.
-    # The squad-push already wrote updated_at = now, so invalidate here.
-    try:
+    with contextlib.suppress(Exception):
         from fpl_intelligence.api.routes.squad import _invalidate_decisions_cache  # noqa: PLC0415
 
         _invalidate_decisions_cache(str(payload.entry_id))
-    except Exception:
-        pass
     _log_sync(
         db,
         "squad",
@@ -329,9 +323,7 @@ async def history_push(payload: HistoryPushPayload, db: GetDB) -> dict[str, Any]
     window, then actuals fill the ledger, pending recommendations auto-score,
     and the calibration snapshot recomputes.
     """
-    result = ingest_history_gameweek(
-        db, payload.gameweek, payload.elements, source=payload.source
-    )
+    result = ingest_history_gameweek(db, payload.gameweek, payload.elements, source=payload.source)
     _log_sync(
         db,
         "history",
@@ -354,7 +346,9 @@ async def sync_status(db: GetDB) -> dict[str, Any]:
     from sqlalchemy import select
 
     rows = (
-        db.execute(select(SyncLogDB).order_by(SyncLogDB.created_at.desc()).limit(200)).scalars().all()
+        db.execute(select(SyncLogDB).order_by(SyncLogDB.created_at.desc()).limit(200))
+        .scalars()
+        .all()
     )
     latest: dict[str, dict[str, Any]] = {}
     counts: dict[str, int] = {}
@@ -426,9 +420,9 @@ async def live_board(
     if squad is None:
         raise HTTPException(status_code=404, detail="No squad saved for this session")
     gw = gameweek or squad.gameweek
-    live_rows = db.execute(
-        select(SyncLivePointDB).where(SyncLivePointDB.gameweek == gw)
-    ).scalars().all()
+    live_rows = (
+        db.execute(select(SyncLivePointDB).where(SyncLivePointDB.gameweek == gw)).scalars().all()
+    )
     live_by_element = {r.element_id: r for r in live_rows}
 
     names: dict[int, str] = {}

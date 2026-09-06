@@ -1076,7 +1076,9 @@ class TestHistoricalEntityResolutionAlias:
         sid, gwid, pid = self._seed(db_session)
 
         # Canonical players are ingested under provider "real_fpl" (live path).
-        db_session.add(PlayerExternalId(player_id=pid, provider="real_fpl", provider_player_id="44"))
+        db_session.add(
+            PlayerExternalId(player_id=pid, provider="real_fpl", provider_player_id="44")
+        )
         db_session.add(TeamExternalId(team_id=1, provider="real_fpl", provider_team_id="1"))
         db_session.commit()
 
@@ -1115,9 +1117,7 @@ class TestHistoricalEntityResolutionAlias:
         )
 
         sid, gwid, pid = self._seed(db_session)
-        db_session.add(
-            TeamExternalId(team_id=1, provider="real_fpl", provider_team_id="1")
-        )
+        db_session.add(TeamExternalId(team_id=1, provider="real_fpl", provider_team_id="1"))
         db_session.commit()
 
         resolver = HistoricalEntityResolver(db_session, "real_fpl_bootstrap")

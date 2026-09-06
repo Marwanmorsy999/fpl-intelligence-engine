@@ -143,34 +143,60 @@ def players_db() -> Session:
     db.flush()
 
     haaland = Player(
-        first_name="Erling", second_name="Haaland", web_name="Haaland",
-        position_code=4, fpl_element_id=445, fpl_code=223094,
+        first_name="Erling",
+        second_name="Haaland",
+        web_name="Haaland",
+        position_code=4,
+        fpl_element_id=445,
+        fpl_code=223094,
     )
     salah = Player(
-        first_name="Mohamed", second_name="Salah", web_name="Salah",
-        position_code=4, fpl_element_id=1, fpl_code=108069,
+        first_name="Mohamed",
+        second_name="Salah",
+        web_name="Salah",
+        position_code=4,
+        fpl_element_id=1,
+        fpl_code=108069,
     )
     kante = Player(
-        first_name="N'Golo", second_name="Kante", web_name="Kante",
-        position_code=3, fpl_element_id=7, fpl_code=110,
+        first_name="N'Golo",
+        second_name="Kante",
+        web_name="Kante",
+        position_code=3,
+        fpl_element_id=7,
+        fpl_code=110,
     )
     pickford = Player(
-        first_name="Jordan", second_name="Pickford", web_name="Pickford",
-        position_code=1, fpl_element_id=9, fpl_code=11000,
+        first_name="Jordan",
+        second_name="Pickford",
+        web_name="Pickford",
+        position_code=1,
+        fpl_element_id=9,
+        fpl_code=11000,
     )
     db.add_all([haaland, salah, kante, pickford])
     db.flush()
 
     # Only Salah + Pickford have a gameweek price snapshot; Haaland + Kante
     # must fall back to the bootstrap catalog price.
-    db.add(PlayerGameweekPerformance(
-        player_id=salah.id, gameweek_id=gw2.id, season_id=season.id,
-        team_id=liv.id, price=13.0,
-    ))
-    db.add(PlayerGameweekPerformance(
-        player_id=pickford.id, gameweek_id=gw2.id, season_id=season.id,
-        team_id=liv.id, price=5.5,
-    ))
+    db.add(
+        PlayerGameweekPerformance(
+            player_id=salah.id,
+            gameweek_id=gw2.id,
+            season_id=season.id,
+            team_id=liv.id,
+            price=13.0,
+        )
+    )
+    db.add(
+        PlayerGameweekPerformance(
+            player_id=pickford.id,
+            gameweek_id=gw2.id,
+            season_id=season.id,
+            team_id=liv.id,
+            price=5.5,
+        )
+    )
     db.add(PlayerTeamMembership(player_id=salah.id, team_id=liv.id, season_id=season.id))
     db.add(PlayerTeamMembership(player_id=kante.id, team_id=che.id, season_id=season.id))
     db.add(PlayerTeamMembership(player_id=pickford.id, team_id=liv.id, season_id=season.id))
@@ -197,10 +223,38 @@ def catalog_stub(monkeypatch: pytest.MonkeyPatch):
     from fpl_intelligence.prediction import live_provider as live_provider_mod
 
     catalog = {
-        445: {"web_name": "Haaland", "price": 15.5, "position": 4, "team": 15, "team_short": "MCI", "selected_by_percent": 60.5},
-        1: {"web_name": "Salah", "price": 13.0, "position": 4, "team": 13, "team_short": "LIV", "selected_by_percent": 99.0},
-        7: {"web_name": "Kante", "price": 4.5, "position": 3, "team": 4, "team_short": "CHE", "selected_by_percent": 5.0},
-        9: {"web_name": "Pickford", "price": 5.5, "position": 1, "team": 13, "team_short": "LIV", "selected_by_percent": 50.0},
+        445: {
+            "web_name": "Haaland",
+            "price": 15.5,
+            "position": 4,
+            "team": 15,
+            "team_short": "MCI",
+            "selected_by_percent": 60.5,
+        },
+        1: {
+            "web_name": "Salah",
+            "price": 13.0,
+            "position": 4,
+            "team": 13,
+            "team_short": "LIV",
+            "selected_by_percent": 99.0,
+        },
+        7: {
+            "web_name": "Kante",
+            "price": 4.5,
+            "position": 3,
+            "team": 4,
+            "team_short": "CHE",
+            "selected_by_percent": 5.0,
+        },
+        9: {
+            "web_name": "Pickford",
+            "price": 5.5,
+            "position": 1,
+            "team": 13,
+            "team_short": "LIV",
+            "selected_by_percent": 50.0,
+        },
     }
     monkeypatch.setattr(live_provider_mod, "load_player_catalog", lambda path=None: catalog)
     players_route._reset_catalog_cache()
@@ -315,36 +369,42 @@ class TestLedgerReversePairDedupe:
         persist_ledger(
             db_session,
             "794561",
-            [{
-                "gameweek": 5,
-                "transfer_id": None,
-                "element_in": 115,
-                "element_out": 32,
-                "cost": 0,
-                "name_in": "De Cuyper",
-                "name_out": "Cash",
-            }],
+            [
+                {
+                    "gameweek": 5,
+                    "transfer_id": None,
+                    "element_in": 115,
+                    "element_out": 32,
+                    "cost": 0,
+                    "name_in": "De Cuyper",
+                    "name_out": "Cash",
+                }
+            ],
             "snapshot-diff (unofficial)",
         )
         written = persist_ledger(
             db_session,
             "794561",
-            [{
-                "gameweek": 5,
-                "transfer_id": None,
-                "element_in": 32,
-                "element_out": 115,
-                "cost": 0,
-                "name_in": "Cash",
-                "name_out": "De Cuyper",
-            }],
+            [
+                {
+                    "gameweek": 5,
+                    "transfer_id": None,
+                    "element_in": 32,
+                    "element_out": 115,
+                    "cost": 0,
+                    "name_in": "Cash",
+                    "name_out": "De Cuyper",
+                }
+            ],
             "snapshot-diff (unofficial)",
         )
         assert written == 0, "the reversed duplicate must be folded, not inserted"
 
-        rows = db_session.execute(
-            select(TransferLogDB).where(TransferLogDB.entry_id == "794561")
-        ).scalars().all()
+        rows = (
+            db_session.execute(select(TransferLogDB).where(TransferLogDB.entry_id == "794561"))
+            .scalars()
+            .all()
+        )
         assert len(rows) == 1, f"swap listed {len(rows)} times — dedupe failed"
         row = rows[0]
         # Aligned to the NEWEST inference: in=Cash(32), out=De Cuyper(115).
@@ -356,16 +416,24 @@ class TestLedgerReversePairDedupe:
 
         # Pre-existing exact-match idempotency must keep working: a repeat of
         # the SAME direction is folded too (and reports 0 rows written).
-        same_direction = [{
-            "gameweek": 7,
-            "transfer_id": None,
-            "element_in": 200,
-            "element_out": 100,
-            "cost": 0,
-        }]
-        assert persist_ledger(db_session, "794561", same_direction, "snapshot-diff (unofficial)") == 1
-        assert persist_ledger(db_session, "794561", same_direction, "snapshot-diff (unofficial)") == 0
-        all_rows = db_session.execute(
-            select(TransferLogDB).where(TransferLogDB.entry_id == "794561")
-        ).scalars().all()
+        same_direction = [
+            {
+                "gameweek": 7,
+                "transfer_id": None,
+                "element_in": 200,
+                "element_out": 100,
+                "cost": 0,
+            }
+        ]
+        assert (
+            persist_ledger(db_session, "794561", same_direction, "snapshot-diff (unofficial)") == 1
+        )
+        assert (
+            persist_ledger(db_session, "794561", same_direction, "snapshot-diff (unofficial)") == 0
+        )
+        all_rows = (
+            db_session.execute(select(TransferLogDB).where(TransferLogDB.entry_id == "794561"))
+            .scalars()
+            .all()
+        )
         assert len(all_rows) == 2, "one deduped swap row + one same-direction row"

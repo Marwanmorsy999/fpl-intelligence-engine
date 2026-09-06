@@ -35,9 +35,17 @@ class TestEventLiveParsing:
     def test_parse_extracts_points_minutes_goals_assists_bonus(self):
         payload = {
             "elements": [
-                {"id": 411, "stats": {"total_points": 13, "minutes": 90, "bonus": 3,
-                                      "goals_scored": 2, "assists": 0,
-                                      "expected_goal_involvements": "1.80"}},
+                {
+                    "id": 411,
+                    "stats": {
+                        "total_points": 13,
+                        "minutes": 90,
+                        "bonus": 3,
+                        "goals_scored": 2,
+                        "assists": 0,
+                        "expected_goal_involvements": "1.80",
+                    },
+                },
                 {"id": 12, "stats": {"total_points": 2, "minutes": 65}},
                 {"id": "bad"},
             ]
@@ -86,9 +94,7 @@ class TestResultsIngestionFlow:
         db.add(FixturesCacheDB(source="test", payload=payload, fetched_at=datetime.now(UTC)))
         db.commit()
 
-    def test_ingest_flips_pending_recommendation_to_graded_with_names(
-        self, api, monkeypatch
-    ):
+    def test_ingest_flips_pending_recommendation_to_graded_with_names(self, api, monkeypatch):
         client, db = api
         self._seed_fixtures_cache(db)
 
@@ -96,22 +102,24 @@ class TestResultsIngestionFlow:
         from fpl_intelligence.squad.models_db import SquadStateDB
         from fpl_intelligence.sync.service import record_recommendations
 
-        db.add(SquadStateDB(
-            session_id="794561",
-            squad_json={
-                "player_ids": [411, 12],
-                "captain_id": 411,
-                "vice_captain_id": 12,
-                "bank": 1.0,
-                "free_transfers": 1,
-                "chips_available": [],
-                "gameweek": 2,
-                "player_positions": {},
-                "player_prices": {},
-                "player_teams": {},
-            },
-            updated_at=datetime.now(UTC),
-        ))
+        db.add(
+            SquadStateDB(
+                session_id="794561",
+                squad_json={
+                    "player_ids": [411, 12],
+                    "captain_id": 411,
+                    "vice_captain_id": 12,
+                    "bank": 1.0,
+                    "free_transfers": 1,
+                    "chips_available": [],
+                    "gameweek": 2,
+                    "player_positions": {},
+                    "player_prices": {},
+                    "player_teams": {},
+                },
+                updated_at=datetime.now(UTC),
+            )
+        )
 
         class _Cap:
             player_id = 411
@@ -138,18 +146,18 @@ class TestResultsIngestionFlow:
         # aside — raw points), Saka 2.
         async def fake_fetch(gw, settings=None):
             return (
-                parse_event_live({
-                    "elements": [
-                        {"id": 411, "stats": {"total_points": 13, "minutes": 90}},
-                        {"id": 12, "stats": {"total_points": 2, "minutes": 90}},
-                    ]
-                }),
+                parse_event_live(
+                    {
+                        "elements": [
+                            {"id": 411, "stats": {"total_points": 13, "minutes": 90}},
+                            {"id": 12, "stats": {"total_points": 2, "minutes": 90}},
+                        ]
+                    }
+                ),
                 "allorigins",
             )
 
-        monkeypatch.setattr(
-            "fpl_intelligence.sync.results_ingestion.fetch_event_live", fake_fetch
-        )
+        monkeypatch.setattr("fpl_intelligence.sync.results_ingestion.fetch_event_live", fake_fetch)
 
         resp = client.post("/api/v1/admin/ingest-results?force=1")
         assert resp.status_code == 200, resp.text
@@ -189,9 +197,7 @@ class TestResultsIngestionFlow:
         async def fail_fetch(gw, settings=None):
             return None, FplEgressExhaustedError("/api/event/1/live/", [])
 
-        monkeypatch.setattr(
-            "fpl_intelligence.sync.results_ingestion.fetch_event_live", fail_fetch
-        )
+        monkeypatch.setattr("fpl_intelligence.sync.results_ingestion.fetch_event_live", fail_fetch)
         resp = client.post("/api/v1/admin/ingest-results")
         assert resp.status_code == 200
         skipped = resp.json()["report"]["skipped"]
@@ -287,42 +293,46 @@ def _save_squad(db, session_id="794561"):
     from fpl_intelligence.squad.models_db import SquadStateDB
 
     ids = list(range(101, 116))
-    db.add(SquadStateDB(
-        session_id=session_id,
-        squad_json={
-            "player_ids": ids,
-            "captain_id": 101,
-            "vice_captain_id": 102,
-            "bank": 1.0,
-            "free_transfers": 1,
-            "chips_available": [],
-            "gameweek": 2,
-            "player_positions": {},
-            "player_prices": {},
-            "player_teams": {},
-        },
-        updated_at=datetime.now(UTC),
-    ))
+    db.add(
+        SquadStateDB(
+            session_id=session_id,
+            squad_json={
+                "player_ids": ids,
+                "captain_id": 101,
+                "vice_captain_id": 102,
+                "bank": 1.0,
+                "free_transfers": 1,
+                "chips_available": [],
+                "gameweek": 2,
+                "player_positions": {},
+                "player_prices": {},
+                "player_teams": {},
+            },
+            updated_at=datetime.now(UTC),
+        )
+    )
     db.commit()
 
 
 def _store_brief_row(db, session_id="794561", gw=2):
     from fpl_intelligence.sync.materialized_models import AssistantBriefDB
 
-    db.add(AssistantBriefDB(
-        session_id=session_id,
-        gameweek=gw,
-        model="groq/test-model",
-        payload={
-            "session_id": session_id,
-            "gameweek": gw,
-            "model": "groq/test-model",
-            "sections": {"CAPTAIN": "Haaland is the armband pick."},
-            "tldr": [{"kind": "CAPTAIN", "text": "CAPTAIN: Haaland", "confidence": 70}],
-            "generated_at": datetime.now(UTC).isoformat(),
-        },
-        generated_at=datetime.now(UTC),
-    ))
+    db.add(
+        AssistantBriefDB(
+            session_id=session_id,
+            gameweek=gw,
+            model="groq/test-model",
+            payload={
+                "session_id": session_id,
+                "gameweek": gw,
+                "model": "groq/test-model",
+                "sections": {"CAPTAIN": "Haaland is the armband pick."},
+                "tldr": [{"kind": "CAPTAIN", "text": "CAPTAIN: Haaland", "confidence": 70}],
+                "generated_at": datetime.now(UTC).isoformat(),
+            },
+            generated_at=datetime.now(UTC),
+        )
+    )
     db.commit()
 
 
@@ -335,9 +345,7 @@ class TestCachedBriefReads:
         def explode(*_a, **_k):  # any LLM construction attempt fails the test
             raise AssertionError("LLM provider must never be built on-request")
 
-        monkeypatch.setattr(
-            "fpl_intelligence.api.routes.assistant._build_real_provider", explode
-        )
+        monkeypatch.setattr("fpl_intelligence.api.routes.assistant._build_real_provider", explode)
         resp = client.get("/api/v1/assistant/brief?session_id=794561")
         assert resp.status_code == 200, resp.text
         body = resp.json()
@@ -352,17 +360,19 @@ class TestCachedBriefReads:
         def explode(*_a, **_k):
             raise AssertionError("template path must stay LLM-free")
 
-        monkeypatch.setattr(
-            "fpl_intelligence.api.routes.assistant._build_real_provider", explode
-        )
+        monkeypatch.setattr("fpl_intelligence.api.routes.assistant._build_real_provider", explode)
         resp = client.get("/api/v1/assistant/brief?session_id=794561")
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body["model"] == "template-fallback"
         assert body["cached"] is False
         assert set(body["sections"]) == {
-            "SQUAD STATUS", "CAPTAIN", "TRANSFERS",
-            "FIXTURE SWINGS", "NEWS FLAGS", "LAST WEEK GRADE",
+            "SQUAD STATUS",
+            "CAPTAIN",
+            "TRANSFERS",
+            "FIXTURE SWINGS",
+            "NEWS FLAGS",
+            "LAST WEEK GRADE",
         }
 
     def test_analyst_summary_reads_pre_generated_brief(self, brief_api, monkeypatch):
@@ -423,13 +433,18 @@ class TestUnderstatSnapshotAge:
 
         recent = datetime.now(UTC) - timedelta(hours=36)
         path = tmp_path / "understat_snapshot.json"
-        path.write_text(json.dumps({
-            "meta": {
-                "fetched_at": recent.isoformat(),
-                "seasons": ["2025", "2026"],
-            },
-            "seasons": {},
-        }), encoding="utf-8")
+        path.write_text(
+            json.dumps(
+                {
+                    "meta": {
+                        "fetched_at": recent.isoformat(),
+                        "seasons": ["2025", "2026"],
+                    },
+                    "seasons": {},
+                }
+            ),
+            encoding="utf-8",
+        )
 
         # Make the FILE look ancient — mtime lies on deployed bundles.
         ancient = (datetime.now(UTC) - timedelta(days=2900)).timestamp()

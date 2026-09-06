@@ -75,11 +75,7 @@ def _rival_picks(db: Any, session_id: str) -> dict[str, list[int]]:
         picks = (row.rivals_picks or {}).get("picks") if row else None
         if not isinstance(picks, dict):
             return {}
-        return {
-            k: [int(p) for p in v]
-            for k, v in picks.items()
-            if isinstance(v, list)
-        }
+        return {k: [int(p) for p in v] for k, v in picks.items() if isinstance(v, list)}
     except Exception as exc:  # noqa: BLE001 — league layer optional
         logger.warning("rival picks unavailable: %s", exc)
         with contextlib.suppress(Exception):
@@ -168,7 +164,9 @@ async def targets_overview(
     response.headers["Cache-Control"] = "no-store"
 
     # v2.7.3-dual-state: user-facing Alpha reads the local override (effective squad)
-    squad = SquadService(session=db).get_effective_squad(session_id=session_id) if session_id else None
+    squad = (
+        SquadService(session=db).get_effective_squad(session_id=session_id) if session_id else None
+    )
     bank = float(squad.bank or 0.0) if squad else 0.0
     squad_ids = list(squad.player_ids or []) if squad else []
     pos_counts: dict[int, int] = {}
@@ -249,14 +247,11 @@ async def targets_overview(
 
     candidates.sort(key=lambda c: -c["rank_score"])
     visible = [
-        c
-        for c in candidates
-        if show_all or c["affordability"] != "unaffordable" or c["user_owns"]
+        c for c in candidates if show_all or c["affordability"] != "unaffordable" or c["user_owns"]
     ]
 
     team_of = {
-        c["player_id"]: (catalog.get(c["player_id"], {}) or {}).get("team")
-        for c in visible[:40]
+        c["player_id"]: (catalog.get(c["player_id"], {}) or {}).get("team") for c in visible[:40]
     }
     runs = _fdr_runs(db, {k: v for k, v in team_of.items() if v}, _next_unplayed_gws(db, target_gw))
 

@@ -50,7 +50,9 @@ def validation_database_url() -> str:
         raise RuntimeError("DATABASE_URL must point to PostgreSQL for this validation run.")
     url = _normalize_postgres_driver(url)
     if not url.startswith("postgresql+psycopg://"):
-        raise RuntimeError("DATABASE_URL must use a PostgreSQL SQLAlchemy URL for this validation run.")
+        raise RuntimeError(
+            "DATABASE_URL must use a PostgreSQL SQLAlchemy URL for this validation run."
+        )
     return url
 
 

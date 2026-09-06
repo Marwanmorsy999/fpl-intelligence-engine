@@ -1,3 +1,4 @@
+import contextlib
 """Phase 11.1 — Base class for structured external-data connectors.
 
 Every API-first connector (official FPL, API-Football, football-data.org)
@@ -146,11 +147,9 @@ class BaseDataConnector(ABC):  # noqa: B024 - shared plumbing, not a standalone 
             # Promote to shared cache on a hit so the next cold process
             # skips the network roundtrip too.
             if self._shared_cache is not None:
-                try:
+                with contextlib.suppress(Exception):
                     ttl = self._cache._sensitive_ttl if sensitive else self._cache._default_ttl  # noqa: SLF001
                     self._shared_cache.set(self.name, params_dict, cached, ttl_seconds=ttl)
-                except Exception:  # noqa: BLE001
-                    pass
             return cached
 
         self._rate.acquire()
@@ -177,9 +176,7 @@ class BaseDataConnector(ABC):  # noqa: B024 - shared plumbing, not a standalone 
         self._cache.store(endpoint, params_dict, payload, sensitive=sensitive)
         # Mirror into the shared cache so the next process hits there.
         if self._shared_cache is not None:
-            try:
+            with contextlib.suppress(Exception):
                 ttl = self._cache._sensitive_ttl if sensitive else self._cache._default_ttl  # noqa: SLF001
                 self._shared_cache.set(self.name, params_dict, payload, ttl_seconds=ttl)
-            except Exception:  # noqa: BLE001
-                pass
         return payload

@@ -79,9 +79,7 @@ def test_expected_minutes_matches_player_specific_distribution() -> None:
         distribution = prediction["distribution"]
         assert sum(distribution.values()) == pytest.approx(1.0, abs=1e-6)
         assert all(0.0 <= value <= 1.0 for value in distribution.values())
-        implied = sum(
-            model._bucket_means[bucket] * value for bucket, value in distribution.items()
-        )
+        implied = sum(model._bucket_means[bucket] * value for bucket, value in distribution.items())
         assert prediction["expected_minutes"] == pytest.approx(implied, abs=1e-4)
         assert 0.0 <= prediction["expected_minutes"] <= 90.0
 

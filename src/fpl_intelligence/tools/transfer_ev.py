@@ -227,9 +227,7 @@ def get_top_transfers(
     """
     players = list(all_players)
     owned = _squad_player_ids(squad)
-    by_id = {
-        int(p["id"]): p for p in (_to_dict(p) for p in players) if p.get("id") is not None
-    }
+    by_id = {int(p["id"]): p for p in (_to_dict(p) for p in players) if p.get("id") is not None}
     out_pool = [by_id[pid] for pid in sorted(owned & set(by_id))]
 
     gws_source: Iterable[int]
@@ -237,9 +235,7 @@ def get_top_transfers(
         gws_source = list(remaining_gws)
     elif predictions:
         sample = next(iter(predictions.values()), {})
-        gws_source = sorted(
-            {int(gw) for gw in sample if str(gw).lstrip("-").isdigit()}
-        )
+        gws_source = sorted({int(gw) for gw in sample if str(gw).lstrip("-").isdigit()})
     else:
         gws_source = []
 
@@ -282,4 +278,3 @@ def _to_dict(player: Any) -> dict[str, Any]:
         for name in ("id", "name", "web_name", "now_cost")
         if hasattr(player, name)
     }
-

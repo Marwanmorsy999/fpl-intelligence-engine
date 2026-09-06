@@ -1,4 +1,5 @@
 """Formal invariants for point-in-time availability materialization."""
+
 from __future__ import annotations
 
 from collections.abc import Iterable
@@ -88,8 +89,7 @@ def validate_import_result(result: Any) -> dict[str, int]:
     )
     if matched_terminal != audit.matched:
         raise ValueError(
-            "matched-record accounting failed: "
-            f"matched={audit.matched} terminal={matched_terminal}"
+            f"matched-record accounting failed: matched={audit.matched} terminal={matched_terminal}"
         )
 
     if result.eligible_before_cutoff > result.strict_safe:

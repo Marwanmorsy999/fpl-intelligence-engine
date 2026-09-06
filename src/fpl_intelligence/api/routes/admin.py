@@ -122,7 +122,7 @@ def _require_cron_auth(
         return
     supplied = authorization or ""
     if not supplied.startswith("Bearer ") or not hmac.compare_digest(
-        supplied[len("Bearer "):], expected
+        supplied[len("Bearer ") :], expected
     ):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
@@ -176,9 +176,7 @@ async def ingest_results_endpoint(
     from fpl_intelligence.sync.results_ingestion import ingest_finished_gameweeks
 
     force_gws: tuple[int, ...] = tuple(
-        int(part)
-        for part in (force or "").split(",")
-        if part.strip().isdigit()
+        int(part) for part in (force or "").split(",") if part.strip().isdigit()
     )
     try:
         report = await asyncio.wait_for(
@@ -239,28 +237,24 @@ async def purge_history_endpoint(
             {
                 int(gw)
                 for (gw,) in db.execute(
-                    select(IngestedGameweekDB.gameweek).where(
-                        IngestedGameweekDB.source.like(like)
-                    )
+                    select(IngestedGameweekDB.gameweek).where(IngestedGameweekDB.source.like(like))
                 ).all()
             }
         )
         deleted_history = int(
             db.execute(
                 delete(IngestedGameweekDB).where(IngestedGameweekDB.source.like(like))
-            ).rowcount or 0
+            ).rowcount
+            or 0
         )
 
         # Mirror rows tied to gameweeks that no longer have ANY history row.
         remaining_gws = {
-            int(gw)
-            for (gw,) in db.execute(select(IngestedGameweekDB.gameweek).distinct()).all()
+            int(gw) for (gw,) in db.execute(select(IngestedGameweekDB.gameweek).distinct()).all()
         }
         stale_gw_ids = [
             int(gid)
-            for gid, prov in db.execute(
-                select(Gameweek.id, Gameweek.provider_event_id)
-            ).all()
+            for gid, prov in db.execute(select(Gameweek.id, Gameweek.provider_event_id)).all()
             if prov is not None and int(prov) not in remaining_gws
         ]
         deleted_mirror = 0
@@ -270,15 +264,14 @@ async def purge_history_endpoint(
                     delete(PlayerGameweekPerformance).where(
                         PlayerGameweekPerformance.gameweek_id.in_(stale_gw_ids)
                     )
-                ).rowcount or 0
+                ).rowcount
+                or 0
             )
         # Baseline window must never look at purged gameweeks again.
         _ = func.count  # keep import shape stable for future aggregates
         deleted_ledger = 0
         if include_ledger:
-            deleted_ledger = int(
-                db.execute(delete(PredictionLedgerDB)).rowcount or 0
-            )
+            deleted_ledger = int(db.execute(delete(PredictionLedgerDB)).rowcount or 0)
         db.commit()
         return JSONResponse(
             content={
@@ -318,14 +311,10 @@ async def grade_now_endpoint(
     from fpl_intelligence.sync.service import score_pending_recommendations
 
     try:
-        max_ingested = db.scalar(
-            select(func.max(IngestedGameweekDB.gameweek))
-        )
+        max_ingested = db.scalar(select(func.max(IngestedGameweekDB.gameweek)))
         up_to = int(max_ingested or 0)
         if not up_to:
-            fx_row = db.scalar(
-                select(FixturesCacheDB).order_by(FixturesCacheDB.id.desc()).limit(1)
-            )
+            fx_row = db.scalar(select(FixturesCacheDB).order_by(FixturesCacheDB.id.desc()).limit(1))
             up_to = _finished_gameweek_from_cache((fx_row.payload or []) if fx_row else []) or 0
         graded = score_pending_recommendations(db, up_to_gameweek=up_to)
         by_type: dict[str, int] = {}
@@ -343,7 +332,8 @@ async def grade_now_endpoint(
                     RecommendationDB.scored_at.is_(None),
                     RecommendationDB.gameweek <= up_to,
                 )
-            ) or 0
+            )
+            or 0
         )
         db.commit()
         return JSONResponse(
@@ -354,8 +344,7 @@ async def grade_now_endpoint(
                 "scored_by_type": by_type,
                 "still_pending_within_up_to": still_pending,
                 "note": (
-                    "sweep complete — nothing stays pending once its gameweek "
-                    "results are ingested"
+                    "sweep complete — nothing stays pending once its gameweek results are ingested"
                     if still_pending == 0
                     else f"{still_pending} row(s) remain pending for gameweeks "
                     "whose results are NOT yet ingested (expected)"
@@ -398,11 +387,15 @@ async def db_probe_endpoint(
                 func.avg(PredictionCurrentDB.expected_points),
             ).where(PredictionCurrentDB.gameweek == gw)
         ).one()
-        rows = db.execute(
-            select(PredictionCurrentDB)
-            .where(PredictionCurrentDB.gameweek == gw)
-            .order_by(PredictionCurrentDB.element_id)
-        ).scalars().all()
+        rows = (
+            db.execute(
+                select(PredictionCurrentDB)
+                .where(PredictionCurrentDB.gameweek == gw)
+                .order_by(PredictionCurrentDB.element_id)
+            )
+            .scalars()
+            .all()
+        )
         return JSONResponse(
             content={
                 "table": "predictions_current",
@@ -1568,11 +1561,18 @@ def _format_brief_message(brief: dict, entry_name: str | None) -> str:
     """Plain-text Telegram rendering of the six brief sections."""
     sections = brief.get("sections") or {}
     titles = [
-        "SQUAD STATUS", "CAPTAIN", "TRANSFERS",
-        "FIXTURE SWINGS", "NEWS FLAGS", "LAST WEEK GRADE",
+        "SQUAD STATUS",
+        "CAPTAIN",
+        "TRANSFERS",
+        "FIXTURE SWINGS",
+        "NEWS FLAGS",
+        "LAST WEEK GRADE",
     ]
-    lines = [f"?? Weekly brief � GW{brief.get('gameweek', '?')}"
-             + (f" � {entry_name}" if entry_name else ""), ""]
+    lines = [
+        f"?? Weekly brief � GW{brief.get('gameweek', '?')}"
+        + (f" � {entry_name}" if entry_name else ""),
+        "",
+    ]
     for t in titles:
         body = sections.get(t)
         if isinstance(body, str) and body.strip():
@@ -1606,9 +1606,11 @@ async def friday_brief_endpoint(
 
     db = SessionLocal()
     try:
-        rows = db.execute(
-            select(SquadStateDB.session_id).order_by(SquadStateDB.updated_at.desc())
-        ).scalars().all()[:_FRIDAY_BRIEF_MAX_SQUADS]
+        rows = (
+            db.execute(select(SquadStateDB.session_id).order_by(SquadStateDB.updated_at.desc()))
+            .scalars()
+            .all()[:_FRIDAY_BRIEF_MAX_SQUADS]
+        )
 
         built = 0
         pushed = 0
@@ -1654,6 +1656,7 @@ async def friday_brief_endpoint(
         }
     finally:
         db.close()
+
 
 # --------------------------------------------------------------------------- #
 # Phase 20.1 — materialization cron (06:10 UTC) + self-sealing DDL hotfix
@@ -1715,8 +1718,7 @@ _MATERIALIZED_DDL: tuple[str, ...] = (
         CONSTRAINT uq_pred_current_gw_element UNIQUE (gameweek, element_id)
     )
     """,
-    "CREATE INDEX IF NOT EXISTS ix_predictions_current_element "
-    "ON predictions_current (element_id)",
+    "CREATE INDEX IF NOT EXISTS ix_predictions_current_element ON predictions_current (element_id)",
 )
 
 
@@ -1776,9 +1778,7 @@ async def migrate_materialized_tables_endpoint(_: None = Depends(_require_cron_a
             current = row[0] if row else None
             if current and current < "0018":
                 db.execute(text("DELETE FROM alembic_version"))
-                db.execute(
-                    text("INSERT INTO alembic_version (version_num) VALUES ('0018')")
-                )
+                db.execute(text("INSERT INTO alembic_version (version_num) VALUES ('0018')"))
                 db.commit()
 
         db.add(
@@ -2045,9 +2045,7 @@ async def daily_endpoint(
                     )
 
                     stored_rows = await asyncio.wait_for(
-                        run_in_threadpool(
-                            capture_pre_ingest_predictions, db, int(base_gw)
-                        ),
+                        run_in_threadpool(capture_pre_ingest_predictions, db, int(base_gw)),
                         timeout=6.0,
                     )
                     db.commit()
@@ -2108,17 +2106,16 @@ async def daily_endpoint(
             session_ids = [
                 str(sid)
                 for sid in db.execute(
-                    _select(SquadStateDB.session_id)
-                    .order_by(SquadStateDB.updated_at.desc())
-                ).scalars().all()[:3]
+                    _select(SquadStateDB.session_id).order_by(SquadStateDB.updated_at.desc())
+                )
+                .scalars()
+                .all()[:3]
                 if str(sid).isdigit()
             ]
             discovered = 0
             for sid in session_ids:
                 try:
-                    leagues = await asyncio.wait_for(
-                        fetch_entry_leagues(int(sid)), timeout=6.0
-                    )
+                    leagues = await asyncio.wait_for(fetch_entry_leagues(int(sid)), timeout=6.0)
                     if leagues:
                         upsert_entry_leagues(db, int(sid), leagues)
                         discovered += len(leagues)
@@ -2136,7 +2133,9 @@ async def daily_endpoint(
                         target_gw_now = 1
                     await asyncio.wait_for(
                         refresh_league_cache(
-                            db, int(cache_row.league_id), int(target_gw_now),
+                            db,
+                            int(cache_row.league_id),
+                            int(target_gw_now),
                             include_picks=False,
                         ),
                         timeout=8.0,
@@ -2181,16 +2180,21 @@ async def daily_endpoint(
 
                 note = todays_moves_note(db)
                 for sid in [
-                    str(s) for s in db.execute(
-                        _select(SquadStateDB.session_id).order_by(
-                            SquadStateDB.updated_at.desc()
-                        )
-                    ).scalars().all()[:_DAILY_MAX_SQUADS]
+                    str(s)
+                    for s in db.execute(
+                        _select(SquadStateDB.session_id).order_by(SquadStateDB.updated_at.desc())
+                    )
+                    .scalars()
+                    .all()[:_DAILY_MAX_SQUADS]
                 ]:
                     try:
                         push_dispatch(
-                            db, sid, "prices",
-                            "Price moves today", note, url="/dashboard",
+                            db,
+                            sid,
+                            "prices",
+                            "Price moves today",
+                            note,
+                            url="/dashboard",
                         )
                         gate1_note["prices_push"] = sid
                     except Exception:  # noqa: BLE001 — per-session isolation
@@ -2208,9 +2212,7 @@ async def daily_endpoint(
         graded_note = "nothing to grade"
         newly_scored_local = 0
         try:
-            fx_row = db.scalar(
-                select(FixturesCacheDB).order_by(FixturesCacheDB.id.desc()).limit(1)
-            )
+            fx_row = db.scalar(select(FixturesCacheDB).order_by(FixturesCacheDB.id.desc()).limit(1))
             fin_gw = _finished_gameweek_from_cache((fx_row.payload or []) if fx_row else [])
 
             # Phase 21.1 (T1): pull finalised per-element results for every
@@ -2264,27 +2266,34 @@ async def daily_endpoint(
                         )
 
                         for sid in [
-                            str(s) for s in db.execute(
+                            str(s)
+                            for s in db.execute(
                                 _sel(SquadStateDB.session_id).order_by(
                                     SquadStateDB.updated_at.desc()
                                 )
-                            ).scalars().all()[:_DAILY_MAX_SQUADS]
+                            )
+                            .scalars()
+                            .all()[:_DAILY_MAX_SQUADS]
                         ]:
-                            n = db.scalar(
-                                _sel(_func.count())
-                                .select_from(_Rec)
-                                .where(
-                                    _Rec.session_key == sid,
-                                    _Rec.scored_at >= started_at,
+                            n = (
+                                db.scalar(
+                                    _sel(_func.count())
+                                    .select_from(_Rec)
+                                    .where(
+                                        _Rec.session_key == sid,
+                                        _Rec.scored_at >= started_at,
+                                    )
                                 )
-                            ) or 0
+                                or 0
+                            )
                             if int(n):
                                 try:
                                     push_dispatch(
-                                        db, sid, "graded",
+                                        db,
+                                        sid,
+                                        "graded",
                                         "Track record updated",
-                                        f"{int(n)} recommendation(s) just graded "
-                                        f"for GW{fin_gw}.",
+                                        f"{int(n)} recommendation(s) just graded for GW{fin_gw}.",
                                         url="/track-record",
                                     )
                                 except Exception:  # noqa: BLE001
@@ -2308,9 +2317,11 @@ async def daily_endpoint(
         try:
             from fpl_intelligence.transfers.service import build_ledger
 
-            recent = db.execute(
-                select(SquadStateDB.session_id).order_by(SquadStateDB.updated_at.desc())
-            ).scalars().all()[:3]
+            recent = (
+                db.execute(select(SquadStateDB.session_id).order_by(SquadStateDB.updated_at.desc()))
+                .scalars()
+                .all()[:3]
+            )
             for sid in recent:
                 if _time.monotonic() - t0 > 6.0:
                     break
@@ -2342,9 +2353,11 @@ async def daily_endpoint(
 
         async def _build_briefs():
             nonlocal built, skipped, timed_out
-            rows = db.execute(
-                select(SquadStateDB.session_id).order_by(SquadStateDB.updated_at.desc())
-            ).scalars().all()[:_DAILY_MAX_SQUADS]
+            rows = (
+                db.execute(select(SquadStateDB.session_id).order_by(SquadStateDB.updated_at.desc()))
+                .scalars()
+                .all()[:_DAILY_MAX_SQUADS]
+            )
             stage_t0 = _time.monotonic()
             for sid in rows:
                 # Phase 21.1 fix: compare monotonic-to-monotonic (the previous
@@ -2355,7 +2368,10 @@ async def daily_endpoint(
                 try:
                     await asyncio.wait_for(
                         assistant_brief(
-                            response=Response(), db=db, session_id=str(sid), gw=None,
+                            response=Response(),
+                            db=db,
+                            session_id=str(sid),
+                            gw=None,
                             generate=True,
                         ),
                         timeout=14.0,
@@ -2489,6 +2505,7 @@ async def daily_endpoint(
 # copies of the same logic.
 # --------------------------------------------------------------------------- #
 
+
 async def detect_transfers_poll(
     db: Session,
     settings: Any,
@@ -2534,9 +2551,7 @@ async def detect_transfers_poll(
                 importer.build_squad_from_entry(entry_id, db),
                 timeout=8.0,
             )
-            saved = SquadService(session=db).set_squad(
-                result.squad, session_id=entry_id_str
-            )
+            saved = SquadService(session=db).set_squad(result.squad, session_id=entry_id_str)
             from fpl_intelligence.api.routes.squad import (  # noqa: PLC0415
                 _invalidate_decisions_cache,
             )
@@ -2553,9 +2568,7 @@ async def detect_transfers_poll(
             )
         except Exception as exc:  # noqa: BLE001 - per-session isolation
             db.rollback()
-            results.append(
-                {"session_id": entry_id_str, "ok": False, "error": str(exc)[:80]}
-            )
+            results.append({"session_id": entry_id_str, "ok": False, "error": str(exc)[:80]})
     return results
 
 

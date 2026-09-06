@@ -165,9 +165,7 @@ def calculate_ensemble_xpts(
 
     if not components:
         # Safety rule: never crash, fall back to the Phase 1 baseline value.
-        baseline = _as_float(data.get("baseline_xpts")) or _as_float(
-            _field("baseline_xpts")
-        )
+        baseline = _as_float(data.get("baseline_xpts")) or _as_float(_field("baseline_xpts"))
         base = baseline if baseline is not None else 0.0
         return {
             "mean": round(base, 2),
@@ -195,9 +193,7 @@ def calculate_ensemble_xpts(
         "lower": round(lower, 2),
         "upper": round(upper, 2),
         "model": "ensemble_v1",
-        "weights_used": {
-            name: round(weight / weight_sum, 4) for name, _, weight in components
-        },
+        "weights_used": {name: round(weight / weight_sum, 4) for name, _, weight in components},
         "sd": round(sd, 2),
         "ci_from_history": ci_from_history,
     }
@@ -252,16 +248,16 @@ def collect_player_inputs_batch(
 
 def get_last_5_gw_points(db: Session, player_id: int) -> list[float]:
     """Most-recent-first list of up to five gameweek point totals."""
-    return collect_player_inputs_batch(db, [player_id]).get(
-        int(player_id), {"recent_points": []}
-    )["recent_points"]
+    return collect_player_inputs_batch(db, [player_id]).get(int(player_id), {"recent_points": []})[
+        "recent_points"
+    ]
 
 
 def get_points_history(db: Session, player_id: int) -> list[float]:
     """Chronological gameweek point totals used for SD estimation."""
-    return collect_player_inputs_batch(db, [player_id]).get(
-        int(player_id), {"points_history": []}
-    )["points_history"]
+    return collect_player_inputs_batch(db, [player_id]).get(int(player_id), {"points_history": []})[
+        "points_history"
+    ]
 
 
 def get_historical_avg_vs_opponent(

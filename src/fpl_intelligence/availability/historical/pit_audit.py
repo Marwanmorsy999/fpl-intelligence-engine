@@ -1,4 +1,5 @@
 """Reproducible validation audit for imported PIT availability events."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -74,7 +75,11 @@ def audit_pit_events(db: Session, seasons: list[str] | None = None) -> PITAuditR
             db.execute(select(Season).where(Season.code.in_(seasons))).scalars().all()
         )
         season_ids = [season.id for season in season_rows]
-        query = query.where(AvailabilityEvent.season_id.in_(season_ids)) if season_ids else query.where(False)
+        query = (
+            query.where(AvailabilityEvent.season_id.in_(season_ids))
+            if season_ids
+            else query.where(False)
+        )
 
     events = list(db.execute(query).scalars().all())
     report = PITAuditReport(seasons=seasons or [])
@@ -104,9 +109,7 @@ def audit_pit_events(db: Session, seasons: list[str] | None = None) -> PITAuditR
             continue
         minutes = float(perf.minutes or 0)
         report.performance_matches += 1
-        status = str(
-            event.status.value if hasattr(event.status, "value") else event.status
-        ).lower()
+        status = str(event.status.value if hasattr(event.status, "value") else event.status).lower()
         status_minutes.setdefault(status, []).append(minutes)
         if status in _RESTRICTED:
             restricted_minutes.append(minutes)
@@ -143,9 +146,7 @@ def audit_pit_events(db: Session, seasons: list[str] | None = None) -> PITAuditR
             report.control_mean_minutes - report.restricted_mean_minutes, 4
         )
     if report.restricted_start_rate is not None and report.control_start_rate is not None:
-        report.start_rate_delta = round(
-            report.control_start_rate - report.restricted_start_rate, 6
-        )
+        report.start_rate_delta = round(report.control_start_rate - report.restricted_start_rate, 6)
     report.by_status = {
         status: {
             "n": len(values),
@@ -160,17 +161,25 @@ def audit_pit_events(db: Session, seasons: list[str] | None = None) -> PITAuditR
     if report.event_count and report.strict_safe != report.event_count:
         report.notes.append("Not every PIT event is classified STRICT_BACKTEST_SAFE.")
     if report.event_count and report.timestamp_complete != report.event_count:
-        report.notes.append("Some PIT events are missing valid_from information-availability timestamps.")
+        report.notes.append(
+            "Some PIT events are missing valid_from information-availability timestamps."
+        )
     if report.event_count and report.gameweek_linked != report.event_count:
         report.notes.append("Some PIT events are not linked to a gameweek.")
     if report.hard_out_signal_ok:
-        report.notes.append("Hard-out statuses show near-zero realized minutes on the validation sample.")
+        report.notes.append(
+            "Hard-out statuses show near-zero realized minutes on the validation sample."
+        )
     else:
-        report.notes.append("Hard-out signal is not yet established on the available validation sample.")
+        report.notes.append(
+            "Hard-out signal is not yet established on the available validation sample."
+        )
     if report.comparative_signal_ok:
         report.notes.append(
             "Restricted statuses are suppressed versus unflagged player-gameweeks in the same sampled gameweeks."
         )
     elif report.control_rows:
-        report.notes.append("Comparative restricted-vs-control signal is inconclusive on the available sample.")
+        report.notes.append(
+            "Comparative restricted-vs-control signal is inconclusive on the available sample."
+        )
     return report

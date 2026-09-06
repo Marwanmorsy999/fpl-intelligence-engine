@@ -3,6 +3,7 @@
 Manual curation: data/set_piece_takers.json with {team_id: {penalty, corners, free_kicks}}.
 Seed with known 2026/27 takers; honest 'unknown' for unmapped teams.
 """
+
 from __future__ import annotations
 
 import json
@@ -19,6 +20,7 @@ _CANDIDATES = [
 ]
 
 _raw_map: dict[int, dict[str, int]] | None = None
+
 
 def _load_raw() -> dict[int, dict[str, int]]:
     global _raw_map
@@ -48,6 +50,7 @@ def _load_raw() -> dict[int, dict[str, int]]:
     _raw_map = {}
     return _raw_map
 
+
 def set_piece_flags(player_id: int, team_id: int | None) -> dict[str, Any]:
     """Return {penalty, corners, free_kicks, unknown} for a player.
 
@@ -64,6 +67,7 @@ def set_piece_flags(player_id: int, team_id: int | None) -> dict[str, Any]:
         "free_kicks": entry.get("free_kicks") == pid,
         "unknown": False,
     }
+
 
 def is_any_taker(player_id: int, team_id: int | None) -> bool:
     flags = set_piece_flags(player_id, team_id)

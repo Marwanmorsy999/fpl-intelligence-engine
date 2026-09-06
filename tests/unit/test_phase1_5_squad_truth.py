@@ -157,7 +157,10 @@ class TestPhase2SquadTruth:
             rebuilt_from_history = False
             pending_transfer_gw = None
 
-        assert _build_transfer_status(_R()) == "Squad imported from FPL — no confirmed transfer to report."
+        assert (
+            _build_transfer_status(_R())
+            == "Squad imported from FPL — no confirmed transfer to report."
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -193,7 +196,9 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
 
 
 class TestSquadApiMode:
-    def test_mode_fpl_excludes_planned_player(self, client: TestClient, db_session: Session) -> None:
+    def test_mode_fpl_excludes_planned_player(
+        self, client: TestClient, db_session: Session
+    ) -> None:
         # Base squad via the API; local overlay via the service (the /squad/local
         # route is a single IN/OUT swap, not a full set).
         client.post(
@@ -201,9 +206,7 @@ class TestSquadApiMode:
             json=_base_payload().model_dump(mode="json"),
             params={"session_id": "api_u"},
         )
-        SquadService(session=db_session).set_local_squad(
-            _planned_payload(), session_id="api_u"
-        )
+        SquadService(session=db_session).set_local_squad(_planned_payload(), session_id="api_u")
 
         fpl = client.get("/api/v1/squad", params={"session_id": "api_u", "mode": "fpl"})
         plan = client.get("/api/v1/squad", params={"session_id": "api_u", "mode": "plan"})
@@ -221,9 +224,7 @@ class TestSquadApiMode:
             json=_base_payload().model_dump(mode="json"),
             params={"session_id": "api_d"},
         )
-        SquadService(session=db_session).set_local_squad(
-            _planned_payload(), session_id="api_d"
-        )
+        SquadService(session=db_session).set_local_squad(_planned_payload(), session_id="api_d")
         resp = client.get("/api/v1/squad", params={"session_id": "api_d"})
         assert resp.status_code == 200
         assert 115 in resp.json()["player_ids"]
@@ -291,11 +292,7 @@ _stale_wiring = pytest.mark.xfail(
 @_stale_wiring
 class TestFrontendWiring:
     STATIC = (
-        pathlib.Path(__file__).resolve().parents[2]
-        / "src"
-        / "fpl_intelligence"
-        / "web"
-        / "static"
+        pathlib.Path(__file__).resolve().parents[2] / "src" / "fpl_intelligence" / "web" / "static"
     )
 
     def test_connect_has_three_paths_and_badge(self) -> None:

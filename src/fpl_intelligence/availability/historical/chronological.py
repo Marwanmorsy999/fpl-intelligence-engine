@@ -1,4 +1,5 @@
 """Strict chronological eligibility evaluation for PIT availability."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -27,7 +28,9 @@ class ChronologicalReport:
     @property
     def eligibility_rate(self) -> float:
         # Fail closed: no evidence is not 100% coverage.
-        return round(self.eligible_before_cutoff / self.total_events, 6) if self.total_events else 0.0
+        return (
+            round(self.eligible_before_cutoff / self.total_events, 6) if self.total_events else 0.0
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -72,11 +75,17 @@ def evaluate_materialize_report(report: MaterializeReport) -> ChronologicalRepor
     for snapshot in report.snapshots:
         cutoff = snapshot.cutoff.cutoff.astimezone(UTC)
         season = snapshot.cutoff.season_code
-        bucket = out.by_season.setdefault(season, {"total": 0, "strict_safe": 0, "eligible": 0, "ineligible": 0, "missing_timestamp": 0})
+        bucket = out.by_season.setdefault(
+            season,
+            {"total": 0, "strict_safe": 0, "eligible": 0, "ineligible": 0, "missing_timestamp": 0},
+        )
         for event in snapshot.events:
             ts = _timestamps(event)
             temporal = classify_temporal(ts, strict_backtest_safe=True)
-            eligible = temporal == TemporalClass.STRICT_BACKTEST_SAFE and is_event_eligible_before_cutoff(ts, cutoff)
+            eligible = (
+                temporal == TemporalClass.STRICT_BACKTEST_SAFE
+                and is_event_eligible_before_cutoff(ts, cutoff)
+            )
             out.total_events += 1
             bucket["total"] += 1
             if temporal == TemporalClass.STRICT_BACKTEST_SAFE:
@@ -93,13 +102,15 @@ def evaluate_materialize_report(report: MaterializeReport) -> ChronologicalRepor
                 out.ineligible += 1
                 bucket["ineligible"] += 1
                 if len(out.sample_ineligible) < 20:
-                    out.sample_ineligible.append({
-                        "season_code": season,
-                        "gameweek": snapshot.cutoff.gameweek,
-                        "cutoff": cutoff.isoformat(),
-                        "player_id": str(event.get("player_id") or ""),
-                        "status": str(event.get("status") or ""),
-                        "available_at": info_time.isoformat() if info_time else None,
-                        "temporal_class": str(temporal),
-                    })
+                    out.sample_ineligible.append(
+                        {
+                            "season_code": season,
+                            "gameweek": snapshot.cutoff.gameweek,
+                            "cutoff": cutoff.isoformat(),
+                            "player_id": str(event.get("player_id") or ""),
+                            "status": str(event.get("status") or ""),
+                            "available_at": info_time.isoformat() if info_time else None,
+                            "temporal_class": str(temporal),
+                        }
+                    )
     return out

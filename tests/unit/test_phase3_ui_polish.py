@@ -38,9 +38,7 @@ NEWS_PY = ROOT / "src" / "fpl_intelligence" / "api" / "routes" / "news.py"
 def _run_node(js: str) -> subprocess.CompletedProcess:
     # NOTE: `.cjs` — some checkout parents ship a `type: module` package.json,
     # which would make node treat a bare `.js` harness as ESM (no `require`).
-    with tempfile.NamedTemporaryFile(
-        "w", suffix=".cjs", delete=False, encoding="utf-8"
-    ) as fh:
+    with tempfile.NamedTemporaryFile("w", suffix=".cjs", delete=False, encoding="utf-8") as fh:
         fh.write(js)
         js_path = fh.name
     try:
@@ -114,6 +112,8 @@ def test_phase3_metric_tooltip_css() -> None:
     css = (STATIC / "app.css").read_text(encoding="utf-8")
     assert ".metric-tip" in css
     assert "pointer-events: none" in css  # display-only: never intercepts clicks
+
+
 # ---------------------------------------------------------------------------
 # fetchWithTimeout + IndexedDB cache behaviour (node)
 # ---------------------------------------------------------------------------

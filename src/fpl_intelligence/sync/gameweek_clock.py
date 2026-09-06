@@ -122,6 +122,7 @@ def resolve_season_gw_ceiling_sync(db: Any, fallback: int | None = None) -> int 
     if not (_in_pytest() or _serverless_no_live_bootstrap()):
         try:
             import asyncio
+
             loop = asyncio.get_event_loop()
             if not loop.is_running():
                 fetched = loop.run_until_complete(bootstrap_target_gameweek())

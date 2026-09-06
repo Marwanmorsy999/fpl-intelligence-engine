@@ -1,3 +1,4 @@
+import contextlib
 """Phase 23 Gate 1 (L3) — the price engine.
 
 Daily now_cost diffs become ``price_moves`` rows plus a full
@@ -147,11 +148,7 @@ def latest_snapshot_dates(db: Any) -> tuple[date_cls | None, date_cls | None]:
 
     from fpl_intelligence.prices.models import PriceSnapshotDB
 
-    days = [
-        d[0]
-        for d in db.execute(select(distinct(PriceSnapshotDB.snapshot_date)))
-        .all()
-    ]
+    days = [d[0] for d in db.execute(select(distinct(PriceSnapshotDB.snapshot_date))).all()]
     days = sorted(days, reverse=True)
     if not days:
         return None, None
@@ -208,29 +205,23 @@ def record_price_moves(db: Any, gameweek: int) -> int:
 
 def _name_lookup(db: Any) -> dict[int, str]:
     names: dict[int, str] = {}
-    try:
+    with contextlib.suppress(Exception):
         from sqlalchemy import select as sel
 
         from fpl_intelligence.sync.materialized_models import ElementFactDB
 
-        for eid, web in db.execute(
-            sel(ElementFactDB.element_id, ElementFactDB.web_name)
-        ).all():
+        for eid, web in db.execute(sel(ElementFactDB.element_id, ElementFactDB.web_name)).all():
             if web:
                 names[int(eid)] = str(web)
-    except Exception:  # noqa: BLE001 — display-only fallback
-        pass
     if len(names) >= 100:
         return names
-    try:
+    with contextlib.suppress(Exception):
         from fpl_intelligence.prediction.live_provider import load_player_catalog
 
         for pid, row in load_player_catalog().items():
             name = str(row.get("web_name") or "")
             if name and int(pid) not in names:
                 names[int(pid)] = name
-    except Exception:  # noqa: BLE001 — display-only fallback
-        pass
     return names
 
 
@@ -246,9 +237,7 @@ def todays_moves_payload(
     from fpl_intelligence.prices.models import PriceMoveDB
 
     stmt = (
-        select(PriceMoveDB)
-        .order_by(PriceMoveDB.moved_at.desc(), PriceMoveDB.id.desc())
-        .limit(400)
+        select(PriceMoveDB).order_by(PriceMoveDB.moved_at.desc(), PriceMoveDB.id.desc()).limit(400)
     )
     rows = db.execute(stmt).scalars().all()
     if gameweek is not None:
@@ -273,9 +262,9 @@ def todays_moves_payload(
         "risers": risers,
         "fallers": fallers,
         "has_data": bool(risers or fallers),
-        "note": None if (risers or fallers)
-        else "No price moves recorded yet — the daily job builds the history "
-             "after its second run.",
+        "note": None
+        if (risers or fallers)
+        else "No price moves recorded yet — the daily job builds the history after its second run.",
     }
 
 
@@ -301,12 +290,16 @@ def price_chip_map(db: Any, player_ids: list[int]) -> dict[int, int]:
     wanted = {int(p) for p in player_ids}
     if not wanted:
         return {}
-    rows = db.execute(
-        select(PriceMoveDB)
-        .where(PriceMoveDB.element_id.in_(wanted))
-        .order_by(PriceMoveDB.moved_at.desc(), PriceMoveDB.id.desc())
-        .limit(200)
-    ).scalars().all()
+    rows = (
+        db.execute(
+            select(PriceMoveDB)
+            .where(PriceMoveDB.element_id.in_(wanted))
+            .order_by(PriceMoveDB.moved_at.desc(), PriceMoveDB.id.desc())
+            .limit(200)
+        )
+        .scalars()
+        .all()
+    )
     chips: dict[int, int] = {}
     for r in rows:
         chips.setdefault(int(r.element_id), int(r.delta))

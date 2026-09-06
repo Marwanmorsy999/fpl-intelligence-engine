@@ -51,8 +51,12 @@ class TestTemplateSections:
     def test_titles_cover_every_section(self):
         assert len(SECTION_TITLES) == len(SECTION_KEYS)
         assert set(SECTION_TITLES.values()) == {
-            "SQUAD STATUS", "CAPTAIN", "TRANSFERS",
-            "FIXTURE SWINGS", "NEWS FLAGS", "LAST WEEK GRADE",
+            "SQUAD STATUS",
+            "CAPTAIN",
+            "TRANSFERS",
+            "FIXTURE SWINGS",
+            "NEWS FLAGS",
+            "LAST WEEK GRADE",
         }
 
     def test_captain_names_real_player_with_xpts(self):

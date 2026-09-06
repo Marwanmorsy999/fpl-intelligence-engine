@@ -29,7 +29,12 @@ from playwright.sync_api import Page, Route, expect
 BASE_URL = "http://localhost:8000"
 
 SESSION_KEY = "fpl_session_v20"
-SESSION_OBJ = {"key": "794561", "source": "fpl", "entry_name": "E2E Manager", "synced_at": "2026-08-27T09:00:00.000Z"}
+SESSION_OBJ = {
+    "key": "794561",
+    "source": "fpl",
+    "entry_name": "E2E Manager",
+    "synced_at": "2026-08-27T09:00:00.000Z",
+}
 
 SQUAD_STATE = {
     "session_id": "794561",
@@ -39,7 +44,9 @@ SQUAD_STATE = {
     "gameweek": 2,
     "bank": 0.5,
     "free_transfers": 2,
-    "player_positions": {str(i): (1 if i <= 2 else 2 if i <= 7 else 3 if i <= 12 else 4) for i in range(1, 16)},
+    "player_positions": {
+        str(i): (1 if i <= 2 else 2 if i <= 7 else 3 if i <= 12 else 4) for i in range(1, 16)
+    },
     "player_prices": {str(i): 4.5 for i in range(1, 16)},
     "player_teams": {str(i): (i % 20) + 1 for i in range(1, 16)},
     "transfer_status": "Matches FPL picks — no confirmed transfer.",
@@ -64,7 +71,9 @@ LEAGUE_DEGRADED = {
     "selected": None,
     "needs_picker": False,
     "note": "league data unavailable right now — render failed (E2E); retry or press Refresh",
-    "honest_notes": ["League page could not be computed right now — showing a degraded state rather than failing."],
+    "honest_notes": [
+        "League page could not be computed right now — showing a degraded state rather than failing."
+    ],
 }
 
 
@@ -98,9 +107,15 @@ def mocked(page: Page) -> Iterator[Page]:
     # overrides it (same convention as test_ribbon_always._mocked).
     page.route("**/api/**", _json_route({}))
     page.route("**/health", _json_route({"status": "ok", "db": "connected", "version": "2.7.9"}))
-    page.route("**/api/v1/sync/status*", _json_route({"latest": {}, "counts": {}, "token_configured": True}))
+    page.route(
+        "**/api/v1/sync/status*",
+        _json_route({"latest": {}, "counts": {}, "token_configured": True}),
+    )
     page.route("**/api/v1/data-sources*", _json_route({"as_of": None, "sources": {}}))
-    page.route("**/api/v1/sync/calibration*", _json_route({"count": 0, "mae": None, "bias": None, "buckets": {}}))
+    page.route(
+        "**/api/v1/sync/calibration*",
+        _json_route({"count": 0, "mae": None, "bias": None, "buckets": {}}),
+    )
     page.route("**/api/v1/squad?**", _json_route(SQUAD_STATE))
     page.route("**/api/v1/squad/local**", _json_route(SQUAD_STATE))
     page.route("**/api/v1/targets**", _json_route(TARGETS_PAYLOAD))
@@ -115,7 +130,9 @@ def mocked(page: Page) -> Iterator[Page]:
         (status, url)
         for status, url in bad_responses
         # Journey C deliberately injects one 500; exclude that single URL there.
-        if not (status == 500 and "/api/v1/squad?" in url and getattr(page, "_allow_squad_500", False))
+        if not (
+            status == 500 and "/api/v1/squad?" in url and getattr(page, "_allow_squad_500", False)
+        )
     ]
     assert audited == [], f"unexpected HTTP >=400 responses seen: {audited}"
     assert console_errors == [], f"console.error lines seen: {console_errors}"
@@ -157,7 +174,9 @@ class TestAOnboarding:
         page.locator("#analyzeBtn").click(timeout=5_000)
 
         page.wait_for_timeout(1_500)
-        assert "from-fpl" in str(seen.get("url", "")), "entering an FPL id must call /squad/from-fpl"
+        assert "from-fpl" in str(seen.get("url", "")), (
+            "entering an FPL id must call /squad/from-fpl"
+        )
         chip = page.locator("#sessionChip")
         expect(chip).to_be_visible(timeout=10_000)
         expect(chip).to_contain_text("794561")
@@ -204,10 +223,17 @@ class TestCMyTeam:
             lambda msg: console_errors.append(msg.text) if msg.type == "error" else None,
         )
         page._allow_squad_500 = True  # noqa: SLF001 — test harness flag
-        page.route("**/health", _json_route({"status": "ok", "db": "connected", "version": "2.7.9"}))
-        page.route("**/api/v1/sync/status*", _json_route({"latest": {}, "counts": {}, "token_configured": True}))
+        page.route(
+            "**/health", _json_route({"status": "ok", "db": "connected", "version": "2.7.9"})
+        )
+        page.route(
+            "**/api/v1/sync/status*",
+            _json_route({"latest": {}, "counts": {}, "token_configured": True}),
+        )
         page.route("**/api/v1/data-sources*", _json_route({"as_of": None, "sources": {}}))
-        page.route("**/api/v1/squad?**", _json_route({"detail": "Internal Server Error"}, status=500))
+        page.route(
+            "**/api/v1/squad?**", _json_route({"detail": "Internal Server Error"}, status=500)
+        )
         page.route("**/api/**", _json_route({}))
 
         _seed_session(page)
@@ -230,7 +256,9 @@ class TestDLeague:
         _seed_session(page)
         page.goto(BASE_URL + "/league", wait_until="domcontentloaded")
         page.wait_for_timeout(1_500)
-        expect(page.locator("body")).to_contain_text("league data unavailable right now", timeout=10_000)
+        expect(page.locator("body")).to_contain_text(
+            "league data unavailable right now", timeout=10_000
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -277,7 +305,9 @@ class TestFResyncSquad:
             route.fulfill(
                 status=200,
                 content_type="application/json",
-                body=json.dumps({**SQUAD_STATE, "entry_name": "E2E Manager", "source": "fpl-import"}),
+                body=json.dumps(
+                    {**SQUAD_STATE, "entry_name": "E2E Manager", "source": "fpl-import"}
+                ),
             )
 
         page.route("**/api/v1/squad/from-fpl**", _capture)

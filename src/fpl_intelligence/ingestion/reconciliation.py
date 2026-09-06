@@ -203,11 +203,7 @@ def reconcile_fixtures(
         # Check for inconsistent scores
         home_score = fixture.get("home_score")
         away_score = fixture.get("away_score")
-        if (
-            home_score is not None
-            and away_score is not None
-            and (home_score < 0 or away_score < 0)
-        ):
+        if home_score is not None and away_score is not None and (home_score < 0 or away_score < 0):
             report.add_warning(
                 "negative_score",
                 f"Fixture {provider_id} has negative score: {home_score}-{away_score}",

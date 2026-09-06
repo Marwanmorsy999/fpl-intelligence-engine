@@ -1,3 +1,4 @@
+import contextlib
 """Phase 10.1 — FastAPI dependency-injection providers.
 
 Centralises every external seam the intelligence API touches so that:
@@ -125,6 +126,7 @@ def get_prediction_provider(db: GetDB) -> DecisionPredictionProvider:
     )
 
     provider = CachedLivePredictionProvider(session=db)
+
     # Production hotfix: provider_event_id is unique per season only. The stock
     # get_fixture_count used an unscoped scalar_one_or_none() which raises
     # MultipleResultsFound after historical seasons are ingested and turns
@@ -143,12 +145,8 @@ def get_prediction_provider(db: GetDB) -> DecisionPredictionProvider:
         return int(count)
 
     provider.get_fixture_count = _cached_fixture_count  # type: ignore[method-assign]
-
-    # Stage 2 activation: holdout-approved Team Strength EWMA modulates live xPTS.
-    try:
+    with contextlib.suppress(Exception):
         ensure_registry_entry(db)
-    except Exception:  # noqa: BLE001 — registry is bookkeeping only
-        pass
 
     _orig_resolve = provider.resolve_chain
 

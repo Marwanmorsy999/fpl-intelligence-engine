@@ -5,6 +5,7 @@ application logger. It does not add a database write, external telemetry call,
 or response-body buffering. Each request receives a correlation id and emits a
 single structured timing record suitable for Vercel runtime-log aggregation.
 """
+
 from __future__ import annotations
 
 import logging
@@ -25,9 +26,7 @@ from starlette.responses import HTMLResponse, JSONResponse, PlainTextResponse, R
 
 logger = logging.getLogger("fpl.performance")
 _request_id: ContextVar[str] = ContextVar("fpl_request_id", default="-")
-_current_timer: ContextVar[PhaseTimer | None] = ContextVar(
-    "fpl_phase_timer", default=None
-)
+_current_timer: ContextVar[PhaseTimer | None] = ContextVar("fpl_phase_timer", default=None)
 
 
 @dataclass(slots=True)
@@ -167,9 +166,7 @@ def _phase0_db_end(
     timer = current_phase_timer()
     if started is None or timer is None:
         return
-    timer.phases["db"] = timer.phases.get("db", 0.0) + (
-        time.perf_counter() - started
-    ) * 1000.0
+    timer.phases["db"] = timer.phases.get("db", 0.0) + (time.perf_counter() - started) * 1000.0
 
 
 class RequestProfilingMiddleware(BaseHTTPMiddleware):

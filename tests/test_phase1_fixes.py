@@ -5,6 +5,7 @@ These tests verify the three P0 bugs are fixed:
 1.2 - squad_push converts bank from FPL tenths and recomputes player_prices.
 1.3 - Chip baseline only counts players with real (>0) xPTS predictions.
 """
+
 from __future__ import annotations
 
 import json
@@ -23,6 +24,7 @@ from fpl_intelligence.db.base import Base
 # Shared test DB fixture
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture()
 def db_session():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
@@ -39,6 +41,7 @@ def db_session():
 # ---------------------------------------------------------------------------
 # Fix 1.2a — bank tenths conversion in squad_push
 # ---------------------------------------------------------------------------
+
 
 def _push_token_header(token: str = "testtoken") -> dict:
     return {"Authorization": f"Bearer {token}"}
@@ -69,20 +72,19 @@ class TestSquadPushBankConversion:
         payload = SquadPushPayload(
             entry_id=9999,
             gameweek=2,
-            bank=45,   # FPL tenths: £4.5m
+            bank=45,  # FPL tenths: £4.5m
             picks=[
-                PickItem(element_id=1000 + i, position=i + 1,
-                         is_captain=(i == 0), is_vice=(i == 1))
+                PickItem(element_id=1000 + i, position=i + 1, is_captain=(i == 0), is_vice=(i == 1))
                 for i in range(15)
             ],
         )
-        with patch("fpl_intelligence.prediction.live_provider.load_player_catalog", return_value=catalog):
+        with patch(
+            "fpl_intelligence.prediction.live_provider.load_player_catalog", return_value=catalog
+        ):
             # Verify conversion logic directly
             raw_bank = float(payload.bank or 0)
             bank_pounds = raw_bank / 10.0 if raw_bank >= 20 else raw_bank
-            assert bank_pounds == pytest.approx(4.5), (
-                f"bank should be £4.5m, got {bank_pounds}"
-            )
+            assert bank_pounds == pytest.approx(4.5), f"bank should be £4.5m, got {bank_pounds}"
 
     def test_small_bank_not_divided(self):
         """bank < 20 is already in £m — do not divide again."""
@@ -103,6 +105,7 @@ class TestSquadPushBankConversion:
 # ---------------------------------------------------------------------------
 # Fix 1.2b — player_prices recomputed from catalog
 # ---------------------------------------------------------------------------
+
 
 class TestSquadPushPlayerPrices:
     """squad_push now populates player_prices from the bootstrap catalog."""
@@ -134,6 +137,7 @@ class TestSquadPushPlayerPrices:
 # Fix 1.3 — chip planner baseline xPTS ignores 0-xPTS (missing) players
 # ---------------------------------------------------------------------------
 
+
 class TestChipPlannerBaseline:
     """_baseline_xpts should skip missing players (xPTS=0)."""
 
@@ -154,8 +158,7 @@ class TestChipPlannerBaseline:
             gw_preds[pid] = self._make_prediction(xpts)
 
         valid_pids = [
-            pid for pid in gw_preds
-            if int(pid) in squad_set and gw_preds[pid].expected_points > 0
+            pid for pid in gw_preds if int(pid) in squad_set and gw_preds[pid].expected_points > 0
         ]
         sorted_pids = sorted(valid_pids, key=lambda p: gw_preds[p].expected_points, reverse=True)
         top11 = sorted_pids[:11]
@@ -175,8 +178,7 @@ class TestChipPlannerBaseline:
         gw_preds = {pid: self._make_prediction(0.0) for pid in squad_players}
 
         valid_pids = [
-            pid for pid in gw_preds
-            if int(pid) in squad_set and gw_preds[pid].expected_points > 0
+            pid for pid in gw_preds if int(pid) in squad_set and gw_preds[pid].expected_points > 0
         ]
         # Fallback: include all
         if not valid_pids:
@@ -195,8 +197,7 @@ class TestChipPlannerBaseline:
             gw_preds[pid] = self._make_prediction(float(pid))
 
         valid_pids = [
-            pid for pid in gw_preds
-            if int(pid) in squad_set and gw_preds[pid].expected_points > 0
+            pid for pid in gw_preds if int(pid) in squad_set and gw_preds[pid].expected_points > 0
         ]
         assert all(pid in squad_set for pid in valid_pids)
         assert len(valid_pids) == 15

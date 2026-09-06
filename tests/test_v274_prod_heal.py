@@ -139,16 +139,17 @@ class TestLeagueNever500:
         app.dependency_overrides[deps._get_db_session] = _override
         try:
             client = TestClient(app)
-            r = client.get(
-                "/api/v1/league/trajectory", params={"session_id": "2295006"}
-            )
+            r = client.get("/api/v1/league/trajectory", params={"session_id": "2295006"})
             assert r.status_code == 200, r.text[:400]
             body = r.json()
             assert isinstance(body.get("series"), list)
             if body.get("status") != "ok":
-                assert "trajectory unavailable" in str(body.get("note", "")) or body[
-                    "status"
-                ] in {"no-predictions", "no-cache", "no-league", "unavailable"}
+                assert "trajectory unavailable" in str(body.get("note", "")) or body["status"] in {
+                    "no-predictions",
+                    "no-cache",
+                    "no-league",
+                    "unavailable",
+                }
         finally:
             app.dependency_overrides.pop(deps._get_db_session, None)
 

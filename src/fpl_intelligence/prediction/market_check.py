@@ -86,11 +86,7 @@ def compute_market_status(
             gameweek=gameweek,
             unmatched=sorted(unmatched),
         ),
-        "status": (
-            "ok"
-            if total and matched == total
-            else ("degraded" if matched else "blocked")
-        ),
+        "status": ("ok" if total and matched == total else ("degraded" if matched else "blocked")),
     }
 
 

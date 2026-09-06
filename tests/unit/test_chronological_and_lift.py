@@ -4,20 +4,35 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from fpl_intelligence.availability.historical.chronological import evaluate_materialize_report
-from fpl_intelligence.availability.historical.materialize_pit import DeadlineCutoff, MaterializedSnapshot, MaterializeReport
+from fpl_intelligence.availability.historical.materialize_pit import (
+    DeadlineCutoff,
+    MaterializedSnapshot,
+    MaterializeReport,
+)
 
 
 def _event(captured_at: datetime) -> dict[str, object]:
     return {
         "player_id": "1",
         "status": "out",
-        "timestamps": {"published_at": captured_at.isoformat(), "available_at": captured_at.isoformat()},
+        "timestamps": {
+            "published_at": captured_at.isoformat(),
+            "available_at": captured_at.isoformat(),
+        },
     }
 
 
 def _report(captured_at: datetime, cutoff: datetime) -> MaterializeReport:
     dc = DeadlineCutoff("2024-25", 1, cutoff)
-    snapshot = MaterializedSnapshot(dc, captured_at, Path("snapshot.json.xz"), "https://example.invalid/snapshot", 800, 1, [_event(captured_at)])
+    snapshot = MaterializedSnapshot(
+        dc,
+        captured_at,
+        Path("snapshot.json.xz"),
+        "https://example.invalid/snapshot",
+        800,
+        1,
+        [_event(captured_at)],
+    )
     return MaterializeReport(snapshots=[snapshot], event_count=1)
 
 

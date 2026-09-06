@@ -81,7 +81,7 @@ _DECISIONS_CACHE_MAX_ENTRIES = 256
 
 
 class _BoundedDecisionsCache(OrderedDict[str, Any]):
-    'Dict-compatible FIFO cache with a hard entry bound.'
+    "Dict-compatible FIFO cache with a hard entry bound."
 
     def __init__(self, max_entries: int) -> None:
         if max_entries <= 0:
@@ -109,6 +109,7 @@ def _invalidate_decisions_cache(session_id: str) -> None:
         for k in list(_decisions_cache.keys()):
             if k.startswith(f"{session_id}:"):
                 _decisions_cache.pop(k, None)
+
 
 # --------------------------------------------------------------------------- #
 # Rate limiting for the public retry-sync endpoint (Phase 13.5).
@@ -287,7 +288,7 @@ async def save_local_squad_swap(
 
     # Bank adjustment: bank + price_out - price_in (tenths via catalog now_cost)
     bank = float(cur.bank or 0.0)
-    try:
+    with contextlib.suppress(Exception):
         price_in = float(catalog.get(int(body.element_in), {}).get("price") or 0.0)
         price_out = float(catalog.get(int(body.element_out), {}).get("price") or 0.0)
         # Fallback to stored squad prices when catalog price missing.
@@ -297,8 +298,6 @@ async def save_local_squad_swap(
             price_out = float((cur.player_prices or {}).get(int(body.element_out)) or 0.0)
         if price_in or price_out:
             bank = round(bank + price_out - price_in, 1)
-    except Exception:
-        pass
 
     # Captain/vice follow the swapped player.
     captain_id = int(cur.captain_id)
@@ -400,13 +399,9 @@ def _build_player_details(
     players_by_element: dict[int, Player] = {}
     try:
         if player_ids:
-            rows = db.scalars(
-                select(Player).where(Player.fpl_element_id.in_(player_ids))
-            ).all()
+            rows = db.scalars(select(Player).where(Player.fpl_element_id.in_(player_ids))).all()
             players_by_element = {
-                int(row.fpl_element_id): row
-                for row in rows
-                if row.fpl_element_id is not None
+                int(row.fpl_element_id): row for row in rows if row.fpl_element_id is not None
             }
     except Exception as exc:  # noqa: BLE001 - enrichment remains best-effort
         logger.debug("batched player enrichment query failed: %s", exc)
@@ -472,12 +467,10 @@ def _build_player_details(
         if uindex and web_name:
             row = UnderstatConnector.match_player(uindex, web_name)
             if row is not None:
-                try:
+                with contextlib.suppress(Exception):
                     stats = build_stats_from_row(row)
                     xg = round(float(stats.xg_per_90), 2)
                     xa = round(float(stats.xa_per_90), 2)
-                except Exception:  # noqa: BLE001 — skip unparseable rows
-                    pass
 
         # xPTS breakdown: only when the resolved level is the proxy (it is the
         # only level that documents a formula). Baseline/backtest levels serve
@@ -685,7 +678,11 @@ async def build_decisions_payload(
     # Enrich with per-player details (names, teams, prices, codes, xPTS).
     ownership_map = _ownership_map(db)
     report.players = _build_player_details(
-        db, report, squad, effective_provider, understat_index=understat_index,
+        db,
+        report,
+        squad,
+        effective_provider,
+        understat_index=understat_index,
         ownership_map=ownership_map,
     )
 
@@ -718,12 +715,10 @@ async def build_decisions_payload(
     # v2.5.3: cache the fully-enriched report keyed by updated_at so a fresh
     # squad-push is instantly visible and stale renders never survive a bump.
     if not live_facts:
-        try:
+        with contextlib.suppress(Exception):
             cache_key = _decisions_cache_key(session_id, squad.updated_at, squad.gameweek)
             with _decisions_cache_lock:
                 _decisions_cache[cache_key] = report.model_copy(deep=True)  # type: ignore[attr-defined]
-        except Exception:
-            pass
     return report
 
 
@@ -817,9 +812,7 @@ def _names_for(db: Session, pids: set[int]) -> dict[int, str]:
     """Resolve FPL element ids to display names (player table, seed fallback)."""
     names: dict[int, str] = {}
     for element_id, web_name in db.execute(
-        select(Player.fpl_element_id, Player.web_name).where(
-            Player.fpl_element_id.in_(pids or {0})
-        )
+        select(Player.fpl_element_id, Player.web_name).where(Player.fpl_element_id.in_(pids or {0}))
     ).all():
         if element_id is not None and web_name:
             names[int(element_id)] = str(web_name)
@@ -895,17 +888,9 @@ def _next_fixture_text(
             if row.finished:
                 continue
             if row.home_team == team_id:
-                return (
-                    team_short_name(row.away_team, team_names)
-                    + "(H)"
-                    + str(row.home_difficulty)
-                )
+                return team_short_name(row.away_team, team_names) + "(H)" + str(row.home_difficulty)
             if row.away_team == team_id:
-                return (
-                    team_short_name(row.home_team, team_names)
-                    + "(A)"
-                    + str(row.away_difficulty)
-                )
+                return team_short_name(row.home_team, team_names) + "(A)" + str(row.away_difficulty)
     return None
 
 
@@ -989,9 +974,7 @@ async def _attach_decision_depth(
         squad_ids = {int(p) for p in squad.player_ids}
 
         # --- D1 differential strip -------------------------------------------
-        differentials = rank_differentials(
-            xpts_all, ownership_map, exclude_ids=squad_ids
-        )
+        differentials = rank_differentials(xpts_all, ownership_map, exclude_ids=squad_ids)
         diff_names = _names_for(db, {d["player_id"] for d in differentials})
         diff_seed = _seed_rows_for({d["player_id"] for d in differentials})
         diff_teams = _team_ids_for(db, {d["player_id"] for d in differentials})
@@ -1000,9 +983,7 @@ async def _attach_decision_depth(
             detail = report.players.get(str(pid))
             seed = diff_seed.get(pid)
             d["web_name"] = (
-                (detail.web_name if detail else None)
-                or diff_names.get(pid)
-                or f"Player {pid}"
+                (detail.web_name if detail else None) or diff_names.get(pid) or f"Player {pid}"
             )
             position = detail.position if detail else None
             if position is None and seed is not None:
@@ -1035,16 +1016,13 @@ async def _attach_decision_depth(
                 xi_xpts[pos] = xi_xpts.get(pos, 0.0) + float(detail.expected_points or 0.0)
             outfield = [1, 2, 3, 4]
             needed_positions = [
-                pos
-                for pos in sorted(outfield, key=lambda p: xi_xpts.get(p, 0.0))[:2]
+                pos for pos in sorted(outfield, key=lambda p: xi_xpts.get(p, 0.0))[:2]
             ]
         needed_positions = sorted(set(needed_positions))
 
         candidates: list[dict[str, Any]] = []
         if needed_positions:
-            candidate_ids = {
-                pid for pid, xpts in xpts_all.items() if pid not in squad_ids
-            }
+            candidate_ids = {pid for pid, xpts in xpts_all.items() if pid not in squad_ids}
             seed_rows = _seed_rows_for(candidate_ids)
             cand_teams = _team_ids_for(db, candidate_ids)
             # Seed catalog fills team ids the facts table has not mirrored yet.
@@ -1081,9 +1059,7 @@ async def _attach_decision_depth(
                     }
                 )
         watchlist = build_watchlist(candidates, needed_positions=needed_positions)
-        watchlist["verdict"] = (
-            report.transfer_plan.action_type if report.transfer_plan else "roll"
-        )
+        watchlist["verdict"] = report.transfer_plan.action_type if report.transfer_plan else "roll"
         report.meta["transfer_watchlist"] = watchlist
 
         # --- D3 captain comparison + vice EV line ------------------------------
@@ -1113,8 +1089,7 @@ async def _attach_decision_depth(
             report.captain.player_id if report.captain else None,
             report.vice_captain,
         )
-        # Phase 24 C2 — highlight set-piece takers in captain comparison
-        try:
+        with contextlib.suppress(Exception):
             from fpl_intelligence.set_pieces.service import (
                 set_piece_flags as _sp_flags,  # noqa: PLC0415
             )
@@ -1123,8 +1098,6 @@ async def _attach_decision_depth(
                 pid = int(card.get("player_id", 0) or 0)
                 team = xi_teams.get(pid)
                 card["set_pieces"] = _sp_flags(pid, team)
-        except Exception:
-            pass
         report.meta["captain_comparison"] = comparison
 
     await _run()
@@ -1196,9 +1169,7 @@ async def _attach_phase2_insights(
             PredictionCurrentDB.expected_points,
         ).where(PredictionCurrentDB.gameweek.in_(horizon))
     ).all():
-        horizon_preds.setdefault(int(element_id), {})[int(gw)] = {
-            "mean": float(pts)
-        }
+        horizon_preds.setdefault(int(element_id), {})[int(gw)] = {"mean": float(pts)}
 
     phase2: dict[str, Any] = {"model": "ensemble_v1", "gameweek": gameweek}
     squad_ids = {int(p) for p in squad.player_ids}
@@ -1277,18 +1248,14 @@ async def _attach_phase2_insights(
 
     from fpl_intelligence.models.ensemble_xpts import get_points_history
 
-    watch_ids = (
-        set(report.starting_xi)
-        | ({int(report.captain.player_id)} if report.captain else set())
-        or set(squad_ids)
-    )
+    watch_ids = set(report.starting_xi) | (
+        {int(report.captain.player_id)} if report.captain else set()
+    ) or set(squad_ids)
     id_map: dict[int, int] = {}
     minutes_by_el: dict[int, float] = {}
     if watch_ids:
         for el, pid in db.execute(
-            select(Player.fpl_element_id, Player.id).where(
-                Player.fpl_element_id.in_(watch_ids)
-            )
+            select(Player.fpl_element_id, Player.id).where(Player.fpl_element_id.in_(watch_ids))
         ).all():
             if el is not None:
                 id_map[int(el)] = int(pid)
@@ -1388,8 +1355,10 @@ def _build_transfer_status(result: Any) -> str | None:
 def _build_sync_status(result: Any, entry_id: int) -> str:
     """Build an honest sync-status line naming the egress mask that won."""
     strategy = getattr(result, "winning_strategy", None)
-    base = f"Synced via {strategy} — FPL ID {entry_id} saved." if strategy else (
-        f"FPL ID {entry_id} saved."
+    base = (
+        f"Synced via {strategy} — FPL ID {entry_id} saved."
+        if strategy
+        else (f"FPL ID {entry_id} saved.")
     )
     # v2.6.0 — surface the transfer-saga truth branches on the status line.
     if getattr(result, "rebuilt_from_history", False):
@@ -1398,8 +1367,7 @@ def _build_sync_status(result: Any, entry_id: int) -> str:
     if getattr(result, "no_pending_transfer", False):
         gw = getattr(result, "pending_transfer_gw", None) or "next"
         return (
-            f"No confirmed transfer found on FPL for GW{gw} — "
-            f"finish it on FPL, then sync. {base}"
+            f"No confirmed transfer found on FPL for GW{gw} — finish it on FPL, then sync. {base}"
         )
     return base
 
@@ -1825,10 +1793,7 @@ async def sync_now(
     if not completed and on_vercel:
         completed = await wait_for_job_fast_poll(str(session_id), timeout=41.0)
         job_after_running = get_job(str(session_id)) or {}
-        if (
-            not completed
-            and job_after_running.get("state") == "failed"
-        ):
+        if not completed and job_after_running.get("state") == "failed":
             completed = True
     if completed:
         job_after = get_job(str(session_id))

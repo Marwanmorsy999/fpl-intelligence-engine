@@ -61,7 +61,10 @@ def _get_cached_bootstrap() -> dict[str, Any] | None:
 
 def _set_cached_bootstrap(payload: dict[str, Any]) -> None:
     with _BOOTSTRAP_LOCK:
-        globals()["_BOOTSTRAP_CACHE"] = (time.monotonic(), dict(payload) if isinstance(payload, dict) else payload)
+        globals()["_BOOTSTRAP_CACHE"] = (
+            time.monotonic(),
+            dict(payload) if isinstance(payload, dict) else payload,
+        )
 
 
 def _get_cached_picks(entry_id: int, gw: int) -> dict[str, Any] | None:
@@ -79,7 +82,10 @@ def _get_cached_picks(entry_id: int, gw: int) -> dict[str, Any] | None:
 def _set_cached_picks(entry_id: int, gw: int, payload: dict[str, Any]) -> None:
     key = (int(entry_id), int(gw))
     with _PICKS_LOCK:
-        _PICKS_CACHE[key] = (time.monotonic(), dict(payload) if isinstance(payload, dict) else payload)
+        _PICKS_CACHE[key] = (
+            time.monotonic(),
+            dict(payload) if isinstance(payload, dict) else payload,
+        )
 
 
 def clear_fpl_import_caches() -> None:
@@ -108,14 +114,10 @@ async def fetch_official_history_for_gw(
 
     def _validate(data: Any) -> None:
         if not isinstance(data, dict) or not isinstance(data.get("history"), list):
-            raise ValueError(
-                f"history payload missing 'history' list (got {type(data).__name__})"
-            )
+            raise ValueError(f"history payload missing 'history' list (got {type(data).__name__})")
 
     try:
-        payload = await egress.fetch(
-            f"/api/entry/{int(entry_id)}/history/", validator=_validate
-        )
+        payload = await egress.fetch(f"/api/entry/{int(entry_id)}/history/", validator=_validate)
     except Exception as exc:
         logger.debug("fetch_official_history_for_gw failed for entry=%s: %s", entry_id, exc)
         return None
@@ -364,7 +366,9 @@ class FplSquadImporter:
 
             # Determine which GWs need network
             need_current = cached_current is None
-            need_next = cached_next is None and next_gw is not None and int(next_gw) != int(current_gw)
+            need_next = (
+                cached_next is None and next_gw is not None and int(next_gw) != int(current_gw)
+            )
 
             if need_current and need_next:
                 results: list[Any] = await asyncio.gather(
@@ -376,7 +380,11 @@ class FplSquadImporter:
                     if isinstance(r_cur, FplPicksNotSaved):
                         if next_gw is None or int(next_gw) == int(current_gw):
                             raise r_cur
-                        logger.info("picks for current_gw=%s not saved, will try next_gw=%s", current_gw, next_gw)
+                        logger.info(
+                            "picks for current_gw=%s not saved, will try next_gw=%s",
+                            current_gw,
+                            next_gw,
+                        )
                         picks_current = None
                     else:
                         # For non-404 errors on current, treat as unavailable but allow next to win
@@ -386,15 +394,25 @@ class FplSquadImporter:
                     picks_current = r_cur
                 if isinstance(r_next, Exception):
                     if isinstance(r_next, (FplPicksNotSaved, FplApiUnavailable, FplEgressError)):
-                        logger.info("picks for next_gw=%s unavailable (%s)", next_gw, type(r_next).__name__)
+                        logger.info(
+                            "picks for next_gw=%s unavailable (%s)", next_gw, type(r_next).__name__
+                        )
                     else:
                         logger.info("picks next_gw fetch error: %s", r_next)
                     picks_next = None
                 else:
                     picks_next = r_next
-                if cached_current is not None and picks_current is None and not isinstance(r_cur, Exception):
+                if (
+                    cached_current is not None
+                    and picks_current is None
+                    and not isinstance(r_cur, Exception)
+                ):
                     picks_current = cached_current
-                if cached_next is not None and picks_next is None and not isinstance(r_next, Exception):
+                if (
+                    cached_next is not None
+                    and picks_next is None
+                    and not isinstance(r_next, Exception)
+                ):
                     picks_next = cached_next
             elif need_current:
                 r = await _safe_fetch_picks(int(current_gw))
@@ -402,7 +420,11 @@ class FplSquadImporter:
                     if isinstance(r, FplPicksNotSaved):
                         if next_gw is None or int(next_gw) == int(current_gw):
                             raise r
-                        logger.info("picks for current_gw=%s not saved, will try next_gw=%s", current_gw, next_gw)
+                        logger.info(
+                            "picks for current_gw=%s not saved, will try next_gw=%s",
+                            current_gw,
+                            next_gw,
+                        )
                         picks_current = None
                     else:
                         logger.info("picks current_gw fetch error: %s", r)
@@ -415,7 +437,9 @@ class FplSquadImporter:
                 r2 = await _safe_fetch_picks(int(next_gw))  # type: ignore[arg-type]
                 if isinstance(r2, Exception):
                     if isinstance(r2, (FplPicksNotSaved, FplApiUnavailable, FplEgressError)):
-                        logger.info("picks for next_gw=%s unavailable (%s)", next_gw, type(r2).__name__)
+                        logger.info(
+                            "picks for next_gw=%s unavailable (%s)", next_gw, type(r2).__name__
+                        )
                     else:
                         logger.info("picks next_gw fetch error: %s", r2)
                     picks_next = None
@@ -539,12 +563,17 @@ class FplSquadImporter:
         to next_gw regardless of current_event.
         Returns (payload, picks_gw).
         """
+
         # Helper to extract element ids set.
         def _ids(payload: dict[str, Any] | None) -> set[int] | None:
             if not payload or not isinstance(payload.get("picks"), list):
                 return None
             try:
-                return {int(p["element"]) for p in payload["picks"] if isinstance(p, dict) and "element" in p}
+                return {
+                    int(p["element"])
+                    for p in payload["picks"]
+                    if isinstance(p, dict) and "element" in p
+                }
             except Exception:
                 return None
 
@@ -575,7 +604,11 @@ class FplSquadImporter:
                 )
                 if row is not None and isinstance(row.squad_json, dict):
                     pids = row.squad_json.get("player_ids") or []
-                    saved_ids = {int(pid) for pid in pids if isinstance(pid, (int, str)) and str(pid).isdigit()}
+                    saved_ids = {
+                        int(pid)
+                        for pid in pids
+                        if isinstance(pid, (int, str)) and str(pid).isdigit()
+                    }
                     # Also handle ints directly
                     if not saved_ids and pids:
                         try:
@@ -693,13 +726,25 @@ class FplSquadImporter:
         captain_id: int | None = None
         vice_captain_id: int | None = None
         if base_picks and isinstance(base_picks.get("picks"), list):
-            base_ids = [int(p["element"]) for p in base_picks["picks"] if isinstance(p, dict) and "element" in p]
+            base_ids = [
+                int(p["element"])
+                for p in base_picks["picks"]
+                if isinstance(p, dict) and "element" in p
+            ]
             captain_id = next(
-                (int(p["element"]) for p in base_picks["picks"] if isinstance(p, dict) and p.get("is_captain")),
+                (
+                    int(p["element"])
+                    for p in base_picks["picks"]
+                    if isinstance(p, dict) and p.get("is_captain")
+                ),
                 None,
             )
             vice_captain_id = next(
-                (int(p["element"]) for p in base_picks["picks"] if isinstance(p, dict) and p.get("is_vice_captain")),
+                (
+                    int(p["element"])
+                    for p in base_picks["picks"]
+                    if isinstance(p, dict) and p.get("is_vice_captain")
+                ),
                 None,
             )
         else:
@@ -731,14 +776,21 @@ class FplSquadImporter:
         # member when both left.
         elements = {int(e["id"]): e for e in bootstrap.get("elements") or []}
         if captain_id in outs_removed:
-            captain_id = vice_captain_id if vice_captain_id in new_ids else next(iter(new_ids), None)
+            captain_id = (
+                vice_captain_id if vice_captain_id in new_ids else next(iter(new_ids), None)
+            )
         elif captain_id not in new_ids:
             captain_id = next(iter(new_ids), None)
         if vice_captain_id not in new_ids:
             vice_captain_id = next((p for p in new_ids if p != captain_id), None)
 
         def pick_meta(el: int) -> dict[str, Any]:
-            meta = {"element": el, "position": len(new_ids), "is_captain": el == captain_id, "is_vice_captain": el == vice_captain_id}
+            meta = {
+                "element": el,
+                "position": len(new_ids),
+                "is_captain": el == captain_id,
+                "is_vice_captain": el == vice_captain_id,
+            }
             meta["multiplier"] = 2 if el == captain_id else 1
             return meta
 
@@ -784,7 +836,11 @@ class FplSquadImporter:
                 attempts_text = " ".join(err for _, err in exc.attempts)
                 if "/picks/" in path and ("404" in attempts_text or "Not found" in attempts_text):
                     raise FplPicksNotSaved(f"Picks not found for {path}: {exc}") from exc
-                if path.startswith("/api/entry/") and path.endswith("/") and ("404" in attempts_text):
+                if (
+                    path.startswith("/api/entry/")
+                    and path.endswith("/")
+                    and ("404" in attempts_text)
+                ):
                     raise FplEntryNotFound(f"FPL entry not found: {path}") from exc
                 # A 404 from *every* mask is genuinely a missing entry, not a
                 # block — but masks rarely 404, so treat exhaustion as blocked.

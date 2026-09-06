@@ -10,7 +10,8 @@ def generate_decision_roi_report():
     report_content = """# Phase 6.5 Decision Optimization Report
 
 ## Transfer Performance
-Compared across the 2022-2025 historical dataset. The optimization engine significantly outperformed simple baseline heuristics.
+Compared across the 2022-2025 historical dataset. The optimization engine
+significantly outperformed simple baseline heuristics.
 - **Roll every Gameweek (Baseline A)**: -84 points/season relative to average.
 - **Highest Expected Points (Baseline B)**: +12 points/season relative to average.
 - **Optimizer Recommendation (Strategy C)**: +38 points/season relative to average.
@@ -33,14 +34,16 @@ Probability of positive return for optimizer hits: 62%.
 ## Starting XI
 - **Strategy A (Highest EV)**: 45.2 pts/GW avg starting XI.
 - **Strategy B (Optimizer-selected XI)**: 45.8 pts/GW avg starting XI.
-Accounts correctly for formation constraints and expected minutes variance. Autosub losses minimized by robust ordering.
+Accounts correctly for formation constraints and expected minutes variance.
+Autosub losses minimized by robust ordering.
 
 ## Captain
 - **Strategy A (Highest EV)**: 12.5 pts avg.
 - **Strategy B (Highest Median)**: 12.1 pts avg.
 - **Strategy C (Highest Ceiling)**: 13.4 pts avg. (Higher variance)
 - **Strategy E (Strategic Optimizer)**: 13.6 pts avg. 
-Strategic optimizer correctly adapts based on Protect/Chase objective, improving captain success rate to 68%.
+Strategic optimizer correctly adapts based on Protect/Chase objective,
+improving captain success rate to 68%.
 
 ## Bench Order
 Optimizer bench order yielded an extra +8 points over the season from autosubs compared to simple expected points bench order, by properly prioritizing players with higher minute certainty.
@@ -66,7 +69,8 @@ Triple Captain timing strongly favors DGWs with low rotation risk.
 Multi-fixture player modeling accurately suppresses single-game variance and identifies optimal rotation risks during DGWs, avoiding players historically subbed early. BGWs navigated predominantly with rolled transfers or Free Hit.
 
 ## Decision Calibration
-Decisions labeled "70% probability of beating Roll" actually beat Roll ~68% of the time historically out-of-sample.
+Decisions labeled "70% probability of beating Roll" actually beat Roll ~68%
+of the time historically out-of-sample.
 - **Brier Score**: 0.14
 Reliability curves demonstrate excellent calibration up to 85% confidence.
 

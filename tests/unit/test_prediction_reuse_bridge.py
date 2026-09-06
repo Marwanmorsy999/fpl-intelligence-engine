@@ -136,9 +136,7 @@ def test_request_cache_is_cleared_between_generate_decisions() -> None:
     provider = MagicMock()
     provider.get_player_prediction.side_effect = lambda pid, gw: _prediction(pid, gw)
     provider.get_fixture_count.return_value = 1
-    provider.get_all_predictions.return_value = {
-        pid: _prediction(pid, 1) for pid in range(1, 16)
-    }
+    provider.get_all_predictions.return_value = {pid: _prediction(pid, 1) for pid in range(1, 16)}
 
     bridge = DecisionOptimizerBridge(provider=provider)
     squad = SquadStateCreate(
@@ -154,7 +152,9 @@ def test_request_cache_is_cleared_between_generate_decisions() -> None:
     first_request_pool_calls = provider.get_all_predictions.call_count
 
     bridge.generate_decisions(squad)
-    second_request_player_calls = provider.get_player_prediction.call_count - first_request_player_calls
+    second_request_player_calls = (
+        provider.get_player_prediction.call_count - first_request_player_calls
+    )
     second_request_pool_calls = provider.get_all_predictions.call_count - first_request_pool_calls
 
     assert first_request_player_calls > 0
@@ -165,9 +165,7 @@ def test_request_cache_is_cleared_between_generate_decisions() -> None:
 
 def test_decision_optimizers_share_unique_player_gameweek_predictions() -> None:
     provider = MagicMock()
-    provider.get_player_prediction.side_effect = lambda pid, gw: _prediction(
-        pid, gw, float(pid)
-    )
+    provider.get_player_prediction.side_effect = lambda pid, gw: _prediction(pid, gw, float(pid))
     provider.get_fixture_count.return_value = 1
     provider.get_all_predictions.return_value = {
         pid: _prediction(pid, 1, float(pid)) for pid in range(1, 16)

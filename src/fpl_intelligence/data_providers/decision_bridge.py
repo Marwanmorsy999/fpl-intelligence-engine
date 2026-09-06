@@ -124,9 +124,7 @@ class FactOverrideProvider(DecisionPredictionProvider):
     def get_all_predictions(self, gameweek: int) -> dict[int, PlayerPrediction]:
         base = self._base.get_all_predictions(gameweek)
         return {
-            pid: self._apply(self._overrides[pid], pred)
-            if pid in self._overrides
-            else pred
+            pid: self._apply(self._overrides[pid], pred) if pid in self._overrides else pred
             for pid, pred in base.items()
         }
 

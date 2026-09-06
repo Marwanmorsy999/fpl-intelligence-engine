@@ -154,7 +154,9 @@ def test_vercel_json_rewrites_route_to_the_function(source: str) -> None:
     destination = str(match.get("destination", ""))
     # Dynamic routes deliberately carry the public path in __route so the ASGI
     # shim can restore it; static destinations remain the same function entry.
-    assert destination == FUNCTION_DESTINATION or destination.startswith(FUNCTION_DESTINATION + "?__route=")
+    assert destination == FUNCTION_DESTINATION or destination.startswith(
+        FUNCTION_DESTINATION + "?__route="
+    )
     if source == "/api/v1/telegram/webhook":
         assert destination == "/api/index.py?__route=/api/v1/telegram/webhook"
     elif source == "/api/v1/admin/(.*)":
@@ -230,8 +232,7 @@ def test_scheduler_defines_run_daily_job() -> None:
 
 def _all_step_runs(wf: dict) -> str:
     return "\n".join(
-        str(step.get("run", ""))
-        for step in wf["jobs"]["run-daily"].get("steps", [])
+        str(step.get("run", "")) for step in wf["jobs"]["run-daily"].get("steps", [])
     ).lower()
 
 

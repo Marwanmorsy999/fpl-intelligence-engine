@@ -129,9 +129,7 @@ def test_capture_snapshot_dedupes_identical_rosters(db_session) -> None:
     second = capture_snapshot(db_session, "42", [1, 2, 3], 2, 0.5)
     third = capture_snapshot(db_session, "42", [1, 2, 4], 3, 0.5)
     assert first is True and second is False and third is True
-    count = len(
-        db_session.query(SquadSnapshotDB).filter(SquadSnapshotDB.entry_id == "42").all()
-    )
+    count = len(db_session.query(SquadSnapshotDB).filter(SquadSnapshotDB.entry_id == "42").all())
     assert count == 2
 
 
@@ -155,9 +153,7 @@ def test_squad_save_captures_snapshot(db_session) -> None:
         ),
         session_id="999",
     )
-    snap = db_session.scalar(
-        select(SquadSnapshotDB).where(SquadSnapshotDB.entry_id == "999")
-    )
+    snap = db_session.scalar(select(SquadSnapshotDB).where(SquadSnapshotDB.entry_id == "999"))
     assert snap is not None
     assert len(snap.player_ids) == 15
 
@@ -261,9 +257,20 @@ def test_targets_endpoint_contract(api_client) -> None:
     if body["targets"]:
         t = body["targets"][0]
         for key in (
-            "player_id", "web_name", "price", "xpts", "pos_avg", "edge",
-            "own_p", "ownership_label", "alpha", "volatility",
-            "fixture_strip", "reason", "affordability", "how_computed",
+            "player_id",
+            "web_name",
+            "price",
+            "xpts",
+            "pos_avg",
+            "edge",
+            "own_p",
+            "ownership_label",
+            "alpha",
+            "volatility",
+            "fixture_strip",
+            "reason",
+            "affordability",
+            "how_computed",
         ):
             assert key in t
 
@@ -323,8 +330,7 @@ def _seed_squad(db_session, key: str = "5001") -> None:
             chips_available=["wildcard"],
             gameweek=2,
             player_positions=positions,
-            player_prices={**{411: 10.5, 4: 5.5, 399: 8.0},
-                           **{pid: 5.0 for pid in extra_ids}},
+            player_prices={**{411: 10.5, 4: 5.5, 399: 8.0}, **{pid: 5.0 for pid in extra_ids}},
             player_teams={**{411: 1, 4: 2, 399: 3}, **{pid: 1 for pid in extra_ids}},
             session_id=key,
         ),
@@ -353,8 +359,14 @@ def test_regression_drawer_shape(api_client) -> None:
     assert resp.status_code == 200
     body = resp.json()
     for key in (
-        "player", "expected_points", "form_bars", "fixture_runs",
-        "degraded", "missing", "aliases", "set_pieces",
+        "player",
+        "expected_points",
+        "form_bars",
+        "fixture_runs",
+        "degraded",
+        "missing",
+        "aliases",
+        "set_pieces",
     ):
         assert key in body
     assert resp.json()["player"]["id"] == 411

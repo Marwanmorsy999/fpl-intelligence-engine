@@ -1,3 +1,4 @@
+import contextlib
 """Phase 25 Gate 0 (T1) — transfer intelligence API + Phase 27 Shadow Squad.
 
 ``GET /api/v1/transfers/ledger?entry_id=`` returns the materialized ledger
@@ -117,8 +118,7 @@ async def transfers_valuation(
             else f"Cost: 0 pts (free transfer). Projected 3-week gain: {valuation['gross_ev']:+.1f} pts. Net EV: {valuation['net_ev']:+.1f}. Recommendation: {valuation['recommendation']}."
         ),
     }
-    # price / name enrichment
-    try:
+    with contextlib.suppress(Exception):
         from fpl_intelligence.prediction.live_provider import load_player_catalog
 
         cat = load_player_catalog()
@@ -127,8 +127,6 @@ async def transfers_valuation(
             row = cat.get(pid, {})
             valuation[f"{key}_name"] = row.get("web_name") or f"Player {pid}"
             valuation[f"{key}_price"] = row.get("price")
-    except Exception:
-        pass
     return {
         "session_id": session_id,
         "status": "ok",
@@ -181,8 +179,12 @@ async def transfers_shadow(
         from fpl_intelligence.prediction.live_provider import load_player_catalog
 
         cat = load_player_catalog()
-        metrics["staged_in_name"] = cat.get(int(element_in), {}).get("web_name") or f"Player {element_in}"
-        metrics["staged_out_name"] = cat.get(int(element_out), {}).get("web_name") or f"Player {element_out}"
+        metrics["staged_in_name"] = (
+            cat.get(int(element_in), {}).get("web_name") or f"Player {element_in}"
+        )
+        metrics["staged_out_name"] = (
+            cat.get(int(element_out), {}).get("web_name") or f"Player {element_out}"
+        )
     except Exception:
         metrics["staged_in_name"] = f"Player {element_in}"
         metrics["staged_out_name"] = f"Player {element_out}"
@@ -202,10 +204,16 @@ async def transfers_shadow(
         # Shadow
         shadow_squad = SquadStateCreate(
             player_ids=shadow_ids,
-            captain_id=squad.captain_id if squad.captain_id != int(element_out) else int(element_in),
-            vice_captain_id=squad.vice_captain_id if squad.vice_captain_id != int(element_out) else int(element_in),
+            captain_id=squad.captain_id
+            if squad.captain_id != int(element_out)
+            else int(element_in),
+            vice_captain_id=squad.vice_captain_id
+            if squad.vice_captain_id != int(element_out)
+            else int(element_in),
             bank=float(squad.bank),
-            free_transfers=max(0, int(squad.free_transfers) - (0 if int(squad.free_transfers) > 0 else 0)),
+            free_transfers=max(
+                0, int(squad.free_transfers) - (0 if int(squad.free_transfers) > 0 else 0)
+            ),
             chips_available=list(squad.chips_available or []),
             gameweek=int(target_gw),
             player_positions=squad.player_positions,
@@ -215,13 +223,13 @@ async def transfers_shadow(
         )
         # Adjust prices dict for shadow
         if shadow_squad.player_prices and int(element_in) not in shadow_squad.player_prices:
-            try:
+            with contextlib.suppress(Exception):
                 from fpl_intelligence.prediction.live_provider import load_player_catalog
 
                 cat2 = load_player_catalog()
-                shadow_squad.player_prices[int(element_in)] = float(cat2.get(int(element_in), {}).get("price") or 0.0)
-            except Exception:
-                pass
+                shadow_squad.player_prices[int(element_in)] = float(
+                    cat2.get(int(element_in), {}).get("price") or 0.0
+                )
             shadow_squad.player_prices.pop(int(element_out), None)
         shad_report = bridge.generate_decisions(shadow_squad)
         shad_cap = shad_report.captain.player_id if shad_report.captain else shadow_squad.captain_id
@@ -272,12 +280,18 @@ async def save_local_squad(
     if cur is None:
         from fastapi import HTTPException as _HTTP
 
-        raise _HTTP(status_code=404, detail="No squad saved for this session — import your team first.")
-    shadow_ids = build_shadow_squad(list(cur.player_ids), int(body.element_out), int(body.element_in))
+        raise _HTTP(
+            status_code=404, detail="No squad saved for this session — import your team first."
+        )
+    shadow_ids = build_shadow_squad(
+        list(cur.player_ids), int(body.element_out), int(body.element_in)
+    )
     if shadow_ids is None:
         from fastapi import HTTPException as _HTTP
 
-        raise _HTTP(status_code=422, detail="Staged transfer invalid: OUT not in squad or IN already owned.")
+        raise _HTTP(
+            status_code=422, detail="Staged transfer invalid: OUT not in squad or IN already owned."
+        )
 
     try:
         from fpl_intelligence.prediction.live_provider import load_player_catalog  # noqa: PLC0415
@@ -287,7 +301,7 @@ async def save_local_squad(
         catalog = {}
 
     bank = float(cur.bank or 0.0)
-    try:
+    with contextlib.suppress(Exception):
         price_in = float(catalog.get(int(body.element_in), {}).get("price") or 0.0)
         price_out = float(catalog.get(int(body.element_out), {}).get("price") or 0.0)
         if not price_in:
@@ -296,8 +310,6 @@ async def save_local_squad(
             price_out = float((cur.player_prices or {}).get(int(body.element_out)) or 0.0)
         if price_in or price_out:
             bank = round(bank + price_out - price_in, 1)
-    except Exception:
-        pass
 
     captain_id = int(cur.captain_id)
     vice_id = int(cur.vice_captain_id)
@@ -336,12 +348,10 @@ async def save_local_squad(
         SquadStateCreate(**{k: v for k, v in payload.model_dump().items() if k != "updated_at"}),
         session_id=body.session_id,
     )
-    try:
+    with contextlib.suppress(Exception):
         from fpl_intelligence.api.routes.squad import _invalidate_decisions_cache  # noqa: PLC0415
 
         _invalidate_decisions_cache(body.session_id)
-    except Exception:
-        pass
     response.headers["Cache-Control"] = "no-store"
     return {
         "status": "ok",

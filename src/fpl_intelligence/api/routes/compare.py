@@ -1,8 +1,10 @@
+import contextlib
 """Phase 24 Gate 0 M3 — head-to-head compare endpoint.
 
 GET /api/v1/compare?player_a=&player_b=&session_id=&gw=
 Returns side-by-side cards with diff highlight metadata.
 """
+
 # ruff: noqa: E501,F401,SIM105,SIM115,B009,I001,F841
 from __future__ import annotations
 
@@ -35,6 +37,7 @@ GetDB = deps.GetDB
 
 HORIZON_GWS = 5
 
+
 def _set_piece_for(player_id: int, team_id: int | None) -> dict[str, Any]:
     try:
         from fpl_intelligence.set_pieces.service import set_piece_flags  # noqa: PLC0415
@@ -44,6 +47,7 @@ def _set_piece_for(player_id: int, team_id: int | None) -> dict[str, Any]:
         if team_id is None:
             return {"penalty": False, "corners": False, "free_kicks": False, "unknown": True}
         return {"penalty": False, "corners": False, "free_kicks": False, "unknown": True}
+
 
 def _player_payload(
     db,
@@ -57,10 +61,8 @@ def _player_payload(
         if prow is None:
             prow = db.get(Player, player_id)
     except Exception:
-        try:
+        with contextlib.suppress(Exception):
             db.rollback()
-        except Exception:
-            pass
         prow = None
 
     web_name = (prow.web_name if prow else None) or f"Player {player_id}"
@@ -79,45 +81,41 @@ def _player_payload(
         except Exception:
             price = None
     if price is None:
-        try:
+        with contextlib.suppress(Exception):
             from fpl_intelligence.prediction.live_provider import load_player_catalog
+
             cat = load_player_catalog().get(int(player_id))
             if cat and cat.get("price"):
                 price = float(cat["price"])
-        except Exception:
-            pass
     if price is None:
         price = 0.0
     # team fallback from catalog
     if team_id is None:
-        try:
+        with contextlib.suppress(Exception):
             from fpl_intelligence.prediction.live_provider import load_player_catalog
+
             cat2 = load_player_catalog().get(int(player_id))
             if cat2 and cat2.get("team"):
                 team_id = int(cat2["team"])
-        except Exception:
-            pass
 
     # position
     position = getattr(prow, "position_code", None) if prow else None
     if position is None:
-        try:
+        with contextlib.suppress(Exception):
             from fpl_intelligence.prediction.live_provider import load_player_catalog
+
             cat3 = load_player_catalog().get(int(player_id))
             if cat3 and cat3.get("position"):
                 position = int(cat3["position"])
-        except Exception:
-            pass
 
     # team short
     team_short = None
-    try:
+    with contextlib.suppress(Exception):
         from fpl_intelligence.prediction.live_provider import load_player_catalog
+
         cat4 = load_player_catalog().get(int(player_id))
         if cat4 and cat4.get("team_short"):
             team_short = str(cat4["team_short"])
-    except Exception:
-        pass
     if not team_short and team_id is not None:
         try:
             names = _team_names(db)
@@ -148,7 +146,7 @@ def _player_payload(
             xpts_breakdown = {k: round(float(v), 2) for k, v in raw_bd.items()}
     # fallback to inline provider when materialized row missing (needed for tests with StaticProvider)
     if expected_points is None:
-        try:
+        with contextlib.suppress(Exception):
             prov = deps.get_prediction_provider(db)
             preds = prov.get_squad_predictions([int(player_id)], [int(gameweek)])
             p = (preds.get(int(gameweek)) or {}).get(int(player_id))
@@ -163,24 +161,24 @@ def _player_payload(
                 bd = getattr(p, "breakdown", None)
                 if isinstance(bd, dict) and bd:
                     xpts_breakdown = {k: round(float(v), 2) for k, v in bd.items()}
-        except Exception:
-            pass
 
     # Understat xG/xA
     xg = xa = None
-    try:
+    with contextlib.suppress(Exception):
         provider = deps.get_prediction_provider(db)
         idx_getter = getattr(provider, "understat_index", None)
         if callable(idx_getter):
             uindex = idx_getter() or {}
-            from fpl_intelligence.data_providers.understat import UnderstatConnector, build_stats_from_row
+            from fpl_intelligence.data_providers.understat import (
+                UnderstatConnector,
+                build_stats_from_row,
+            )
+
             urow = UnderstatConnector.match_player(uindex, web_name)
             if urow is not None:
                 stats = build_stats_from_row(urow)
                 xg = round(float(stats.xg_per_90), 2)
                 xa = round(float(stats.xa_per_90), 2)
-    except Exception:
-        pass
 
     # form bars
     form_bars = _form_bars_from_history(db, int(player_id))
@@ -188,20 +186,17 @@ def _player_payload(
     # fixtures
     fixture_runs: list[dict[str, Any]] = []
     avg_fdr = NEUTRAL_FDR
-    try:
+    with contextlib.suppress(Exception):
         # need squad gameweek for horizon; use passed gameweek
         team_names = _team_names(db)
         # load fixtures synchronously? load_fixtures is async
         import asyncio
+
         raw_fixtures = None
-        try:
+        with contextlib.suppress(Exception):
             # if we are already in async context, we need to run via run_until_complete
             # but this endpoint is async, so we can await directly - we will handle outside
             pass
-        except Exception:
-            pass
-    except Exception:
-        pass
     # fixtures will be filled by caller that awaits load_fixtures
     # For now return empty and let caller populate? Instead we make payload builder async and caller will fill fixtures.
     # To avoid complexity, we keep fixture_runs empty here and enhance in route.
@@ -215,17 +210,18 @@ def _player_payload(
         from fpl_intelligence.api.routes.news import cached_items_from_db
         from fpl_intelligence.data_providers.bbc_news import NEWS_KEYWORDS, match_headlines
         from fpl_intelligence.materialize.service import NEWS_MAX_AGE_SECONDS
+
         items, fetched_at = cached_items_from_db(db, max_age_seconds=NEWS_MAX_AGE_SECONDS)
         if items and web_name:
-            flags = match_headlines(items, [(player_id, web_name, first_name, second_name)], NEWS_KEYWORDS)
+            flags = match_headlines(
+                items, [(player_id, web_name, first_name, second_name)], NEWS_KEYWORDS
+            )
             hit = flags.get(str(player_id))
             if hit is not None:
                 news_flag = hit
     except Exception:
-        try:
+        with contextlib.suppress(Exception):
             db.rollback()
-        except Exception:
-            pass
         news_flag = None
 
     return {
@@ -251,6 +247,7 @@ def _player_payload(
         "set_pieces": set_pieces,
     }
 
+
 @router.get("", include_in_schema=False)
 async def compare_players(
     db: GetDB,
@@ -267,15 +264,14 @@ async def compare_players(
         squad = SquadService(session=db).get_squad(session_id=session_id)
         if squad is not None:
             target_gw = int(squad.gameweek)
-            # try to resolve to current GW via clock
-            try:
+            with contextlib.suppress(Exception):
                 from fpl_intelligence.sync.gameweek_clock import resolve_target_gameweek
+
                 target_gw = await resolve_target_gameweek(db, fallback=target_gw)
-            except Exception:
-                pass
     if target_gw is None:
         try:
             from fpl_intelligence.sync.gameweek_clock import resolve_target_gameweek
+
             target_gw = await resolve_target_gameweek(db, fallback=2)
         except Exception:
             target_gw = 2
@@ -312,7 +308,13 @@ async def compare_players(
                 # if empty, fabricate neutral
                 if not payload["fixture_runs"]:
                     payload["fixture_runs"] = [
-                        {"gw": target_gw + i, "opponent_id": 0, "opponent": "—", "is_home": True, "difficulty": 3}
+                        {
+                            "gw": target_gw + i,
+                            "opponent_id": 0,
+                            "opponent": "—",
+                            "is_home": True,
+                            "difficulty": 3,
+                        }
                         for i in range(HORIZON_GWS)
                     ]
     except Exception as exc:
@@ -320,7 +322,13 @@ async def compare_players(
         for payload in (payload_a, payload_b):
             if not payload.get("fixture_runs"):
                 payload["fixture_runs"] = [
-                    {"gw": target_gw + i, "opponent_id": 0, "opponent": "—", "is_home": True, "difficulty": 3}
+                    {
+                        "gw": target_gw + i,
+                        "opponent_id": 0,
+                        "opponent": "—",
+                        "is_home": True,
+                        "difficulty": 3,
+                    }
                     for i in range(HORIZON_GWS)
                 ]
 

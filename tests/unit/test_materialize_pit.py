@@ -48,7 +48,9 @@ def test_github_json_uses_actions_token(monkeypatch: pytest.MonkeyPatch) -> None
     assert seen["authorization"] == "Bearer test-token"
 
 
-def test_download_snapshot_validates_payload(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_download_snapshot_validates_payload(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     payload = json.dumps({"elements": [{"id": 1}]}).encode()
     compressed = lzma.compress(payload)
 

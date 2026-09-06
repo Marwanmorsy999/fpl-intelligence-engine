@@ -1,3 +1,4 @@
+import contextlib
 """Phase 17.0 — Data Sources status endpoint.
 
 Surfaces the live status of every external data source the engine depends on:
@@ -42,7 +43,7 @@ def _snapshot_age_and_seasons(path: str) -> tuple[float | None, list[str]]:
     the connector itself wrote is deterministic and honest; mtime is only a
     fallback when meta is unreadable.
     """
-    try:
+    with contextlib.suppress(Exception):
         import json
 
         with open(path, encoding="utf-8") as fh:
@@ -56,14 +57,10 @@ def _snapshot_age_and_seasons(path: str) -> tuple[float | None, list[str]]:
             seasons = [
                 str(s)
                 for s in (
-                    meta.get("seasons") or []
-                    if isinstance(meta.get("seasons"), list)
-                    else []
+                    meta.get("seasons") or [] if isinstance(meta.get("seasons"), list) else []
                 )
             ]
             return round(age_days, 1), seasons
-    except Exception:  # noqa: BLE001 - fall back to file metadata below
-        pass
     return _file_age_days(path), []
 
 
@@ -131,9 +128,7 @@ async def _probe_odds_uncached(db: Any) -> dict[str, Any]:
         block = await odds_probe_payload(db, snapshot)
         if block.get("unmatched"):
             logger.info("odds mapping unmatched teams: %s", block["unmatched"])
-        # Phase 23 (C1): persist the canonical payload so Decisions/Captain
-        # (materialized fast path) render the exact same sentence.
-        try:
+        with contextlib.suppress(Exception):
             from fpl_intelligence.prediction.market_check import store_shared_payload
 
             store_shared_payload(
@@ -141,8 +136,6 @@ async def _probe_odds_uncached(db: Any) -> dict[str, Any]:
                 block,
                 gameweek=block.get("gameweek"),
             )
-        except Exception:  # noqa: BLE001 — best-effort persistence
-            pass
         return {"status": block["status"], "detail": block["detail"]}
     except Exception as exc:  # noqa: BLE001 — audit must never fail the page
         db.rollback()  # keep the shared request session usable afterwards
@@ -189,15 +182,13 @@ async def odds_probe_payload(db: Any, snapshot: Any) -> dict[str, Any]:
 
     id_to_names: dict[int, list[str]] = {}
     for provider_id, short_name, full_name in db.execute(
-        select(TeamExternalId.provider_team_id, Team.short_name, Team.name).join(
-            Team, Team.id == TeamExternalId.team_id
-        ).where(TeamExternalId.provider == "official_fpl")
+        select(TeamExternalId.provider_team_id, Team.short_name, Team.name)
+        .join(Team, Team.id == TeamExternalId.team_id)
+        .where(TeamExternalId.provider == "official_fpl")
     ).all():
         if provider_id is None:
             continue
-        id_to_names[int(provider_id)] = [
-            str(c) for c in (short_name, full_name) if c
-        ]
+        id_to_names[int(provider_id)] = [str(c) for c in (short_name, full_name) if c]
 
     rows = [(r.event, r.home_team, r.away_team) for r in gw_rows]
     status_block = compute_market_status(rows, id_to_names, covered)
@@ -329,9 +320,8 @@ async def _probe_understat_refresh_uncached(db: Any) -> dict[str, Any]:
         except Exception as exc:  # noqa: BLE001 - persistence is best-effort
             db.rollback()
             logger.warning("understat refresh persistence failed: %s", exc)
-        detail = (
-            f"2026/27 live via {note} · {len(player_rows)} players"
-            + ("" if stored else " · not persisted")
+        detail = f"2026/27 live via {note} · {len(player_rows)} players" + (
+            "" if stored else " · not persisted"
         )
         return {"status": "ok", "detail": detail}
 
@@ -361,7 +351,7 @@ _response_lock = threading.Lock()
 
 async def _probe_fpl(settings: Any) -> tuple[str, str, str]:
     """FPL import reachability -> (status, detail, strategy)."""
-    try:
+    with contextlib.suppress(Exception):
         from fpl_intelligence.data_providers.fpl_egress import validate_entry_payload
         from fpl_intelligence.data_providers.registry import get_async_fpl_adapter
 
@@ -373,8 +363,6 @@ async def _probe_fpl(settings: Any) -> tuple[str, str, str]:
             use_cache=False,
         )
         return "ok", "reachable", adapter.winning_strategy or "direct"
-    except Exception:  # noqa: BLE001
-        pass
     try:
         async with httpx.AsyncClient(
             timeout=_PROBE_BUDGET_SECONDS, follow_redirects=True
@@ -491,17 +479,13 @@ async def data_sources(db: deps.GetDB, response: Response) -> dict[str, Any]:
     )
     from fpl_intelligence.sync.models import IngestedGameweekDB
 
-    fx_row = db.scalar(
-        select(FixturesCacheDB).order_by(FixturesCacheDB.id.desc()).limit(1)
-    )
+    fx_row = db.scalar(select(FixturesCacheDB).order_by(FixturesCacheDB.id.desc()).limit(1))
     if fx_row is not None:
         age_h = _age_seconds_since(fx_row.fetched_at) / 3600
         n_fix = len(fx_row.payload or [])
         if age_h * 3600 <= FIXTURES_MAX_AGE_SECONDS and n_fix:
             fixtures_status = "ok"
-            fixtures_detail = (
-                f"{n_fix} fixtures cached {age_h:.1f}h ago (source: {fx_row.source})"
-            )
+            fixtures_detail = f"{n_fix} fixtures cached {age_h:.1f}h ago (source: {fx_row.source})"
         else:
             fixtures_status = "stale"
             fixtures_detail = f"cache is {age_h:.0f}h old — waiting for cron"
@@ -556,10 +540,7 @@ async def data_sources(db: deps.GetDB, response: Response) -> dict[str, Any]:
         .limit(1)
     )
     ingested_gws = sorted(
-        {
-            int(gw)
-            for (gw,) in db.execute(select(IngestedGameweekDB.gameweek).distinct()).all()
-        }
+        {int(gw) for (gw,) in db.execute(select(IngestedGameweekDB.gameweek).distinct()).all()}
     )
     if last_ingest is not None:
         ingest_age_h = _age_seconds_since(last_ingest) / 3600
@@ -585,9 +566,7 @@ async def data_sources(db: deps.GetDB, response: Response) -> dict[str, Any]:
         .limit(1)
     )
     if pred_rows:
-        pred_age_h = (
-            _age_seconds_since(pred_last) / 3600 if pred_last is not None else None
-        )
+        pred_age_h = _age_seconds_since(pred_last) / 3600 if pred_last is not None else None
         gw_txt = ",".join(f"GW{gw}({n})" for gw, n in pred_rows[:6])
         predictions_status = "ok" if (pred_age_h or 0) <= 36 else "stale"
         predictions_detail = f"xPTS for {gw_txt} — computed {pred_age_h:.1f}h ago"

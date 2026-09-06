@@ -49,9 +49,7 @@ _PRIVATE_PREFIXES: tuple[str, ...] = (
 
 #: Paths that own the short RSS news policy (both the bare and versioned paths
 #: may be served — news router is mounted at /news and /api/v1/news).
-_NEWS_RSS_PATHS: frozenset[str] = frozenset(
-    {"/news/bbc-rss", "/api/v1/news/bbc-rss"}
-)
+_NEWS_RSS_PATHS: frozenset[str] = frozenset({"/news/bbc-rss", "/api/v1/news/bbc-rss"})
 
 
 def cache_control_for(method: str, path: str) -> str | None:

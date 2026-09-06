@@ -338,7 +338,9 @@ def browser_page(page: Page) -> Iterator[Page]:
     )
     page.route(
         "**/api/v1/push/**",
-        lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({"unread": 0})),
+        lambda r: r.fulfill(
+            status=200, content_type="application/json", body=json.dumps({"unread": 0})
+        ),
     )
 
     yield page
