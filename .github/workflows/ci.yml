@@ -1,23 +1,23 @@
-name: Preview CI
+name: CI
 
 on:
   pull_request:
     branches: [master, main]
   push:
-    branches: [master]
+    branches: [master, main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: preview-ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -31,32 +31,19 @@ jobs:
           cache: pip
 
       - name: Install development dependencies
-        run: python -m pip install ".[dev]"
+        run: python -m pip install -e ".[dev]"
 
-      - name: Compile source
+      - name: Install Chromium for web E2E
+        run: python -m playwright install --with-deps chromium
+
+      - name: Compile source and tests
         run: python -m compileall -q src tests scripts
 
-      - name: Ruff changed Python files
-        shell: bash
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            git diff --name-only "${{ github.event.pull_request.base.sha }}" HEAD -- '*.py' > /tmp/changed_python.txt
-          else
-            git diff --name-only HEAD^ HEAD -- '*.py' > /tmp/changed_python.txt
-          fi
-          if [ -s /tmp/changed_python.txt ]; then
-            cat /tmp/changed_python.txt
-            xargs -r -d '\n' python -m ruff check < /tmp/changed_python.txt
-          else
-            echo "No changed Python files."
-          fi
+      - name: Ruff
+        run: python -m ruff check src tests scripts
 
-      - name: Hermetic unit tests
-        run: >-
-          python -m pytest -q
-          tests/unit/test_health.py
-          tests/unit/test_health_db_probe.py
-          tests/unit/test_validation_database_config.py
+      - name: Full test suite
+        run: python -m pytest -q
 
       - name: Import smoke test
         run: python -c "from fpl_intelligence.api.main import app; print(app.title)"
