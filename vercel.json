@@ -17,17 +17,10 @@
       "schedule": "10 6 * * *"
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "/(?<path>.*)",
-      "dest": "/api/index.py",
-      "transforms": [
-        {
-          "type": "request.path",
-          "op": "set",
-          "args": "/$path"
-        }
-      ]
+      "source": "/(.*)",
+      "destination": "/api/index.py?__route=/$1"
     }
   ]
 }
