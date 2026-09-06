@@ -19,10 +19,26 @@ from typing import Any
 
 #: Official FPL team ids (bootstrap-static order) -> 3-letter short names.
 TEAM_SHORT_NAMES: dict[int, str] = {
-    1: "ARS", 2: "AVL", 3: "BOU", 4: "BRE", 5: "BHA",
-    6: "BUR", 7: "CHE", 8: "CRY", 9: "EVE", 10: "FUL",
-    11: "LEE", 12: "LIV", 13: "MCI", 14: "MUN", 15: "NEW",
-    16: "NFO", 17: "SUN", 18: "TOT", 19: "WHU", 20: "WOL",
+    1: "ARS",
+    2: "AVL",
+    3: "BOU",
+    4: "BRE",
+    5: "BHA",
+    6: "BUR",
+    7: "CHE",
+    8: "CRY",
+    9: "EVE",
+    10: "FUL",
+    11: "LEE",
+    12: "LIV",
+    13: "MCI",
+    14: "MUN",
+    15: "NEW",
+    16: "NFO",
+    17: "SUN",
+    18: "TOT",
+    19: "WHU",
+    20: "WOL",
 }
 
 #: Neutral FDR — the league-average difficulty every swing is measured against.
@@ -32,9 +48,7 @@ NEUTRAL_FDR = 3.0
 NEUTRAL_FDR_INT = 3
 
 
-def team_short_name(
-    team_id: int | None, names: Mapping[int, str] | None = None
-) -> str:
+def team_short_name(team_id: int | None, names: Mapping[int, str] | None = None) -> str:
     """Short name for an official FPL team id.
 
     Phase 20.1: prefers a DB-backed ``names`` map (official id -> short name)
@@ -114,9 +128,7 @@ def parse_fixtures(raw: Iterable[Mapping[str, Any]]) -> list[FixtureRow]:
                 away_difficulty=ad if ad is not None else NEUTRAL_FDR_INT,
                 finished=bool(item.get("finished")),
                 kickoff=(
-                    item.get("kickoff_time")
-                    if isinstance(item.get("kickoff_time"), str)
-                    else None
+                    item.get("kickoff_time") if isinstance(item.get("kickoff_time"), str) else None
                 ),
             )
         )
@@ -132,9 +144,7 @@ def infer_current_gameweek(rows: Sequence[FixtureRow], fallback: int = 1) -> int
     return (max(played) + 1) if played else fallback
 
 
-def next_gameweeks(
-    rows: Sequence[FixtureRow], current_gw: int, count: int = 5
-) -> list[int]:
+def next_gameweeks(rows: Sequence[FixtureRow], current_gw: int, count: int = 5) -> list[int]:
     """The next ``count`` gameweeks with any scheduled fixture, from now."""
     events = sorted({r.event for r in rows if r.event >= current_gw})
     return events[: max(count, 0)]
@@ -148,11 +158,7 @@ def next_unplayed_gameweeks(
     A gameweek whose fixtures are all finished never enters the horizon, even
     when its event id is >= the target (e.g. a partially-played current GW
     stays, a fully-played future GW cannot exist)."""
-    unplayed = {
-        r.event
-        for r in rows
-        if r.event >= current_gw and not r.finished
-    }
+    unplayed = {r.event for r in rows if r.event >= current_gw and not r.finished}
     return sorted(unplayed)[: max(count, 0)]
 
 
@@ -172,8 +178,9 @@ def player_run(
                 break
         if match is None or team_id is None:
             runs.append(
-                PlayerRun(gw=gw, opponent_id=0, opponent="—",
-                          is_home=True, difficulty=NEUTRAL_FDR_INT)
+                PlayerRun(
+                    gw=gw, opponent_id=0, opponent="—", is_home=True, difficulty=NEUTRAL_FDR_INT
+                )
             )
             continue
         is_home = team_id == match.home_team

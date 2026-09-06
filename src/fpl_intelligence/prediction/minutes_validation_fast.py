@@ -83,7 +83,10 @@ class FastMinutesWalkForwardEvaluator:
 
         if not cutoffs:
             return ValidationResult(
-                [], [], {"no_temporal_provenance": 0, "insufficient_training_rows": 0}, sorted(set(seasons))
+                [],
+                [],
+                {"no_temporal_provenance": 0, "insufficient_training_rows": 0},
+                sorted(set(seasons)),
             )
 
         datasets = self._build_datasets_once(cutoffs)
@@ -126,9 +129,7 @@ class FastMinutesWalkForwardEvaluator:
             model = self._fit_model(train_datasets)
             features = dataset.features
             player_ids = sorted(features)
-            candidate_predictions = model.predict(
-                [features[player_id] for player_id in player_ids]
-            )
+            candidate_predictions = model.predict([features[player_id] for player_id in player_ids])
             candidate = {
                 player_id: prediction
                 for player_id, prediction in zip(player_ids, candidate_predictions, strict=True)
@@ -265,7 +266,9 @@ class FastMinutesWalkForwardEvaluator:
             )
         )
         targets_by_key: dict[tuple[str, int], list[tuple[int, float]]] = {}
-        for player_id, _gameweek_id, minutes, gameweek, season in self.db.execute(target_stmt).all():
+        for player_id, _gameweek_id, minutes, gameweek, season in self.db.execute(
+            target_stmt
+        ).all():
             key = (str(season), int(gameweek))
             if key not in cutoff_keys:
                 continue

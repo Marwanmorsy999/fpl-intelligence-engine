@@ -43,9 +43,7 @@ class PushSubscriptionDB(Base):
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
-    __table_args__ = (
-        UniqueConstraint("endpoint", name="uq_push_endpoint"),
-    )
+    __table_args__ = (UniqueConstraint("endpoint", name="uq_push_endpoint"),)
 
 
 class NotificationLogDB(Base):
@@ -100,9 +98,7 @@ def send_webpush(subscription: dict[str, Any], payload: dict[str, Any]) -> None:
             subscription_info=subscription,
             data=json.dumps(payload),
             vapid_private_key=os.environ.get("VAPID_PRIVATE_KEY", "").strip(),
-            vapid_claims={
-                "sub": os.environ.get("VAPID_SUBJECT", "mailto:admin@example.com")
-            },
+            vapid_claims={"sub": os.environ.get("VAPID_SUBJECT", "mailto:admin@example.com")},
         )
     except WebPushException as exc:
         status = getattr(getattr(exc, "response", None), "status_code", None)
@@ -154,7 +150,9 @@ def dispatch(
                 PushSubscriptionDB.session_id == str(session_id),
                 PushSubscriptionDB.active.is_(True),
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     for sub in subs:
         if not _wants(sub.triggers, kind):

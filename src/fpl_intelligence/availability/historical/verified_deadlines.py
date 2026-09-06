@@ -4,6 +4,7 @@ This catalog is validation metadata only. It never writes database deadline rows
 must not be treated as a replacement for an authoritative DB deadline feed in
 production. Each cutoff is sourced from a dated Premier League publication.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -22,16 +23,66 @@ class VerifiedDeadline:
 
 # All timestamps are UTC equivalents of the Premier League-stated BST deadlines.
 VERIFIED_DEADLINES: tuple[VerifiedDeadline, ...] = (
-    VerifiedDeadline("2024-25", 1, datetime(2024, 8, 16, 17, 30, tzinfo=UTC), "https://www.premierleague.com/en/news/4051356"),
-    VerifiedDeadline("2024-25", 2, datetime(2024, 8, 24, 10, 0, tzinfo=UTC), "https://www.premierleague.com/en/news/4091742"),
-    VerifiedDeadline("2024-25", 3, datetime(2024, 8, 31, 10, 0, tzinfo=UTC), "https://www.premierleague.com/en/news/4098895"),
-    VerifiedDeadline("2024-25", 4, datetime(2024, 9, 14, 10, 0, tzinfo=UTC), "https://www.premierleague.com/en/news/4110592"),
-    VerifiedDeadline("2024-25", 5, datetime(2024, 9, 21, 10, 0, tzinfo=UTC), "https://www.premierleague.com/en/news/4122647"),
-    VerifiedDeadline("2025-26", 1, datetime(2025, 8, 15, 17, 30, tzinfo=UTC), "https://www.premierleague.com/en/news/4372757"),
-    VerifiedDeadline("2025-26", 2, datetime(2025, 8, 22, 17, 30, tzinfo=UTC), "https://www.premierleague.com/en/news/4386153"),
-    VerifiedDeadline("2025-26", 3, datetime(2025, 8, 30, 10, 0, tzinfo=UTC), "https://www.premierleague.com/en/news/4395376"),
-    VerifiedDeadline("2025-26", 4, datetime(2025, 9, 13, 10, 0, tzinfo=UTC), "https://www.premierleague.com/en/news/4407550"),
-    VerifiedDeadline("2025-26", 5, datetime(2025, 9, 20, 10, 0, tzinfo=UTC), "https://www.premierleague.com/en/news/4413471"),
+    VerifiedDeadline(
+        "2024-25",
+        1,
+        datetime(2024, 8, 16, 17, 30, tzinfo=UTC),
+        "https://www.premierleague.com/en/news/4051356",
+    ),
+    VerifiedDeadline(
+        "2024-25",
+        2,
+        datetime(2024, 8, 24, 10, 0, tzinfo=UTC),
+        "https://www.premierleague.com/en/news/4091742",
+    ),
+    VerifiedDeadline(
+        "2024-25",
+        3,
+        datetime(2024, 8, 31, 10, 0, tzinfo=UTC),
+        "https://www.premierleague.com/en/news/4098895",
+    ),
+    VerifiedDeadline(
+        "2024-25",
+        4,
+        datetime(2024, 9, 14, 10, 0, tzinfo=UTC),
+        "https://www.premierleague.com/en/news/4110592",
+    ),
+    VerifiedDeadline(
+        "2024-25",
+        5,
+        datetime(2024, 9, 21, 10, 0, tzinfo=UTC),
+        "https://www.premierleague.com/en/news/4122647",
+    ),
+    VerifiedDeadline(
+        "2025-26",
+        1,
+        datetime(2025, 8, 15, 17, 30, tzinfo=UTC),
+        "https://www.premierleague.com/en/news/4372757",
+    ),
+    VerifiedDeadline(
+        "2025-26",
+        2,
+        datetime(2025, 8, 22, 17, 30, tzinfo=UTC),
+        "https://www.premierleague.com/en/news/4386153",
+    ),
+    VerifiedDeadline(
+        "2025-26",
+        3,
+        datetime(2025, 8, 30, 10, 0, tzinfo=UTC),
+        "https://www.premierleague.com/en/news/4395376",
+    ),
+    VerifiedDeadline(
+        "2025-26",
+        4,
+        datetime(2025, 9, 13, 10, 0, tzinfo=UTC),
+        "https://www.premierleague.com/en/news/4407550",
+    ),
+    VerifiedDeadline(
+        "2025-26",
+        5,
+        datetime(2025, 9, 20, 10, 0, tzinfo=UTC),
+        "https://www.premierleague.com/en/news/4413471",
+    ),
 )
 
 

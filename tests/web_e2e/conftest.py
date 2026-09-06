@@ -36,9 +36,7 @@ _PNG_1X1 = (
 def _stub_external_cdns(page: Page) -> Iterator[None]:
     # Suppress the first-visit tour in every fresh test context (see module
     # docstring). Runs before any page script, on every navigation.
-    page.add_init_script(
-        "localStorage.setItem('fpl_tour_done_v1', '1');"
-    )
+    page.add_init_script("localStorage.setItem('fpl_tour_done_v1', '1');")
 
     def _css(route: Route) -> None:
         route.fulfill(status=200, content_type="text/css", body=b"/* e2e stub */")

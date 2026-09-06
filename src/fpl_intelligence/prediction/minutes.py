@@ -250,8 +250,7 @@ class MinutesModel(PredictionModel):
             expected_minutes=round(expected, 6),
             uncertainty=round(uncertainty, 6),
             distribution={
-                key: round(value, 6)
-                for key, value in (distribution or self._distribution).items()
+                key: round(value, 6) for key, value in (distribution or self._distribution).items()
             },
             model_version=self.model_version,
             feature_version=self._feature_version,

@@ -3,6 +3,7 @@
 GET /api/v1/compare?player_a=&player_b=&session_id=&gw=
 Returns side-by-side cards with diff highlight metadata.
 """
+
 # ruff: noqa: E501,F401,SIM105,SIM115,B009,I001,F841
 from __future__ import annotations
 
@@ -35,6 +36,7 @@ GetDB = deps.GetDB
 
 HORIZON_GWS = 5
 
+
 def _set_piece_for(player_id: int, team_id: int | None) -> dict[str, Any]:
     try:
         from fpl_intelligence.set_pieces.service import set_piece_flags  # noqa: PLC0415
@@ -44,6 +46,7 @@ def _set_piece_for(player_id: int, team_id: int | None) -> dict[str, Any]:
         if team_id is None:
             return {"penalty": False, "corners": False, "free_kicks": False, "unknown": True}
         return {"penalty": False, "corners": False, "free_kicks": False, "unknown": True}
+
 
 def _player_payload(
     db,
@@ -81,6 +84,7 @@ def _player_payload(
     if price is None:
         try:
             from fpl_intelligence.prediction.live_provider import load_player_catalog
+
             cat = load_player_catalog().get(int(player_id))
             if cat and cat.get("price"):
                 price = float(cat["price"])
@@ -92,6 +96,7 @@ def _player_payload(
     if team_id is None:
         try:
             from fpl_intelligence.prediction.live_provider import load_player_catalog
+
             cat2 = load_player_catalog().get(int(player_id))
             if cat2 and cat2.get("team"):
                 team_id = int(cat2["team"])
@@ -103,6 +108,7 @@ def _player_payload(
     if position is None:
         try:
             from fpl_intelligence.prediction.live_provider import load_player_catalog
+
             cat3 = load_player_catalog().get(int(player_id))
             if cat3 and cat3.get("position"):
                 position = int(cat3["position"])
@@ -113,6 +119,7 @@ def _player_payload(
     team_short = None
     try:
         from fpl_intelligence.prediction.live_provider import load_player_catalog
+
         cat4 = load_player_catalog().get(int(player_id))
         if cat4 and cat4.get("team_short"):
             team_short = str(cat4["team_short"])
@@ -173,7 +180,11 @@ def _player_payload(
         idx_getter = getattr(provider, "understat_index", None)
         if callable(idx_getter):
             uindex = idx_getter() or {}
-            from fpl_intelligence.data_providers.understat import UnderstatConnector, build_stats_from_row
+            from fpl_intelligence.data_providers.understat import (
+                UnderstatConnector,
+                build_stats_from_row,
+            )
+
             urow = UnderstatConnector.match_player(uindex, web_name)
             if urow is not None:
                 stats = build_stats_from_row(urow)
@@ -193,6 +204,7 @@ def _player_payload(
         team_names = _team_names(db)
         # load fixtures synchronously? load_fixtures is async
         import asyncio
+
         raw_fixtures = None
         try:
             # if we are already in async context, we need to run via run_until_complete
@@ -215,9 +227,12 @@ def _player_payload(
         from fpl_intelligence.api.routes.news import cached_items_from_db
         from fpl_intelligence.data_providers.bbc_news import NEWS_KEYWORDS, match_headlines
         from fpl_intelligence.materialize.service import NEWS_MAX_AGE_SECONDS
+
         items, fetched_at = cached_items_from_db(db, max_age_seconds=NEWS_MAX_AGE_SECONDS)
         if items and web_name:
-            flags = match_headlines(items, [(player_id, web_name, first_name, second_name)], NEWS_KEYWORDS)
+            flags = match_headlines(
+                items, [(player_id, web_name, first_name, second_name)], NEWS_KEYWORDS
+            )
             hit = flags.get(str(player_id))
             if hit is not None:
                 news_flag = hit
@@ -251,6 +266,7 @@ def _player_payload(
         "set_pieces": set_pieces,
     }
 
+
 @router.get("", include_in_schema=False)
 async def compare_players(
     db: GetDB,
@@ -270,12 +286,14 @@ async def compare_players(
             # try to resolve to current GW via clock
             try:
                 from fpl_intelligence.sync.gameweek_clock import resolve_target_gameweek
+
                 target_gw = await resolve_target_gameweek(db, fallback=target_gw)
             except Exception:
                 pass
     if target_gw is None:
         try:
             from fpl_intelligence.sync.gameweek_clock import resolve_target_gameweek
+
             target_gw = await resolve_target_gameweek(db, fallback=2)
         except Exception:
             target_gw = 2
@@ -312,7 +330,13 @@ async def compare_players(
                 # if empty, fabricate neutral
                 if not payload["fixture_runs"]:
                     payload["fixture_runs"] = [
-                        {"gw": target_gw + i, "opponent_id": 0, "opponent": "—", "is_home": True, "difficulty": 3}
+                        {
+                            "gw": target_gw + i,
+                            "opponent_id": 0,
+                            "opponent": "—",
+                            "is_home": True,
+                            "difficulty": 3,
+                        }
                         for i in range(HORIZON_GWS)
                     ]
     except Exception as exc:
@@ -320,7 +344,13 @@ async def compare_players(
         for payload in (payload_a, payload_b):
             if not payload.get("fixture_runs"):
                 payload["fixture_runs"] = [
-                    {"gw": target_gw + i, "opponent_id": 0, "opponent": "—", "is_home": True, "difficulty": 3}
+                    {
+                        "gw": target_gw + i,
+                        "opponent_id": 0,
+                        "opponent": "—",
+                        "is_home": True,
+                        "difficulty": 3,
+                    }
                     for i in range(HORIZON_GWS)
                 ]
 

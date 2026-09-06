@@ -69,9 +69,7 @@ async def price_pressure(db: Any) -> dict[str, Any]:
                     "transfers_out) + cost_change_event; threshold "
                     f"{RISE_PRESSURE_NET_THRESHOLD}"
                 ),
-                "top_risers": [
-                    {**r, "web_name": None} for r in top
-                ],
+                "top_risers": [{**r, "web_name": None} for r in top],
                 "source": "bootstrap-static",
             }
     except Exception as exc:  # noqa: BLE001 — honest unavailable below
@@ -121,9 +119,7 @@ def build_plan_text(payload: dict[str, Any]) -> str:
     for step in payload.get("plan_steps") or []:
         ev = step.get("ev")
         ev_txt = "EV unavailable" if ev is None else f"EV {ev:+.1f}"
-        lines.append(
-            f"GW{step.get('gameweek')}: {step.get('action')} ({ev_txt})"
-        )
+        lines.append(f"GW{step.get('gameweek')}: {step.get('action')} ({ev_txt})")
     lines.append("")
     lines.append("ASSUMPTIONS")
     for a in payload.get("assumptions") or []:
@@ -131,8 +127,7 @@ def build_plan_text(payload: dict[str, Any]) -> str:
     lines.append("")
     pp = payload.get("price_pressure") or {}
     lines.append(
-        f"RISE PRESSURE: {pp.get('pressure', 'unavailable')} "
-        f"(inputs: {pp.get('inputs', 'n/a')})"
+        f"RISE PRESSURE: {pp.get('pressure', 'unavailable')} (inputs: {pp.get('inputs', 'n/a')})"
     )
     lines.append("")
     lines.append("HOW COMPUTED")

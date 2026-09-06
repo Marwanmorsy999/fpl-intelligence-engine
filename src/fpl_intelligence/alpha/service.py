@@ -36,9 +36,7 @@ def position_average(xpts_by_element: dict[int, float], pos_of: dict[int, int]) 
         if pos is None:
             continue
         buckets.setdefault(int(pos), []).append(float(xpts))
-    return {
-        pos: round(statistics.fmean(vals), 3) for pos, vals in buckets.items() if vals
-    }
+    return {pos: round(statistics.fmean(vals), 3) for pos, vals in buckets.items() if vals}
 
 
 def league_ownership(
@@ -53,9 +51,7 @@ def league_ownership(
     thin)"). Returns (None, "unavailable") when neither source exists.
     """
     if len(rival_picks) >= MIN_LEAGUE_RIVALS:
-        owners = sum(
-            1 for ids in rival_picks.values() if int(player_id) in {int(p) for p in ids}
-        )
+        owners = sum(1 for ids in rival_picks.values() if int(player_id) in {int(p) for p in ids})
         return owners / len(rival_picks), "league ownership"
     if global_selected_by:
         try:

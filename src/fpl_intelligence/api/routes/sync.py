@@ -78,9 +78,7 @@ class BookmarkletCorsMiddleware(BaseHTTPMiddleware):
     list authoritative wherever it applies (this one only fills gaps).
     """
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         if request.url.path not in _PUSH_PATHS:
             return await call_next(request)
         if request.method == "OPTIONS":
@@ -103,7 +101,7 @@ def _require_push_auth(
         )
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Unauthorized")
-    supplied = authorization[len("Bearer "):]
+    supplied = authorization[len("Bearer ") :]
     if not hmac.compare_digest(supplied, expected):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
@@ -129,7 +127,9 @@ class SquadPushPayload(BaseModel):
     picks: list[PickItem] = Field(..., min_length=15, max_length=15)
     bank: float = 0.0
     transfers: dict[str, Any] | None = None
-    picks_gw: int | None = Field(default=None, description="v2.5.3 truth GW — when set, overrides gameweek")
+    picks_gw: int | None = Field(
+        default=None, description="v2.5.3 truth GW — when set, overrides gameweek"
+    )
 
 
 class LivePushPayload(BaseModel):
@@ -329,9 +329,7 @@ async def history_push(payload: HistoryPushPayload, db: GetDB) -> dict[str, Any]
     window, then actuals fill the ledger, pending recommendations auto-score,
     and the calibration snapshot recomputes.
     """
-    result = ingest_history_gameweek(
-        db, payload.gameweek, payload.elements, source=payload.source
-    )
+    result = ingest_history_gameweek(db, payload.gameweek, payload.elements, source=payload.source)
     _log_sync(
         db,
         "history",
@@ -354,7 +352,9 @@ async def sync_status(db: GetDB) -> dict[str, Any]:
     from sqlalchemy import select
 
     rows = (
-        db.execute(select(SyncLogDB).order_by(SyncLogDB.created_at.desc()).limit(200)).scalars().all()
+        db.execute(select(SyncLogDB).order_by(SyncLogDB.created_at.desc()).limit(200))
+        .scalars()
+        .all()
     )
     latest: dict[str, dict[str, Any]] = {}
     counts: dict[str, int] = {}
@@ -426,9 +426,9 @@ async def live_board(
     if squad is None:
         raise HTTPException(status_code=404, detail="No squad saved for this session")
     gw = gameweek or squad.gameweek
-    live_rows = db.execute(
-        select(SyncLivePointDB).where(SyncLivePointDB.gameweek == gw)
-    ).scalars().all()
+    live_rows = (
+        db.execute(select(SyncLivePointDB).where(SyncLivePointDB.gameweek == gw)).scalars().all()
+    )
     live_by_element = {r.element_id: r for r in live_rows}
 
     names: dict[int, str] = {}

@@ -1,4 +1,5 @@
 """Offline signal-lift evaluation for PIT availability flags."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -29,9 +30,7 @@ class SignalLiftReport:
 
     def to_dict(self) -> dict[str, Any]:
         hard_out_n = sum(self.by_status.get(s, {}).get("n", 0) for s in _HARD_OUT)
-        signal_ok = (
-            self.minutes_delta is not None and self.minutes_delta > 0
-        ) or (
+        signal_ok = (self.minutes_delta is not None and self.minutes_delta > 0) or (
             self.hard_out_mean_minutes is not None
             and self.hard_out_mean_minutes <= 5.0
             and hard_out_n >= 10
@@ -167,9 +166,13 @@ def evaluate_signal_lift(report: MaterializeReport, db: Any | None = None) -> Si
     if out.matched_rows == 0:
         out.notes.append("No flagged player-gameweek performance rows matched; lift is unmeasured.")
     elif out.control_rows == 0:
-        out.notes.append("No unflagged control player-gameweeks matched; comparative lift is unmeasured.")
+        out.notes.append(
+            "No unflagged control player-gameweeks matched; comparative lift is unmeasured."
+        )
     elif out.to_dict()["signal_direction_ok"]:
-        out.notes.append("Restricted availability statuses show the expected suppression signal against an unflagged same-gameweek control group.")
+        out.notes.append(
+            "Restricted availability statuses show the expected suppression signal against an unflagged same-gameweek control group."
+        )
     else:
         out.notes.append("Signal direction is inconclusive on this sample.")
     return out

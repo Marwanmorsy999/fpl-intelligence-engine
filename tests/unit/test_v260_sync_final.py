@@ -1,4 +1,5 @@
 """v2.6.0-sync-final — truth branches: save-next, rebuild-from-history, honest banner."""
+
 from __future__ import annotations
 
 import asyncio
@@ -25,8 +26,13 @@ BOOTSTRAP_MIN = {
         {"id": 2, "deadline_time": "2026-08-28T17:30:00Z", "is_current": False, "is_next": True},
     ],
     "elements": [
-        {"id": pid, "element_type": 4 if pid >= 200 else 3, "team": 1,
-         "now_cost": 65, "web_name": f"P{pid}"}
+        {
+            "id": pid,
+            "element_type": 4 if pid >= 200 else 3,
+            "team": 1,
+            "now_cost": 65,
+            "web_name": f"P{pid}",
+        }
         for pid in sorted(set(OLD_IDS + NEW_IDS))
     ],
 }
@@ -60,9 +66,7 @@ class TestClassifyPicksError:
 
 class TestRebuildSwaps:
     def test_apply_single_swap(self) -> None:
-        out = rebuild_squad_ids_from_swaps(
-            list(OLD_IDS), [{"element_in": 999, "element_out": 100}]
-        )
+        out = rebuild_squad_ids_from_swaps(list(OLD_IDS), [{"element_in": 999, "element_out": 100}])
         assert out is not None
         new_ids, ins, outs = out
         assert 999 in new_ids and 100 not in new_ids
@@ -150,12 +154,18 @@ class TestBranchB_RebuildFromHistory:
 
         async def fake_fetch(path: str, validator=None, use_cache: bool = True):
             if path.endswith("/history/"):
-                return {"history": [
-                    {"event": 1, "event_transfers": 0, "transfers": []},
-                    {"event": 2, "event_transfers": 1, "transfers": [
-                        {"id": 7, "element_in": 999, "element_out": 100, "event_cost": 0}
-                    ]},
-                ]}
+                return {
+                    "history": [
+                        {"event": 1, "event_transfers": 0, "transfers": []},
+                        {
+                            "event": 2,
+                            "event_transfers": 1,
+                            "transfers": [
+                                {"id": 7, "element_in": 999, "element_out": 100, "event_cost": 0}
+                            ],
+                        },
+                    ]
+                }
             if path.endswith("/transfers/"):
                 return []
             if path == "/api/entry/260002/":
@@ -260,6 +270,7 @@ class TestFplViewHistoryField:
         fields = FplViewResponse.model_fields
         assert "fpl_history" in fields
 
+
 class TestRealHistoryShape:
     """Regression: FPL returns {current, past, chips} - never a 'history' key."""
 
@@ -271,9 +282,13 @@ class TestRealHistoryShape:
             async def _fetch_json(self, path, *, validator=None):
                 assert validator is not None
                 # The REAL FPL shape:
-                validator({"current": [
-                    {"event": 1, "event_transfers": 0, "event_transfers_cost": 0}
-                ], "past": [], "chips": []})
+                validator(
+                    {
+                        "current": [{"event": 1, "event_transfers": 0, "event_transfers_cost": 0}],
+                        "past": [],
+                        "chips": [],
+                    }
+                )
                 return {
                     "current": [{"event": 1, "event_transfers": 0}],
                     "past": [],

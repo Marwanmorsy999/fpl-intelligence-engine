@@ -3,6 +3,7 @@
 The default workflow is dry-run. Database persistence is delegated to the existing
 Phase 7 importer and must be explicitly requested by the caller.
 """
+
 from __future__ import annotations
 
 import json
@@ -136,7 +137,13 @@ def latest_remote_before(cutoff: datetime, *, search_days: int = 3) -> tuple[dat
 
 def local_snapshot_path(root: Path, captured_at: datetime) -> Path:
     captured = captured_at.astimezone(UTC)
-    return root / str(captured.year) / str(captured.month) / str(captured.day) / f"{captured:%H%M}.json.xz"
+    return (
+        root
+        / str(captured.year)
+        / str(captured.month)
+        / str(captured.day)
+        / f"{captured:%H%M}.json.xz"
+    )
 
 
 def download_snapshot(url: str, dest: Path) -> None:
@@ -190,9 +197,7 @@ def materialize_cutoffs(
         report.downloaded += int(downloaded)
         report.reused += int(not downloaded)
         payload = provider.load_snapshot(ref)
-        events = provider.events_from_snapshot(
-            cutoff.season_code, ref, gameweek=cutoff.gameweek
-        )
+        events = provider.events_from_snapshot(cutoff.season_code, ref, gameweek=cutoff.gameweek)
         report.snapshots.append(
             MaterializedSnapshot(
                 cutoff,

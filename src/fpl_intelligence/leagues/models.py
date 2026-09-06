@@ -36,9 +36,7 @@ class EntryLeagueDB(Base):
     private: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     discovered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
-    __table_args__ = (
-        UniqueConstraint("entry_id", "league_id", name="uq_entry_league"),
-    )
+    __table_args__ = (UniqueConstraint("entry_id", "league_id", name="uq_entry_league"),)
 
 
 class LeagueCacheDB(Base):

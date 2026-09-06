@@ -181,8 +181,12 @@ async def transfers_shadow(
         from fpl_intelligence.prediction.live_provider import load_player_catalog
 
         cat = load_player_catalog()
-        metrics["staged_in_name"] = cat.get(int(element_in), {}).get("web_name") or f"Player {element_in}"
-        metrics["staged_out_name"] = cat.get(int(element_out), {}).get("web_name") or f"Player {element_out}"
+        metrics["staged_in_name"] = (
+            cat.get(int(element_in), {}).get("web_name") or f"Player {element_in}"
+        )
+        metrics["staged_out_name"] = (
+            cat.get(int(element_out), {}).get("web_name") or f"Player {element_out}"
+        )
     except Exception:
         metrics["staged_in_name"] = f"Player {element_in}"
         metrics["staged_out_name"] = f"Player {element_out}"
@@ -202,10 +206,16 @@ async def transfers_shadow(
         # Shadow
         shadow_squad = SquadStateCreate(
             player_ids=shadow_ids,
-            captain_id=squad.captain_id if squad.captain_id != int(element_out) else int(element_in),
-            vice_captain_id=squad.vice_captain_id if squad.vice_captain_id != int(element_out) else int(element_in),
+            captain_id=squad.captain_id
+            if squad.captain_id != int(element_out)
+            else int(element_in),
+            vice_captain_id=squad.vice_captain_id
+            if squad.vice_captain_id != int(element_out)
+            else int(element_in),
             bank=float(squad.bank),
-            free_transfers=max(0, int(squad.free_transfers) - (0 if int(squad.free_transfers) > 0 else 0)),
+            free_transfers=max(
+                0, int(squad.free_transfers) - (0 if int(squad.free_transfers) > 0 else 0)
+            ),
             chips_available=list(squad.chips_available or []),
             gameweek=int(target_gw),
             player_positions=squad.player_positions,
@@ -219,7 +229,9 @@ async def transfers_shadow(
                 from fpl_intelligence.prediction.live_provider import load_player_catalog
 
                 cat2 = load_player_catalog()
-                shadow_squad.player_prices[int(element_in)] = float(cat2.get(int(element_in), {}).get("price") or 0.0)
+                shadow_squad.player_prices[int(element_in)] = float(
+                    cat2.get(int(element_in), {}).get("price") or 0.0
+                )
             except Exception:
                 pass
             shadow_squad.player_prices.pop(int(element_out), None)
@@ -272,12 +284,18 @@ async def save_local_squad(
     if cur is None:
         from fastapi import HTTPException as _HTTP
 
-        raise _HTTP(status_code=404, detail="No squad saved for this session — import your team first.")
-    shadow_ids = build_shadow_squad(list(cur.player_ids), int(body.element_out), int(body.element_in))
+        raise _HTTP(
+            status_code=404, detail="No squad saved for this session — import your team first."
+        )
+    shadow_ids = build_shadow_squad(
+        list(cur.player_ids), int(body.element_out), int(body.element_in)
+    )
     if shadow_ids is None:
         from fastapi import HTTPException as _HTTP
 
-        raise _HTTP(status_code=422, detail="Staged transfer invalid: OUT not in squad or IN already owned.")
+        raise _HTTP(
+            status_code=422, detail="Staged transfer invalid: OUT not in squad or IN already owned."
+        )
 
     try:
         from fpl_intelligence.prediction.live_provider import load_player_catalog  # noqa: PLC0415

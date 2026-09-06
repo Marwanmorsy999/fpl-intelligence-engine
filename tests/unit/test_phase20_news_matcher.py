@@ -89,8 +89,12 @@ class TestMatchHeadlines:
     def test_compact_alias_hits_headline(self):
         # "B.Fernandes" alias should match the "Bruno Fernandes" headline.
         flags = match_headlines(self.ITEMS, self.PLAYERS)
-        assert flags["411"]["matched_alias"] in ("b.fernandes", "b. fernandes",
-                                                 "bruno fernandes", "fernandes")
+        assert flags["411"]["matched_alias"] in (
+            "b.fernandes",
+            "b. fernandes",
+            "bruno fernandes",
+            "fernandes",
+        )
 
     def test_non_matching_players_absent(self):
         flags = match_headlines(self.ITEMS, self.PLAYERS)

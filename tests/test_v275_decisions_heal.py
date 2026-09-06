@@ -71,9 +71,7 @@ def client(heal_db: Session) -> Generator[TestClient, None, None]:
         yield heal_db
 
     app.dependency_overrides[deps._get_db_session] = _override_db
-    app.dependency_overrides[deps.get_prediction_provider] = (
-        lambda: StaticPredictionProvider()
-    )
+    app.dependency_overrides[deps.get_prediction_provider] = lambda: StaticPredictionProvider()
     with _decisions_cache_lock:
         _decisions_cache.clear()
     try:
@@ -124,9 +122,7 @@ class TestDecisionsFullChain:
         "players",
     )
 
-    def test_full_payload_from_base_squad(
-        self, client: TestClient, heal_db: Session
-    ) -> None:
+    def test_full_payload_from_base_squad(self, client: TestClient, heal_db: Session) -> None:
         _seed_base_squad(heal_db)
         r = client.get("/api/v1/decisions", params={"session_id": "2295006"})
         assert r.status_code == 200, r.text[:400]
@@ -217,9 +213,7 @@ class TestDecisionsFullChain:
 
         async def _run() -> None:
             with pytest.raises(RuntimeError, match="empty starting XI"):
-                await build_decisions_payload(
-                    heal_db, StaticPredictionProvider(), "2295006"
-                )
+                await build_decisions_payload(heal_db, StaticPredictionProvider(), "2295006")
 
         asyncio.run(_run())
 
@@ -242,9 +236,7 @@ class TestLeagueNever500Net:
         assert body["status"] == "degraded"
         assert "RuntimeError" in body.get("diag", "")
 
-    def test_pre_handler_db_failure_returns_200_degraded(
-        self, heal_db: Session
-    ) -> None:
+    def test_pre_handler_db_failure_returns_200_degraded(self, heal_db: Session) -> None:
         """Dependency-stage DB explosion must NOT surface as a raw 500."""
         from fpl_intelligence.api.main import app
 
@@ -266,9 +258,7 @@ class TestLeagueNever500Net:
         finally:
             app.dependency_overrides.pop(deps._get_db_session, None)
 
-    def test_league_success_still_carries_rank(
-        self, client: TestClient, heal_db: Session
-    ) -> None:
+    def test_league_success_still_carries_rank(self, client: TestClient, heal_db: Session) -> None:
         """Happy path intact: seeded cache yields rank + standings_top."""
         now = datetime.now(UTC)
         heal_db.execute(

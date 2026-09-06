@@ -29,9 +29,7 @@ class PriceMoveDB(Base):
     delta: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     moved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
-    __table_args__ = (
-        UniqueConstraint("gameweek", "element_id", "delta", name="uq_price_move"),
-    )
+    __table_args__ = (UniqueConstraint("gameweek", "element_id", "delta", name="uq_price_move"),)
 
 
 class PriceSnapshotDB(Base):
@@ -44,6 +42,4 @@ class PriceSnapshotDB(Base):
     element_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     now_cost: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
-    __table_args__ = (
-        UniqueConstraint("snapshot_date", "element_id", name="uq_price_snapshot"),
-    )
+    __table_args__ = (UniqueConstraint("snapshot_date", "element_id", name="uq_price_snapshot"),)

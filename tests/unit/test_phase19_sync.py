@@ -110,9 +110,11 @@ class TestBookmarkletCors:
 
     def test_non_push_routes_untouched(self, api):
         client, _db, token = api
-        client.post("/api/v1/sync/live-push", json={
-            "gameweek": 2, "elements": [{"element_id": 1, "points": 0}]
-        }, headers=_bearer(token))
+        client.post(
+            "/api/v1/sync/live-push",
+            json={"gameweek": 2, "elements": [{"element_id": 1, "points": 0}]},
+            headers=_bearer(token),
+        )
         resp = client.get("/api/v1/sync/status")
         assert resp.status_code == 200
         assert "access-control-allow-origin" not in resp.headers
@@ -141,9 +143,7 @@ class TestPushAuth:
 
     def test_correct_bearer_squad_push_persists_under_entry_key(self, api):
         client, db, token = api
-        resp = client.post(
-            "/api/v1/sync/squad-push", json=SQUAD_PUSH_BODY, headers=_bearer(token)
-        )
+        resp = client.post("/api/v1/sync/squad-push", json=SQUAD_PUSH_BODY, headers=_bearer(token))
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body["ok"] is True
@@ -208,9 +208,10 @@ class TestCronAuth:
 class TestBookmarkletPayloadParsing:
     def test_captain_flag_required(self, api):
         client, _db, token = api
-        body = {**SQUAD_PUSH_BODY, "picks": [
-            {"element_id": 200 + i, "position": i + 1} for i in range(15)
-        ]}
+        body = {
+            **SQUAD_PUSH_BODY,
+            "picks": [{"element_id": 200 + i, "position": i + 1} for i in range(15)],
+        }
         resp = client.post("/api/v1/sync/squad-push", json=body, headers=_bearer(token))
         assert resp.status_code == 422
         assert "is_captain" in resp.json()["detail"]
@@ -224,8 +225,13 @@ class TestBookmarkletPayloadParsing:
     def test_element_type_rides_through_to_positions(self, api):
         client, db, token = api
         picks = [
-            {"element_id": 300 + i, "position": i + 1, "element_type": 1 if i < 2 else 4,
-             "is_captain": i == 0, "is_vice": i == 1}
+            {
+                "element_id": 300 + i,
+                "position": i + 1,
+                "element_type": 1 if i < 2 else 4,
+                "is_captain": i == 0,
+                "is_vice": i == 1,
+            }
             for i in range(15)
         ]
         resp = client.post(
@@ -342,7 +348,8 @@ class TestHistoryPushMathUpdates:
         through_before = before.notes.get("through_gw") if before else None
 
         summary = ingest_history_gameweek(
-            db, 3,
+            db,
+            3,
             [
                 {"element_id": eid, "total_points": 7 + idx, "minutes": 90, "bonus": 1}
                 for idx, eid in enumerate(elements)
@@ -372,13 +379,16 @@ class TestHistoryPushMathUpdates:
         # Baseline needs >=25% universe coverage; 4 players may fall short —
         # accept either outcome but never a crash, and verify reconciliation.
         ingest_summary = ingest_history_gameweek(
-            db, 3,
+            db,
+            3,
             [{"element_id": e, "total_points": 5, "minutes": 90} for e in elements],
         )
 
-        rows = db.execute(
-            select(PredictionLedgerDB).where(PredictionLedgerDB.gameweek == 3)
-        ).scalars().all()
+        rows = (
+            db.execute(select(PredictionLedgerDB).where(PredictionLedgerDB.gameweek == 3))
+            .scalars()
+            .all()
+        )
         if captured:
             assert all(r.actual == 5 for r in rows)
             assert all(r.reconciled_at is not None for r in rows)
@@ -389,11 +399,13 @@ class TestHistoryPushMathUpdates:
         # The mirrored performance rows exist for the ingested GW when team data is available.
         # This depends on _latest_team_for_player returning a team for each player.
         gw_row = db.scalar(select(Gameweek).where(Gameweek.provider_event_id == 3))
-        perf_count = len(db.execute(
-            select(PlayerGameweekPerformance).where(
-                PlayerGameweekPerformance.gameweek_id == gw_row.id
-            )
-        ).all())
+        perf_count = len(
+            db.execute(
+                select(PlayerGameweekPerformance).where(
+                    PlayerGameweekPerformance.gameweek_id == gw_row.id
+                )
+            ).all()
+        )
         if captured:
             assert perf_count >= 1
 
@@ -407,9 +419,9 @@ class TestHistoryPushMathUpdates:
             record_recommendations,
         )
 
-        players = db.execute(
-            select(Player).where(Player.fpl_element_id.is_not(None))
-        ).scalars().all()
+        players = (
+            db.execute(select(Player).where(Player.fpl_element_id.is_not(None))).scalars().all()
+        )
         captain_el = players[0].fpl_element_id
         alts = [p.fpl_element_id for p in players[1:3]]
 
@@ -430,14 +442,17 @@ class TestHistoryPushMathUpdates:
             meta = {}
 
         record_recommendations(db, "777001", FakeReport())
-        pending = db.execute(
-            select(RecommendationDB).where(RecommendationDB.rec_type == "captain")
-        ).scalars().all()
+        pending = (
+            db.execute(select(RecommendationDB).where(RecommendationDB.rec_type == "captain"))
+            .scalars()
+            .all()
+        )
         assert len(pending) == 1 and pending[0].scored_at is None
 
         # Ingest results where an alternative outscored the captain -> WRONG.
         ingest_history_gameweek(
-            db, 3,
+            db,
+            3,
             [
                 {"element_id": captain_el, "total_points": 1, "minutes": 90},
                 {"element_id": alts[0], "total_points": 10, "minutes": 90},
@@ -457,9 +472,9 @@ class TestHistoryPushMathUpdates:
         from fpl_intelligence.sync.models import RecommendationDB
         from fpl_intelligence.sync.service import track_record_payload
 
-        player = db.execute(
-            select(Player).where(Player.fpl_element_id.is_not(None))
-        ).scalars().first()
+        player = (
+            db.execute(select(Player).where(Player.fpl_element_id.is_not(None))).scalars().first()
+        )
         db.add(
             RecommendationDB(
                 session_key="888001",
@@ -515,8 +530,14 @@ class TestSyncMigrationEndpoint:
             tables=[
                 t
                 for t in Base.metadata.sorted_tables
-                if t.name not in ("sync_live_points", "ingested_history",
-                                  "recommendation", "prediction_ledger", "sync_log")
+                if t.name
+                not in (
+                    "sync_live_points",
+                    "ingested_history",
+                    "recommendation",
+                    "prediction_ledger",
+                    "sync_log",
+                )
             ],
         )
         session = sessionmaker(bind=engine)()
@@ -527,8 +548,11 @@ class TestSyncMigrationEndpoint:
             first = client.post("/api/v1/admin/migrate-sync-tables")
             assert first.status_code == 200, first.text
             assert set(first.json()["tables_created"]) == {
-                "sync_live_points", "ingested_history", "recommendation",
-                "prediction_ledger", "sync_log",
+                "sync_live_points",
+                "ingested_history",
+                "recommendation",
+                "prediction_ledger",
+                "sync_log",
             }
             second = client.post("/api/v1/admin/migrate-sync-tables")
             assert second.status_code == 410
@@ -539,9 +563,7 @@ class TestSyncMigrationEndpoint:
 class TestLiveBoard:
     def test_live_board_honest_without_data(self, api):
         client, db, token = api
-        client.post(
-            "/api/v1/sync/squad-push", json=SQUAD_PUSH_BODY, headers=_bearer(token)
-        )
+        client.post("/api/v1/sync/squad-push", json=SQUAD_PUSH_BODY, headers=_bearer(token))
         resp = client.get("/api/v1/sync/live-board", params={"session_id": "794561"})
         assert resp.status_code == 200
         data = resp.json()
@@ -551,13 +573,8 @@ class TestLiveBoard:
 
     def test_live_board_totals_double_the_captain(self, api):
         client, db, token = api
-        client.post(
-            "/api/v1/sync/squad-push", json=SQUAD_PUSH_BODY, headers=_bearer(token)
-        )
-        elements = [
-            {"element_id": pid, "points": 3, "minutes": 60}
-            for pid in range(100, 115)
-        ]
+        client.post("/api/v1/sync/squad-push", json=SQUAD_PUSH_BODY, headers=_bearer(token))
+        elements = [{"element_id": pid, "points": 3, "minutes": 60} for pid in range(100, 115)]
         client.post(
             "/api/v1/sync/live-push",
             json={"gameweek": 3, "elements": elements},
@@ -574,9 +591,11 @@ class TestLiveBoard:
 
     def test_sync_status_public_read(self, api):
         client, _db, token = api
-        client.post("/api/v1/sync/live-push", json={
-            "gameweek": 2, "elements": [{"element_id": 1, "points": 0}]
-        }, headers=_bearer(token))
+        client.post(
+            "/api/v1/sync/live-push",
+            json={"gameweek": 2, "elements": [{"element_id": 1, "points": 0}]},
+            headers=_bearer(token),
+        )
         status = client.get("/api/v1/sync/status").json()
         assert status["latest"]["live"]["gameweek"] == 2
         assert status["token_configured"] is True

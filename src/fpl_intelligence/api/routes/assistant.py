@@ -119,6 +119,7 @@ def _radar_name_rows(db: Session, pids: list[int]) -> list[tuple[int, str, str, 
 # Fact gathering
 # --------------------------------------------------------------------------- #
 
+
 async def _gather_facts(db: Session, session_id: str) -> dict[str, Any]:
     """Everything the brief is built from — all real data, no placeholders."""
     squad = SquadService(session=db).get_squad(session_id=session_id)
@@ -139,9 +140,7 @@ async def _gather_facts(db: Session, session_id: str) -> dict[str, Any]:
 
         name_map: dict[str, dict[str, Any]] = {}
         for pid in squad.player_ids:
-            prow: Player | None = db.scalar(
-                select(Player).where(Player.fpl_element_id == int(pid))
-            )
+            prow: Player | None = db.scalar(select(Player).where(Player.fpl_element_id == int(pid)))
             name_map[str(pid)] = {"web_name": prow.web_name if prow else f"Player {pid}"}
         report_dict["players"] = name_map
 
@@ -172,8 +171,7 @@ async def _gather_facts(db: Session, session_id: str) -> dict[str, Any]:
                 starter_avgs.append(avg)
                 name = _name_of(report_dict, pid)
                 run_txt = ", ".join(
-                    f"{r.opponent}{'(H)' if r.is_home else '(A)'}{r.difficulty}"
-                    for r in runs[:3]
+                    f"{r.opponent}{'(H)' if r.is_home else '(A)'}{r.difficulty}" for r in runs[:3]
                 )
                 fixture_lines.append(f"{name}: {run_txt}")
         squad_swing = round(sum(3.0 - a for a in starter_avgs), 2)
@@ -226,8 +224,7 @@ async def _gather_facts(db: Session, session_id: str) -> dict[str, Any]:
                 last_txt = f"; latest call was {verdict} by {delta:+d} pts"
             hr = f"{hit_rate * 100:.0f}%" if isinstance(hit_rate, (int, float)) else "–"
             grade_line = (
-                f"{rolling.get('graded')} graded calls · {hr} hits · "
-                f"net {net:+d} pts{last_txt}"
+                f"{rolling.get('graded')} graded calls · {hr} hits · net {net:+d} pts{last_txt}"
             )
     except Exception as exc:  # noqa: BLE001
         logger.warning("brief track record failed: %s", exc)
@@ -294,9 +291,7 @@ def _league_edge_lines(db: Session, session_id: str) -> list[str]:
         )
 
         sel = db.scalar(
-            _select(LeagueSelectionDB).where(
-                LeagueSelectionDB.session_id == str(session_id)
-            )
+            _select(LeagueSelectionDB).where(LeagueSelectionDB.session_id == str(session_id))
         )
         cache_row: LeagueCacheDB | None = None
         if sel is not None:
@@ -315,8 +310,11 @@ def _league_edge_lines(db: Session, session_id: str) -> list[str]:
         league_label = cache_row.name or f"League {cache_row.league_id}"
         if mine is not None:
             gap_txt = ""
-            if len(standings) >= 3 and mine.get("total") is not None \
-                    and standings[2].get("total") is not None:
+            if (
+                len(standings) >= 3
+                and mine.get("total") is not None
+                and standings[2].get("total") is not None
+            ):
                 gap = int(standings[2]["total"]) - int(mine["total"])
                 gap_txt = f", {gap:+d} to the top 3"
             lines.append(
@@ -324,9 +322,7 @@ def _league_edge_lines(db: Session, session_id: str) -> list[str]:
                 f"{cache_row.member_count or len(standings)}{gap_txt}"
             )
         rp = cache_row.rivals_picks or {}
-        picks_map = {
-            k: v for k, v in (rp.get("picks") or {}).items() if isinstance(v, list)
-        }
+        picks_map = {k: v for k, v in (rp.get("picks") or {}).items() if isinstance(v, list)}
         if picks_map and isinstance(rp.get("captains"), dict):
             captains = {int(k): int(v) for k, v in rp["captains"].items() if v}
             my_cap_row = db.scalar(
@@ -336,9 +332,7 @@ def _league_edge_lines(db: Session, session_id: str) -> list[str]:
                 )
             )
             my_captain = (
-                int(my_cap_row.get("captain_id") or 0)
-                if isinstance(my_cap_row, dict)
-                else None
+                int(my_cap_row.get("captain_id") or 0) if isinstance(my_cap_row, dict) else None
             )
             if my_captain and my_captain in captains.values():
                 n = sum(1 for c in captains.values() if c == my_captain)
@@ -362,8 +356,7 @@ def _price_moves_note(db: Session) -> str | None:
         parts: list[str] = []
         if payload["risers"]:
             parts.append(
-                "Risers: "
-                + ", ".join(f"{c['web_name']} ({c['label']})" for c in payload["risers"])
+                "Risers: " + ", ".join(f"{c['web_name']} ({c['label']})" for c in payload["risers"])
             )
         if payload["fallers"]:
             parts.append(
@@ -380,15 +373,14 @@ def _price_moves_note(db: Session) -> str | None:
 # Template fallback + LLM rendering
 # --------------------------------------------------------------------------- #
 
+
 def _template_sections(facts: dict[str, Any]) -> dict[str, str]:
     """Deterministic six-section brief when no LLM answered."""
     cap = facts["captain"]
     cap_txt = cap["xpts"]
     cap_xpts = f"{cap_txt:.1f}" if isinstance(cap_txt, (int, float)) else "–"
     alt_txt = "; ".join(
-        f"{a['name']} {a['xpts']:.1f}"
-        for a in cap["alternatives"]
-        if a["xpts"] is not None
+        f"{a['name']} {a['xpts']:.1f}" for a in cap["alternatives"] if a["xpts"] is not None
     )
 
     if facts["transfer_action"] == "roll":
@@ -401,7 +393,8 @@ def _template_sections(facts: dict[str, Any]) -> dict[str, str]:
         transfer_txt = "Hold the squad."
 
     swing_word = (
-        "easy" if facts["squad_swing"] > 0.5
+        "easy"
+        if facts["squad_swing"] > 0.5
         else ("hard" if facts["squad_swing"] < -0.5 else "neutral")
     )
 
@@ -426,8 +419,11 @@ def _template_sections(facts: dict[str, Any]) -> dict[str, str]:
         "transfers": transfer_txt,
         "fixture_swings": (
             f"Squad swing {facts['squad_swing']:+.1f} ({swing_word} patch). "
-            + ("Easiest upcoming runs: " + ", ".join(facts["targets"]) + "."
-               if facts["targets"] else "")
+            + (
+                "Easiest upcoming runs: " + ", ".join(facts["targets"]) + "."
+                if facts["targets"]
+                else ""
+            )
         ).strip(),
         "news_flags": " ".join(facts["news_lines"]) or "No news matches.",
         "last_week_grade": (
@@ -468,10 +464,7 @@ def _count_real_news(lines: list[str]) -> int:
     return sum(
         1
         for ln in lines
-        if ": " in ln
-        and "No BBC" not in ln
-        and "unavailable" not in ln
-        and "failed" not in ln
+        if ": " in ln and "No BBC" not in ln and "unavailable" not in ln and "failed" not in ln
     )
 
 
@@ -515,7 +508,7 @@ def _last_call_line(facts: dict[str, Any]) -> str | None:
     cards = [c for c in rolling.get("last_5", []) if c.get("score")]
     if not cards:
         return None
-    newest = max(cards, key=lambda c: (c.get("gameweek") or 0))
+    newest = max(cards, key=lambda c: c.get("gameweek") or 0)
     said = str((newest.get("detail") or {}).get("reason") or "").strip()
     score = newest.get("score") or {}
     verdict = str(score.get("verdict") or "?")
@@ -621,13 +614,11 @@ def _tldr_actions(facts: dict[str, Any]) -> list[dict[str, Any]]:
         action3 = {
             "kind": "CHIP",
             "text": "CHIP: save all chips this week",
-            "reason": chip_reason
-            or "no double gameweek or blank week detected within the horizon",
+            "reason": chip_reason or "no double gameweek or blank week detected within the horizon",
             "confidence": 72,
         }
 
     return [action1, action2, action3]
-
 
 
 def _parse_sections(raw_text: str) -> dict[str, str] | None:
@@ -740,9 +731,7 @@ async def assistant_brief(
                     sections = parsed
                     resp_provider = getattr(raw, "provider_name", None) or ""
                     resp_model = getattr(raw, "model_name", None) or ""
-                    model_label = (
-                        "/".join(x for x in (resp_provider, resp_model) if x) or "llm"
-                    )
+                    model_label = "/".join(x for x in (resp_provider, resp_model) if x) or "llm"
                 else:
                     logger.warning(
                         "Brief LLM reply not parseable as six-section JSON; template used."
@@ -877,12 +866,16 @@ def load_pregenerated_brief(
     exact stored row at any recent gameweek over a network call.
     """
     _ensure_brief_table(db)
-    rows = db.execute(
-        select(AssistantBriefDB)
-        .where(AssistantBriefDB.session_id == str(session_id))
-        .order_by(AssistantBriefDB.gameweek.desc(), AssistantBriefDB.generated_at.desc())
-        .limit(5)
-    ).scalars().all()
+    rows = (
+        db.execute(
+            select(AssistantBriefDB)
+            .where(AssistantBriefDB.session_id == str(session_id))
+            .order_by(AssistantBriefDB.gameweek.desc(), AssistantBriefDB.generated_at.desc())
+            .limit(5)
+        )
+        .scalars()
+        .all()
+    )
     if not rows:
         return None
     if gameweek is not None:
@@ -893,9 +886,7 @@ def load_pregenerated_brief(
     return dict(newest.payload) if isinstance(newest.payload, dict) else None
 
 
-def _store_brief(
-    db: Session, session_id: str, gameweek: int, payload: dict[str, Any]
-) -> None:
+def _store_brief(db: Session, session_id: str, gameweek: int, payload: dict[str, Any]) -> None:
     """Upsert the durable copy; failures are logged, never raised."""
     try:
         row = db.scalar(
@@ -1019,9 +1010,7 @@ def format_brief_message(brief: dict[str, Any], entry_name: str | None) -> str:
     if entry_name:
         lines[0] += f" — {entry_name}"
     for act in brief.get("tldr") or []:
-        lines.append(
-            f"• <b>{act['kind']}</b>: {act['text']} ({act.get('confidence', '?')}%)"
-        )
+        lines.append(f"• <b>{act['kind']}</b>: {act['text']} ({act.get('confidence', '?')}%)")
     for title, body in sections.items():
         lines.append(f"\n<b>{title}</b>\n{body}")
     for title, body in (brief.get("extra_sections") or {}).items():

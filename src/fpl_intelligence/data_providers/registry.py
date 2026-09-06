@@ -198,9 +198,7 @@ class ProviderRegistry:
         """Return cache first, then try budgeted providers and fallback data."""
         errors: list[str] = []
         eligible = [
-            metadata
-            for metadata in self.ordered(capability=capability)
-            if metadata.enabled
+            metadata for metadata in self.ordered(capability=capability) if metadata.enabled
         ]
         if cached is not None:
             try:
@@ -251,9 +249,7 @@ class ProviderRegistry:
         """Async equivalent of ``resolve`` sharing budget and health state."""
         errors: list[str] = []
         eligible = [
-            metadata
-            for metadata in self.ordered(capability=capability)
-            if metadata.enabled
+            metadata for metadata in self.ordered(capability=capability) if metadata.enabled
         ]
         if cached is not None:
             try:
@@ -466,6 +462,7 @@ def build_async_fpl_registry(
                 timeout=timeout if timeout is not None else settings.egress_strategy_timeout,
                 cache_ttl=settings.egress_cache_ttl,
             )
+
     return ProviderRegistry(
         [
             (
@@ -555,47 +552,47 @@ def build_default_registry(
     return ProviderRegistry(
         [
             (
-            fpl,
-            ProviderMetadata(
-                name="fpl_official",
-                capabilities=("players", "fixtures", "availability"),
-                priority=10,
-                freshness="near-live",
-                cache_ttl_seconds=900,
-                reliability=0.95,
-                temporal_safety="LIVE_ONLY",
-                terms_permission="public-api-review-required",
-            ),
-            ),
-            (
-            api_football,
-            ProviderMetadata(
-                name="api_football",
-                capabilities=("fixtures", "lineups", "injuries"),
-                enabled=api_football.is_enabled(),
-                priority=20,
-                quota=100,
-                per_minute_limit=10,
-                request_window_seconds=24 * 3600,
-                freshness="near-live",
-                cache_ttl_seconds=60,
-                reliability=0.85,
-                temporal_safety="LIVE_ONLY",
-                terms_permission="keyed-free-tier",
-            ),
+                fpl,
+                ProviderMetadata(
+                    name="fpl_official",
+                    capabilities=("players", "fixtures", "availability"),
+                    priority=10,
+                    freshness="near-live",
+                    cache_ttl_seconds=900,
+                    reliability=0.95,
+                    temporal_safety="LIVE_ONLY",
+                    terms_permission="public-api-review-required",
+                ),
             ),
             (
-            open_meteo,
-            ProviderMetadata(
-                name="open_meteo",
-                capabilities=("weather",),
-                priority=30,
-                freshness="forecast",
-                cache_ttl_seconds=6 * 3600,
-                reliability=0.8,
-                temporal_safety="FORECAST_ONLY",
-                terms_permission="public-api-review-required",
+                api_football,
+                ProviderMetadata(
+                    name="api_football",
+                    capabilities=("fixtures", "lineups", "injuries"),
+                    enabled=api_football.is_enabled(),
+                    priority=20,
+                    quota=100,
+                    per_minute_limit=10,
+                    request_window_seconds=24 * 3600,
+                    freshness="near-live",
+                    cache_ttl_seconds=60,
+                    reliability=0.85,
+                    temporal_safety="LIVE_ONLY",
+                    terms_permission="keyed-free-tier",
+                ),
             ),
+            (
+                open_meteo,
+                ProviderMetadata(
+                    name="open_meteo",
+                    capabilities=("weather",),
+                    priority=30,
+                    freshness="forecast",
+                    cache_ttl_seconds=6 * 3600,
+                    reliability=0.8,
+                    temporal_safety="FORECAST_ONLY",
+                    terms_permission="public-api-review-required",
+                ),
             ),
         ]
     )

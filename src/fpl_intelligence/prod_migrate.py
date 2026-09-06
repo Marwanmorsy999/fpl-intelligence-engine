@@ -47,8 +47,7 @@ def _normalized_url() -> str:
     url = os.environ.get("DATABASE_URL", "").strip()
     if not url:
         print(
-            "prod_migrate: DATABASE_URL not set — skipping migration "
-            "(local/dev build)",
+            "prod_migrate: DATABASE_URL not set — skipping migration (local/dev build)",
             file=sys.stderr,
         )
         raise SystemExit(0)
@@ -134,13 +133,10 @@ def _normalize_version_rows(url: str, cfg: Config) -> bool:
         with engine.begin() as conn:
             conn.execute(
                 text(
-                    "CREATE TABLE IF NOT EXISTS alembic_version ("
-                    "version_num VARCHAR(32) NOT NULL)"
+                    "CREATE TABLE IF NOT EXISTS alembic_version (version_num VARCHAR(32) NOT NULL)"
                 )
             )
-            rows = [
-                r[0] for r in conn.execute(text("SELECT version_num FROM alembic_version"))
-            ]
+            rows = [r[0] for r in conn.execute(text("SELECT version_num FROM alembic_version"))]
             if len(rows) <= 1:
                 return False
             keep = min((r for r in rows if r in rank), key=lambda r: rank[r], default=None)
@@ -153,8 +149,7 @@ def _normalize_version_rows(url: str, cfg: Config) -> bool:
                     {"v": stale},
                 )
             print(
-                f"prod_migrate: alembic_version had {len(rows)} rows; kept "
-                f"{keep!r}, removed {drop}"
+                f"prod_migrate: alembic_version had {len(rows)} rows; kept {keep!r}, removed {drop}"
             )
             return True
     finally:

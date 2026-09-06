@@ -125,6 +125,7 @@ def get_prediction_provider(db: GetDB) -> DecisionPredictionProvider:
     )
 
     provider = CachedLivePredictionProvider(session=db)
+
     # Production hotfix: provider_event_id is unique per season only. The stock
     # get_fixture_count used an unscoped scalar_one_or_none() which raises
     # MultipleResultsFound after historical seasons are ingested and turns

@@ -117,9 +117,7 @@ class SquadService:
 
             from fpl_intelligence.db.base import Base as _Base  # noqa: PLC0415
 
-            _Base.metadata.create_all(
-                db.get_bind(), tables=[LocalSquadStateDB.__table__]
-            )
+            _Base.metadata.create_all(db.get_bind(), tables=[LocalSquadStateDB.__table__])
             db.commit()
         except Exception:  # noqa: BLE001 — best-effort; raw DDL last resort
             with contextlib.suppress(Exception):
@@ -264,9 +262,7 @@ class SquadService:
             try:
                 SquadService._ensure_local_table(db)
                 return db.execute(
-                    select(LocalSquadStateDB).where(
-                        LocalSquadStateDB.session_id == session_id
-                    )
+                    select(LocalSquadStateDB).where(LocalSquadStateDB.session_id == session_id)
                 ).scalar_one_or_none()
             except Exception as exc2:  # noqa: BLE001 — degrade to "no local squad"
                 logger.warning("local_squad read failed after re-seal: %s", exc2)
@@ -334,9 +330,7 @@ class SquadService:
                 if own:
                     db.close()
 
-    def get_effective_squad(
-        self, session_id: str, mode: str = "plan"
-    ) -> SquadStateResponse | None:
+    def get_effective_squad(self, session_id: str, mode: str = "plan") -> SquadStateResponse | None:
         """User-facing squad: local override preferred, base fallback.
 
         Phase 2 — the dual-state read is now explicit:

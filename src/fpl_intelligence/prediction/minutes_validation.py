@@ -106,9 +106,7 @@ def select_conditional_blend_weights(
         group_error = float(
             np.mean(
                 np.abs(
-                    group_weight * model[mask]
-                    + (1.0 - group_weight) * recent[mask]
-                    - actual[mask]
+                    group_weight * model[mask] + (1.0 - group_weight) * recent[mask] - actual[mask]
                 )
             )
         )

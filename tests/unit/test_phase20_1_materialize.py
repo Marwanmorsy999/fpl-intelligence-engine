@@ -40,10 +40,26 @@ _OFFICIAL_SLICE = Path(__file__).parent / "_official_fixtures_gw1_5.json"
 
 #: Official 2026/27 bootstrap teams table (captured 2026-08-23).
 OFFICIAL_TEAMS_2026_27 = {
-    1: "ARS", 2: "AVL", 3: "BOU", 4: "BRE", 5: "BHA",
-    6: "CHE", 7: "COV", 8: "CRY", 9: "EVE", 10: "FUL",
-    11: "HUL", 12: "IPS", 13: "LEE", 14: "LIV", 15: "MCI",
-    16: "MUN", 17: "NEW", 18: "NFO", 19: "TOT", 20: "SUN",
+    1: "ARS",
+    2: "AVL",
+    3: "BOU",
+    4: "BRE",
+    5: "BHA",
+    6: "CHE",
+    7: "COV",
+    8: "CRY",
+    9: "EVE",
+    10: "FUL",
+    11: "HUL",
+    12: "IPS",
+    13: "LEE",
+    14: "LIV",
+    15: "MCI",
+    16: "MUN",
+    17: "NEW",
+    18: "NFO",
+    19: "TOT",
+    20: "SUN",
 }
 
 #: Ground truth fetched from the official /api/fixtures/ on 2026-08-23:
@@ -62,7 +78,7 @@ OFFICIAL_RUNS = {
     (20, 1): (12, False),  # Sunderland at Ipswich
     (20, 2): (10, True),
     (20, 3): (4, False),
-    (20, 4): (1, True),    # Sunderland host Arsenal
+    (20, 4): (1, True),  # Sunderland host Arsenal
     (20, 5): (15, False),
 }
 
@@ -102,8 +118,8 @@ class TestFixturesMatchOfficial:
     @pytest.mark.parametrize(
         ("team_id", "gw", "expected_short"),
         [
-            (13, 1, "NFO"),   # was rendered as MCI by the stale map
-            (14, 3, "IPS"),   # was rendered as LIV
+            (13, 1, "NFO"),  # was rendered as MCI by the stale map
+            (14, 3, "IPS"),  # was rendered as LIV
             (20, 1, "IPS"),
             (20, 4, "ARS"),
             (14, 1, "NEW"),
@@ -323,9 +339,7 @@ class TestMaterializedFastPath:
 
     def test_stale_table_falls_back_to_inline_chain(self, db_session):
         provider = self._provider(db_session)
-        self._seed_predictions(
-            db_session, 3, computed_at=datetime.now(UTC) - timedelta(days=3)
-        )
+        self._seed_predictions(db_session, 3, computed_at=datetime.now(UTC) - timedelta(days=3))
         # Freshness gate rejects the stale rows; the inline chain takes over
         # and its provenance must never claim the materialized source.
         from fpl_intelligence.prediction.live_provider import (

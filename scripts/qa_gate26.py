@@ -50,7 +50,8 @@ with sync_playwright() as p:
                 page.screenshot(path=str(file), full_page=True)
                 print(f"ok {label} {name} -> {file}")
                 has_h = page.evaluate(
-                    "() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2"
+                    "() => document.documentElement.scrollWidth > "
+                    "document.documentElement.clientWidth + 2"
                 )
                 if has_h:
                     failed.append(f"{label} {name} horizontal scroll")
@@ -58,8 +59,13 @@ with sync_playwright() as p:
                 if w == 390:
                     small = page.evaluate("""() => {
                       const els=[...document.querySelectorAll('button, a')].filter(el=>{
-                        const r=el.getBoundingClientRect(); return r.width>0&&r.height>0&&(r.width<44||r.height<44)&&getComputedStyle(el).display!=='none';
-                      }); return els.slice(0,3).map(e=>e.tagName+'.'+e.className.slice(0,40)+' '+Math.round(e.getBoundingClientRect().width)+'x'+Math.round(e.getBoundingClientRect().height));
+                        const r=el.getBoundingClientRect();
+                        return r.width>0&&r.height>0&&(r.width<44||r.height<44)
+                          &&getComputedStyle(el).display!=='none';
+                      });
+                      return els.slice(0,3).map(e=>e.tagName+'.'+e.className.slice(0,40)+' '
+                        +Math.round(e.getBoundingClientRect().width)+'x'
+                        +Math.round(e.getBoundingClientRect().height));
                     }""")
                     if small:
                         print(f"  small targets {label}: {small}")

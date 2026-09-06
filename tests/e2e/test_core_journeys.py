@@ -62,7 +62,9 @@ def _base_payload(gw: int = 2) -> SquadStateCreate:
         captain_id=1,
         vice_captain_id=2,
         gameweek=gw,
-        player_positions={i: (1 if i <= 2 else 2 if i <= 7 else 3 if i <= 12 else 4) for i in range(1, 16)},
+        player_positions={
+            i: (1 if i <= 2 else 2 if i <= 7 else 3 if i <= 12 else 4) for i in range(1, 16)
+        },
         player_prices={i: 4.5 for i in range(1, 16)},
         bank=0.5,
     )
@@ -126,7 +128,9 @@ class TestJ2SessionBootstrap:
     def test_save_then_read_squad_roundtrip(self, app_client: tuple[TestClient, Session]) -> None:
         client, _ = app_client
         saved = client.post(
-            "/api/v1/squad", params={"session_id": "e2e_u1"}, json=_base_payload().model_dump(mode="json")
+            "/api/v1/squad",
+            params={"session_id": "e2e_u1"},
+            json=_base_payload().model_dump(mode="json"),
         )
         assert saved.status_code == 200, saved.text
         got = client.get("/api/v1/squad", params={"session_id": "e2e_u1"})
@@ -137,13 +141,13 @@ class TestJ2SessionBootstrap:
         assert body["player_ids"] == list(range(1, 16))
         assert body["captain_id"] == 1
 
-    def test_mode_fpl_excludes_local_overlay(
-        self, app_client: tuple[TestClient, Session]
-    ) -> None:
+    def test_mode_fpl_excludes_local_overlay(self, app_client: tuple[TestClient, Session]) -> None:
         """Phase-2 truth: plan mode may show the planned player, fpl mode may not."""
         client, _ = app_client
         client.post(
-            "/api/v1/squad", params={"session_id": "e2e_u2"}, json=_base_payload().model_dump(mode="json")
+            "/api/v1/squad",
+            params={"session_id": "e2e_u2"},
+            json=_base_payload().model_dump(mode="json"),
         )
         local = client.post(
             "/api/v1/squad/local",
@@ -166,7 +170,9 @@ class TestJ2SessionBootstrap:
     ) -> None:
         client, _ = app_client
         client.post(
-            "/api/v1/squad", params={"session_id": "e2e_u3"}, json=_base_payload().model_dump(mode="json")
+            "/api/v1/squad",
+            params={"session_id": "e2e_u3"},
+            json=_base_payload().model_dump(mode="json"),
         )
         resp = client.get("/api/v1/squad", params={"session_id": "e2e_u3"})
         assert "no-store" in resp.headers.get("cache-control", "").lower()
@@ -187,14 +193,16 @@ class TestJ3Decisions:
         """With a real squad the report is either complete (200) or an honest 503."""
         client, _ = app_client
         client.post(
-            "/api/v1/squad", params={"session_id": "e2e_d1"}, json=_base_payload().model_dump(mode="json")
+            "/api/v1/squad",
+            params={"session_id": "e2e_d1"},
+            json=_base_payload().model_dump(mode="json"),
         )
         resp = client.get("/api/v1/decisions", params={"session_id": "e2e_d1"})
         assert resp.status_code in {200, 503}, f"unexpected {resp.status_code}: {resp.text[:300]}"
         if resp.status_code == 200:
             body = resp.json()
             xi = body.get("starting_xi") or body.get("startingXI") or []
-                    # Skeleton guard: a populated squad must yield a non-empty XI.
+            # Skeleton guard: a populated squad must yield a non-empty XI.
             assert xi, f"empty starting XI in report: {list(body)[:12]}"
 
 
@@ -218,7 +226,9 @@ class TestJ4MyTeamFixtures:
         """With no fixtures published the endpoint degrades to 503, never a bare 500."""
         client, _ = app_client
         client.post(
-            "/api/v1/squad", params={"session_id": "e2e_f1"}, json=_base_payload().model_dump(mode="json")
+            "/api/v1/squad",
+            params={"session_id": "e2e_f1"},
+            json=_base_payload().model_dump(mode="json"),
         )
         resp = client.get("/api/v1/fixtures/scan", params={"session_id": "e2e_f1"})
         assert resp.status_code in {200, 503}, f"unexpected {resp.status_code}"
@@ -236,7 +246,9 @@ class TestJ4MyTeamFixtures:
 
 class TestJ5League:
     @pytest.mark.parametrize("bad", ["None", "", "abc", "12.3", "-1"])
-    def test_junk_sessions_never_500(self, app_client: tuple[TestClient, Session], bad: str) -> None:
+    def test_junk_sessions_never_500(
+        self, app_client: tuple[TestClient, Session], bad: str
+    ) -> None:
         client, _ = app_client
         resp = client.get("/api/v1/league", params={"session_id": bad})
         assert resp.status_code == 200  # degraded-but-200 by design
@@ -244,7 +256,9 @@ class TestJ5League:
         assert body.get("status") in {"no-league", "degraded", "stale"}
         assert body.get("leagues") == []
 
-    def test_numeric_unknown_session_is_honest(self, app_client: tuple[TestClient, Session]) -> None:
+    def test_numeric_unknown_session_is_honest(
+        self, app_client: tuple[TestClient, Session]
+    ) -> None:
         client, _ = app_client
         resp = client.get("/api/v1/league", params={"session_id": "000000"})
         assert resp.status_code == 200
@@ -279,7 +293,9 @@ class TestJ6SyncPush:
         assert bad_auth.status_code == 401
 
         ok = client.post(
-            "/api/v1/sync/squad-push", json=payload, headers={"Authorization": "Bearer e2e-push-token"}
+            "/api/v1/sync/squad-push",
+            json=payload,
+            headers={"Authorization": "Bearer e2e-push-token"},
         )
         assert ok.status_code == 200, ok.text
 
@@ -299,7 +315,9 @@ class TestJ6SyncPush:
 
 
 class TestJ7AdminSecurity:
-    def test_cron_secret_contract(self, app_client: tuple[TestClient, Session], monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_cron_secret_contract(
+        self, app_client: tuple[TestClient, Session], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         client, _ = app_client
         monkeypatch.setenv("CRON_SECRET", "e2e-cron-secret")
         monkeypatch.delenv("APP_ENV", raising=False)

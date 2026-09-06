@@ -263,8 +263,12 @@ class TestMaskHealth:
         record_strategy_result("corsproxy", ok=False, detail="timeout")
         row = mask_health_payload()[0]
         for field in (
-            "strategy", "last_status", "last_at", "last_error",
-            "success_count", "fail_count",
+            "strategy",
+            "last_status",
+            "last_at",
+            "last_error",
+            "success_count",
+            "fail_count",
         ):
             assert field in row
 
@@ -349,8 +353,8 @@ class TestLiveEngine:
         self._seed_fixture_cache(db, kickoff_iso=soon.isoformat())
 
         points = {101 + i: float(i) for i in range(15)}  # cap(101)=0? make meaningful below
-        points[101] = 7.0   # captain -> doubled 14
-        points[102] = 5.0   # vice -> doubled would be 10 => delta +4
+        points[101] = 7.0  # captain -> doubled 14
+        points[102] = 5.0  # vice -> doubled would be 10 => delta +4
         points[103] = 2.0
         _install_chains(
             monkeypatch,
@@ -638,8 +642,11 @@ class TestAssistantPersonalization:
     def test_tldr_transfer_action_lists_players_when_making_moves(self):
         from fpl_intelligence.api.routes.assistant import _tldr_actions
 
-        acts = _tldr_actions(_facts(transfer_action="Free Transfer",
-                                    transfer_ins=["Gordon"], transfer_outs=["Mbeumo"]))
+        acts = _tldr_actions(
+            _facts(
+                transfer_action="Free Transfer", transfer_ins=["Gordon"], transfer_outs=["Mbeumo"]
+            )
+        )
         transfers = acts[1]
         assert "IN Gordon" in transfers["text"]
         assert "OUT Mbeumo" in transfers["text"]
@@ -708,7 +715,13 @@ class TestDailyJob:
         assert resp.status_code in (200, 207)
         assert body["job"] == "daily"
         assert set(body["steps"]) == {
-            "tables", "materialize", "sync", "gate1", "transfers", "briefs", "grading",
+            "tables",
+            "materialize",
+            "sync",
+            "gate1",
+            "transfers",
+            "briefs",
+            "grading",
         }
         assert body["steps"]["sync"]["detail"] == "no pending sync"
         assert body["steps"]["grading"]["ok"] is True
@@ -717,11 +730,15 @@ class TestDailyJob:
 
         from fpl_intelligence.db.models import IngestionRun
 
-        run = db.execute(
-            select(IngestionRun)
-            .where(IngestionRun.job_name == "daily")
-            .order_by(IngestionRun.id.desc())
-        ).scalars().first()
+        run = (
+            db.execute(
+                select(IngestionRun)
+                .where(IngestionRun.job_name == "daily")
+                .order_by(IngestionRun.id.desc())
+            )
+            .scalars()
+            .first()
+        )
         assert run is not None
         assert run.status in ("SUCCESS", "PARTIAL")
 

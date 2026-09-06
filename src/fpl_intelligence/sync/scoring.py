@@ -128,11 +128,7 @@ def score_xi(
         "user_points": user_pts,
         "delta": 0 if identical else delta,
         "verdict": NEUTRAL if identical else _verdict(delta),
-        "reason": (
-            "XI matched your fielded XI — nothing to grade"
-            if identical
-            else ""
-        ),
+        "reason": ("XI matched your fielded XI — nothing to grade" if identical else ""),
     }
 
 

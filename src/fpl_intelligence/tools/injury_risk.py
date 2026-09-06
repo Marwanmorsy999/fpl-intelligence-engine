@@ -75,9 +75,7 @@ def calculate_injury_risk(player: Any) -> dict[str, Any]:
     if congestion is None:
         missing.append("upcoming_fixtures_in_14_days")
     congestion_factor = (
-        0.3
-        if (congestion is not None and congestion > CONGESTION_FIXTURES_14D)
-        else 0.1
+        0.3 if (congestion is not None and congestion > CONGESTION_FIXTURES_14D) else 0.1
     )
 
     raw_risk = (

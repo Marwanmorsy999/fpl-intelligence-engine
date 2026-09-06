@@ -72,15 +72,14 @@ class _TimedPredictionProvider(DecisionPredictionProvider):
                 player_id: self._prediction_cache[(player_id, gameweek)]
                 for player_id in normalized_players
                 if (player_id, gameweek) in self._prediction_cache
-                and getattr(self._prediction_cache[(player_id, gameweek)], "distribution", None) is not None
+                and getattr(self._prediction_cache[(player_id, gameweek)], "distribution", None)
+                is not None
                 and len(self._prediction_cache[(player_id, gameweek)].distribution) > 0
             }
             result[gameweek] = cached_by_player
 
             missing = [
-                player_id
-                for player_id in normalized_players
-                if player_id not in cached_by_player
+                player_id for player_id in normalized_players if player_id not in cached_by_player
             ]
             if not missing:
                 continue
@@ -157,9 +156,7 @@ class DecisionOptimizerBridge:
         self._starting_xi_opt = StartingXIOptimizer(timed_provider, self.rules)
         self._captain_opt = CaptainOptimizer(timed_provider)
         self._transfer_opt = TransferOptimizer(timed_provider, self.rules)
-        self._multi_transfer = MultiTransferPlanner(
-            self._transfer_opt, timed_provider, self.rules
-        )
+        self._multi_transfer = MultiTransferPlanner(self._transfer_opt, timed_provider, self.rules)
         self._chip_sim = ChipSimulator(timed_provider, self.rules)
 
     def generate_decisions(

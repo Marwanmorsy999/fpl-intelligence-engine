@@ -5,12 +5,10 @@ Unit + API integration via in-memory sqlite. No network.
 
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
 
 from fpl_intelligence.api.main import app
 from fpl_intelligence.db.session import get_db
@@ -31,7 +29,9 @@ def _make_squad(db, entry="77", ft=1, gw=2, ids=None):
         free_transfers=ft,
         chips_available=[],
         gameweek=gw,
-        player_positions={pid: (1 if i == 0 else 2 if i < 6 else 3 if i < 11 else 4) for i, pid in enumerate(ids)},
+        player_positions={
+            pid: (1 if i == 0 else 2 if i < 6 else 3 if i < 11 else 4) for i, pid in enumerate(ids)
+        },
         player_prices={pid: 5.0 for pid in ids},
         player_teams={pid: 1 for pid in ids},
         session_id=entry,
@@ -43,7 +43,11 @@ def _seed_predictions(db, gw, pairs):
     # pairs: {element_id: xpts}
     now = datetime.now(UTC)
     for eid, pts in pairs.items():
-        db.add(PredictionCurrentDB(gameweek=gw, element_id=eid, expected_points=float(pts), computed_at=now))
+        db.add(
+            PredictionCurrentDB(
+                gameweek=gw, element_id=eid, expected_points=float(pts), computed_at=now
+            )
+        )
     db.commit()
 
 
@@ -82,7 +86,9 @@ def test_ft_valuation_hit_cost(db_session):
     _seed_predictions(db_session, 8, {20: 2.0, 3: 2.1})
     _seed_predictions(db_session, 9, {20: 2.0, 3: 2.0})
     _seed_predictions(db_session, 10, {20: 2.0, 3: 2.0})
-    v2 = compute_ft_valuation(db_session, element_in=20, element_out=3, free_transfers=0, start_gw=8)
+    v2 = compute_ft_valuation(
+        db_session, element_in=20, element_out=3, free_transfers=0, start_gw=8
+    )
     assert v2["gross_ev"] == pytest.approx(-0.1)
     assert v2["net_ev"] == pytest.approx(-4.1)
     assert v2["recommendation"] == "AVOID"
@@ -127,7 +133,10 @@ def test_hit_chip_with_cost(db_session):
     data = resp.json()
     assert data["hit_analysis"]["hit_cost"] == 4
     assert "Cost: -4 pts." in data["hit_analysis"]["chip_text"]
-    assert "Projected 3-week gain: +15" in data["hit_analysis"]["chip_text"] or "gain" in data["hit_analysis"]["chip_text"]
+    assert (
+        "Projected 3-week gain: +15" in data["hit_analysis"]["chip_text"]
+        or "gain" in data["hit_analysis"]["chip_text"]
+    )
     app.dependency_overrides.clear()
 
 
@@ -159,7 +168,9 @@ def test_execute_fallback(db_session):
     app.dependency_overrides[get_db] = _override
     client = TestClient(app)
     _make_squad(db_session, entry="888", ft=1, gw=2, ids=list(range(1, 16)))
-    resp = client.post("/api/v1/transfers/execute", json={"session_id": "888", "element_in": 99, "element_out": 1})
+    resp = client.post(
+        "/api/v1/transfers/execute", json={"session_id": "888", "element_in": 99, "element_out": 1}
+    )
     assert resp.status_code == 404
     app.dependency_overrides.clear()
 
@@ -174,7 +185,13 @@ def test_execute_mocked_success(monkeypatch, db_session):
     _make_squad(db_session, entry="999", ft=1, gw=2, ids=list(range(1, 16)))
     resp = client.post(
         "/api/v1/transfers/execute",
-        json={"session_id": "999", "element_in": 99, "element_out": 1, "fpl_session_cookie": "x", "csrf_token": "y"},
+        json={
+            "session_id": "999",
+            "element_in": 99,
+            "element_out": 1,
+            "fpl_session_cookie": "x",
+            "csrf_token": "y",
+        },
     )
     assert resp.status_code == 404
     # Verify the dual-state local save works instead (no FPL fetch):
@@ -200,7 +217,12 @@ def test_trajectory_endpoint(db_session):
     # leagues + cache
     db_session.add(
         EntryLeagueDB(
-            entry_id=111, league_id=10, league_name="Test League", member_count=20, private=True, discovered_at=datetime.now(UTC)
+            entry_id=111,
+            league_id=10,
+            league_name="Test League",
+            member_count=20,
+            private=True,
+            discovered_at=datetime.now(UTC),
         )
     )
     # standings: You 100 pts rank 5, rivals higher
@@ -216,7 +238,15 @@ def test_trajectory_endpoint(db_session):
             name="Test League",
             member_count=20,
             standings=standings,
-            rivals_picks={"picks": {"201": list(range(1, 12)), "202": list(range(12, 23)), "203": list(range(23, 34))}, "captains": {}, "gameweek": 2},
+            rivals_picks={
+                "picks": {
+                    "201": list(range(1, 12)),
+                    "202": list(range(12, 23)),
+                    "203": list(range(23, 34)),
+                },
+                "captains": {},
+                "gameweek": 2,
+            },
             refreshed_at=datetime.now(UTC),
         )
     )
@@ -224,10 +254,18 @@ def test_trajectory_endpoint(db_session):
     for gw in [2, 3, 4]:
         # You: ids 1..11 each 5 pts => 55 per GW
         for pid in range(1, 12):
-            db_session.add(PredictionCurrentDB(gameweek=gw, element_id=pid, expected_points=5.0, computed_at=datetime.now(UTC)))
+            db_session.add(
+                PredictionCurrentDB(
+                    gameweek=gw, element_id=pid, expected_points=5.0, computed_at=datetime.now(UTC)
+                )
+            )
         # Rivals: ids 12..33 each 2 pts => 22 per GW
         for pid in range(12, 34):
-            db_session.add(PredictionCurrentDB(gameweek=gw, element_id=pid, expected_points=2.0, computed_at=datetime.now(UTC)))
+            db_session.add(
+                PredictionCurrentDB(
+                    gameweek=gw, element_id=pid, expected_points=2.0, computed_at=datetime.now(UTC)
+                )
+            )
     db_session.commit()
 
     resp = client.get("/api/v1/league/trajectory?session_id=111")
@@ -251,11 +289,54 @@ def test_fomo_math(db_session):
     client = TestClient(app)
     # ingest history for captain regret
     gw = 2
-    db_session.add(IngestedGameweekDB(gameweek=gw, element_id=10, total_points=12, ingested_at=datetime.now(UTC), payload={}))
-    db_session.add(IngestedGameweekDB(gameweek=gw, element_id=11, total_points=2, ingested_at=datetime.now(UTC), payload={}))
-    db_session.add(RecommendationDB(session_key="321", gameweek=gw, rec_type="captain", subject={"captain_id": 10}, detail={}, created_at=datetime.now(UTC), score={"captain": 11, "captain_points": 2, "best_alternative": 10, "alternative_points": 12}))
-    db_session.add(RecommendationDB(session_key="321", gameweek=gw, rec_type="transfer", subject={"transfers_in": [10]}, detail={}, created_at=datetime.now(UTC), score={"verdict": "right"}))
-    db_session.add(RecommendationDB(session_key="321", gameweek=gw, rec_type="transfer", subject={"transfers_in": [11]}, detail={}, created_at=datetime.now(UTC), score={"verdict": "wrong"}))
+    db_session.add(
+        IngestedGameweekDB(
+            gameweek=gw, element_id=10, total_points=12, ingested_at=datetime.now(UTC), payload={}
+        )
+    )
+    db_session.add(
+        IngestedGameweekDB(
+            gameweek=gw, element_id=11, total_points=2, ingested_at=datetime.now(UTC), payload={}
+        )
+    )
+    db_session.add(
+        RecommendationDB(
+            session_key="321",
+            gameweek=gw,
+            rec_type="captain",
+            subject={"captain_id": 10},
+            detail={},
+            created_at=datetime.now(UTC),
+            score={
+                "captain": 11,
+                "captain_points": 2,
+                "best_alternative": 10,
+                "alternative_points": 12,
+            },
+        )
+    )
+    db_session.add(
+        RecommendationDB(
+            session_key="321",
+            gameweek=gw,
+            rec_type="transfer",
+            subject={"transfers_in": [10]},
+            detail={},
+            created_at=datetime.now(UTC),
+            score={"verdict": "right"},
+        )
+    )
+    db_session.add(
+        RecommendationDB(
+            session_key="321",
+            gameweek=gw,
+            rec_type="transfer",
+            subject={"transfers_in": [11]},
+            detail={},
+            created_at=datetime.now(UTC),
+            score={"verdict": "wrong"},
+        )
+    )
     db_session.commit()
     resp = client.get("/api/v1/league/fomo?session_id=321&gameweek=2")
     assert resp.status_code == 200
@@ -264,7 +345,10 @@ def test_fomo_math(db_session):
     assert data["captain_regret"] is not None
     # engine captain 10 has 12 doubled =24 vs user 11 doubled=4 => delta 20
     assert data["captain_regret"]["delta"] == 20
-    assert "You lost 20 pts" in data["captain_regret"]["line"] or "lost" in data["captain_regret"]["line"].lower()
+    assert (
+        "You lost 20 pts" in data["captain_regret"]["line"]
+        or "lost" in data["captain_regret"]["line"].lower()
+    )
     assert data["alpha_capture"]["rate"] == pytest.approx(0.5)
     assert "Alpha Capture Rate" in data["alpha_capture"]["line"]
     app.dependency_overrides.clear()

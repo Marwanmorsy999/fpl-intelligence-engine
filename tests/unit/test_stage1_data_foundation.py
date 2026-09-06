@@ -149,10 +149,12 @@ def test_fpl_adapter_cache_prevents_duplicate_concurrent_requests():
             return {"elements": []}
 
     registry = ProviderRegistry(
-        [(
-            Provider(),
-            ProviderMetadata(name="fpl_official", capabilities=("players",)),
-        )]
+        [
+            (
+                Provider(),
+                ProviderMetadata(name="fpl_official", capabilities=("players",)),
+            )
+        ]
     )
     adapter = fpl_ingestion_adapter(registry=registry)
     with ThreadPoolExecutor(max_workers=2) as pool:
@@ -183,9 +185,7 @@ def test_registry_falls_back_in_priority_order_and_reports_state():
 
 
 def test_registry_reaches_stale_data_after_provider_and_cache_fail():
-    registry = ProviderRegistry(
-        [("primary", ProviderMetadata(name="primary", priority=10))]
-    )
+    registry = ProviderRegistry([("primary", ProviderMetadata(name="primary", priority=10))])
 
     result = registry.resolve(
         lambda _provider: (_ for _ in ()).throw(RuntimeError("offline")),
@@ -214,9 +214,7 @@ def test_registry_skips_disabled_provider_when_marking_secondary():
 
 
 def test_registry_preserves_cache_and_stale_provenance():
-    registry = ProviderRegistry(
-        [("primary", ProviderMetadata(name="primary", priority=10))]
-    )
+    registry = ProviderRegistry([("primary", ProviderMetadata(name="primary", priority=10))])
 
     cached = registry.resolve(lambda _provider: None, cached=lambda: "cached")
     stale = registry.resolve(

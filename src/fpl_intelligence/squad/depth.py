@@ -61,9 +61,7 @@ def rank_differentials(
     eligible = [
         pid
         for pid in xpts_by_id
-        if pid not in excluded
-        and pid in ownership_by_id
-        and float(xpts_by_id[pid]) >= min_xpts
+        if pid not in excluded and pid in ownership_by_id and float(xpts_by_id[pid]) >= min_xpts
     ]
     xpts_rank = _rank({pid: float(xpts_by_id[pid]) for pid in eligible})
     own_rank = _rank({pid: float(ownership_by_id[pid]) for pid in eligible})
@@ -203,8 +201,7 @@ def captain_comparison(
                 "ownership_pct": player.get("ownership_pct"),
                 "next_fixture": player.get("next_fixture"),
                 "is_captain": bool(
-                    captain_id is not None
-                    and int(player["player_id"]) == int(captain_id)
+                    captain_id is not None and int(player["player_id"]) == int(captain_id)
                 ),
                 "blank_note": blank_note,
                 "gap_to_next": gap,

@@ -90,12 +90,27 @@ class TestBuildWatchlist:
 
 class TestCaptainComparison:
     DATA = [
-        {"player_id": 411, "web_name": "Haaland", "xpts": 7.4, "ownership_pct": 69.0,
-         "next_fixture": "IPS(H)2"},
-        {"player_id": 12, "web_name": "Saka", "xpts": 6.1, "ownership_pct": 28.0,
-         "next_fixture": "CHE(A)4"},
-        {"player_id": 15, "web_name": "Palmer", "xpts": 5.9, "ownership_pct": 51.0,
-         "next_fixture": "EVE(H)3"},
+        {
+            "player_id": 411,
+            "web_name": "Haaland",
+            "xpts": 7.4,
+            "ownership_pct": 69.0,
+            "next_fixture": "IPS(H)2",
+        },
+        {
+            "player_id": 12,
+            "web_name": "Saka",
+            "xpts": 6.1,
+            "ownership_pct": 28.0,
+            "next_fixture": "CHE(A)4",
+        },
+        {
+            "player_id": 15,
+            "web_name": "Palmer",
+            "xpts": 5.9,
+            "ownership_pct": 51.0,
+            "next_fixture": "EVE(H)3",
+        },
     ]
 
     def test_captain_first_with_blank_note_and_gap(self):
@@ -176,49 +191,75 @@ def _seed_depth_world(db):
     # 1 GK + 5 DEF + 5 MID starters first, then 3 FWD + GK bench (FPL order).
     ids = [401, 410, 411, 412, 413, 414, 420, 421, 422, 423, 424, 430, 431, 432, 402]
     positions = {
-        401: 1, 402: 1,
-        410: 2, 411: 2, 412: 2, 413: 2, 414: 2,
-        420: 3, 421: 3, 422: 3, 423: 3, 424: 3,
-        430: 4, 431: 4, 432: 4,
+        401: 1,
+        402: 1,
+        410: 2,
+        411: 2,
+        412: 2,
+        413: 2,
+        414: 2,
+        420: 3,
+        421: 3,
+        422: 3,
+        423: 3,
+        424: 3,
+        430: 4,
+        431: 4,
+        432: 4,
     }
     prices = {pid: 7.0 for pid in ids}
     teams = dict.fromkeys(ids, 15)
-    db.add(SquadStateDB(
-        session_id="depth-user",
-        squad_json={
-            "player_ids": ids,
-            "captain_id": 424,
-            "vice_captain_id": 420,
-            "bank": 2.0,
-            "free_transfers": 1,
-            "chips_available": ["wildcard"],
-            "gameweek": 2,
-            "player_positions": {str(k): v for k, v in positions.items()},
-            "player_prices": {str(k): v for k, v in prices.items()},
-            "player_teams": {str(k): v for k, v in teams.items()},
-        },
-        updated_at=datetime.now(UTC),
-    ))
+    db.add(
+        SquadStateDB(
+            session_id="depth-user",
+            squad_json={
+                "player_ids": ids,
+                "captain_id": 424,
+                "vice_captain_id": 420,
+                "bank": 2.0,
+                "free_transfers": 1,
+                "chips_available": ["wildcard"],
+                "gameweek": 2,
+                "player_positions": {str(k): v for k, v in positions.items()},
+                "player_prices": {str(k): v for k, v in prices.items()},
+                "player_teams": {str(k): v for k, v in teams.items()},
+            },
+            updated_at=datetime.now(UTC),
+        )
+    )
 
     now = datetime.now(UTC)
     xpts_rows = [
-        (424, 6.8), (420, 5.9), (411, 5.0),
+        (424, 6.8),
+        (420, 5.9),
+        (411, 5.0),
         # market darlings the differential engine should surface instead
-        (500, 6.9), (501, 6.5), (502, 6.1), (503, 5.8),
+        (500, 6.9),
+        (501, 6.5),
+        (502, 6.1),
+        (503, 5.8),
     ]
     for element_id, xpts in xpts_rows:
-        db.add(PredictionCurrentDB(
-            gameweek=2,
-            element_id=element_id,
-            expected_points=xpts,
-            computed_at=now,
-            source="materialized-chain",
-        ))
-    db.add(FixturesCacheDB(source="test", payload=[
-        {"event": 1, "team_h": 1, "team_a": 2, "finished": True},
-        {"event": 2, "team_h": 15, "team_a": 16, "finished": False},
-        {"event": 2, "team_h": 7, "team_a": 1, "finished": False},
-    ], fetched_at=now))
+        db.add(
+            PredictionCurrentDB(
+                gameweek=2,
+                element_id=element_id,
+                expected_points=xpts,
+                computed_at=now,
+                source="materialized-chain",
+            )
+        )
+    db.add(
+        FixturesCacheDB(
+            source="test",
+            payload=[
+                {"event": 1, "team_h": 1, "team_a": 2, "finished": True},
+                {"event": 2, "team_h": 15, "team_a": 16, "finished": False},
+                {"event": 2, "team_h": 7, "team_a": 1, "finished": False},
+            ],
+            fetched_at=now,
+        )
+    )
     db.commit()
 
 

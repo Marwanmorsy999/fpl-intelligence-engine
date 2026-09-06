@@ -108,12 +108,8 @@ class TestEnsembleXpts:
         # mean = 8*.4 + 5.7647*.35 + 7*.25 = 6.9676
         assert result["mean"] == pytest.approx(6.97, abs=0.01)
         assert result["sd"] == pytest.approx(2.24, abs=0.01)
-        assert result["lower"] == pytest.approx(
-            max(0, result["mean"] - Z_95 * 2.2361), abs=0.01
-        )
-        assert result["upper"] == pytest.approx(
-            result["mean"] + Z_95 * 2.2361, abs=0.01
-        )
+        assert result["lower"] == pytest.approx(max(0, result["mean"] - Z_95 * 2.2361), abs=0.01)
+        assert result["upper"] == pytest.approx(result["mean"] + Z_95 * 2.2361, abs=0.01)
         assert result["model"] == "ensemble_v1"
         assert result["ci_from_history"] is True
         assert sum(result["weights_used"].values()) == pytest.approx(1.0)
@@ -123,9 +119,7 @@ class TestEnsembleXpts:
         result = calculate_ensemble_xpts(player, 5, dict(self.PREDICTIONS))
         assert result["weights_used"] == {"form": 0.5833, "history": 0.4167}
         # mean = (5.7647*.35 + 7*.25)/.60 = 6.2736...
-        assert result["mean"] == pytest.approx(
-            (5.7647 * 0.35 + 7 * 0.25) / 0.60, abs=0.01
-        )
+        assert result["mean"] == pytest.approx((5.7647 * 0.35 + 7 * 0.25) / 0.60, abs=0.01)
 
     def test_default_sd_when_no_history(self):
         player = _ns(fixture_difficulty=3)
@@ -171,21 +165,30 @@ class TestCaptainConfidence:
 
     def test_clamped_to_floor(self):
         low = _ns(
-            xpts=5, fixture_difficulty=5, form_avg=4, season_avg=5,
+            xpts=5,
+            fixture_difficulty=5,
+            form_avg=4,
+            season_avg=5,
             selected_by_percent=100,
         )
         assert calculate_captain_confidence(low, low, 5) == 50.0
 
     def test_clamped_to_ceiling(self):
         high = _ns(
-            xpts=12, fixture_difficulty=1, form_avg=5, season_avg=4,
+            xpts=12,
+            fixture_difficulty=1,
+            form_avg=5,
+            season_avg=4,
             selected_by_percent=0,
         )
         assert calculate_captain_confidence(high, self.SECOND, 5) == 95.0
 
     def test_missing_second_pick_renormalises(self):
         top = _ns(
-            xpts=7, fixture_difficulty=1, form_avg=5, season_avg=5,
+            xpts=7,
+            fixture_difficulty=1,
+            form_avg=5,
+            season_avg=5,
             selected_by_percent=50,
         )
         detail = captain_confidence_detail(top, None, 5)
@@ -255,9 +258,7 @@ class TestTransferEv:
             1: {5: {"mean": 20.0, "upper": 20.196}},
             2: {5: {"mean": 0.0, "upper": 0.196}},
         }
-        assert calculate_confidence(self.IN, self.OUT, [5], tight) == pytest.approx(
-            100.0, abs=0.5
-        )
+        assert calculate_confidence(self.IN, self.OUT, [5], tight) == pytest.approx(100.0, abs=0.5)
 
     def test_get_top_transfers_respects_bank_and_ownership(self):
         squad = _ns(player_ids=[2, 3])
@@ -278,9 +279,7 @@ class TestTransferEv:
         }
         players.append(_ns(id=8, name="Cheap", web_name="CHEAP", now_cost=4.0))
 
-        tops = get_top_transfers(
-            squad, 1.0, players, preds, [5, 6], volatility_map={1: 0.5}
-        )
+        tops = get_top_transfers(squad, 1.0, players, preds, [5, 6], volatility_map={1: 0.5})
         pairs = {(t["player_out"], t["player_in"]) for t in tops}
         # BANK rules: IN (£10.5m) only fits out of OUT (£9.9m + £1.0m);
         # CHEAP (£4.0m) fits out of anyone; RICH never fits.
@@ -337,15 +336,12 @@ class TestDifferentials:
         names = [d["player"] for d in diffs]
         assert names == ["Diff", "Template"]
         assert diffs[0]["tier"] == "Low"
-        assert diffs[0]["score"] == pytest.approx(
-            round((6.0 * (1 - 4.5 / 100)) / 5.5, 2), abs=1e-6
-        )
+        assert diffs[0]["score"] == pytest.approx(round((6.0 * (1 - 4.5 / 100)) / 5.5, 2), abs=1e-6)
         assert diffs[1]["tier"] == "High"
 
     def test_min_xpts_floor_and_top_n(self):
         players = [
-            _ns(id=i, web_name=f"P{i}", now_cost=50, selected_by_percent=5)
-            for i in range(1, 6)
+            _ns(id=i, web_name=f"P{i}", now_cost=50, selected_by_percent=5) for i in range(1, 6)
         ]
         preds = {i: {7: {"mean": 1.0 if i < 4 else 8.0}} for i in range(1, 6)}
         diffs = find_differentials(players, preds, 7, min_xpts=2.0, top_n=2)
@@ -373,16 +369,25 @@ class TestPricePredictor:
     def test_probability_saturation_and_direction(self):
         players = [
             _ns(
-                id=1, web_name="Rocket", now_cost=12.5,
-                transfers_in=40000, transfers_out=5000,
+                id=1,
+                web_name="Rocket",
+                now_cost=12.5,
+                transfers_in=40000,
+                transfers_out=5000,
             ),
             _ns(
-                id=2, web_name="Sink", now_cost=4.0,
-                transfers_in=1000, transfers_out=31000,
+                id=2,
+                web_name="Sink",
+                now_cost=4.0,
+                transfers_in=1000,
+                transfers_out=31000,
             ),
             _ns(
-                id=3, web_name="Quiet", now_cost=6.0,
-                transfers_in=100, transfers_out=200,
+                id=3,
+                web_name="Quiet",
+                now_cost=6.0,
+                transfers_in=100,
+                transfers_out=200,
             ),
         ]
         results = predict_price_changes(players)
@@ -507,9 +512,7 @@ XPTS_BY_EL = {415: 8.0, 310: 6.0, 233: 4.0}
 @pytest.fixture
 def phase2_db(db_session):
     """Elements 415/310/233 with 5 GWs of history + materialized forecasts."""
-    season = Season(
-        code="2026-27", display_name="2026/27", competition="Premier League"
-    )
+    season = Season(code="2026-27", display_name="2026/27", competition="Premier League")
     db_session.add(season)
     db_session.flush()
     team = Team(name="Test FC", short_name="TFC")
@@ -534,7 +537,9 @@ def phase2_db(db_session):
     internal = {}
     for el in els:
         p = Player(
-            first_name=f"P{el}", second_name="X", web_name=f"E{el}",
+            first_name=f"P{el}",
+            second_name="X",
+            web_name=f"E{el}",
             fpl_element_id=el,
         )
         db_session.add(p)
@@ -565,9 +570,7 @@ def phase2_db(db_session):
                     computed_at=now,
                 )
             )
-    db_session.add(
-        ElementFactDB(element_id=415, web_name="E415", minutes=2000, updated_at=now)
-    )
+    db_session.add(ElementFactDB(element_id=415, web_name="E415", minutes=2000, updated_at=now))
     db_session.commit()
     return db_session
 
@@ -586,9 +589,7 @@ class TestPhase2ApiWiring:
             captain=CaptainRecommendation(player_id=415),
         )
         squad = SimpleNamespace(player_ids=[415, 310], bank=2.5)
-        await _attach_phase2_insights(
-            phase2_db, report, squad, ownership_map={415: 55.0}
-        )
+        await _attach_phase2_insights(phase2_db, report, squad, ownership_map={415: 55.0})
 
         ph = report.meta["phase2"]
         assert ph["model"] == "ensemble_v1"
@@ -670,5 +671,3 @@ class TestPhase2ApiWiring:
         pairs = {(t["player_out_id"], t["player_in_id"]) for t in tops}
         if pairs:
             assert tops[0]["player_in_id"] == 310  # bigger xPTS gain first
-
-

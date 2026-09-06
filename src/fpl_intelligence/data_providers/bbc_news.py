@@ -27,10 +27,30 @@ BBC_SPORT_FOOTBALL_RSS = "https://feeds.bbci.co.uk/sport/football/rss.xml"
 
 #: Availability vocabulary that qualifies a matched headline as a flag.
 NEWS_KEYWORDS: tuple[str, ...] = (
-    "injury", "injured", "injure", "doubt", "out", "ruled out", "sidelined",
-    "suspended", "suspension", "ban", "banned", "return", "returns",
-    "training", "fitness", "fit again", "knock", "blow", "recovering",
-    "recovery", "assessment", "scan", "surgery", "illness",
+    "injury",
+    "injured",
+    "injure",
+    "doubt",
+    "out",
+    "ruled out",
+    "sidelined",
+    "suspended",
+    "suspension",
+    "ban",
+    "banned",
+    "return",
+    "returns",
+    "training",
+    "fitness",
+    "fit again",
+    "knock",
+    "blow",
+    "recovering",
+    "recovery",
+    "assessment",
+    "scan",
+    "surgery",
+    "illness",
 )
 
 _WORD_RE = re.compile(r"[a-z]+")

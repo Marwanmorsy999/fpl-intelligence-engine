@@ -56,9 +56,13 @@ def _decisions_payload() -> dict:
         "starting_xi": ALL_IDS,
         "bench_order": [],
         "captain": {
-            "player_id": 3, "expected_points": 14.8, "expected_gain": 0.0,
-            "probability_positive": 0.5, "confidence": 0.7,
-            "main_reason": "fixture swing favours him", "main_risk": "",
+            "player_id": 3,
+            "expected_points": 14.8,
+            "expected_gain": 0.0,
+            "probability_positive": 0.5,
+            "confidence": 0.7,
+            "main_reason": "fixture swing favours him",
+            "main_risk": "",
         },
         "vice_captain": 2,
         "transfer_plan": None,
@@ -66,8 +70,10 @@ def _decisions_payload() -> dict:
         "players": {str(pid): _player_detail(pid) for pid in ALL_IDS},
         "meta": {
             "squad_summary": {
-                "team_value": 26.0, "bank": 2.0,
-                "free_transfers": 1, "chips_available": [],
+                "team_value": 26.0,
+                "bank": 2.0,
+                "free_transfers": 1,
+                "chips_available": [],
             },
             "chain": {"source_label": "Pre-season proxy v2", "data_quality": "heuristic-proxy"},
         },
@@ -107,9 +113,16 @@ def _scan_payload() -> dict:
         "gameweek": 2,
         "horizon_gws": [3, 4, 5, 6, 7],
         "players": [
-            {"player_id": pid, "web_name": SQUAD_PLAYERS[str(pid)]["web_name"],
-             "position": SQUAD_PLAYERS[str(pid)]["position"], "price": 5.0,
-             "is_starter": True, "runs": RUNS, "avg_fdr": 3.0, "swing": 0.0}
+            {
+                "player_id": pid,
+                "web_name": SQUAD_PLAYERS[str(pid)]["web_name"],
+                "position": SQUAD_PLAYERS[str(pid)]["position"],
+                "price": 5.0,
+                "is_starter": True,
+                "runs": RUNS,
+                "avg_fdr": 3.0,
+                "swing": 0.0,
+            }
             for pid in ALL_IDS
         ],
         "squad_swing_score": 1.5,
@@ -127,9 +140,15 @@ def _drawer_payload(pid: int) -> dict:
         "session_id": SESSION["key"],
         "gameweek": 2,
         "player": {
-            "id": pid, "web_name": name, "full_name": f"First {name}",
-            "team": 13, "position": 4, "price": 14.0, "status": "a",
-            "minutes_played": 180, "selected_by_percent": "44.1",
+            "id": pid,
+            "web_name": name,
+            "full_name": f"First {name}",
+            "team": 13,
+            "position": 4,
+            "price": 14.0,
+            "status": "a",
+            "minutes_played": 180,
+            "selected_by_percent": "44.1",
             "cost_change_event": -1,
         },
         "expected_points": 7.4,
@@ -154,11 +173,11 @@ BRIEF_PAYLOAD = {
     "gameweek": 2,
     "sections": {
         "SQUAD STATUS": "15 players loaded · bank £2.0m · 1 free transfer(s). "
-                        "Predictions from Pre-season proxy v2.",
+        "Predictions from Pre-season proxy v2.",
         "CAPTAIN": "Haaland captains with xPTS 14.8 ahead of Saliba 4.8.",
         "TRANSFERS": "Roll the free transfer.",
         "FIXTURE SWINGS": "Squad swing +1.5 (easy patch). "
-                          "Easiest upcoming runs: BOU (avg FDR 2.0), NFO (avg FDR 2.3).",
+        "Easiest upcoming runs: BOU (avg FDR 2.0), NFO (avg FDR 2.3).",
         "NEWS FLAGS": "No BBC headlines matched your squad.",
         "LAST WEEK GRADE": "No graded weeks yet — the ledger fills after your first gameweek.",
     },
@@ -186,9 +205,7 @@ def coherent(page: Page) -> Iterator[Page]:
     )
 
     def _seed_session() -> None:
-        page.evaluate(
-            "(s) => localStorage.setItem('fpl_session_v20', JSON.stringify(s))", SESSION
-        )
+        page.evaluate("(s) => localStorage.setItem('fpl_session_v20', JSON.stringify(s))", SESSION)
 
     # First visit seeds storage; subsequent gotos restore it.
     page.goto(BASE_URL + "/dashboard", wait_until="domcontentloaded")
@@ -202,19 +219,31 @@ def coherent(page: Page) -> Iterator[Page]:
     page.route("**/api/v1/decisions*", _json_route(_decisions_payload()))
     page.route("**/api/v1/squad?*", _json_route(_squad_payload()))
     page.route("**/api/v1/fixtures/scan*", _json_route(_scan_payload()))
-    page.route("**/api/v1/news/radar*", _json_route({
-        "session_id": SESSION["key"], "scanned_at": "2026-08-22T09:00:00Z",
-        "headlines_scanned": 12, "matches_found": 1,
-        "news_flags": [{
-            "player_id": 3, "web_name": "Haaland",
-            "headline": "Haaland returns to training after knock",
-            "time": "2026-08-21T09:00:00Z", "url": "https://www.bbc.co.uk/sport/x",
-        }],
-    }))
+    page.route(
+        "**/api/v1/news/radar*",
+        _json_route(
+            {
+                "session_id": SESSION["key"],
+                "scanned_at": "2026-08-22T09:00:00Z",
+                "headlines_scanned": 12,
+                "matches_found": 1,
+                "news_flags": [
+                    {
+                        "player_id": 3,
+                        "web_name": "Haaland",
+                        "headline": "Haaland returns to training after knock",
+                        "time": "2026-08-21T09:00:00Z",
+                        "url": "https://www.bbc.co.uk/sport/x",
+                    }
+                ],
+            }
+        ),
+    )
     page.route(
         "**/api/v1/player/*/drawer*",
         lambda r: r.fulfill(
-            status=200, content_type="application/json",
+            status=200,
+            content_type="application/json",
             body=json.dumps(_drawer_payload(int(r.request.url.split("/player/")[1].split("/")[0]))),
         ),
     )
@@ -224,10 +253,15 @@ def coherent(page: Page) -> Iterator[Page]:
         _json_route({"summary": "ok", "model": "template-fallback"}),
     )
     page.route("**/api/v1/data-sources*", _json_route({"as_of": None, "sources": {}}))
-    page.route("**/api/v1/players**", _json_route([
-        {"id": pid, "fpl_element_id": pid, "web_name": SQUAD_PLAYERS[str(pid)]["web_name"]}
-        for pid in ALL_IDS
-    ]))
+    page.route(
+        "**/api/v1/players**",
+        _json_route(
+            [
+                {"id": pid, "fpl_element_id": pid, "web_name": SQUAD_PLAYERS[str(pid)]["web_name"]}
+                for pid in ALL_IDS
+            ]
+        ),
+    )
     page.route("**/api/v1/sync/**", _json_route({}))
     page.route("**/api/v1/league**", _json_route({"your_rank": None}))
     page.route("**/api/v1/transfers/**", _json_route({"transfers": []}))
@@ -317,8 +351,14 @@ class TestBrief:
         expect(card).to_be_visible(timeout=10000)
 
         body = card.inner_text()
-        for section in ["SQUAD STATUS", "CAPTAIN", "TRANSFERS",
-                        "FIXTURE SWINGS", "NEWS FLAGS", "LAST WEEK GRADE"]:
+        for section in [
+            "SQUAD STATUS",
+            "CAPTAIN",
+            "TRANSFERS",
+            "FIXTURE SWINGS",
+            "NEWS FLAGS",
+            "LAST WEEK GRADE",
+        ]:
             assert section in body, f"missing brief section {section}"
         # Real squad names appear inside the brief text.
         assert "Haaland" in body

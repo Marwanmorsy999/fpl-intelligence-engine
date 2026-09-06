@@ -62,9 +62,7 @@ class TestResumeIngestion:
         provider = MockHistoricalDataProvider(provider_name="dry_run_test", schema_version="v1")
 
         # Dry run import
-        import_season(
-            db_session, provider, "2024-25", dataset="all", force=False, dry_run=True
-        )
+        import_season(db_session, provider, "2024-25", dataset="all", force=False, dry_run=True)
 
         # No data should be persisted
         teams_count = db_session.query(Team).count()

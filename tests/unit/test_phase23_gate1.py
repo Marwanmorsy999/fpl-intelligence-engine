@@ -261,9 +261,7 @@ class TestWebPush:
         def fake_send(subscription, payload):
             called.append(payload)
 
-        monkeypatch.setattr(
-            "fpl_intelligence.notifications.webpush.send_webpush", fake_send
-        )
+        monkeypatch.setattr("fpl_intelligence.notifications.webpush.send_webpush", fake_send)
 
         dispatch(db, "777", "brief", "Brief ready", "...")  # trigger off -> no send
         assert called == []

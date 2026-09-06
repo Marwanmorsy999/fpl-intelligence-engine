@@ -178,9 +178,7 @@ def captain_confidence_detail(
     }
 
 
-def calculate_captain_confidence(
-    top_pick: Any, second_pick: Any | None, gameweek: int
-) -> float:
+def calculate_captain_confidence(top_pick: Any, second_pick: Any | None, gameweek: int) -> float:
     """Dynamic armband confidence percent (spec signature), clamped [50, 95]."""
     detail = captain_confidence_detail(top_pick, second_pick, gameweek)
     return detail["score"]

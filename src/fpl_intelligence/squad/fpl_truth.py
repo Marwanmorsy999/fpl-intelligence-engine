@@ -1,4 +1,4 @@
-﻿"""v2.6.0-sync-final â€” single source of FPL truth for fpl-view and sync.
+"""v2.6.0-sync-final â€” single source of FPL truth for fpl-view and sync.
 
 Every consumer that needs "what does FPL actually show right now" goes through
 :func:`fetch_fpl_truth` so the dashboard card, the sync save path and the
@@ -72,9 +72,7 @@ class FplTruth:
         return None
 
 
-async def _fetch_history(
-    importer: FplSquadImporter, entry_id: int
-) -> list[dict[str, Any]]:
+async def _fetch_history(importer: FplSquadImporter, entry_id: int) -> list[dict[str, Any]]:
     """Best-effort fetch of official per-GW history rows; empty on failure.
 
     The real ``/entry/{id}/history/`` payload is ``{current, past, chips}``;
@@ -86,9 +84,7 @@ async def _fetch_history(
     def _validate(data: Any) -> None:
         if not isinstance(data, dict):
             raise ValueError("history payload not an object")
-        if not isinstance(data.get("history"), list) and not isinstance(
-            data.get("current"), list
-        ):
+        if not isinstance(data.get("history"), list) and not isinstance(data.get("current"), list):
             raise ValueError("history payload missing 'current'/'history' list")
 
     try:
@@ -212,9 +208,14 @@ async def fetch_fpl_truth(entry_id: int | str, importer: FplSquadImporter) -> Fp
             return [], classify_picks_error(exc, f"/event/{gw}/picks/")
 
     (
-        cur_ids,
-        cur_status,
-    ), (nxt_ids, nxt_status), history_rows, live_transfers = await asyncio.gather(
+        (
+            cur_ids,
+            cur_status,
+        ),
+        (nxt_ids, nxt_status),
+        history_rows,
+        live_transfers,
+    ) = await asyncio.gather(
         _picks(current_event),
         _picks(next_gw),
         _fetch_history(importer, eid),

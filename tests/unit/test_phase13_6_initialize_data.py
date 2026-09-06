@@ -145,7 +145,5 @@ def test_initialize_honors_cron_secret_when_configured(
     monkeypatch.delenv("APP_ENV", raising=False)
     resp = client.post("/api/v1/admin/initialize-data")
     assert resp.status_code == 401
-    resp = client.post(
-        "/api/v1/admin/initialize-data", headers={"Authorization": "Bearer secret"}
-    )
+    resp = client.post("/api/v1/admin/initialize-data", headers={"Authorization": "Bearer secret"})
     assert resp.status_code == 200

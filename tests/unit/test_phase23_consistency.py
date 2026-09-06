@@ -75,8 +75,16 @@ def _gw2_pairings() -> list[tuple[int, int]]:
     unmatched — the exact Gate-0 spec scenario.
     """
     return [
-        (1, 7), (2, 3), (4, 5), (6, 8), (9, 10),
-        (13, 14), (16, 17), (18, 19), (11, 20), (15, 12),
+        (1, 7),
+        (2, 3),
+        (4, 5),
+        (6, 8),
+        (9, 10),
+        (13, 14),
+        (16, 17),
+        (18, 19),
+        (11, 20),
+        (15, 12),
     ]
 
 
@@ -115,9 +123,10 @@ class TestC1SingleSourceMarketCheck:
         assert status["detail"] == EXPECTED_DETAIL
 
     def test_formatter_is_stable(self):
-        assert format_market_detail(
-            matched=10, total=10, gameweek=2, unmatched=["LEE", "NEW"]
-        ) == EXPECTED_DETAIL
+        assert (
+            format_market_detail(matched=10, total=10, gameweek=2, unmatched=["LEE", "NEW"])
+            == EXPECTED_DETAIL
+        )
 
     def test_all_three_surfaces_identical(self, db_session):
         """Decisions/Captain payload == Sources probe == shared module output.

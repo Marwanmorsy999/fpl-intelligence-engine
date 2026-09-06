@@ -316,9 +316,7 @@ class TestCutoffFallback:
 
 
 class TestNoLeakage:
-    def test_features_exclude_target_gw_outcomes_and_ep_fields(
-        self, db_session: Session
-    ) -> None:
+    def test_features_exclude_target_gw_outcomes_and_ep_fields(self, db_session: Session) -> None:
         provider = MockHistoricalDataProvider("mock_prov")
         import_season(db_session, provider, SEASON, dataset="all")
 

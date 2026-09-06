@@ -1,0 +1,831 @@
+E501 Line too long (108 > 100)
+  --> scripts/backfill_holdout_2025_26.py:47:101
+   |
+46 | def _canonical_fixture_id_map(db, season_id: int) -> dict[str, int]:
+47 |     """Map the provider fixture ID representation used by the Team Strength source to canonical DB fixtures.
+   |                                                                                                     ^^^^^^^^
+48 |
+49 |     Historical ingestion stores ``Fixture.provider_fixture_id`` as the deterministic
+   |
+
+E501 Line too long (103 > 100)
+  --> scripts/backfill_holdout_2025_26.py:82:101
+   |
+80 |     if fixtures != 380 or scored != 380:
+81 |         raise RuntimeError(
+82 |             f"holdout fixture coverage invalid: fixtures={fixtures}, scored={scored}; expected 380/380"
+   |                                                                                                     ^^^
+83 |         )
+84 |     return {"season_id": season.id, "fixtures": fixtures, "scored": scored}
+   |
+
+E501 Line too long (112 > 100)
+   --> scripts/backfill_holdout_2025_26.py:215:101
+    |
+213 |     if total != 760 or temporal != 760:
+214 |         raise RuntimeError(
+215 |             f"holdout team-match coverage invalid: rows={total}, temporally_usable={temporal}; expected 760/760"
+    |                                                                                                     ^^^^^^^^^^^^
+216 |         )
+217 |     return {"rows": total, "temporally_usable": temporal, "xg_rows": xg}
+    |
+
+E501 Line too long (104 > 100)
+  --> scripts/materialize_availability_pit.py:35:101
+   |
+33 |     if VALIDATION_PROJECT_REF not in url:
+34 |         raise SystemExit(
+35 |             "refusing --commit: DATABASE_URL does not identify the approved validation Supabase project"
+   |                                                                                                     ^^^^
+36 |         )
+   |
+
+B023 Function definition does not bind loop variable `errors`
+  --> scripts/phase25_gate1_live_verify.py:72:24
+   |
+70 |             errors: list[str] = []
+71 |             def handler(m):
+72 |                 return errors.append(m.text[:140]) if m.type == "error" else None
+   |                        ^^^^^^
+73 |             page.on("console", handler)
+74 |             page.goto(BASE + path, wait_until="domcontentloaded")
+   |
+
+E501 Line too long (114 > 100)
+   --> scripts/phase25_gate1_live_verify.py:111:101
+    |
+109 |         more_btn = page.locator("#moreBtn").count()
+110 |         emit(
+111 |             f"sticky ribbon present: {bool(ribbon)} · bottom tabs: {bool(bottom)} · More button: {bool(more_btn)}"
+    |                                                                                                     ^^^^^^^^^^^^^^
+112 |         )
+113 |         if not ribbon or not bottom or not more_btn:
+    |
+
+E501 Line too long (128 > 100)
+  --> scripts/run_backtests.py:13:101
+   |
+12 | ## Transfer Performance
+13 | Compared across the 2022-2025 historical dataset. The optimization engine significantly outperformed simple baseline heuristics.
+   |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+14 | - **Roll every Gameweek (Baseline A)**: -84 points/season relative to average.
+15 | - **Highest Expected Points (Baseline B)**: +12 points/season relative to average.
+   |
+
+E501 Line too long (139 > 100)
+  --> scripts/run_backtests.py:17:101
+   |
+15 | …s/season relative to average.
+16 | …ts/season relative to average.
+17 | …transfer 64% of gameweeks, showing strong bias towards rolling when EV differences are
+   |                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+18 | …
+   |
+
+E501 Line too long (120 > 100)
+  --> scripts/run_backtests.py:37:101
+   |
+35 | - **Strategy A (Highest EV)**: 45.2 pts/GW avg starting XI.
+36 | - **Strategy B (Optimizer-selected XI)**: 45.8 pts/GW avg starting XI.
+37 | Accounts correctly for formation constraints and expected minutes variance. Autosub losses minimized by robust ordering.
+   |                                                                                                     ^^^^^^^^^^^^^^^^^^^^
+38 |
+39 | ## Captain
+   |
+
+E501 Line too long (109 > 100)
+  --> scripts/run_backtests.py:44:101
+   |
+42 | - **Strategy C (Highest Ceiling)**: 13.4 pts avg. (Higher variance)
+43 | - **Strategy E (Strategic Optimizer)**: 13.6 pts avg. 
+44 | Strategic optimizer correctly adapts based on Protect/Chase objective, improving captain success rate to 68%.
+   |                                                                                                     ^^^^^^^^^
+45 |
+46 | ## Bench Order
+   |
+
+E501 Line too long (159 > 100)
+  --> scripts/run_backtests.py:47:101
+   |
+46 | …
+47 | …n from autosubs compared to simple expected points bench order, by properly prioritizing players
+   |                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+48 | …
+   |
+
+E501 Line too long (167 > 100)
+  --> scripts/run_backtests.py:68:101
+   |
+67 | …
+68 | …iance and identifies optimal rotation risks during DGWs, avoiding players historically subbed early.
+   |                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+69 | …
+   |
+
+E501 Line too long (115 > 100)
+  --> scripts/run_backtests.py:72:101
+   |
+71 | ## Decision Calibration
+72 | Decisions labeled "70% probability of beating Roll" actually beat Roll ~68% of the time historically out-of-sample.
+   |                                                                                                     ^^^^^^^^^^^^^^^
+73 | - **Brier Score**: 0.14
+74 | Reliability curves demonstrate excellent calibration up to 85% confidence.
+   |
+
+E501 Line too long (221 > 100)
+  --> scripts/run_backtests.py:77:101
+   |
+76 | …
+77 | …nce metrics are predictive of actual outcomes. P10/P90 estimations tightly bracketed real world outcomes in 82% of evaluations.
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+78 | …
+79 | …
+   |
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/api/deps.py:149:5
+    |
+148 |       # Stage 2 activation: holdout-approved Team Strength EWMA modulates live xPTS.
+149 | /     try:
+150 | |         ensure_registry_entry(db)
+151 | |     except Exception:  # noqa: BLE001 — registry is bookkeeping only
+152 | |         pass
+    | |____________^
+153 |
+154 |       _orig_resolve = provider.resolve_chain
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+E501 Line too long (102 > 100)
+   --> src/fpl_intelligence/api/routes/drawer.py:104:101
+    |
+102 |                         db.execute(
+103 |                             text(
+104 |                                 "SELECT element_id, web_name, team_id, minutes, selected_by_percent, "
+    |                                                                                                     ^^
+105 |                                 "cost_change_event, status, news, updated_at FROM element_facts WHERE element_id=:pid"
+106 |                             ),
+    |
+
+E501 Line too long (118 > 100)
+   --> src/fpl_intelligence/api/routes/drawer.py:105:101
+    |
+103 | …                     text(
+104 | …                         "SELECT element_id, web_name, team_id, minutes, selected_by_percent, "
+105 | …                         "cost_change_event, status, news, updated_at FROM element_facts WHERE element_id=:pid"
+    |                                                                                               ^^^^^^^^^^^^^^^^^^
+106 | …                     ),
+107 | …                     {"pid": int(player_id)},
+    |
+
+E501 Line too long (102 > 100)
+   --> src/fpl_intelligence/api/routes/drawer.py:292:101
+    |
+290 |             if team is None and row is not None and getattr(row, "team_id", None) is not None:
+291 |                 team = row.team_id
+292 |             # Fallback: try to resolve team via PlayerTeamMembership if still none (for arbitrary ids)
+    |                                                                                                     ^^
+293 |             if team is None:
+294 |                 try:
+    |
+
+SIM102 Use a single `if` statement instead of nested `if` statements
+   --> src/fpl_intelligence/api/routes/drawer.py:569:5
+    |
+567 |       # If still None for arbitrary ids, keep missing but don't 500
+568 |       position_val = (squad.player_positions or {}).get(player_id)
+569 | /     if position_val is None and row is None and prow is None:
+570 | |         # try membership position_code
+571 | |         if prow and getattr(prow, "position_code", None) is not None:
+    | |_____________________________________________________________________^
+572 |               position_val = prow.position_code
+    |
+help: Combine `if` statements using `and`
+
+SIM102 Use a single `if` statement instead of nested `if` statements
+   --> src/fpl_intelligence/api/routes/drawer.py:628:5
+    |
+626 |               missing_deduped.append(m)
+627 |       # If breakdown missing, ensure chip shows unavailable rather than null crash
+628 | /     if breakdown is None and "xpts_breakdown" not in missing_deduped:
+629 | |         # Only mark degraded if we actually expected a breakdown (predictions existed)
+630 | |         if expected_points is not None:
+    | |_______________________________________^
+631 |               missing_deduped.append("xpts_breakdown")
+632 |               degraded = True
+    |
+help: Combine `if` statements using `and`
+
+F821 Undefined name `select`
+   --> src/fpl_intelligence/api/routes/fixtures.py:138:17
+    |
+137 |             for element_id, team_id in db.execute(
+138 |                 select(ElementFactDB.element_id, ElementFactDB.team_id).where(
+    |                 ^^^^^^
+139 |                     ElementFactDB.element_id.in_(missing)
+140 |                 )
+    |
+
+E501 Line too long (186 > 100)
+   --> src/fpl_intelligence/api/routes/transfers.py:115:101
+    |
+113 | …
+114 | …
+115 | …luation['gross_ev']} pts. Net EV: {valuation['net_ev']:+.1f}. Recommendation: {valuation['recommendation']}."
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+116 | …
+117 | …tion['gross_ev']:+.1f} pts. Net EV: {valuation['net_ev']:+.1f}. Recommendation: {valuation['recommendation']}."
+    |
+
+E501 Line too long (188 > 100)
+   --> src/fpl_intelligence/api/routes/transfers.py:117:101
+    |
+115 | …uation['gross_ev']} pts. Net EV: {valuation['net_ev']:+.1f}. Recommendation: {valuation['recommendation']}."
+116 | …
+117 | …ion['gross_ev']:+.1f} pts. Net EV: {valuation['net_ev']:+.1f}. Recommendation: {valuation['recommendation']}."
+    |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+118 | …
+119 | …
+    |
+
+E501 Line too long (113 > 100)
+   --> src/fpl_intelligence/availability/historical/pit_audit.py:179:101
+    |
+177 |     if report.comparative_signal_ok:
+178 |         report.notes.append(
+179 |             "Restricted statuses are suppressed versus unflagged player-gameweeks in the same sampled gameweeks."
+    |                                                                                                     ^^^^^^^^^^^^^
+180 |         )
+181 |     elif report.control_rows:
+    |
+
+E501 Line too long (109 > 100)
+  --> src/fpl_intelligence/availability/historical/pit_contract.py:68:101
+   |
+66 |     if not audit.check_conservation():
+67 |         raise ValueError(
+68 |             f"historical import conservation failed: fetched={audit.fetched} terminal={audit.terminal_total}"
+   |                                                                                                     ^^^^^^^^^
+69 |         )
+   |
+
+E501 Line too long (109 > 100)
+  --> src/fpl_intelligence/availability/historical/pit_contract.py:81:101
+   |
+79 |     if audit.ambiguous or audit.unmatched:
+80 |         raise ValueError(
+81 |             f"PIT entity resolution is not complete: ambiguous={audit.ambiguous} unmatched={audit.unmatched}"
+   |                                                                                                     ^^^^^^^^^
+82 |         )
+   |
+
+E501 Line too long (120 > 100)
+   --> src/fpl_intelligence/availability/historical/pit_fplcache.py:146:101
+    |
+144 |                     "snapshot_captured_at": captured,
+145 |                     "snapshot_path": ref.path.as_posix(),
+146 |                     "snapshot_source_url": f"{FPLCACHE_RAW_BASE}/{ref.path.relative_to(self.snapshot_root).as_posix()}",
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^
+147 |                 }
+148 |             )
+    |
+
+E501 Line too long (133 > 100)
+   --> src/fpl_intelligence/availability/historical/signal_lift.py:174:101
+    |
+172 |     elif out.to_dict()["signal_direction_ok"]:
+173 |         out.notes.append(
+174 |             "Restricted availability statuses show the expected suppression signal against an unflagged same-gameweek control group."
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+175 |         )
+176 |     else:
+    |
+
+E501 Line too long (108 > 100)
+   --> src/fpl_intelligence/leagues/trajectory.py:210:101
+    |
+208 |         return {
+209 |             "status": "no-predictions",
+210 |             "note": "No materialized predictions for trajectory horizon — run the daily 06:10 materialize.",
+    |                                                                                                     ^^^^^^^^
+211 |             "gameweek": target_gw,
+212 |             "selected": selected,
+    |
+
+E501 Line too long (116 > 100)
+   --> src/fpl_intelligence/leagues/trajectory.py:274:101
+    |
+272 |         insight = None
+273 |     elif leader_eid is None or leader_eid == str(session_id):
+274 |         insight = "You lead your mini-league. Projected to stay ahead over the next 3 GWs on current Alpha targets."
+    |                                                                                                     ^^^^^^^^^^^^^^^^
+275 |     elif overtake_gw is not None:
+276 |         insight = (
+    |
+
+E501 Line too long (106 > 100)
+   --> src/fpl_intelligence/leagues/trajectory.py:289:101
+    |
+287 |         if gap_end < gap_now:
+288 |             insight = (
+289 |                 f"You are {gap_now} pts behind {leader_name}. Projected to close to {gap_end} pts behind "
+    |                                                                                                     ^^^^^^
+290 |                 f"by GW{horizon_gws[-1]} — not yet an overtake on current xPTS."
+291 |             )
+    |
+
+E501 Line too long (105 > 100)
+   --> src/fpl_intelligence/leagues/trajectory.py:294:101
+    |
+292 |         else:
+293 |             insight = (
+294 |                 f"You are {gap_now} pts behind {leader_name}. No overtake projected over the next 3 GWs "
+    |                                                                                                     ^^^^^
+295 |                 f"— the gap is forecast to stay at ~{gap_end} pts."
+296 |             )
+    |
+
+E501 Line too long (165 > 100)
+   --> src/fpl_intelligence/leagues/trajectory.py:313:101
+    |
+311 | …
+312 | …
+313 | …per horizon GW from predictions_current); missing GWs score 0; ranks among tracked entries only.",
+    |                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+314 | …
+    |
+
+F821 Undefined name `exp`
+   --> src/fpl_intelligence/prediction/team_strength_live.py:113:66
+    |
+111 |         ).all()
+112 |     except Exception as exc:  # noqa: BLE001
+113 |         logger.warning("team strength fixture query failed: %s", exp)
+    |                                                                  ^^^
+114 |         return TeamStrengthLiveResult({}, _neutral_notes(f"fixture_query:{type(exc).__name__}"))
+    |
+
+E501 Line too long (101 > 100)
+   --> src/fpl_intelligence/squad/fpl_import.py:802:101
+    |
+800 |             "transfers": base_picks.get("transfers", {}) if isinstance(base_picks, dict) else {},
+801 |             "_rebuilt_from_history": True,
+802 |             "_swaps": [{"in": i, "out": o} for i, o in zip(ins_applied, outs_removed, strict=False)],
+    |                                                                                                     ^
+803 |         }
+804 |         _ = elements  # names resolve later through _build_result/bootstrap
+    |
+
+B025 try-except block with duplicate exception `TimeoutError`
+   --> src/fpl_intelligence/squad/sync_job.py:240:41
+    |
+238 |                     db.rollback()
+239 |             return
+240 |         except (asyncio.CancelledError, TimeoutError):
+    |                                         ^^^^^^^^^^^^
+241 |             _set_job(
+242 |                 str(session_id),
+    |
+
+E501 Line too long (107 > 100)
+   --> src/fpl_intelligence/squad/sync_job.py:469:101
+    |
+467 |                 chose_rule = "no_confirmed_transfer"
+468 |                 banner = (
+469 |                     f"No confirmed transfer found on FPL for GW{result.pending_transfer_gw or gw_label} — "
+    |                                                                                                     ^^^^^^^
+470 |                     f"finish it on FPL, then sync."
+471 |                 )
+    |
+
+E501 Line too long (107 > 100)
+   --> src/fpl_intelligence/track_record/fomo.py:101:101
+    |
+ 99 |             "alpha_capture": None,
+100 |             "season_note": clamped_note or None,
+101 |             "how_computed": "Needs ingested_history rows + RecommendationDB captain rows for the same GW.",
+    |                                                                                                     ^^^^^^^
+102 |         }
+    |
+
+E501 Line too long (107 > 100)
+   --> src/fpl_intelligence/track_record/fomo.py:143:101
+    |
+141 |             rec_pts = int(actuals.get(rec_captain, 0))
+142 |             # User's captain is the first scored captain if available else rec itself
+143 |             # If score exists, it grades the CALL; we use its delta as cost of ignoring when user diverged.
+    |                                                                                                     ^^^^^^^
+144 |             # Fallback: assume user captained someone else only if we have transfer ledger hint — otherwise honest none.
+145 |             if score and isinstance(score, dict) and score.get("captain") is not None:
+    |
+
+E501 Line too long (120 > 100)
+   --> src/fpl_intelligence/track_record/fomo.py:144:101
+    |
+142 |             # User's captain is the first scored captain if available else rec itself
+143 |             # If score exists, it grades the CALL; we use its delta as cost of ignoring when user diverged.
+144 |             # Fallback: assume user captained someone else only if we have transfer ledger hint — otherwise honest none.
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^
+145 |             if score and isinstance(score, dict) and score.get("captain") is not None:
+146 |                 try:
+    |
+
+E501 Line too long (140 > 100)
+   --> src/fpl_intelligence/track_record/fomo.py:187:101
+    |
+185 | …r pick — no regret."
+186 | …
+187 | …(engine captain actual pts ×2) − (your captain actual pts ×2) from ingested_history.",
+    |                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+188 | …
+189 | …
+    |
+
+E501 Line too long (107 > 100)
+   --> src/fpl_intelligence/track_record/fomo.py:195:101
+    |
+193 |                     "recommended_captain": rec_captain,
+194 |                     "note": "Awaiting post-GW scoring of captain call.",
+195 |                     "how_computed": "Needs prediction_ledger reconciliation after ingested_history lands.",
+    |                                                                                                     ^^^^^^^
+196 |                 }
+197 |     else:
+    |
+
+E501 Line too long (101 > 100)
+   --> src/fpl_intelligence/track_record/fomo.py:225:101
+    |
+223 |                 "right": right,
+224 |                 "rate": rate,
+225 |                 "line": f"Alpha Capture Rate: {int(rate * 100)}% of graded transfer calls were right"
+    |                                                                                                     ^
+226 |                 if rate is not None
+227 |                 else "No graded transfers yet.",
+    |
+
+E501 Line too long (117 > 100)
+   --> src/fpl_intelligence/track_record/fomo.py:228:101
+    |
+226 |                 if rate is not None
+227 |                 else "No graded transfers yet.",
+228 |                 "how_computed": "Graded transfer recommendations: right/(right+wrong) from RecommendationDB scores.",
+    |                                                                                                     ^^^^^^^^^^^^^^^^^
+229 |             }
+230 |         else:
+    |
+
+E501 Line too long (109 > 100)
+   --> src/fpl_intelligence/track_record/fomo.py:267:101
+    |
+265 |             except Exception:
+266 |                 pass
+267 |             cost_line = f"You lost {abs(d)} pts and ranks by ignoring the {rec_name} captain recommendation."
+    |                                                                                                     ^^^^^^^^^
+268 |         elif d == 0:
+269 |             cost_line = "Your captain matched the engine — no regret this GW."
+    |
+
+E501 Line too long (175 > 100)
+   --> src/fpl_intelligence/track_record/fomo.py:281:101
+    |
+279 | …
+280 | …
+281 | …ate from graded transfer calls — all from ingested actuals, bounded by the current season's GW range.",
+    |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+282 | …
+    |
+
+E501 Line too long (146 > 100)
+   --> src/fpl_intelligence/transfers/shadow.py:149:101
+    |
+147 | …
+148 | …
+149 | …S_out) over next 3 GWs (materialized predictions only) - hit cost; missing GWs excluded",
+    |                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+150 | …
+    |
+
+E501 Line too long (112 > 100)
+   --> src/fpl_intelligence/transfers/shadow.py:241:101
+    |
+239 |         "xi_delta": xi_delta,
+240 |         "gameweek": int(start_gw),
+241 |         "how_computed": "shadow metrics recomputed from materialized predictions_current for staged squad only",
+    |                                                                                                     ^^^^^^^^^^^^
+242 |     }
+    |
+
+E501 Line too long (111 > 100)
+  --> src/fpl_intelligence/web/dashboard.py:72:101
+   |
+70 |         f"window.FPL_SENTRY_DSN = {escaped};\n"
+71 |         "try {\n"
+72 |         "  if (window.Sentry) { window.Sentry.init({ dsn: window.FPL_SENTRY_DSN, tracesSampleRate: 0.1 }); }\n"
+   |                                                                                                     ^^^^^^^^^^^
+73 |         "} catch (e) { /* SDK init is enhancement-only */ }\n"
+74 |         "window.reportError = function (exc, context) {\n"
+   |
+
+E501 Line too long (109 > 100)
+   --> tests/unit/test_phase10_4_squad.py:424:101
+    |
+422 |         """
+423 |         When picks_next is 404 AND picks_current == saved squad,
+424 |         banner MUST say: "FPL shows no new GW{X} lineup yet — confirm your transfer on FPL, then sync again."
+    |                                                                                                     ^^^^^^^^^
+425 |         Never "synced · no changes".
+426 |         """
+    |
+
+E501 Line too long (107 > 100)
+   --> tests/unit/test_phase18_master_fix.py:138:101
+    |
+136 |             asyncio.run(chain.fetch("/api/entry/1/", validator=validate_entry_payload))
+137 |         tried = [name for name, _err in excinfo.value.attempts]
+138 |         # Order matters: direct first, then env_proxy (if configured), then allorigins, corsproxy, codetabs
+    |                                                                                                     ^^^^^^^
+139 |         assert tried == ["direct", "env_proxy", "allorigins", "corsproxy", "codetabs"]
+140 |         assert chain.winning_strategy is None
+    |
+
+E501 Line too long (213 > 100)
+   --> tests/unit/test_phase1_5_squad_truth.py:233:101
+    |
+232 | …
+233 | …/scan; the bare /api/v1/fixtures by_player/by_team contract has never been implemented. Implement or delete these tests.",
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+234 | …
+235 | …
+    |
+
+E501 Line too long (181 > 100)
+   --> tests/unit/test_phase1_5_squad_truth.py:286:101
+    |
+285 | …
+286 | …ml no longer embed data-mode-badge / ?entry= / __MT_FIXTURES markers; update or remove these assertions.",
+    |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+287 | …
+288 | …
+    |
+
+E501 Line too long (120 > 100)
+  --> tests/unit/test_phase24_compare_chips.py:70:101
+   |
+68 |     sid = _make_squad(client, "cmp_sid")
+69 |     # use two real element ids from catalog: Saka 12 and Haaland 411 (both exist in seed)
+70 |     # but our squad only has 1-15, so provider will still return predictions for 12 and 411 via StaticProvider fallback?
+   |                                                                                                     ^^^^^^^^^^^^^^^^^^^^
+71 |     # StaticProvider returns for any pid, so we can use 1 and 2 which are in squad
+72 |     r = client.get("/api/v1/compare", params={"player_a": 1, "player_b": 2, "session_id": sid})
+   |
+
+E501 Line too long (116 > 100)
+  --> tests/unit/test_phase24_compare_chips.py:87:101
+   |
+85 | def test_compare_with_real_catalog_ids(client):
+86 |     sid = _make_squad(client, "cmp2_sid")
+87 |     # 12 is Saka, 411 is Haaland from seed — both should resolve via catalog fallback even if not in DB player table
+   |                                                                                                     ^^^^^^^^^^^^^^^^
+88 |     r = client.get("/api/v1/compare", params={"player_a": 12, "player_b": 411, "session_id": sid})
+89 |     assert r.status_code == 200
+   |
+
+E501 Line too long (112 > 100)
+   --> tests/unit/test_phase24_compare_chips.py:118:101
+    |
+116 |         # at least total_ev is numeric
+117 |         assert isinstance(plan["total_ev"], (int, float))
+118 |     # label example: Wildcard GW5 + Free Hit GW8 = +12.4 EV style — check that label contains GW when chips used
+    |                                                                                                     ^^^^^^^^^^^^
+119 |     # If chips available, at least one plan should mention a chip
+120 |     labels = " ".join(p["label"] for p in data["plans"])
+    |
+
+E501 Line too long (133 > 100)
+   --> tests/unit/test_phase24_compare_chips.py:153:101
+    |
+151 | def test_drawer_shows_set_piece_chips(client):
+152 |     _make_squad(client, "drawer_sp")
+153 |     # 5 known takers from set_piece_takers.json: Saka 12 (ARS), Haaland 411 (MCI), Palmer 154 (CHE), Watkins 55 (AVL), Isak 379 (LIV)
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+154 |     for pid, _should_have in [
+155 |         (12, "penalty"),
+    |
+
+E501 Line too long (104 > 100)
+   --> tests/unit/test_phase3_ui_polish.py:206:101
+    |
+205 |     // isFresh: within TTL -> true, past TTL -> false
+206 |     assert.strictEqual(FPLCache.isFresh({ data: [1], timestamp: 1000 }, 1000, 1500), true, "fresh hit");
+    |                                                                                                     ^^^^
+207 |     assert.strictEqual(FPLCache.isFresh({ data: [1], timestamp: 1000 }, 1000, 2200), false, "expired");
+208 |     assert.strictEqual(FPLCache.isFresh(null, 1000, 1500), false, "null envelope never fresh");
+    |
+
+E501 Line too long (103 > 100)
+   --> tests/unit/test_phase3_ui_polish.py:207:101
+    |
+205 |     // isFresh: within TTL -> true, past TTL -> false
+206 |     assert.strictEqual(FPLCache.isFresh({ data: [1], timestamp: 1000 }, 1000, 1500), true, "fresh hit");
+207 |     assert.strictEqual(FPLCache.isFresh({ data: [1], timestamp: 1000 }, 1000, 2200), false, "expired");
+    |                                                                                                     ^^^
+208 |     assert.strictEqual(FPLCache.isFresh(null, 1000, 1500), false, "null envelope never fresh");
+    |
+
+E501 Line too long (103 > 100)
+   --> tests/unit/test_phase3_ui_polish.py:227:101
+    |
+225 |       await cache.save("gw:2", "stale", Date.now() - 99999);
+226 |       let calls = 0;
+227 |       const val = await cache.getOrFetch("gw:2", function () { calls += 1; return "fresh-" + calls; });
+    |                                                                                                     ^^^
+228 |       assert.strictEqual(val, "fresh-1");
+229 |       assert.strictEqual(calls, 1, "miss must call the fetcher");
+    |
+
+F821 Undefined name `Session`
+    --> tests/unit/test_phase7_availability.py:1034:33
+     |
+1032 |     """real_fpl and real_fpl_bootstrap must resolve to the same canonical players."""
+1033 |
+1034 |     def _seed(self, db_session: Session):
+     |                                 ^^^^^^^
+1035 |         from fpl_intelligence.db.models import Gameweek, Player, Season, Team
+     |
+
+F821 Undefined name `Session`
+    --> tests/unit/test_phase7_availability.py:1061:27
+     |
+1060 |     def test_real_fpl_bootstrap_resolves_against_real_fpl_external_id(
+1061 |         self, db_session: Session
+     |                           ^^^^^^^
+1062 |     ) -> None:
+1063 |         """Availability importer (real_fpl_bootstrap) must match players stored under real_fpl."""
+     |
+
+F821 Undefined name `Session`
+    --> tests/unit/test_phase7_availability.py:1093:63
+     |
+1091 |         assert report.matched_players == 1
+1092 |
+1093 |     def test_resolve_player_alias_tolerance(self, db_session: Session) -> None:
+     |                                                               ^^^^^^^
+1094 |         from fpl_intelligence.availability.historical.entity_resolution import (
+1095 |             HistoricalEntityResolver,
+     |
+
+F821 Undefined name `Session`
+    --> tests/unit/test_phase7_availability.py:1108:61
+     |
+1106 |         assert resolved == pid, f"expected {pid}, got {resolved}"
+1107 |
+1108 |     def test_resolve_team_alias_tolerance(self, db_session: Session) -> None:
+     |                                                             ^^^^^^^
+1109 |         from fpl_intelligence.availability.historical.entity_resolution import (
+1110 |             HistoricalEntityResolver,
+     |
+
+E501 Line too long (105 > 100)
+   --> tests/unit/test_v253_sync_truth.py:218:101
+    |
+216 |             dec.json()
+217 |             # decisions meta or players map should reference squad ids; we assert squad ids changed
+218 |             # The report's starting_xi is derived from squad, so after sync it must contain 999 elsewhere
+    |                                                                                                     ^^^^^
+219 |             # The simplest proof: re-fetch squad via decisions' meta or direct squad
+220 |             assert 999 in after["player_ids"]
+    |
+
+E501 Line too long (102 > 100)
+   --> tests/unit/test_v256_async_sync.py:210:101
+    |
+208 |         try:
+209 |             resp = client.post("/api/v1/squad/sync-now", params={"session_id": "2295006"})
+210 |             # Failing build is fast (<4s), so POST will return failed directly (200 with state failed)
+    |                                                                                                     ^^
+211 |             # or 202 then status failed — either is honest, but must eventually be failed
+212 |             # Wait a bit for background to mark failed if 202
+    |
+
+E501 Line too long (101 > 100)
+  --> tests/web_e2e/test_audit_core_journeys.py:75:101
+   |
+73 |     "note": "league data unavailable right now — render failed (E2E); retry or press Refresh",
+74 |     "honest_notes": [
+75 |         "League page could not be computed right now — showing a degraded state rather than failing."
+   |                                                                                                     ^
+76 |     ],
+77 | }
+   |
+
+E501 Line too long (159 > 100)
+   --> tests/web_e2e/test_phase16_regression.py:296:101
+    |
+294 | …
+295 | …
+296 | …, "ids": []}, "picks_next": {"gw": 3, "status": 404, "ids": []}, "fpl_history": {"note": ""}}',
+    |                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+297 | …
+298 | …
+    |
+
+E501 Line too long (159 > 100)
+   --> tests/web_e2e/test_phase18_e2e_browser.py:289:101
+    |
+287 | …
+288 | …
+289 | …, "ids": []}, "picks_next": {"gw": 3, "status": 404, "ids": []}, "fpl_history": {"note": ""}}',
+    |                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+290 | …
+291 | …
+    |
+
+E501 Line too long (102 > 100)
+   --> tests/web_e2e/test_phase19_e2e_browser.py:273:101
+    |
+271 |         page.evaluate(
+272 |             "() => localStorage.setItem('fpl_session_v20', JSON.stringify("
+273 |             "{key:'794561', source:'fpl_id', entry_name:'Test', synced_at:new Date().toISOString()}))"
+    |                                                                                                     ^^
+274 |         )
+275 |         page.reload(wait_until="domcontentloaded")
+    |
+
+E501 Line too long (104 > 100)
+   --> tests/web_e2e/test_phase20_e2e_browser.py:309:101
+    |
+307 |                 ".some(i => i.type !== 'checkbox' && i.type !== 'radio'"
+308 |                 " && i.value && i.value.length > 0"
+309 |                 " && i.value !== (JSON.parse(localStorage.getItem('fpl_session_v20')||'{}').key || ''))"
+    |                                                                                                     ^^^^
+310 |             )
+311 |             assert typed in (False, None), f"user had to type on {path}"
+    |
+
+E501 Line too long (126 > 100)
+   --> tests/web_e2e/test_phase27_e2e_browser.py:104:101
+    |
+102 |         "net_ev": 12.9,
+103 |         "recommendation": "EXECUTE",
+104 |         "chip_text": "Cost: 0 pts (free transfer). Projected 3-week gain: +12.9 pts. Net EV: +12.9. Recommendation: EXECUTE.",
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+105 |     },
+106 |     "how_computed": "FT Valuation = SUM(xPTS_in - xPTS_out) over next 3 GWs - hit cost",
+    |
+
+E501 Line too long (105 > 100)
+   --> tests/web_e2e/test_phase27_e2e_browser.py:163:101
+    |
+161 |         "net_ev": 5.0,
+162 |         "recommendation": "EXECUTE",
+163 |         "chip_text": "Cost: -4 pts. Projected 3-week gain: +9 pts. Net EV: +5. Recommendation: EXECUTE.",
+    |                                                                                                     ^^^^^
+164 |     },
+165 | }
+    |
+
+E501 Line too long (134 > 100)
+   --> tests/web_e2e/test_phase27_e2e_browser.py:212:101
+    |
+210 |         {"794561": 1, "201": 2, "202": 3, "203": 4},
+211 |     ],
+212 |     "insight": "You are 14 pts behind SuperBata. Projected to overtake by GW4 based on your Alpha targets vs his fixture difficulty.",
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+213 |     "partial_note": "",
+214 |     "how_computed": "Cumulative = current total + SUM(xPTS of XI per horizon GW)",
+    |
+
+E501 Line too long (136 > 100)
+   --> tests/web_e2e/test_phase27_e2e_browser.py:227:101
+    |
+225 | …
+226 | …
+227 | …tain recommendation. You captained #3 (6 pts) vs engine pick #99 (12 pts doubled).",
+    |                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+228 | …ptain actual pts x2) - (your captain actual pts x2)",
+229 | …
+    |
+
+E501 Line too long (105 > 100)
+   --> tests/web_e2e/test_phase27_e2e_browser.py:228:101
+    |
+226 |         "delta": 12,
+227 |         "line": "You lost 12 pts by ignoring the captain recommendation. You captained #3 (6 pts) vs engine pick #99 (12 pts doubled)…
+228 |         "how_computed": "Captain regret = (engine captain actual pts x2) - (your captain actual pts x2)",
+    |                                                                                                     ^^^^^
+229 |     },
+230 |     "alpha_capture": {
+    |
+
+E501 Line too long (122 > 100)
+   --> tests/web_e2e/test_phase27_e2e_browser.py:444:101
+    |
+442 |         # also on track-record
+443 |         page.goto(BASE_URL + "/track-record", wait_until="domcontentloaded")
+444 |         # track-record needs entryInput prefilled; our fixture seeds it via session chip but page uses entryInput fallback
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^
+445 |         page.fill("#entryInput", SESSION["key"])
+446 |         page.click("#loadBtn")
+    |
+
+Found 77 errors.

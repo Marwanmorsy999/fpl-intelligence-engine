@@ -25,10 +25,7 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-VAASTAV_RAW_BASE = (
-    "https://raw.githubusercontent.com/vaastav/"
-    "Fantasy-Premier-League/master/data"
-)
+VAASTAV_RAW_BASE = "https://raw.githubusercontent.com/vaastav/Fantasy-Premier-League/master/data"
 
 #: Generous but bounded: players_raw.csv is ~600KB of CSV.
 _FETCH_TIMEOUT_SECONDS = 20.0

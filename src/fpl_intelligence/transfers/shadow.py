@@ -90,12 +90,27 @@ def compute_ft_valuation(
         pout = m.get(int(element_out))
         if pin is None or pout is None:
             gaps.append(gw)
-            per_gw.append({"gw": gw, "xpts_in": pin, "xpts_out": pout, "delta": None, "note": "missing prediction"})
+            per_gw.append(
+                {
+                    "gw": gw,
+                    "xpts_in": pin,
+                    "xpts_out": pout,
+                    "delta": None,
+                    "note": "missing prediction",
+                }
+            )
             continue
         delta = float(pin) - float(pout)
         gross += delta
         used_gws.append(gw)
-        per_gw.append({"gw": gw, "xpts_in": round(float(pin), 2), "xpts_out": round(float(pout), 2), "delta": round(delta, 2)})
+        per_gw.append(
+            {
+                "gw": gw,
+                "xpts_in": round(float(pin), 2),
+                "xpts_out": round(float(pout), 2),
+                "delta": round(delta, 2),
+            }
+        )
 
     # Hit logic: 1 FT covers first transfer
     transfers_needed = 1
@@ -202,10 +217,11 @@ def shadow_metrics(
 
     # Squad XI xPTS sum comparison (current vs shadow) for one GW
     try:
-
         # We won't run full optimization here; just sum xPTS of first 11 ids
         # as honest proxy when optimizer not needed for staging preview.
-        cur_sum = round(sum(float(xpts.get(int(pid), 0.0)) for pid in (squad.player_ids or [])[:11]), 2)
+        cur_sum = round(
+            sum(float(xpts.get(int(pid), 0.0)) for pid in (squad.player_ids or [])[:11]), 2
+        )
         shad_sum = round(sum(float(xpts.get(int(pid), 0.0)) for pid in shadow_ids[:11]), 2)
         xi_delta = round(shad_sum - cur_sum, 2)
     except Exception:

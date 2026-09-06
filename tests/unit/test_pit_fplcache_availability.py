@@ -1,4 +1,5 @@
 """Unit tests for immutable fplcache PIT extraction."""
+
 from __future__ import annotations
 
 import json
@@ -6,7 +7,10 @@ import lzma
 from datetime import UTC, datetime
 from pathlib import Path
 
-from fpl_intelligence.availability.historical.pit_fplcache import PointInTimeFPLCacheAvailabilityProvider, SnapshotRef
+from fpl_intelligence.availability.historical.pit_fplcache import (
+    PointInTimeFPLCacheAvailabilityProvider,
+    SnapshotRef,
+)
 
 
 def _write_snapshot(path: Path, elements: list[dict[str, object]]) -> None:
@@ -36,4 +40,4 @@ def test_events_use_snapshot_capture_as_information_time(tmp_path: Path) -> None
     assert events[0]["player_id"] == "10"
     assert events[0]["timestamps"].published_at == captured
     assert events[0]["timestamps"].available_at == captured
-    assert events[0]["event_time"] if "event_time" in events[0] else True
+    assert events[0].get("event_time", True)

@@ -33,7 +33,9 @@ def _xpts_map(db: Any, gameweek: int) -> dict[int, float]:
         return {}
 
 
-def _starting_xi_for(entry_key: str, picks_map: dict[str, list[int]], xi_len: int = 11) -> list[int]:
+def _starting_xi_for(
+    entry_key: str, picks_map: dict[str, list[int]], xi_len: int = 11
+) -> list[int]:
     lst = picks_map.get(str(entry_key)) or []
     return [int(p) for p in lst[:xi_len]]
 
@@ -62,9 +64,7 @@ def _effective_squad_json(db: Any, session_id: str) -> dict[str, Any] | None:
         SquadService._ensure_local_table(db)
         try:
             local_row = db.scalar(
-                select(LocalSquadStateDB).where(
-                    LocalSquadStateDB.session_id == str(session_id)
-                )
+                select(LocalSquadStateDB).where(LocalSquadStateDB.session_id == str(session_id))
             )
             if local_row is not None and isinstance(local_row.squad_json, dict):
                 return local_row.squad_json
@@ -73,9 +73,7 @@ def _effective_squad_json(db: Any, session_id: str) -> dict[str, Any] | None:
             with contextlib.suppress(Exception):
                 db.rollback()
     try:
-        base_row = db.scalar(
-            select(SquadStateDB).where(SquadStateDB.session_id == str(session_id))
-        )
+        base_row = db.scalar(select(SquadStateDB).where(SquadStateDB.session_id == str(session_id)))
     except Exception as exc:  # noqa: BLE001 — never fail the render
         logger.warning("trajectory: base squad read failed: %s", exc)
         with contextlib.suppress(Exception):
@@ -121,7 +119,9 @@ def league_trajectory(
             if loop.is_running():
                 target_gw = fallback_gw
             else:
-                target_gw = loop.run_until_complete(resolve_target_gameweek(db, fallback=fallback_gw))
+                target_gw = loop.run_until_complete(
+                    resolve_target_gameweek(db, fallback=fallback_gw)
+                )
         except RuntimeError:
             target_gw = fallback_gw
     except Exception:
@@ -280,7 +280,9 @@ def league_trajectory(
     elif gap_now > 0:
         # Forecast gap narrowing?
         you_end = series[0]["points"][-1] if series else you_now
-        leader_end = next((s["points"][-1] for s in series if s["entry_id"] == leader_eid), leader_now)
+        leader_end = next(
+            (s["points"][-1] for s in series if s["entry_id"] == leader_eid), leader_now
+        )
         gap_end = int(leader_end) - int(you_end) if leader_eid else 0
         if gap_end < gap_now:
             insight = (

@@ -1,4 +1,5 @@
 """Load historical gameweek deadlines as point-in-time cutoffs."""
+
 from __future__ import annotations
 
 from datetime import UTC
@@ -41,14 +42,22 @@ def load_deadline_cutoffs(
         season = resolve_season(db, code)
         if season is None:
             continue
-        q = select(Gameweek).where(Gameweek.season_id == season.id).order_by(Gameweek.provider_event_id)
+        q = (
+            select(Gameweek)
+            .where(Gameweek.season_id == season.id)
+            .order_by(Gameweek.provider_event_id)
+        )
         for gw in db.execute(q).scalars().all():
             raw_num = gw.provider_event_id
             try:
                 gw_num = int(raw_num) if raw_num is not None else None
             except (TypeError, ValueError):
                 gw_num = None
-            if gw_num is None or (gw_min is not None and gw_num < gw_min) or (gw_max is not None and gw_num > gw_max):
+            if (
+                gw_num is None
+                or (gw_min is not None and gw_num < gw_min)
+                or (gw_max is not None and gw_num > gw_max)
+            ):
                 continue
             if gw.deadline_time is None:
                 continue
@@ -72,7 +81,9 @@ def diagnose_deadlines(db: Session, seasons: list[str] | None = None) -> dict[st
         if season is None:
             detail[code] = {"found": False, "reason": "season_code_not_in_db"}
             continue
-        gws = list(db.execute(select(Gameweek).where(Gameweek.season_id == season.id)).scalars().all())
+        gws = list(
+            db.execute(select(Gameweek).where(Gameweek.season_id == season.id)).scalars().all()
+        )
         detail[str(season.code)] = {
             "found": True,
             "gameweeks": len(gws),

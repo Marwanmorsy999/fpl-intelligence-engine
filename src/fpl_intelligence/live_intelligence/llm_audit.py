@@ -99,7 +99,7 @@ async def _fetch_model_ids(client: httpx.AsyncClient, provider: str) -> list[str
     for m in data.get("models") or []:
         name = str(m.get("name") or "")
         if name.startswith("models/"):
-            name = name[len("models/"):]
+            name = name[len("models/") :]
         methods = m.get("supportedGenerationMethods") or []
         if "generateContent" in methods:
             ids.append(name)

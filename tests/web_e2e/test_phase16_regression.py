@@ -306,7 +306,9 @@ def mocked_page(page: Page) -> Page:
     )
     page.route(
         "**/api/v1/push/**",
-        lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({"unread": 0})),
+        lambda r: r.fulfill(
+            status=200, content_type="application/json", body=json.dumps({"unread": 0})
+        ),
     )
     page.route(
         "**/api/v1/news/radar*",
@@ -318,15 +320,21 @@ def mocked_page(page: Page) -> Page:
     )
     page.route(
         "**/api/v1/league**",
-        lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({"your_rank": None})),
+        lambda r: r.fulfill(
+            status=200, content_type="application/json", body=json.dumps({"your_rank": None})
+        ),
     )
     page.route(
         "**/api/v1/transfers/**",
-        lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({"transfers": []})),
+        lambda r: r.fulfill(
+            status=200, content_type="application/json", body=json.dumps({"transfers": []})
+        ),
     )
     page.route(
         "**/api/v1/targets**",
-        lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({"targets": []})),
+        lambda r: r.fulfill(
+            status=200, content_type="application/json", body=json.dumps({"targets": []})
+        ),
     )
     return page
 

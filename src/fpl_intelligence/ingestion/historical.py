@@ -376,9 +376,7 @@ def import_season(
             (te.provider, te.provider_team_id): te.team_id
             for te in db.scalars(select(TeamExternalId)).all()
         }
-        team_by_id: dict[int, Team] = {
-            t.id: t for t in db.scalars(select(Team)).all()
-        }
+        team_by_id: dict[int, Team] = {t.id: t for t in db.scalars(select(Team)).all()}
         for nt in norm_teams:
             ext_key = (provider_name, nt["provider_team_id"])
             team_id_val = team_ext_cache.get(ext_key)
@@ -417,9 +415,7 @@ def import_season(
             (pe.provider, pe.provider_player_id): pe.player_id
             for pe in db.scalars(select(PlayerExternalId)).all()
         }
-        player_by_id: dict[int, Player] = {
-            p.id: p for p in db.scalars(select(Player)).all()
-        }
+        player_by_id: dict[int, Player] = {p.id: p for p in db.scalars(select(Player)).all()}
         membership_keys: set[tuple[int, int, int]] = {
             (m.player_id, m.team_id, m.season_id)
             for m in db.scalars(select(PlayerTeamMembership)).all()
@@ -600,9 +596,7 @@ def import_season(
             # once (identical semantics to the per-row selects they replace).
             gameweek_by_event: dict[int, Gameweek] = {
                 gw.provider_event_id: gw
-                for gw in db.scalars(
-                    select(Gameweek).where(Gameweek.season_id == season.id)
-                ).all()
+                for gw in db.scalars(select(Gameweek).where(Gameweek.season_id == season.id)).all()
             }
             existing_pgp_keys: set[tuple[int, int]] = set(
                 db.execute(
@@ -615,9 +609,7 @@ def import_season(
             membership_by_player: dict[int, int] = {
                 m.player_id: m.team_id
                 for m in db.scalars(
-                    select(PlayerTeamMembership).where(
-                        PlayerTeamMembership.season_id == season.id
-                    )
+                    select(PlayerTeamMembership).where(PlayerTeamMembership.season_id == season.id)
                 ).all()
             }
             for nh in accepted_history:
@@ -727,9 +719,7 @@ def import_season(
                 # than being silently stamped with ingestion time by the
                 # normalizer. The FPLSnapshot unique key includes event_time, so
                 # a fabricated now() would also break idempotent re-imports.
-                snapshots_data = [
-                    s for s in snapshots_data if s.get("event_time") is not None
-                ]
+                snapshots_data = [s for s in snapshots_data if s.get("event_time") is not None]
                 norm_snapshots = [normalize_fpl_snapshot(s, provider_name) for s in snapshots_data]
 
                 # Real FPL data may contain multiple fixture rows per (player,

@@ -81,16 +81,12 @@ class TestIdempotentIngestion:
             provider_name="test_provider_force", schema_version="v1"
         )
 
-        import_season(
-            db_session, provider, "2024-25", dataset="all", force=False, dry_run=False
-        )
+        import_season(db_session, provider, "2024-25", dataset="all", force=False, dry_run=False)
         teams_count_1 = db_session.query(Team).count()
         players_count_1 = db_session.query(Player).count()
 
         # Force re-import should process again
-        import_season(
-            db_session, provider, "2024-25", dataset="all", force=True, dry_run=False
-        )
+        import_season(db_session, provider, "2024-25", dataset="all", force=True, dry_run=False)
 
         # Teams and players shouldn't duplicate because they're idempotent
         teams_count_2 = db_session.query(Team).count()

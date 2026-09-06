@@ -204,10 +204,7 @@ def _never_500_handler_factory() -> Any:
             return JSONResponse(
                 status_code=503,
                 content={
-                    "detail": (
-                        "Decisions engine could not be computed right now "
-                        "; retry shortly."
-                    ),
+                    "detail": ("Decisions engine could not be computed right now ; retry shortly."),
                 },
             )
         return PlainTextResponse("Internal Server Error", status_code=500)

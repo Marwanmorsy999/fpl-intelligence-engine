@@ -112,6 +112,7 @@ def mask_health_payload() -> list[dict[str, Any]]:
         )
     return rows
 
+
 #: Browser-like headers for the direct strategy — the official FPL API rejects
 #: requests that look like bots.
 _BROWSER_HEADERS = {
@@ -241,9 +242,7 @@ class FplEgressChain:
                 data = await fn(url)
             except Exception as exc:  # noqa: BLE001 — record and fall through
                 attempts.append((name, f"{type(exc).__name__}: {exc}"))
-                record_strategy_result(
-                    name, ok=False, detail=f"{type(exc).__name__}: {exc}"
-                )
+                record_strategy_result(name, ok=False, detail=f"{type(exc).__name__}: {exc}")
                 logger.debug("fpl_egress: %s -> %s failed: %s", full_path, name, exc)
                 continue
 
@@ -263,7 +262,11 @@ class FplEgressChain:
             return data
 
         if stale_candidate is not None:
-            logger.warning("fpl_egress: all strategies failed for %s; serving stale cache age=%.1fs", full_path, stale_age or 0.0)
+            logger.warning(
+                "fpl_egress: all strategies failed for %s; serving stale cache age=%.1fs",
+                full_path,
+                stale_age or 0.0,
+            )
             self._winning_strategy = "stale-cache"
             return stale_candidate
         raise FplEgressExhaustedError(full_path, attempts)
@@ -310,9 +313,7 @@ class FplEgressChain:
         # Plain async closures for the mask strategies (text variants of the
         # JSON chain) — the direct strategy uses the shared _direct_text.
         async def _get_text(proxy_url: str) -> str:
-            async with httpx.AsyncClient(
-                timeout=self._timeout, follow_redirects=True
-            ) as client:
+            async with httpx.AsyncClient(timeout=self._timeout, follow_redirects=True) as client:
                 r = await client.get(proxy_url)
                 r.raise_for_status()
                 return r.text
@@ -373,7 +374,11 @@ class FplEgressChain:
             return text
 
         if stale_candidate is not None:
-            logger.warning("fpl_egress: all text strategies failed for %s; serving stale cache age=%.1fs", full_path, stale_age or 0.0)
+            logger.warning(
+                "fpl_egress: all text strategies failed for %s; serving stale cache age=%.1fs",
+                full_path,
+                stale_age or 0.0,
+            )
             self._winning_strategy = "stale-cache"
             return stale_candidate
         raise FplEgressExhaustedError(full_path, attempts)
@@ -412,9 +417,7 @@ class FplEgressChain:
                 data = await fn()
             except Exception as exc:  # noqa: BLE001
                 attempts.append((name, f"{type(exc).__name__}: {exc}"))
-                record_strategy_result(
-                    name, ok=False, detail=f"{type(exc).__name__}: {exc}"
-                )
+                record_strategy_result(name, ok=False, detail=f"{type(exc).__name__}: {exc}")
                 continue
 
             if validator is not None:

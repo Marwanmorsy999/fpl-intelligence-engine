@@ -61,9 +61,10 @@ async def push_config() -> dict[str, Any]:
         "vapid_public_key": vapid_public_key() or None,
         "configured": vapid_configured(),
         "triggers": list(TRIGGERS),
-        "note": None if vapid_configured()
+        "note": None
+        if vapid_configured()
         else "VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY not set — bell still works, "
-             "web push needs the keypair.",
+        "web push needs the keypair.",
     }
 
 
@@ -72,9 +73,7 @@ async def subscribe(body: SubscribeBody, db: GetDB) -> dict[str, Any]:
     """Upsert one subscription (endpoint-unique) with per-trigger toggles."""
     ensure_push_tables(db)
     row = db.scalar(
-        select(PushSubscriptionDB).where(
-            PushSubscriptionDB.endpoint == body.endpoint.strip()
-        )
+        select(PushSubscriptionDB).where(PushSubscriptionDB.endpoint == body.endpoint.strip())
     )
     now = datetime.now(UTC)
     if row is None:
@@ -94,9 +93,7 @@ async def subscribe(body: SubscribeBody, db: GetDB) -> dict[str, Any]:
 async def unsubscribe(body: UnsubscribeBody, db: GetDB) -> dict[str, Any]:
     ensure_push_tables(db)
     row = db.scalar(
-        select(PushSubscriptionDB).where(
-            PushSubscriptionDB.endpoint == body.endpoint.strip()
-        )
+        select(PushSubscriptionDB).where(PushSubscriptionDB.endpoint == body.endpoint.strip())
     )
     if row is not None:
         row.active = False
@@ -127,7 +124,9 @@ async def bell_log(
             .where(NotificationLogDB.session_id == str(session_id))
             .order_by(NotificationLogDB.id.desc())
             .limit(int(limit))
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     return {
         "session_id": session_id,
@@ -160,7 +159,9 @@ async def mark_all_read(
                 NotificationLogDB.session_id == str(session_id),
                 NotificationLogDB.read_at.is_(None),
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     now = datetime.now(UTC)
     for r in rows:

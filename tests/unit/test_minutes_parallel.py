@@ -26,8 +26,7 @@ def _dataset() -> tuple[dict[int, dict[str, float]], dict[int, float]]:
         for index in range(60)
     }
     targets = {
-        index: float(0 if index % 5 == 0 else min(90, 20 + (index * 9) % 71))
-        for index in range(60)
+        index: float(0 if index % 5 == 0 else min(90, 20 + (index * 9) % 71)) for index in range(60)
     }
     return features, targets
 

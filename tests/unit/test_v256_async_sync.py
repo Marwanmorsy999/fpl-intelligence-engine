@@ -1,21 +1,22 @@
 """v2.5.6 — async sync-now: 202 + poll, 25s cap, parallel fetch, warm retry."""
+
 from __future__ import annotations
 
 import asyncio
 import time
-from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 from fpl_intelligence.db.session import get_db
+from fpl_intelligence.squad.fpl_import import FplSquadImporter, clear_fpl_import_caches
 from fpl_intelligence.squad.models import SquadStateCreate
 from fpl_intelligence.squad.service import SquadService
-from fpl_intelligence.squad.fpl_import import FplSquadImporter, clear_fpl_import_caches
 from fpl_intelligence.squad.sync_job import clear_all_jobs
 
 OLD_IDS = list(range(100, 115))
 NEW_IDS = [999] + list(range(101, 115))
+
 
 def _payload_ids(ids: list[int]) -> dict:
     return {
@@ -26,16 +27,24 @@ def _payload_ids(ids: list[int]) -> dict:
         "entry_history": {"bank": 10, "event_transfers": 1, "event_transfers_cost": 0},
     }
 
+
 BOOTSTRAP_MIN = {
     "events": [
         {"id": 1, "deadline_time": "2026-08-21T17:30:00Z", "is_current": True, "is_next": False},
         {"id": 2, "deadline_time": "2026-08-28T17:30:00Z", "is_current": False, "is_next": True},
     ],
     "elements": [
-        {"id": pid, "element_type": 2 if pid < 200 else 4, "team": 1, "now_cost": 65, "web_name": f"P{pid}"}
+        {
+            "id": pid,
+            "element_type": 2 if pid < 200 else 4,
+            "team": 1,
+            "now_cost": 65,
+            "web_name": f"P{pid}",
+        }
         for pid in set(OLD_IDS + NEW_IDS)
     ],
 }
+
 
 @pytest.fixture(autouse=True)
 def _clear_caches():
@@ -45,10 +54,12 @@ def _clear_caches():
     clear_fpl_import_caches()
     clear_all_jobs()
 
+
 @pytest.fixture
 def api(db_session, monkeypatch):
     from fpl_intelligence.api.main import app
     from fpl_intelligence.config import get_settings
+
     monkeypatch.setattr(get_settings(), "sync_push_token", "tok-" + "a" * 32)
     monkeypatch.setattr(get_settings(), "egress_strategy_timeout", 1.0)
     monkeypatch.setattr(get_settings(), "prediction_provider", "static")
@@ -58,30 +69,49 @@ def api(db_session, monkeypatch):
     yield client, db_session
     app.dependency_overrides.pop(get_db, None)
 
+
 def _seed_old(db_session):
     svc = SquadService(session=db_session)
     svc.set_squad(
-        SquadStateCreate(player_ids=OLD_IDS, captain_id=OLD_IDS[0], vice_captain_id=OLD_IDS[1], gameweek=1, bank=0.5),
+        SquadStateCreate(
+            player_ids=OLD_IDS,
+            captain_id=OLD_IDS[0],
+            vice_captain_id=OLD_IDS[1],
+            gameweek=1,
+            bank=0.5,
+        ),
         session_id="2295006",
     )
+
 
 class TestAsyncJobPattern:
     def test_sync_now_fast_returns_done_directly(self, api, monkeypatch):
         client, db = api
         _seed_old(db)
+
         # Mock importer to return instantly (<4s) with NEW_IDS
         async def fake_build(entry_id, db=None, force_next_gw=False):
             imp = FplSquadImporter(egress=None)
             entry = {"id": 2295006, "name": "Tricky", "current_event": 1}
-            return imp._build_result(entry=entry, picks_payload=_payload_ids(NEW_IDS), bootstrap=BOOTSTRAP_MIN, gameweek=2, entry_name="Tricky", db=db)
+            return imp._build_result(
+                entry=entry,
+                picks_payload=_payload_ids(NEW_IDS),
+                bootstrap=BOOTSTRAP_MIN,
+                gameweek=2,
+                entry_name="Tricky",
+                db=db,
+            )
 
         class FastImporter:
             def __init__(self, egress=None):
                 pass
+
             async def build_squad_from_entry(self, entry_id, db=None, force_next_gw=False):
                 return await fake_build(entry_id, db, force_next_gw)
 
-        monkeypatch.setattr("fpl_intelligence.squad.sync_job._get_importer_cls", lambda: FastImporter)
+        monkeypatch.setattr(
+            "fpl_intelligence.squad.sync_job._get_importer_cls", lambda: FastImporter
+        )
         resp = client.post("/api/v1/squad/sync-now", params={"session_id": "2295006"})
         # Fast path <4s should return done directly with 200
         assert resp.status_code == 200, resp.text
@@ -105,15 +135,25 @@ class TestAsyncJobPattern:
             await asyncio.sleep(7)
             imp = FplSquadImporter(egress=None)
             entry = {"id": 2295006, "name": "Tricky", "current_event": 1}
-            return imp._build_result(entry=entry, picks_payload=_payload_ids(NEW_IDS), bootstrap=BOOTSTRAP_MIN, gameweek=2, entry_name="Tricky", db=db)
+            return imp._build_result(
+                entry=entry,
+                picks_payload=_payload_ids(NEW_IDS),
+                bootstrap=BOOTSTRAP_MIN,
+                gameweek=2,
+                entry_name="Tricky",
+                db=db,
+            )
 
         class SlowImporter:
             def __init__(self, egress=None):
                 pass
+
             async def build_squad_from_entry(self, entry_id, db=None, force_next_gw=False):
                 return await slow_build(entry_id, db, force_next_gw)
 
-        monkeypatch.setattr("fpl_intelligence.squad.sync_job._get_importer_cls", lambda: SlowImporter)
+        monkeypatch.setattr(
+            "fpl_intelligence.squad.sync_job._get_importer_cls", lambda: SlowImporter
+        )
         start = time.monotonic()
         resp = client.post("/api/v1/squad/sync-now", params={"session_id": "2295006"})
         elapsed = time.monotonic() - start
@@ -148,15 +188,22 @@ class TestAsyncJobPattern:
 
         async def failing_build(entry_id, db=None, force_next_gw=False):
             from fpl_intelligence.squad.fpl_import import FplApiUnavailable
-            raise FplApiUnavailable("All egress strategies failed for /api/entry/2295006/ — direct: timeout")
+
+            raise FplApiUnavailable(
+                "All egress strategies failed for /api/entry/2295006/ — direct: timeout"
+            )
 
         import fpl_intelligence.squad.sync_job as sj
+
         orig = sj._get_importer_cls
+
         class FailImporter:
             def __init__(self, egress=None):
                 pass
+
             async def build_squad_from_entry(self, entry_id, db=None, force_next_gw=False):
                 return await failing_build(entry_id, db, force_next_gw)
+
         sj._get_importer_cls = lambda: FailImporter
         try:
             resp = client.post("/api/v1/squad/sync-now", params={"session_id": "2295006"})
@@ -173,12 +220,18 @@ class TestAsyncJobPattern:
                         failed = st.json()
                         break
                 assert failed is not None, "should be failed"
-                assert "temporarily unavailable" in failed["error"].lower() or "upstream" in failed["error"].lower()
+                assert (
+                    "temporarily unavailable" in failed["error"].lower()
+                    or "upstream" in failed["error"].lower()
+                )
             else:
                 data = resp.json()
                 assert data["state"] == "failed"
                 assert "error" in data
-                assert "temporarily unavailable" in data["error"].lower() or "upstream" in data["error"].lower()
+                assert (
+                    "temporarily unavailable" in data["error"].lower()
+                    or "upstream" in data["error"].lower()
+                )
         finally:
             sj._get_importer_cls = orig
 
@@ -188,18 +241,31 @@ class TestAsyncJobPattern:
         # First decisions call caches OLD_IDS
         dec1 = client.get("/api/v1/decisions", params={"session_id": "2295006"})
         assert dec1.status_code == 200
+
         # Now sync to NEW_IDS quickly
         async def fast_build(entry_id, db=None, force_next_gw=False):
             imp = FplSquadImporter(egress=None)
             entry = {"id": 2295006, "name": "Tricky", "current_event": 1}
-            return imp._build_result(entry=entry, picks_payload=_payload_ids(NEW_IDS), bootstrap=BOOTSTRAP_MIN, gameweek=2, entry_name="Tricky", db=db)
+            return imp._build_result(
+                entry=entry,
+                picks_payload=_payload_ids(NEW_IDS),
+                bootstrap=BOOTSTRAP_MIN,
+                gameweek=2,
+                entry_name="Tricky",
+                db=db,
+            )
+
         import fpl_intelligence.squad.sync_job as sj
+
         orig = sj._get_importer_cls
+
         class FastImporter:
             def __init__(self, egress=None):
                 pass
+
             async def build_squad_from_entry(self, entry_id, db=None, force_next_gw=False):
                 return await fast_build(entry_id, db, force_next_gw)
+
         sj._get_importer_cls = lambda: FastImporter
         try:
             resp = client.post("/api/v1/squad/sync-now", params={"session_id": "2295006"})
@@ -237,7 +303,7 @@ class TestAsyncJobPattern:
         # still returns quickly via cache? But our importer's parallel logic checks cache first.
         # So we assert cache hit is instant (<0.1s)
         start = time.monotonic()
-        hit2 = _get_cached_picks(2295006, 2)
+        _get_cached_picks(2295006, 2)
         assert time.monotonic() - start < 0.1
 
     def test_sync_status_404_when_no_job(self, api):
@@ -248,22 +314,37 @@ class TestAsyncJobPattern:
     def test_sync_now_next_gw_flag(self, api):
         client, db = api
         _seed_old(db)
+
         async def fast_build(entry_id, db=None, force_next_gw=False):
             # Return NEW_IDS but assert flag is passed
             assert force_next_gw is True
             imp = FplSquadImporter(egress=None)
             entry = {"id": 2295006, "name": "Tricky", "current_event": 1}
-            return imp._build_result(entry=entry, picks_payload=_payload_ids(NEW_IDS), bootstrap=BOOTSTRAP_MIN, gameweek=2, entry_name="Tricky", db=db)
+            return imp._build_result(
+                entry=entry,
+                picks_payload=_payload_ids(NEW_IDS),
+                bootstrap=BOOTSTRAP_MIN,
+                gameweek=2,
+                entry_name="Tricky",
+                db=db,
+            )
+
         import fpl_intelligence.squad.sync_job as sj
+
         orig = sj._get_importer_cls
+
         class FastImporter:
             def __init__(self, egress=None):
                 pass
+
             async def build_squad_from_entry(self, entry_id, db=None, force_next_gw=False):
                 return await fast_build(entry_id, db, force_next_gw)
+
         sj._get_importer_cls = lambda: FastImporter
         try:
-            resp = client.post("/api/v1/squad/sync-now", params={"session_id": "2295006", "next_gw": "true"})
+            resp = client.post(
+                "/api/v1/squad/sync-now", params={"session_id": "2295006", "next_gw": "true"}
+            )
             assert resp.status_code in (200, 202)
             if resp.json().get("state") == "running":
                 for _ in range(6):

@@ -415,15 +415,11 @@ def _baseline_points_for_gameweek(db: Session, gameweek: int) -> ChainLevel | No
 
     id_to_element = {
         int(row[0]): int(row[1])
-        for row in db.execute(
-            select(Player.id, Player.fpl_element_id)
-        ).all()
+        for row in db.execute(select(Player.id, Player.fpl_element_id)).all()
         if row[0] is not None and row[1] is not None
     }
     points = {
-        id_to_element[int(pid)]: value
-        for pid, value in points.items()
-        if int(pid) in id_to_element
+        id_to_element[int(pid)]: value for pid, value in points.items() if int(pid) in id_to_element
     }
     if not points:
         return None
@@ -515,8 +511,7 @@ def _fixtures_for_gameweek(db: Session, gameweek: int) -> list[dict[str, int]]:
     if gw_id is None:
         return []
     rows = db.execute(
-        select(Fixture.home_team_id, Fixture.away_team_id)
-        .where(Fixture.gameweek_id == gw_id)
+        select(Fixture.home_team_id, Fixture.away_team_id).where(Fixture.gameweek_id == gw_id)
     ).all()
     return [{"home_team_id": int(home), "away_team_id": int(away)} for home, away in rows]
 
@@ -560,9 +555,7 @@ def _shared_market_payload(
         id_to_names = official_id_names_map(db)
     except Exception:  # noqa: BLE001 — status reporting never breaks scoring
         id_to_names = {}
-    rows = [
-        (gameweek, fx["home_team_id"], fx["away_team_id"]) for fx in fixtures
-    ]
+    rows = [(gameweek, fx["home_team_id"], fx["away_team_id"]) for fx in fixtures]
     status = compute_market_status(rows, id_to_names, snapshot.matched_event_names())
     payload: dict[str, Any] = {
         "enabled": bool(status["fixtures_matched"] > 0),
@@ -1102,12 +1095,16 @@ class LivePredictionProvider:
 
         cutoff = datetime.now(UTC) - timedelta(seconds=MATERIALIZED_MAX_AGE_SECONDS)
         try:
-            rows = self.session.execute(
-                select(PredictionCurrentDB).where(
-                    PredictionCurrentDB.gameweek == int(gameweek),
-                    PredictionCurrentDB.computed_at >= cutoff,
+            rows = (
+                self.session.execute(
+                    select(PredictionCurrentDB).where(
+                        PredictionCurrentDB.gameweek == int(gameweek),
+                        PredictionCurrentDB.computed_at >= cutoff,
+                    )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
         except Exception as exc:  # noqa: BLE001 — fall back to the inline chain
             logger.warning("materialized level query failed: %s", exc)
             return None
@@ -1183,9 +1180,7 @@ class LivePredictionProvider:
         # Phase 20.1 — materialized fast path: the daily cron already ran the
         # full chain; serve it from one indexed query with zero network I/O.
         # This is what keeps every prod data call under 2s.
-        materialized = (
-            None if skip_materialized else self._materialized_level(gameweek)
-        )
+        materialized = None if skip_materialized else self._materialized_level(gameweek)
         if materialized is not None and materialized.points:
             result = PredictionChainResult(
                 gameweek=gameweek, levels=[materialized], resolved=materialized
@@ -1393,12 +1388,8 @@ class LivePredictionProvider:
         universe = sorted(set(catalog.keys()) | db_ids)
         if not universe:
             return {}
-        chain_result = self.resolve_chain(
-            int(gameweek), skip_materialized=skip_materialized
-        )
-        return self._label_predictions(
-            chain_result, universe, include_distribution=False
-        )
+        chain_result = self.resolve_chain(int(gameweek), skip_materialized=skip_materialized)
+        return self._label_predictions(chain_result, universe, include_distribution=False)
 
     def get_fixture_count(self, player_id: int, gameweek: int) -> int:
         """Return the number of fixtures ``player_id``'s team has in ``gameweek``.
@@ -1477,11 +1468,7 @@ class LivePredictionProvider:
                     (lvl for lvl in self.last_result.levels if lvl.source == SOURCE_PROXY),
                     None,
                 )
-                matched = (
-                    proxy_level.notes.get("market_fixtures_matched")
-                    if proxy_level
-                    else None
-                )
+                matched = proxy_level.notes.get("market_fixtures_matched") if proxy_level else None
                 if matched:
                     meta["market_check"] = {
                         "enabled": True,
@@ -1498,7 +1485,5 @@ class LivePredictionProvider:
                         disabled_market_status,
                     )
 
-                    meta["market_check"] = disabled_market_status(
-                        "no fixtures matched yet"
-                    )
+                    meta["market_check"] = disabled_market_status("no fixtures matched yet")
         return meta

@@ -57,8 +57,11 @@ CREATE TABLE IF NOT EXISTS live_event_log (
 """
 
 #: Phase 23 (L4): stat fields whose increase becomes a matchday ping.
-_EVENT_KINDS = (("goals", "goal", "⚽"), ("assists", "assist", "🎯"),
-                ("red_cards", "red_card", "🟥"))
+_EVENT_KINDS = (
+    ("goals", "goal", "⚽"),
+    ("assists", "assist", "🎯"),
+    ("red_cards", "red_card", "🟥"),
+)
 
 
 def detect_stat_events(
@@ -90,8 +93,7 @@ def detect_stat_events(
                         "ordinal": ordinal,
                         "minute": int(now.get("minutes") or 0),
                         "points_delta": round(
-                            float(now.get("points") or 0)
-                            - float(was.get("points") or 0),
+                            float(now.get("points") or 0) - float(was.get("points") or 0),
                             2,
                         ),
                     }
@@ -114,12 +116,16 @@ def event_message(
     name = name_map.get(int(event["element_id"]), f"Player {event['element_id']}")
     delta = int(round(float(event.get("points_delta") or 0)))
     line = f"{emojis[event['kind']]} {name} {delta:+d} ({event['minute']}')"
-    if captain_id is not None and int(captain_id) == int(event["element_id"]) \
-            and event["kind"] != "red_card":
+    if (
+        captain_id is not None
+        and int(captain_id) == int(event["element_id"])
+        and event["kind"] != "red_card"
+    ):
         line += f" — captain delta {delta * 2:+d}"
     elif captain_id is not None and int(captain_id) == int(event["element_id"]):
         line += " — CAPTAIN"
     return line
+
 
 #: In-process cache TTLs (seconds).
 BOOTSTRAP_TTL = 600.0
@@ -131,9 +137,7 @@ ESPN_TTL = 90.0
 #: keeps the TOTAL worst case at the required 6-second budget.
 LIVE_STRATEGY_TIMEOUT = 1.5
 
-ESPN_SCOREBOARD_URL = (
-    "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard"
-)
+ESPN_SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard"
 
 _POSITION_NAMES = {1: "GKP", 2: "DEF", 3: "MID", 4: "FWD"}
 
@@ -519,9 +523,7 @@ async def live_matchday(
             "points": _element_points(el),
         }
 
-    starters, bench = _build_rows(
-        squad_players, live_stats, name_map, team_map, elem_meta, pos_map
-    )
+    starters, bench = _build_rows(squad_players, live_stats, name_map, team_map, elem_meta, pos_map)
 
     team_total = sum(float(r["points"] or 0) for r in starters)
 
@@ -570,9 +572,7 @@ async def live_matchday(
                             "points": r.get("raw_points"),
                         }
             watched = {
-                int(m["element_id"])
-                for m in squad_players
-                if int(m.get("multiplier") or 0) > 0
+                int(m["element_id"]) for m in squad_players if int(m.get("multiplier") or 0) > 0
             }
             current_stats = {
                 int(eid): {
@@ -592,8 +592,12 @@ async def live_matchday(
                     None,
                 )
                 pings_sent = _emit_matchday_pings(
-                    db, gameweek, session_id, events,
-                    name_map_ping, captain_pid,
+                    db,
+                    gameweek,
+                    session_id,
+                    events,
+                    name_map_ping,
+                    captain_pid,
                 )
         except Exception as exc:  # noqa: BLE001 — pings never break the board
             db.rollback()
@@ -713,10 +717,7 @@ def _emit_matchday_pings(
 
     try:
         seen_rows = db.execute(
-            text(
-                "SELECT element_id, event_kind, ordinal FROM live_event_log "
-                "WHERE gameweek = :gw"
-            ),
+            text("SELECT element_id, event_kind, ordinal FROM live_event_log WHERE gameweek = :gw"),
             {"gw": int(gameweek)},
         ).all()
     except Exception:  # noqa: BLE001 — table may not exist yet on first run

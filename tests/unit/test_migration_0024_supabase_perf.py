@@ -78,7 +78,11 @@ def test_upgrade_drops_existing_unique_constraint(monkeypatch: pytest.MonkeyPatc
     rec = _Recorder()
     monkeypatch.setattr(mig, "op", rec)
     mig.upgrade()
-    drops = [s for s in rec.execute_sql if s.upper().startswith("ALTER TABLE") and "DROP CONSTRAINT" in s.upper()]
+    drops = [
+        s
+        for s in rec.execute_sql
+        if s.upper().startswith("ALTER TABLE") and "DROP CONSTRAINT" in s.upper()
+    ]
     assert len(drops) == 1, _execute_calls_normalized(rec)
     drop = _norm(drops[0])
     assert "PREDICTIONS_CURRENT" in drop
@@ -90,7 +94,11 @@ def test_upgrade_promotes_to_pk_with_using_index(monkeypatch: pytest.MonkeyPatch
     rec = _Recorder()
     monkeypatch.setattr(mig, "op", rec)
     mig.upgrade()
-    add_pk_sqls = [s for s in rec.execute_sql if s.upper().startswith("ALTER TABLE") and "ADD CONSTRAINT" in s.upper()]
+    add_pk_sqls = [
+        s
+        for s in rec.execute_sql
+        if s.upper().startswith("ALTER TABLE") and "ADD CONSTRAINT" in s.upper()
+    ]
     assert len(add_pk_sqls) == 1, _execute_calls_normalized(rec)
     add = _norm(add_pk_sqls[0])
     assert "PREDICTIONS_CURRENT_PKEY" in add
@@ -104,9 +112,19 @@ def test_upgrade_step_ordering(monkeypatch: pytest.MonkeyPatch) -> None:
     rec = _Recorder()
     monkeypatch.setattr(mig, "op", rec)
     mig.upgrade()
-    step1_at = next(i for i, s in enumerate(rec.execute_sql) if s.upper().startswith("CREATE UNIQUE INDEX"))
-    step2_at = next(i for i, s in enumerate(rec.execute_sql) if s.upper().startswith("ALTER TABLE") and "DROP CONSTRAINT" in s.upper())
-    step3_at = next(i for i, s in enumerate(rec.execute_sql) if s.upper().startswith("ALTER TABLE") and "ADD CONSTRAINT" in s.upper())
+    step1_at = next(
+        i for i, s in enumerate(rec.execute_sql) if s.upper().startswith("CREATE UNIQUE INDEX")
+    )
+    step2_at = next(
+        i
+        for i, s in enumerate(rec.execute_sql)
+        if s.upper().startswith("ALTER TABLE") and "DROP CONSTRAINT" in s.upper()
+    )
+    step3_at = next(
+        i
+        for i, s in enumerate(rec.execute_sql)
+        if s.upper().startswith("ALTER TABLE") and "ADD CONSTRAINT" in s.upper()
+    )
     assert step1_at < step2_at < step3_at
 
 
@@ -128,7 +146,9 @@ def test_upgrade_creates_primary_source_id_index(monkeypatch: pytest.MonkeyPatch
     rec = _Recorder()
     monkeypatch.setattr(mig, "op", rec)
     mig.upgrade()
-    matches = [c for c in rec.create_index_calls if c[0] == "ix_availability_events_primary_source_id"]
+    matches = [
+        c for c in rec.create_index_calls if c[0] == "ix_availability_events_primary_source_id"
+    ]
     assert len(matches) == 1
     name, table, columns, unique = matches[0]
     assert table == "availability_events"
@@ -143,7 +163,10 @@ def test_upgrade_creates_exactly_two_perf_indexes(monkeypatch: pytest.MonkeyPatc
     mig.upgrade()
     assert len(rec.create_index_calls) == 2
     names = {c[0] for c in rec.create_index_calls}
-    assert names == {"predictions_current_computed_at_idx", "ix_availability_events_primary_source_id"}
+    assert names == {
+        "predictions_current_computed_at_idx",
+        "ix_availability_events_primary_source_id",
+    }
     assert "predictions_current_pk_idx" not in names
 
 
@@ -152,7 +175,13 @@ def test_upgrade_executes_three_pk_alter_sql(monkeypatch: pytest.MonkeyPatch) ->
     rec = _Recorder()
     monkeypatch.setattr(mig, "op", rec)
     mig.upgrade()
-    pk_swap = [s for s in rec.execute_sql if "PREDICTIONS_CURRENT_PK_IDX" in s.upper() or "PREDICTIONS_CURRENT_PKEY" in s.upper() or "UQ_PRED_CURRENT_GW_ELEMENT" in s.upper()]
+    pk_swap = [
+        s
+        for s in rec.execute_sql
+        if "PREDICTIONS_CURRENT_PK_IDX" in s.upper()
+        or "PREDICTIONS_CURRENT_PKEY" in s.upper()
+        or "UQ_PRED_CURRENT_GW_ELEMENT" in s.upper()
+    ]
     assert len(pk_swap) == 3, _execute_calls_normalized(rec)
 
 
@@ -170,7 +199,11 @@ def test_downgrade_drops_pk_constraint_first(monkeypatch: pytest.MonkeyPatch) ->
     rec = _Recorder()
     monkeypatch.setattr(mig, "op", rec)
     mig.downgrade()
-    drop_pk_sqls = [s for s in rec.execute_sql if "DROP CONSTRAINT" in s.upper() and "PREDICTIONS_CURRENT_PKEY" in s.upper()]
+    drop_pk_sqls = [
+        s
+        for s in rec.execute_sql
+        if "DROP CONSTRAINT" in s.upper() and "PREDICTIONS_CURRENT_PKEY" in s.upper()
+    ]
     assert len(drop_pk_sqls) == 1, _execute_calls_normalized(rec)
 
 
@@ -179,7 +212,13 @@ def test_downgrade_recreates_unique_constraint(monkeypatch: pytest.MonkeyPatch) 
     rec = _Recorder()
     monkeypatch.setattr(mig, "op", rec)
     mig.downgrade()
-    add_unique_sqls = [s for s in rec.execute_sql if "ADD CONSTRAINT" in s.upper() and "UNIQUE" in s.upper() and "UQ_PRED_CURRENT_GW_ELEMENT" in s.upper()]
+    add_unique_sqls = [
+        s
+        for s in rec.execute_sql
+        if "ADD CONSTRAINT" in s.upper()
+        and "UNIQUE" in s.upper()
+        and "UQ_PRED_CURRENT_GW_ELEMENT" in s.upper()
+    ]
     assert len(add_unique_sqls) == 1, _execute_calls_normalized(rec)
     add = _norm(add_unique_sqls[0])
     assert "PREDICTIONS_CURRENT" in add
@@ -193,7 +232,10 @@ def test_downgrade_drops_both_indexes(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(mig, "op", rec)
     mig.downgrade()
     names = {d[0] for d in rec.drop_index_calls}
-    assert names == {"ix_availability_events_primary_source_id", "predictions_current_computed_at_idx"}
+    assert names == {
+        "ix_availability_events_primary_source_id",
+        "predictions_current_computed_at_idx",
+    }
 
 
 def test_downgrade_creates_no_indexes(monkeypatch: pytest.MonkeyPatch) -> None:

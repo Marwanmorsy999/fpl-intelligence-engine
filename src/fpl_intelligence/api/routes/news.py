@@ -68,9 +68,7 @@ def cached_items_from_db(
     """Fresh-enough cached headlines plus their fetch time; ``([], None)`` if cold."""
     cutoff = datetime.now(UTC) - timedelta(seconds=max_age_seconds)
     row = db.scalar(
-        select(NewsCacheDB)
-        .where(NewsCacheDB.fetched_at >= cutoff)
-        .order_by(NewsCacheDB.id.desc())
+        select(NewsCacheDB).where(NewsCacheDB.fetched_at >= cutoff).order_by(NewsCacheDB.id.desc())
     )
     if row is None:
         return [], None
@@ -134,9 +132,7 @@ async def _cached_items() -> list[Any]:
             # remaining TTL must be measured against the same clock — mixing in
             # time.monotonic() produced garbage ages (the "2864d old" family
             # of clock-domain bugs).
-            fetched_utc = (
-                fetched_at if fetched_at.tzinfo else fetched_at.replace(tzinfo=UTC)
-            )
+            fetched_utc = fetched_at if fetched_at.tzinfo else fetched_at.replace(tzinfo=UTC)
             age_seconds = (datetime.now(UTC) - fetched_utc).total_seconds()
             with _feed_lock:
                 _feed_cache = (time.time() - max(0.0, age_seconds), items)

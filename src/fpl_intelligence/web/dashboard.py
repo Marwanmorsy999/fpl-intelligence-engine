@@ -8,14 +8,13 @@ always be registered in this application.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
-
-from fpl_intelligence.config import get_settings
 
 router = APIRouter()
 
@@ -101,6 +100,7 @@ def _register_dashboard_routes() -> None:
 
     def _page_handler(filename: str):
         if filename == "dashboard.html" and _sentry_dsn_for_pages:
+
             async def _serve() -> HTMLResponse:
                 html = (_STATIC_DIR / filename).read_text(encoding="utf-8")
                 snippet = _sentry_browser_snippet(_sentry_dsn_for_pages)
@@ -139,19 +139,22 @@ def _register_dashboard_routes() -> None:
                 status_code=503,
             )
         finally:
-            try:
+            with contextlib.suppress(StopIteration):
                 next(db_gen, None)
-            except StopIteration:
-                pass
 
     def _last_saved_session_id(db: object) -> str | None:
         from sqlalchemy import select as _select
+
         from fpl_intelligence.squad.models_db import SquadStateDB
 
         try:
-            row = db.execute(  # type: ignore[union-attr]
-                _select(SquadStateDB.session_id).order_by(SquadStateDB.updated_at.desc())
-            ).scalars().first()
+            row = (
+                db.execute(  # type: ignore[union-attr]
+                    _select(SquadStateDB.session_id).order_by(SquadStateDB.updated_at.desc())
+                )
+                .scalars()
+                .first()
+            )
             return str(row) if row else None
         except Exception:
             return None
