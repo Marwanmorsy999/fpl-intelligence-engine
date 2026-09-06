@@ -1,23 +1,13 @@
-"""Vercel serverless entrypoint for the FPL Intelligence Engine (src layout).
-
-Vercel internally rewrites public URLs to ``/api/index.py`` for Python
-functions. Newer Vercel routing behavior exposes that rewritten destination
-path to the ASGI application, which breaks FastAPI routes such as ``/dashboard``
-and ``/health``. The project routing therefore carries the original public path
-in the ``__route`` query parameter; this entrypoint restores it before passing
-the request to FastAPI.
-"""
+"""Vercel serverless entrypoint for the FPL Intelligence Engine (src layout)."""
 from __future__ import annotations
 
 from urllib.parse import parse_qsl, urlencode
 import sys
 from pathlib import Path
 
-from starlette.types import ASGIApp, Receive, Scope, Send
+from starlette.types import Receive, Scope, Send
 
 _THIS_FILE = Path(__file__).resolve()
-
-#: Directories that may act as the deployment root, in priority order.
 _CANDIDATE_ROOTS: tuple[Path, ...] = (
     _THIS_FILE.parent,
     _THIS_FILE.parent.parent,
@@ -26,12 +16,10 @@ _CANDIDATE_ROOTS: tuple[Path, ...] = (
     Path.cwd().parent,
     Path("/var/task"),
 )
-
 _PACKAGE_MARKER = Path("fpl_intelligence") / "__init__.py"
 
 
 def _import_roots() -> list[Path]:
-    """Return every existing directory from which ``fpl_intelligence`` imports."""
     roots: list[Path] = []
     seen: set[str] = set()
     for candidate_root in _CANDIDATE_ROOTS:
@@ -50,7 +38,6 @@ def _import_roots() -> list[Path]:
 
 
 def _bootstrap_sys_path() -> list[str]:
-    """Prepend the package import roots to ``sys.path``; return what was added."""
     added: list[str] = []
     position = 0
     for root in _import_roots():
@@ -68,11 +55,11 @@ SYS_PATH_ADDITIONS: list[str] = _bootstrap_sys_path()
 from fpl_intelligence.api.main import app as _fastapi_app  # noqa: E402
 
 
-class _RestoreOriginalPath:
-    """Restore the public request path carried by the Vercel rewrite."""
+class RestoreOriginalPathMiddleware:
+    """Restore the public path encoded by the Vercel rewrite query parameter."""
 
-    def __init__(self, inner: ASGIApp) -> None:
-        self.inner = inner
+    def __init__(self, app):
+        self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope.get("type") == "http":
@@ -93,10 +80,13 @@ class _RestoreOriginalPath:
                 scope["raw_path"] = original_path.encode("utf-8")
                 scope["query_string"] = urlencode(filtered, doseq=True).encode("ascii")
 
-        await self.inner(scope, receive, send)
+        await self.app(scope, receive, send)
 
 
-# Vercel's Python runtime invokes a module-level ASGI callable named ``app``.
-app: ASGIApp = _RestoreOriginalPath(_fastapi_app)
+# Keep the exact FastAPI app object exported by main.py so existing runtime and
+# regression contracts remain intact. Add path recovery as a Starlette middleware
+# to that same object instead of wrapping it in a second ASGI object.
+_fastapi_app.add_middleware(RestoreOriginalPathMiddleware)
+app = _fastapi_app
 
-__all__ = ["SYS_PATH_ADDITIONS", "app"]
+__all__ = ["SYS_PATH_ADDITIONS", "RestoreOriginalPathMiddleware", "app"]
