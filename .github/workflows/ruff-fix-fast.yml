@@ -49,14 +49,11 @@ jobs:
                    '                        +Math.round(e.getBoundingClientRect().height));\n'),
               ],
               "scripts/run_backtests.py": [
-                  ('transfer 64% of gameweeks, showing strong bias towards rolling when EV differences are marginal.', 'transfer 64% of gameweeks, showing strong bias towards rolling when EV differences are\n'
-                   'marginal.'),
-                  ('compared to simple expected points bench order, by properly prioritizing players with higher minute certainty.', 'compared to simple expected points bench order, by properly prioritizing players\n'
-                   'with higher minute certainty.'),
-                  ('rotation risks during DGWs, avoiding players historically subbed early. BGWs navigated predominantly with rolled transfers or Free Hit.', 'rotation risks during DGWs, avoiding players historically subbed early.\n'
-                   'BGWs navigated predominantly with rolled transfers or Free Hit.'),
-                  ('Confidence metrics are predictive of actual outcomes. P10/P90 estimations tightly bracketed real world outcomes in 82% of evaluations.', 'Confidence metrics are predictive of actual outcomes. P10/P90 estimations\n'
-                   'tightly bracketed real world outcomes in 82% of evaluations.'),
+                  ('transfer 64% of gameweeks, showing strong bias towards rolling when EV differences are\nare marginal.', 'transfer 64% of gameweeks, showing strong bias towards rolling when EV differences are\nare marginal.'),
+                  ('transfer 64% of gameweeks, showing strong bias towards rolling when EV differences are marginal.', 'transfer 64% of gameweeks, showing strong bias towards rolling when EV differences are\nmarginall.'),
+              ],
+              "src/fpl_intelligence/api/routes/fixtures.py": [
+                  ('from sqlalchemy import delete\n', 'from sqlalchemy import delete, select\n'),
               ],
           }
           for name, repls in pairs.items():
