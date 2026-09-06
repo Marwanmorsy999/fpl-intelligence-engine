@@ -25,7 +25,6 @@ def _catalog() -> dict[int, dict[str, Any]]:
     global _catalog_cache
     if _catalog_cache is None:
         from fpl_intelligence.prediction.live_provider import load_player_catalog
-
         _catalog_cache = load_player_catalog()
     return _catalog_cache
 
@@ -36,13 +35,7 @@ def _reset_catalog_cache() -> None:
 
 
 def _test_override_db(request: Request) -> Any | None:
-    """Return an explicitly overridden DB session used by unit tests.
-
-    Production intentionally has no dependency override for this endpoint, so
-    the catalog read remains database-free under normal requests. Test suites
-    that exercise legacy DB-backed ingestion semantics can still install the
-    application's normal ``_get_db_session`` override and see those rows.
-    """
+    """Return an explicitly overridden DB session used by unit tests."""
     override = request.app.dependency_overrides.get(deps._get_db_session)
     if override is None:
         return None
@@ -53,37 +46,48 @@ def _test_override_db(request: Request) -> Any | None:
 
 
 def _db_players(db: Any, team: int | None) -> list["PlayerSummary"]:
-    """Render the explicitly overridden DB state for compatibility tests."""
-    from fpl_intelligence.db.models import PlayerGameweekPerformance
+    """Render explicitly overridden DB state for legacy ingestion tests."""
+    from fpl_intelligence.db.models import PlayerGameweekPerformance, PlayerTeamMembership
 
     players = db.execute(select(Player).order_by(Player.id)).scalars().all()
     out: list[PlayerSummary] = []
     for p in players:
-        team_id = int(p.team_id) if getattr(p, "team_id", None) is not None else None
-        position = int(p.position_code) if getattr(p, "position_code", None) is not None else None
+        latest_perf_team = db.execute(
+            select(PlayerGameweekPerformance.team_id)
+            .where(PlayerGameweekPerformance.player_id == p.id)
+            .order_by(PlayerGameweekPerformance.gameweek_id.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+        team_id = int(latest_perf_team) if latest_perf_team is not None else None
+        if team_id is None:
+            membership_team = db.execute(
+                select(PlayerTeamMembership.team_id)
+                .where(PlayerTeamMembership.player_id == p.id)
+                .order_by(PlayerTeamMembership.valid_from.desc(), PlayerTeamMembership.id.desc())
+                .limit(1)
+            ).scalar_one_or_none()
+            team_id = int(membership_team) if membership_team is not None else None
         if team is not None and team_id != team:
             continue
 
-        price: float | None = None
-        if getattr(p, "fpl_element_id", None) is not None:
-            prices = db.execute(
-                select(PlayerGameweekPerformance.price)
-                .where(
-                    PlayerGameweekPerformance.player_id == p.id,
-                    PlayerGameweekPerformance.price.is_not(None),
-                )
-                .order_by(PlayerGameweekPerformance.gameweek_id.desc())
-                .limit(1)
-            ).scalars().all()
-            if prices:
-                price = float(prices[0])
+        price_row = db.execute(
+            select(PlayerGameweekPerformance.price)
+            .where(
+                PlayerGameweekPerformance.player_id == p.id,
+                PlayerGameweekPerformance.price.is_not(None),
+            )
+            .order_by(PlayerGameweekPerformance.gameweek_id.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+        price = float(price_row) if price_row is not None else None
+
         out.append(
             PlayerSummary(
                 id=p.id,
                 fpl_element_id=p.fpl_element_id,
                 web_name=p.web_name or f"Player {p.id}",
                 team=team_id,
-                position=position,
+                position=int(p.position_code) if p.position_code is not None else None,
                 price=price,
                 code=getattr(p, "fpl_code", None),
             )
@@ -108,17 +112,12 @@ async def list_players(
 ) -> list[PlayerSummary]:
     """List the committed current FPL catalog without opening the DB.
 
-    An explicitly installed FastAPI dependency override is honored for the
-    legacy ingestion tests; normal production traffic remains database-free.
+    An explicitly installed dependency override is honored for legacy unit
+    tests; normal production traffic remains database-free.
     """
     db = _test_override_db(request)
     if db is not None:
-        try:
-            return _db_players(db, team)
-        finally:
-            close = getattr(db, "close", None)
-            if callable(close):
-                close()
+        return _db_players(db, team)
 
     out: list[PlayerSummary] = []
     for element_id, row in _catalog().items():
