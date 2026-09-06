@@ -71,7 +71,7 @@ class SquadService:
         return {
             "session_id": session_id,
             "squad_json": state.model_dump(mode="json"),
-            "updated_at": state.updated_at or datetime.utcnow(),
+            "updated_at": state.updated_at or datetime.now(UTC),
         }
 
     def _upsert(self, db: Session, session_id: str, state: SquadStateResponse) -> None:

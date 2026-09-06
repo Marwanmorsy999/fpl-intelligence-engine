@@ -34,9 +34,9 @@ def _season_counts(db, season_code: str) -> dict[str, int]:
     if season_id is None:
         return {"players": 0, "fixtures": 0, "gameweeks": 0, "performance": 0}
     gameweek_ids = select(Gameweek.id).where(Gameweek.season_id == season_id)
-    player_count = select(
-        func.count(func.distinct(PlayerGameweekPerformance.player_id))
-    ).where(PlayerGameweekPerformance.season_id == season_id)
+    player_count = select(func.count(func.distinct(PlayerGameweekPerformance.player_id))).where(
+        PlayerGameweekPerformance.season_id == season_id
+    )
     return {
         "players": int(db.scalar(player_count) or 0),
         "fixtures": int(
@@ -69,17 +69,13 @@ def collect_preflight(db) -> dict[str, object]:
     if missing_tables:
         return {"missing_tables": missing_tables}
 
-    season_ids = list(
-        db.scalars(select(Season.id).where(Season.code.in_(REQUIRED_SEASONS))).all()
-    )
+    season_ids = list(db.scalars(select(Season.id).where(Season.code.in_(REQUIRED_SEASONS))).all())
     historical_filter = (
         PlayerGameweekPerformance.season_id.in_(season_ids) if season_ids else text("1 = 0")
     )
     historical_total = int(
         db.scalar(
-            select(func.count())
-            .select_from(PlayerGameweekPerformance)
-            .where(historical_filter)
+            select(func.count()).select_from(PlayerGameweekPerformance).where(historical_filter)
         )
         or 0
     )
@@ -193,9 +189,7 @@ def collect_preflight(db) -> dict[str, object]:
     )
     return {
         "missing_tables": [],
-        "season_counts": {
-            season: _season_counts(db, season) for season in REQUIRED_SEASONS
-        },
+        "season_counts": {season: _season_counts(db, season) for season in REQUIRED_SEASONS},
         "total_performance": historical_total,
         "temporal": temporal,
         "mapping_failures": mappings,

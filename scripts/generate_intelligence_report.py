@@ -25,6 +25,7 @@ Usage::
         --player-id 7 --gameweek 4 --cutoff 2025-08-17T18:30:00+00:00 \\
         --task captaincy_debate --db ./fpl.db
 """
+
 from __future__ import annotations
 
 import argparse
@@ -175,7 +176,9 @@ class _RecentFormPredictionProvider(DecisionPredictionProvider):
                     PlayerGameweekPerformance.player_id == player_id,
                     PlayerGameweekPerformance.gameweek_id.is_not(None),
                 )
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )
         prior: list[float] = []
         for perf in rows:
@@ -213,9 +216,7 @@ class _RecentFormPredictionProvider(DecisionPredictionProvider):
         return 1
 
 
-def _build_prediction_provider(
-    args: argparse.Namespace, db: Session
-) -> DecisionPredictionProvider:
+def _build_prediction_provider(args: argparse.Namespace, db: Session) -> DecisionPredictionProvider:
     if args.dry_run:
         return StaticPredictionProvider()
     return _RecentFormPredictionProvider(db)
@@ -270,10 +271,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  task           : {report.task}")
     print(f"  is_mock        : {report.is_mock}")
     if args.dry_run:
-        print(
-            "  dry_run        : True (MockLLMProvider + StaticPredictionProvider; "
-            "no DB writes)"
-        )
+        print("  dry_run        : True (MockLLMProvider + StaticPredictionProvider; no DB writes)")
     print("=" * 78)
     return EXIT_OK
 

@@ -124,8 +124,7 @@ def _minutes_holdout(db) -> dict[str, object]:
             eligible = [
                 row
                 for row in histories.get(player_id, [])
-                if row.available_at <= cutoff.cutoff_time
-                and row.ingested_at <= cutoff.cutoff_time
+                if row.available_at <= cutoff.cutoff_time and row.ingested_at <= cutoff.cutoff_time
             ]
             if not eligible:
                 excluded += 1
@@ -145,10 +144,20 @@ def _minutes_holdout(db) -> dict[str, object]:
                 continue
             started = int(actual >= 60)
             candidate_rows.append(
-                (float(pred["expected_minutes"]), actual, started, float(pred["probability_starting"]))
+                (
+                    float(pred["expected_minutes"]),
+                    actual,
+                    started,
+                    float(pred["probability_starting"]),
+                )
             )
             baseline_rows.append(
-                (float(base["expected_minutes"]), actual, started, float(base["probability_starting"]))
+                (
+                    float(base["expected_minutes"]),
+                    actual,
+                    started,
+                    float(base["probability_starting"]),
+                )
             )
         folds.append(
             {
@@ -210,7 +219,8 @@ def _team_holdout(db) -> dict[str, object]:
                 Fixture.away_score.is_not(None),
             )
             .order_by(Fixture.kickoff_time, Fixture.id)
-        ).all())
+        ).all()
+    )
     if len(fixtures) != 380:
         raise RuntimeError(f"expected 380 scored holdout fixtures, found {len(fixtures)}")
 
@@ -239,8 +249,16 @@ def _team_holdout(db) -> dict[str, object]:
         )
         candidate_rows.append(
             {
-                "mae": (abs(pred.expected_home_goals - actual_home) + abs(pred.expected_away_goals - actual_away)) / 2,
-                "sq": ((pred.expected_home_goals - actual_home) ** 2 + (pred.expected_away_goals - actual_away) ** 2) / 2,
+                "mae": (
+                    abs(pred.expected_home_goals - actual_home)
+                    + abs(pred.expected_away_goals - actual_away)
+                )
+                / 2,
+                "sq": (
+                    (pred.expected_home_goals - actual_home) ** 2
+                    + (pred.expected_away_goals - actual_away) ** 2
+                )
+                / 2,
                 "result_ll": _logloss(result_prob, 1),
                 "home_brier": (pred.home_win_probability - int(actual_result == 1)) ** 2,
                 "home_cs_brier": (pred.home_clean_sheet_probability - int(actual_away == 0)) ** 2,
@@ -248,10 +266,18 @@ def _team_holdout(db) -> dict[str, object]:
         )
 
         baseline_home = engine.estimate(
-            fixture.home_team_id, cutoff, method="rolling_goals", window=TEAM_WINDOW, decay=TEAM_DECAY
+            fixture.home_team_id,
+            cutoff,
+            method="rolling_goals",
+            window=TEAM_WINDOW,
+            decay=TEAM_DECAY,
         )
         baseline_away = engine.estimate(
-            fixture.away_team_id, cutoff, method="rolling_goals", window=TEAM_WINDOW, decay=TEAM_DECAY
+            fixture.away_team_id,
+            cutoff,
+            method="rolling_goals",
+            window=TEAM_WINDOW,
+            decay=TEAM_DECAY,
         )
         base_pred = engine.fixture_probability(fixture.id, cutoff, baseline_home, baseline_away)
         base_result_prob = (
@@ -263,11 +289,20 @@ def _team_holdout(db) -> dict[str, object]:
         )
         baseline_rows.append(
             {
-                "mae": (abs(base_pred.expected_home_goals - actual_home) + abs(base_pred.expected_away_goals - actual_away)) / 2,
-                "sq": ((base_pred.expected_home_goals - actual_home) ** 2 + (base_pred.expected_away_goals - actual_away) ** 2) / 2,
+                "mae": (
+                    abs(base_pred.expected_home_goals - actual_home)
+                    + abs(base_pred.expected_away_goals - actual_away)
+                )
+                / 2,
+                "sq": (
+                    (base_pred.expected_home_goals - actual_home) ** 2
+                    + (base_pred.expected_away_goals - actual_away) ** 2
+                )
+                / 2,
                 "result_ll": _logloss(base_result_prob, 1),
                 "home_brier": (base_pred.home_win_probability - int(actual_result == 1)) ** 2,
-                "home_cs_brier": (base_pred.home_clean_sheet_probability - int(actual_away == 0)) ** 2,
+                "home_cs_brier": (base_pred.home_clean_sheet_probability - int(actual_away == 0))
+                ** 2,
             }
         )
 
@@ -309,7 +344,9 @@ def _team_holdout(db) -> dict[str, object]:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output", default="data/experiments/holdout/2025-26-frozen-evaluation.json")
+    parser.add_argument(
+        "--output", default="data/experiments/holdout/2025-26-frozen-evaluation.json"
+    )
     args = parser.parse_args()
 
     DEFAULT_SEASON_SPLIT.validate_observation(

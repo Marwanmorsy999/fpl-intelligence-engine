@@ -78,6 +78,7 @@ def evaluate_signal_lift(report: MaterializeReport, db: Any | None = None) -> Si
         return out
 
     from sqlalchemy import select
+
     from fpl_intelligence.availability.historical.deadlines import resolve_season
     from fpl_intelligence.db.models import Gameweek, PlayerExternalId, PlayerGameweekPerformance
 

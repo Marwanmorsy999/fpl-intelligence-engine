@@ -1410,7 +1410,6 @@ class LivePredictionProvider:
         """
         from fpl_intelligence.db.models import (
             Fixture,
-            Gameweek,
             PlayerTeamMembership,
         )
 

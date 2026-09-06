@@ -21,6 +21,7 @@ so external APIs are not hammered.
 
 Exit codes: ``0`` success, ``1`` usage error, ``2`` collection failure.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -88,9 +89,7 @@ def summarize(result: LiveFactResult, fpl_fact_count: int) -> str:
         if not enabled:
             lines.append(f"{key}: DISABLED ({src.get('reason', 'no key')})")
         else:
-            lines.append(
-                f"{key}: enabled={enabled} facts={src.get('facts', 0)}"
-            )
+            lines.append(f"{key}: enabled={enabled} facts={src.get('facts', 0)}")
     lines.append("")
     lines.append(f"Hard fact overrides discovered: {len(result.overrides)}")
     for override in result.overrides[:20]:

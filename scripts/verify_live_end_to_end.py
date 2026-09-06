@@ -30,6 +30,7 @@ the git-ignored ``.env`` only); the default is the offline
 Exit codes: ``0`` all checks passed, ``1`` usage/configuration error,
 ``2`` verification/provider/network failure.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -175,12 +176,8 @@ def _print_report(report: EndToEndVerification, *, dry_run: bool) -> None:
     print("=" * 78)
     print("PHASE 9.7 — LIVE END-TO-END VERIFICATION")
     print("=" * 78)
-    fetched = ", ".join(
-        f"{name}={count}" for name, count in report.connector_fetched.items()
-    )
-    ingested = ", ".join(
-        f"{name}={count}" for name, count in report.connector_ingested.items()
-    )
+    fetched = ", ".join(f"{name}={count}" for name, count in report.connector_fetched.items())
+    ingested = ", ".join(f"{name}={count}" for name, count in report.connector_ingested.items())
     print(f"  fetched        : {report.total_fetched} ({fetched})")
     print(f"  ingested       : {report.total_ingested} ({ingested})")
     print(f"  extraction runs: {report.extraction_runs}")
@@ -218,9 +215,7 @@ def main(argv: list[str] | None = None) -> int:
         print("USAGE ERROR: --gameweek must be at least 1.")
         return EXIT_USAGE
 
-    session_factory = (
-        build_verification_session(f"sqlite:///{args.db}") if args.db else None
-    )
+    session_factory = build_verification_session(f"sqlite:///{args.db}") if args.db else None
     verifier = EndToEndVerifier(
         connectors=build_connectors(args),
         session_factory=session_factory,
@@ -246,4 +241,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

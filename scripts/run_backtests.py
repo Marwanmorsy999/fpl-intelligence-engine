@@ -5,6 +5,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+
 def generate_decision_roi_report():
     report_content = """# Phase 6.5 Decision Optimization Report
 
@@ -95,11 +96,12 @@ Single run on 2025-26 holdout:
     docs_dir = Path("docs")
     docs_dir.mkdir(exist_ok=True)
     report_path = docs_dir / "phase6-5-decision-optimization-report.md"
-    
+
     with open(report_path, "w", encoding="utf-8") as f:
         f.write(report_content)
-        
+
     logger.info(f"Generated report at {report_path}")
+
 
 def run_simulations():
     logger.info("Initializing DecisionBacktester...")
@@ -112,6 +114,7 @@ def run_simulations():
     logger.info("Executing locked holdout on 2025-26...")
     generate_decision_roi_report()
     logger.info("Backtesting framework completed successfully.")
+
 
 if __name__ == "__main__":
     run_simulations()

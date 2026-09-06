@@ -17,6 +17,7 @@ Usage::
 
 Exit codes: ``0`` written ok, ``1`` fetch/write error.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -80,9 +81,7 @@ def main(argv: list[str] | None = None) -> int:
             "first_name": str(pl.get("first_name", "")),
             "second_name": str(pl.get("second_name", "")),
             "web_name": str(pl.get("web_name", "")),
-            "position": (
-                int(pl["element_type"]) if pl.get("element_type") is not None else None
-            ),
+            "position": (int(pl["element_type"]) if pl.get("element_type") is not None else None),
             "team": int(pl["team"]) if pl.get("team") is not None else None,
             "now_cost": int(pl["now_cost"]) if pl.get("now_cost") is not None else None,
             # FPL photo code -> Premier-League-CDN URLs.

@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+
 from playwright.sync_api import sync_playwright
 
 BASE = os.getenv("QA_BASE", "https://fpl-intelligence-engine-foundation.vercel.app")
@@ -9,12 +10,12 @@ OUT.mkdir(exist_ok=True)
 
 viewports = [(390, 844, "390"), (768, 1024, "768"), (1440, 900, "1440")]
 pages = [
- ("/", "Decisions"),
- ("/my-team", "MyTeam"),
- ("/live", "Live"),
- ("/league", "League"),
- ("/track-record", "TrackRecord"),
- ("/targets", "Targets"),
+    ("/", "Decisions"),
+    ("/my-team", "MyTeam"),
+    ("/live", "Live"),
+    ("/league", "League"),
+    ("/track-record", "TrackRecord"),
+    ("/targets", "Targets"),
 ]
 
 console_errors = []
@@ -26,8 +27,20 @@ with sync_playwright() as p:
     for path, label in pages:
         for w, h, name in viewports:
             page = ctx.new_page()
-            page.on("console", lambda m, lab=label, nm=name: console_errors.append(f"{lab} {nm} console:{m.type} {m.text}") if m.type=="error" else None)
-            page.on("pageerror", lambda e, lab=label, nm=name: console_errors.append(f"{lab} {nm} pageerror: {e.message}"))
+            page.on(
+                "console",
+                lambda m, lab=label, nm=name: (
+                    console_errors.append(f"{lab} {nm} console:{m.type} {m.text}")
+                    if m.type == "error"
+                    else None
+                ),
+            )
+            page.on(
+                "pageerror",
+                lambda e, lab=label, nm=name: console_errors.append(
+                    f"{lab} {nm} pageerror: {e.message}"
+                ),
+            )
             page.set_viewport_size({"width": w, "height": h})
             url = BASE + path
             try:
@@ -36,7 +49,9 @@ with sync_playwright() as p:
                 file = OUT / f"{label}_{name}.png"
                 page.screenshot(path=str(file), full_page=True)
                 print(f"ok {label} {name} -> {file}")
-                has_h = page.evaluate("() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2")
+                has_h = page.evaluate(
+                    "() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2"
+                )
                 if has_h:
                     failed.append(f"{label} {name} horizontal scroll")
                     print(f"  WARN h-scroll {label} {name}")
@@ -58,15 +73,20 @@ print("\n=== console ===")
 if not [e for e in console_errors if "error" in e.lower()]:
     print("console 0: PASS (no error/pageerror)")
 else:
-    for e in console_errors: print(e)
+    for e in console_errors:
+        print(e)
     failed.append(f"console {len(console_errors)}")
 
 print("\n=== h-scroll ===")
-hs=[f for f in failed if "horizontal" in f]
-if not hs: print("no h-scroll PASS")
-else: print("\n".join(hs))
+hs = [f for f in failed if "horizontal" in f]
+if not hs:
+    print("no h-scroll PASS")
+else:
+    print("\n".join(hs))
 
-OUT.joinpath("qa.json").write_text(json.dumps({"console":console_errors,"failed":failed,"base":BASE}, indent=2))
+OUT.joinpath("qa.json").write_text(
+    json.dumps({"console": console_errors, "failed": failed, "base": BASE}, indent=2)
+)
 print(f"\nQA done {OUT}/ failed={failed}")
 if failed:
     raise SystemExit(1)

@@ -202,7 +202,6 @@ def shadow_metrics(
 
     # Squad XI xPTS sum comparison (current vs shadow) for one GW
     try:
-        from fpl_intelligence.squad.bridge import DecisionOptimizerBridge  # noqa: PLC0415
 
         # We won't run full optimization here; just sum xPTS of first 11 ids
         # as honest proxy when optimizer not needed for staging preview.

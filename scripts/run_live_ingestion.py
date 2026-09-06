@@ -25,6 +25,7 @@ any real database.
 Exit codes: ``0`` success, ``1`` usage/configuration error, ``2`` provider/
 network error.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -63,8 +64,7 @@ DEFAULT_RSS_URL = "https://www.bbc.co.uk/sport/football/teams/rss"
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Phase 9.5 — fetch live news via connectors and ingest it into the "
-            "Phase 9.2 pipeline."
+            "Phase 9.5 — fetch live news via connectors and ingest it into the Phase 9.2 pipeline."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )

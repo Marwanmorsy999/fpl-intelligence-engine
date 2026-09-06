@@ -39,9 +39,7 @@ def run() -> int:
 
         page.on(
             "console",
-            lambda msg: console_errors.append(msg.text)
-            if msg.type == "error"
-            else None,
+            lambda msg: console_errors.append(msg.text) if msg.type == "error" else None,
         )
         page.on("pageerror", lambda exc: console_errors.append(f"pageerror: {exc}"))
 
@@ -131,7 +129,9 @@ def run() -> int:
             page.wait_for_timeout(5000)
         page.wait_for_timeout(2500)
         main_gw = None
-        main_html = page.locator("#briefBox").inner_text() if page.locator("#briefBox").count() else ""
+        main_html = (
+            page.locator("#briefBox").inner_text() if page.locator("#briefBox").count() else ""
+        )
         m2 = re.search(r"Brief .*?Gameweek (\d+)", main_html)
         if m2:
             main_gw = int(m2.group(1))
@@ -161,11 +161,17 @@ def run() -> int:
             (OUT / "league_picker.txt").write_text("\n".join(names), encoding="utf-8")
         standings = page.locator("[data-testid='standings-table']")
         print("standings table:", standings.count() > 0)
-        heat = page.locator("[data-testid='ownership-heat']").inner_text() \
-            if page.locator("[data-testid='ownership-heat']").count() else ""
+        heat = (
+            page.locator("[data-testid='ownership-heat']").inner_text()
+            if page.locator("[data-testid='ownership-heat']").count()
+            else ""
+        )
         print("ownership heat:", " ".join(heat.split())[:200])
-        edge = page.locator("[data-testid='projected-edge']").inner_text() \
-            if page.locator("[data-testid='projected-edge']").count() else ""
+        edge = (
+            page.locator("[data-testid='projected-edge']").inner_text()
+            if page.locator("[data-testid='projected-edge']").count()
+            else ""
+        )
         print("projected edge:", " ".join(edge.split())[:240])
         rank_line = page.locator("[data-testid='your-rank-line']")
         print("your-rank line:", rank_line.inner_text() if rank_line.count() else "-")

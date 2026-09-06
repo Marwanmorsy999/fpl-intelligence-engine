@@ -113,14 +113,13 @@ class TestEgressStrategyOrder:
             monkeypatch,
             [
                 ("direct", RuntimeError("x")),
-                ("allorigins", RuntimeError("y")),
-                ("corsproxy", {"id": 3}),
-                ("env_proxy", {"id": 4}),
+                ("env_proxy", RuntimeError("y")),
+                ("allorigins", {"id": 3}),
             ],
         )
         data = asyncio.run(chain.fetch("/api/entry/1/", validator=validate_entry_payload))
         assert data == {"id": 3}
-        assert chain.winning_strategy == "corsproxy"
+        assert chain.winning_strategy == "allorigins"
 
     def test_invalid_shape_rejected_and_next_tried(self, monkeypatch) -> None:
         """A mask returning HTML/garbage must be rejected, not trusted."""
@@ -136,9 +135,8 @@ class TestEgressStrategyOrder:
         with pytest.raises(FplEgressExhaustedError) as excinfo:
             asyncio.run(chain.fetch("/api/entry/1/", validator=validate_entry_payload))
         tried = [name for name, _err in excinfo.value.attempts]
-        # Order matters: direct first, user proxy LAST; codetabs sits between
-        # corsproxy and the user proxy (pass-2 fourth free mask).
-        assert tried == ["direct", "allorigins", "corsproxy", "codetabs", "env_proxy"]
+        # Order matters: direct first, then env_proxy (if configured), then allorigins, corsproxy, codetabs
+        assert tried == ["direct", "env_proxy", "allorigins", "corsproxy", "codetabs"]
         assert chain.winning_strategy is None
 
     def test_cache_reuses_successful_response(self, monkeypatch) -> None:
