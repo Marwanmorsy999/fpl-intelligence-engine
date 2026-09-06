@@ -1,5 +1,5 @@
-python fixes applied
-python_fix_exit=0
+expected text not found in scripts/phase25_gate1_live_verify.py: '            handler = lambda m: errors.append(m.text[:140]) if m.type == "error" else None\n'
+python_fix_exit=1
 SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
   --> src/fpl_intelligence/api/routes/drawer.py:75:9
    |
