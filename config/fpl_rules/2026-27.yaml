@@ -1,8 +1,30 @@
 season: "2026-27"
 rules_version: "2026-27-official"
 
-# Intentionally versioned. Complete scoring constants belong in the scoring-engine milestone.
-# Validate all constants against the official FPL rules before production use.
+# Official FPL scoring rules confirmed for the 2026/27 season.
+# Source: Premier League FPL Basics — Scoring points (20 Jul 2026).
+points:
+  goal:
+    GK: 10
+    DEF: 6
+    MID: 5
+    FWD: 4
+  assist: 3
+  clean_sheet:
+    GK: 4
+    DEF: 4
+    MID: 1
+  appearance_minutes_60_plus: 2
+  appearance_minutes_under_60: 1
+  goalkeeper_saves_per_point: 3
+  penalty_save: 5
+  penalty_miss: -2
+  own_goal: -2
+  yellow_card: -1
+  red_card: -3
+  goals_conceded_2_plus:
+    GK: -1
+    DEF: -1
 
 chips:
   sets: 2
@@ -28,3 +50,7 @@ bps:
 defensive_contribution:
   versioned: true
   source: "official-premier-league-fpl"
+  defender_cbit_threshold: 10
+  midfielder_cbit_threshold: 12
+  forward_cbit_threshold: 12
+  points: 2

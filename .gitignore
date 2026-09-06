@@ -1,3 +1,4 @@
+# Python caches and tooling
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -5,49 +6,44 @@ __pycache__/
 .ruff_cache/
 .venv/
 venv/
+
+# Secrets / local environment
 .env
+.env.*
+!.env.example
+
+# Runtime / local data
 .redis
-.DS_Store
 *.log
 *.err
 *.pid
-
-# local data
+*.sqlite
+*.db
+*.sql
+*.dump
 /data/raw/*
 /data/processed/*
 !/data/raw/.gitkeep
 !/data/processed/.gitkeep
 
-# databases and dumps
-*.sql
-*.dump
-*.sqlite
-*.db
-
-# scratch / debug files
-_*.py
+# Generated QA / evidence
+/_gate*_proof/
+/qa_gate*/
+tmp/
 _*.txt
-tmp_*.py
-# ...but never ignore legitimate Python package markers
-!**/__init__.py
-!**/__main__.py
+_*.xml
 
-# CI / test artifacts
+# CI artifacts
 test_results.xml
 
-# IDE
+# IDE / local tooling
 .vscode/
 .idea/
-
-# Docker volumes
-/docker-data/
-/volumes/
-
-.vercel
-
+.vercel/
 .codegraph/
 .kilo/
 .playwright-mcp/
-.env.*
-!.env.example
-.env*
+
+# Docker local state
+/docker-data/
+/volumes/
