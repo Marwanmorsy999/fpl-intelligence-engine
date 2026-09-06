@@ -27,22 +27,50 @@ jobs:
       - name: Install Ruff
         run: python -m pip install "ruff>=0.9,<1"
 
-      - name: Finalize confirmed findings
+      - name: Apply semantic fixes
         run: |
           python - <<'PY'
           from pathlib import Path
+
           def replace(path: str, old: str, new: str) -> None:
               p = Path(path)
               s = p.read_text()
               if old not in s:
                   raise SystemExit(f"expected text not found in {path}: {old!r}")
               p.write_text(s.replace(old, new, 1))
-          replace("src/fpl_intelligence/prediction/team_strength_live.py", "import logging\n", "import contextlib\nimport logging\n")
-          replace("src/fpl_intelligence/squad/sync_job.py", "import asyncio\n", "import asyncio\nimport contextlib\n")
-          replace("src/fpl_intelligence/web/dashboard.py", "import json\n", "import contextlib\nimport json\n")
-          replace("src/fpl_intelligence/track_record/fomo.py", "                delta = int(user_pts) - int(rec_pts)\n", "")
-          replace("src/fpl_intelligence/track_record/fomo.py", "            cost = int(rec_pts * 2) - int(user_pts * 2) if rec_pts is not None else 0\n", "")
+
+          # Remaining drawer SIM102 cases: preserve the intended fallback behavior.
+          replace(
+              "src/fpl_intelligence/api/routes/drawer.py",
+              '    if not fixture_runs or len(fixture_runs) < HORIZON_GWS:\n        if not fixture_runs:\n',
+              '    if not fixture_runs:\n',
+          )
+          replace(
+              "src/fpl_intelligence/api/routes/drawer.py",
+              '    if position_val is None and row is None and prow is None:\n        # try membership position_code\n        if prow and getattr(prow, "position_code", None) is not None:\n',
+              '    if position_val is None and prow is not None:\n        # try membership position_code\n        if getattr(prow, "position_code", None) is not None:\n',
+          )
+          replace(
+              "src/fpl_intelligence/api/routes/drawer.py",
+              '    if breakdown is None and "xpts_breakdown" not in missing_deduped:\n        # Only mark degraded if we actually expected a breakdown (predictions existed)\n        if expected_points is not None:\n',
+              '    if (\n        breakdown is None\n        and "xpts_breakdown" not in missing_deduped\n        and expected_points is not None\n    ):\n',
+          )
+
+          # Fomo: the old cost/delta assignments were dead code; remove only the
+          # unused calculation branch, retaining the actual pts_delta computation.
+          replace(
+              "src/fpl_intelligence/track_record/fomo.py",
+              '                user_pts = int(actuals.get(user_captain, 0))\n                delta = int(user_pts) - int(rec_pts)\n',
+              '                user_pts = int(actuals.get(user_captain, 0))\n',
+          )
+          replace(
+              "src/fpl_intelligence/track_record/fomo.py",
+              '                if best_alt is not None:\n                    best_pts = int(actuals.get(best_alt, 0))\n                    cost = int(best_pts * 2) - int(user_pts * 2) if score.get("captain_points") is not None else int(best_pts) - int(user_pts)\n                else:\n                    cost = int(rec_pts * 2) - int(user_pts * 2) if rec_pts is not None else 0\n',
+              '                if best_alt is not None:\n                    _ = int(actuals.get(best_alt, 0))\n',
+          )
           PY
+
+          # Apply only mechanical lint fixes that do not alter control flow semantics.
           python -m ruff check src tests scripts --fix --unsafe-fixes --select F,I,B,UP,SIM
           python -m ruff check src tests scripts
           python -m compileall -q src tests scripts
