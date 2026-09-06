@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from fpl_intelligence.api.performance import RequestProfilingMiddleware
 
+
 def test_request_id_is_generated_and_returned():
     app = FastAPI()
     app.add_middleware(RequestProfilingMiddleware)

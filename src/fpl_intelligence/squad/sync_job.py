@@ -13,6 +13,7 @@ Bootstrap cached 10 min likewise.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import threading
 import time
@@ -226,12 +227,10 @@ async def _run_sync_job(
                 )
                 db.commit()
             except Exception:
-                try:
+                with contextlib.suppress(Exception):
                     db.rollback()
-                except Exception:
-                    pass
             return
-        except (asyncio.CancelledError, TimeoutError):
+        except asyncio.CancelledError:
             _set_job(
                 str(session_id),
                 {
@@ -281,10 +280,8 @@ async def _run_sync_job(
                 )
                 db.commit()
             except Exception:
-                try:
+                with contextlib.suppress(Exception):
                     db.rollback()
-                except Exception:
-                    pass
             return
         except Exception as exc:  # noqa: BLE001
             logger.exception("sync-now job %s failed for %s: %s", job_id, session_id, exc)
@@ -325,10 +322,8 @@ async def _run_sync_job(
             )
             db.commit()
         except Exception:
-            try:
+            with contextlib.suppress(Exception):
                 db.rollback()
-            except Exception:
-                pass
 
         # Transfer detection for banner
         detected = None
@@ -470,10 +465,8 @@ async def _run_sync_job(
             },
         )
     finally:
-        try:
+        with contextlib.suppress(Exception):
             db.close()
-        except Exception:
-            pass
         with _lock:
             _tasks.pop(str(session_id), None)
 
@@ -506,10 +499,8 @@ def start_sync_job(session_id: str, next_gw: bool, engine_bind: Any) -> tuple[di
             asyncio.run(_run_sync_job(str(session_id), bool(next_gw), job_id, engine_bind))
         except Exception as exc:  # noqa: BLE001
             logger.exception("sync job thread failed for %s: %s", session_id, exc)
-            try:
+            with contextlib.suppress(Exception):
                 _set_job(str(session_id), {"state": "failed", "error": "Sync failed — please Retry.", "finished_at": _now_iso()})
-            except Exception:
-                pass
 
     import threading as _th
 

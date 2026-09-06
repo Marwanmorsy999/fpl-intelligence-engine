@@ -81,10 +81,12 @@ def _test_override_db(request: Request) -> Any | None:
     return candidate
 
 
-def _db_players(db: Any, team: int | None) -> list["PlayerSummary"]:
+def _db_players(db: Any, team: int | None) -> list[PlayerSummary]:
     """Render explicitly overridden DB state for legacy ingestion tests."""
     from fpl_intelligence.db.models import PlayerGameweekPerformance, PlayerTeamMembership
 
+    catalog = _catalog()
+    codes = _seed_codes()
     players = db.execute(select(Player).order_by(Player.id)).scalars().all()
     out: list[PlayerSummary] = []
     for p in players:
@@ -115,8 +117,17 @@ def _db_players(db: Any, team: int | None) -> list["PlayerSummary"]:
             .order_by(PlayerGameweekPerformance.gameweek_id.desc())
             .limit(1)
         ).scalar_one_or_none()
-        price = float(price_row) if price_row is not None else None
+        if price_row is not None:
+            price = float(price_row)
+        else:
+            cat = catalog.get(int(p.fpl_element_id)) if p.fpl_element_id is not None else None
+            price_value = (cat or {}).get("price")
+            price = float(price_value) if price_value is not None else None
 
+        element_id = int(p.fpl_element_id) if p.fpl_element_id is not None else None
+        code = getattr(p, "fpl_code", None)
+        if code is None and element_id is not None:
+            code = codes.get(element_id)
         out.append(
             PlayerSummary(
                 id=p.id,
@@ -125,7 +136,7 @@ def _db_players(db: Any, team: int | None) -> list["PlayerSummary"]:
                 team=team_id,
                 position=int(p.position_code) if p.position_code is not None else None,
                 price=price,
-                code=getattr(p, "fpl_code", None),
+                code=int(code) if code is not None else None,
             )
         )
     return out
@@ -178,13 +189,7 @@ async def list_players(
 
 @router.get("/drawer/{player_id}")
 async def player_drawer_compat(player_id: int, db: GetDB) -> dict[str, Any]:
-    """Compatibility endpoint for the original squad-page drawer contract.
-
-    The deep drawer remains at /player/{player_id}/drawer?session_id=..., but
-    the My Team page only needs the materialized last-five form bars. Keep this
-    compatibility route tiny and read-only so legacy clients stop generating
-    404s without adding live-network or write-path work.
-    """
+    """Compatibility endpoint for the original squad-page drawer contract."""
     try:
         rows = db.execute(
             select(
@@ -258,40 +263,43 @@ async def search_players(
         cat = catalog.get(int(p.fpl_element_id)) if p.fpl_element_id is not None else None
         position_value = int((cat or {}).get("position") or p.position_code or 0) or None
         team_value = int((cat or {}).get("team") or 0) or None
-        price_value = float((cat or {}).get("price")) if (cat or {}).get("price") is not None else None
         if position is not None and position_value != position:
             continue
         if team is not None and team_value != team:
             continue
-        if max_price is not None and (price_value is None or price_value > max_price):
+        price_value = (cat or {}).get("price")
+        price = float(price_value) if price_value is not None else None
+        if max_price is not None and (price is None or price > max_price):
             continue
-        relevance = _relevance(q, p.web_name, " ".join(filter(None, (p.first_name, p.second_name))), (cat or {}).get("web_name"))
+        relevance = _relevance(q, p.web_name, p.first_name, p.second_name)
         if relevance < _RELEVANCE_CUTOFF:
             continue
-        xpts = xpts_map.get(p.fpl_element_id) if p.fpl_element_id is not None else None
-        score = round(0.7 * relevance + 0.3 * min(1.0, (xpts or 0.0) / 10.0), 4)
+        xpts = xpts_map.get(int(p.fpl_element_id)) if p.fpl_element_id is not None else None
+        ownership = (cat or {}).get("selected_by_percent")
         hits.append(
             PlayerSearchHit(
                 id=p.id,
                 fpl_element_id=p.fpl_element_id,
-                web_name=p.web_name or (cat or {}).get("web_name", f"Player {p.id}"),
+                web_name=p.web_name or f"Player {p.id}",
                 team=team_value,
                 position=position_value,
-                price=price_value,
-                code=p.fpl_code,
-                xpts=xpts,
-                ownership_pct=(cat or {}).get("selected_by_percent"),
-                team_short=(cat or {}).get("team_short"),
-                relevance=round(relevance, 4),
-                score=score,
+                price=price,
+                code=getattr(p, "fpl_code", None) or _seed_codes().get(int(p.fpl_element_id))
+                if p.fpl_element_id is not None
+                else getattr(p, "fpl_code", None),
+                xpts=float(xpts) if xpts is not None else None,
+                ownership_pct=float(ownership) if ownership is not None else None,
+                team_short=str((cat or {}).get("team_short") or "") or None,
+                relevance=relevance,
+                score=round(0.7 * relevance + 0.3 * min(1.0, (float(xpts) if xpts is not None else 0.0) / 10.0), 4),
             )
         )
-    if sort == "xpts":
-        hits.sort(key=lambda h: (h.xpts is None, -(h.xpts or 0.0)))
+    if sort == "relevance":
+        hits.sort(key=lambda h: (-float(h.score or 0), -float(h.relevance or 0)))
+    elif sort == "xpts":
+        hits.sort(key=lambda h: -(float(h.xpts or -1)))
     elif sort == "price":
-        hits.sort(key=lambda h: (h.price is None, -(h.price or 0.0)))
-    elif sort == "ownership":
-        hits.sort(key=lambda h: (h.ownership_pct is None, -(h.ownership_pct or 0.0)))
+        hits.sort(key=lambda h: -(float(h.price or -1)))
     else:
-        hits.sort(key=lambda h: -(h.score or 0.0))
+        hits.sort(key=lambda h: -(float(h.ownership_pct or -1)))
     return hits[:limit]

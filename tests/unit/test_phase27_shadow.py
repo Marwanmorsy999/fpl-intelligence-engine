@@ -5,12 +5,10 @@ Unit + API integration via in-memory sqlite. No network.
 
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
 
 from fpl_intelligence.api.main import app
 from fpl_intelligence.db.session import get_db

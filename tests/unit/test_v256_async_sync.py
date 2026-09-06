@@ -3,15 +3,14 @@ from __future__ import annotations
 
 import asyncio
 import time
-from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 from fpl_intelligence.db.session import get_db
+from fpl_intelligence.squad.fpl_import import FplSquadImporter, clear_fpl_import_caches
 from fpl_intelligence.squad.models import SquadStateCreate
 from fpl_intelligence.squad.service import SquadService
-from fpl_intelligence.squad.fpl_import import FplSquadImporter, clear_fpl_import_caches
 from fpl_intelligence.squad.sync_job import clear_all_jobs
 
 OLD_IDS = list(range(100, 115))
@@ -237,7 +236,7 @@ class TestAsyncJobPattern:
         # still returns quickly via cache? But our importer's parallel logic checks cache first.
         # So we assert cache hit is instant (<0.1s)
         start = time.monotonic()
-        hit2 = _get_cached_picks(2295006, 2)
+        _get_cached_picks(2295006, 2)
         assert time.monotonic() - start < 0.1
 
     def test_sync_status_404_when_no_job(self, api):
