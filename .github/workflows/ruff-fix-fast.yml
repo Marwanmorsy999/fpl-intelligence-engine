@@ -48,10 +48,6 @@ jobs:
                    '                        +Math.round(e.getBoundingClientRect().width)+\'x\'\n'
                    '                        +Math.round(e.getBoundingClientRect().height));\n'),
               ],
-              "scripts/run_backtests.py": [
-                  ('transfer 64% of gameweeks, showing strong bias towards rolling when EV differences are\nare marginal.', 'transfer 64% of gameweeks, showing strong bias towards rolling when EV differences are\nare marginal.'),
-                  ('transfer 64% of gameweeks, showing strong bias towards rolling when EV differences are marginal.', 'transfer 64% of gameweeks, showing strong bias towards rolling when EV differences are\nmarginall.'),
-              ],
               "src/fpl_intelligence/api/routes/fixtures.py": [
                   ('from sqlalchemy import delete\n', 'from sqlalchemy import delete, select\n'),
               ],
