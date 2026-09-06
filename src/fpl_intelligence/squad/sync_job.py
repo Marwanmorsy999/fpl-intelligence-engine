@@ -11,6 +11,7 @@ Bootstrap cached 10 min likewise.
 """
 
 from __future__ import annotations
+import contextlib
 
 import asyncio
 import logging
@@ -78,14 +79,12 @@ def clear_job(session_id: str) -> None:
     with _lock:
         _jobs.pop(str(session_id), None)
         t = _tasks.pop(str(session_id), None)
-        try:
+        with contextlib.suppress(Exception):
             if t is not None:
                 if hasattr(t, "is_alive"):
                     pass
                 elif hasattr(t, "done") and not t.done():
                     t.cancel()
-        except Exception:
-            pass
 
 
 def clear_all_jobs() -> None:
@@ -93,15 +92,13 @@ def clear_all_jobs() -> None:
         for sid in list(_jobs.keys()):
             _jobs.pop(sid, None)
         for sid, t in list(_tasks.items()):
-            try:
+            with contextlib.suppress(Exception):
                 # Thread case: is_alive / no cancel. Task case: done / cancel.
                 if hasattr(t, "is_alive"):
                     # Thread — just drop it; daemon threads die with process.
                     pass
                 elif hasattr(t, "done") and not t.done():
                     t.cancel()
-            except Exception:
-                pass
             _tasks.pop(sid, None)
 
 
@@ -111,45 +108,36 @@ def clear_all_jobs() -> None:
 
 def _get_importer_cls():
     """Return the importer class, preferring a mocked version if patched."""
-    # Prefer a MagicMock class if either location has been patched
-    try:
+    with contextlib.suppress(Exception):
         import fpl_intelligence.api.routes.squad as _squad_mod  # noqa: PLC0415
 
         rc = getattr(_squad_mod, "FplSquadImporter", None)
         if rc is not None and hasattr(rc, "_mock_name"):
             return rc
-    except Exception:
-        pass
-    try:
+    with contextlib.suppress(Exception):
         import fpl_intelligence.squad.fpl_import as _fpl_mod  # noqa: PLC0415
 
         fc = getattr(_fpl_mod, "FplSquadImporter", None)
         if fc is not None and hasattr(fc, "_mock_name"):
             return fc
-    except Exception:
-        pass
     from fpl_intelligence.squad.fpl_import import FplSquadImporter  # noqa: PLC0415
 
     return FplSquadImporter
 
 
 def _get_egress_cls():
-    try:
+    with contextlib.suppress(Exception):
         import fpl_intelligence.api.routes.squad as _squad_mod  # noqa: PLC0415
 
         rc = getattr(_squad_mod, "FplEgressChain", None)
         if rc is not None and hasattr(rc, "_mock_name"):
             return rc
-    except Exception:
-        pass
-    try:
+    with contextlib.suppress(Exception):
         import fpl_intelligence.data_providers.fpl_egress as _eg_mod  # noqa: PLC0415
 
         fc = getattr(_eg_mod, "FplEgressChain", None)
         if fc is not None and hasattr(fc, "_mock_name"):
             return fc
-    except Exception:
-        pass
     from fpl_intelligence.data_providers.fpl_egress import FplEgressChain  # noqa: PLC0415
 
     return FplEgressChain
@@ -226,10 +214,8 @@ async def _run_sync_job(
                 )
                 db.commit()
             except Exception:
-                try:
+                with contextlib.suppress(Exception):
                     db.rollback()
-                except Exception:
-                    pass
             return
         except (asyncio.CancelledError, TimeoutError):
             _set_job(
@@ -281,10 +267,8 @@ async def _run_sync_job(
                 )
                 db.commit()
             except Exception:
-                try:
+                with contextlib.suppress(Exception):
                     db.rollback()
-                except Exception:
-                    pass
             return
         except Exception as exc:  # noqa: BLE001
             logger.exception("sync-now job %s failed for %s: %s", job_id, session_id, exc)
@@ -298,12 +282,10 @@ async def _run_sync_job(
         from fpl_intelligence.squad.service import SquadService
 
         saved = SquadService(session=db).set_squad(result.squad, session_id=str(session_id))
-        try:
+        with contextlib.suppress(Exception):
             from fpl_intelligence.api.routes.squad import _invalidate_decisions_cache
 
             _invalidate_decisions_cache(str(session_id))
-        except Exception:
-            pass
 
         # sync_log
         try:
@@ -325,10 +307,8 @@ async def _run_sync_job(
             )
             db.commit()
         except Exception:
-            try:
+            with contextlib.suppress(Exception):
                 db.rollback()
-            except Exception:
-                pass
 
         # Transfer detection for banner
         detected = None
@@ -470,10 +450,8 @@ async def _run_sync_job(
             },
         )
     finally:
-        try:
+        with contextlib.suppress(Exception):
             db.close()
-        except Exception:
-            pass
         with _lock:
             _tasks.pop(str(session_id), None)
 
@@ -491,13 +469,10 @@ def start_sync_job(session_id: str, next_gw: bool, engine_bind: Any) -> tuple[di
                 alive = False
             if handle and alive:
                 return dict(existing), handle
-            # Also check asyncio Task case for backwards compat
-            try:
+            with contextlib.suppress(Exception):
                 done = getattr(handle, "done", lambda: True)()
                 if handle and not done:
                     return dict(existing), handle
-            except Exception:
-                pass
     job = create_job(str(session_id), bool(next_gw))
     job_id = job["job_id"]
 
@@ -506,10 +481,8 @@ def start_sync_job(session_id: str, next_gw: bool, engine_bind: Any) -> tuple[di
             asyncio.run(_run_sync_job(str(session_id), bool(next_gw), job_id, engine_bind))
         except Exception as exc:  # noqa: BLE001
             logger.exception("sync job thread failed for %s: %s", session_id, exc)
-            try:
+            with contextlib.suppress(Exception):
                 _set_job(str(session_id), {"state": "failed", "error": "Sync failed — please Retry.", "finished_at": _now_iso()})
-            except Exception:
-                pass
 
     import threading as _th
 

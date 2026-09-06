@@ -15,6 +15,7 @@ execution layer. Use the "View on FPL" button and Sync Now to pull changes.
 """
 
 from __future__ import annotations
+import contextlib
 
 import logging
 from typing import Any
@@ -117,8 +118,7 @@ async def transfers_valuation(
             else f"Cost: 0 pts (free transfer). Projected 3-week gain: {valuation['gross_ev']:+.1f} pts. Net EV: {valuation['net_ev']:+.1f}. Recommendation: {valuation['recommendation']}."
         ),
     }
-    # price / name enrichment
-    try:
+    with contextlib.suppress(Exception):
         from fpl_intelligence.prediction.live_provider import load_player_catalog
 
         cat = load_player_catalog()
@@ -127,8 +127,6 @@ async def transfers_valuation(
             row = cat.get(pid, {})
             valuation[f"{key}_name"] = row.get("web_name") or f"Player {pid}"
             valuation[f"{key}_price"] = row.get("price")
-    except Exception:
-        pass
     return {
         "session_id": session_id,
         "status": "ok",
@@ -215,13 +213,11 @@ async def transfers_shadow(
         )
         # Adjust prices dict for shadow
         if shadow_squad.player_prices and int(element_in) not in shadow_squad.player_prices:
-            try:
+            with contextlib.suppress(Exception):
                 from fpl_intelligence.prediction.live_provider import load_player_catalog
 
                 cat2 = load_player_catalog()
                 shadow_squad.player_prices[int(element_in)] = float(cat2.get(int(element_in), {}).get("price") or 0.0)
-            except Exception:
-                pass
             shadow_squad.player_prices.pop(int(element_out), None)
         shad_report = bridge.generate_decisions(shadow_squad)
         shad_cap = shad_report.captain.player_id if shad_report.captain else shadow_squad.captain_id
@@ -287,7 +283,7 @@ async def save_local_squad(
         catalog = {}
 
     bank = float(cur.bank or 0.0)
-    try:
+    with contextlib.suppress(Exception):
         price_in = float(catalog.get(int(body.element_in), {}).get("price") or 0.0)
         price_out = float(catalog.get(int(body.element_out), {}).get("price") or 0.0)
         if not price_in:
@@ -296,8 +292,6 @@ async def save_local_squad(
             price_out = float((cur.player_prices or {}).get(int(body.element_out)) or 0.0)
         if price_in or price_out:
             bank = round(bank + price_out - price_in, 1)
-    except Exception:
-        pass
 
     captain_id = int(cur.captain_id)
     vice_id = int(cur.vice_captain_id)
@@ -336,12 +330,10 @@ async def save_local_squad(
         SquadStateCreate(**{k: v for k, v in payload.model_dump().items() if k != "updated_at"}),
         session_id=body.session_id,
     )
-    try:
+    with contextlib.suppress(Exception):
         from fpl_intelligence.api.routes.squad import _invalidate_decisions_cache  # noqa: PLC0415
 
         _invalidate_decisions_cache(body.session_id)
-    except Exception:
-        pass
     response.headers["Cache-Control"] = "no-store"
     return {
         "status": "ok",

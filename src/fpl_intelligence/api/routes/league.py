@@ -205,13 +205,11 @@ def _name_map(db: Any) -> dict[int, str]:
     from fpl_intelligence.prediction.live_provider import load_player_catalog
 
     names: dict[int, str] = {}
-    try:
+    with contextlib.suppress(Exception):
         for pid, row in load_player_catalog().items():
             name = str(row.get("web_name") or "")
             if name:
                 names[int(pid)] = name
-    except Exception:  # noqa: BLE001 — display-only enrichment
-        pass
     return names
 
 

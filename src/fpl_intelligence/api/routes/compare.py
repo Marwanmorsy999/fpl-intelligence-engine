@@ -5,6 +5,7 @@ Returns side-by-side cards with diff highlight metadata.
 """
 # ruff: noqa: E501,F401,SIM105,SIM115,B009,I001,F841
 from __future__ import annotations
+import contextlib
 
 import logging
 from typing import Any
@@ -57,10 +58,8 @@ def _player_payload(
         if prow is None:
             prow = db.get(Player, player_id)
     except Exception:
-        try:
+        with contextlib.suppress(Exception):
             db.rollback()
-        except Exception:
-            pass
         prow = None
 
     web_name = (prow.web_name if prow else None) or f"Player {player_id}"
@@ -79,45 +78,37 @@ def _player_payload(
         except Exception:
             price = None
     if price is None:
-        try:
+        with contextlib.suppress(Exception):
             from fpl_intelligence.prediction.live_provider import load_player_catalog
             cat = load_player_catalog().get(int(player_id))
             if cat and cat.get("price"):
                 price = float(cat["price"])
-        except Exception:
-            pass
     if price is None:
         price = 0.0
     # team fallback from catalog
     if team_id is None:
-        try:
+        with contextlib.suppress(Exception):
             from fpl_intelligence.prediction.live_provider import load_player_catalog
             cat2 = load_player_catalog().get(int(player_id))
             if cat2 and cat2.get("team"):
                 team_id = int(cat2["team"])
-        except Exception:
-            pass
 
     # position
     position = getattr(prow, "position_code", None) if prow else None
     if position is None:
-        try:
+        with contextlib.suppress(Exception):
             from fpl_intelligence.prediction.live_provider import load_player_catalog
             cat3 = load_player_catalog().get(int(player_id))
             if cat3 and cat3.get("position"):
                 position = int(cat3["position"])
-        except Exception:
-            pass
 
     # team short
     team_short = None
-    try:
+    with contextlib.suppress(Exception):
         from fpl_intelligence.prediction.live_provider import load_player_catalog
         cat4 = load_player_catalog().get(int(player_id))
         if cat4 and cat4.get("team_short"):
             team_short = str(cat4["team_short"])
-    except Exception:
-        pass
     if not team_short and team_id is not None:
         try:
             names = _team_names(db)
@@ -148,7 +139,7 @@ def _player_payload(
             xpts_breakdown = {k: round(float(v), 2) for k, v in raw_bd.items()}
     # fallback to inline provider when materialized row missing (needed for tests with StaticProvider)
     if expected_points is None:
-        try:
+        with contextlib.suppress(Exception):
             prov = deps.get_prediction_provider(db)
             preds = prov.get_squad_predictions([int(player_id)], [int(gameweek)])
             p = (preds.get(int(gameweek)) or {}).get(int(player_id))
@@ -163,12 +154,10 @@ def _player_payload(
                 bd = getattr(p, "breakdown", None)
                 if isinstance(bd, dict) and bd:
                     xpts_breakdown = {k: round(float(v), 2) for k, v in bd.items()}
-        except Exception:
-            pass
 
     # Understat xG/xA
     xg = xa = None
-    try:
+    with contextlib.suppress(Exception):
         provider = deps.get_prediction_provider(db)
         idx_getter = getattr(provider, "understat_index", None)
         if callable(idx_getter):
@@ -179,8 +168,6 @@ def _player_payload(
                 stats = build_stats_from_row(urow)
                 xg = round(float(stats.xg_per_90), 2)
                 xa = round(float(stats.xa_per_90), 2)
-    except Exception:
-        pass
 
     # form bars
     form_bars = _form_bars_from_history(db, int(player_id))
@@ -188,20 +175,16 @@ def _player_payload(
     # fixtures
     fixture_runs: list[dict[str, Any]] = []
     avg_fdr = NEUTRAL_FDR
-    try:
+    with contextlib.suppress(Exception):
         # need squad gameweek for horizon; use passed gameweek
         team_names = _team_names(db)
         # load fixtures synchronously? load_fixtures is async
         import asyncio
         raw_fixtures = None
-        try:
+        with contextlib.suppress(Exception):
             # if we are already in async context, we need to run via run_until_complete
             # but this endpoint is async, so we can await directly - we will handle outside
             pass
-        except Exception:
-            pass
-    except Exception:
-        pass
     # fixtures will be filled by caller that awaits load_fixtures
     # For now return empty and let caller populate? Instead we make payload builder async and caller will fill fixtures.
     # To avoid complexity, we keep fixture_runs empty here and enhance in route.
@@ -222,10 +205,8 @@ def _player_payload(
             if hit is not None:
                 news_flag = hit
     except Exception:
-        try:
+        with contextlib.suppress(Exception):
             db.rollback()
-        except Exception:
-            pass
         news_flag = None
 
     return {
@@ -267,12 +248,9 @@ async def compare_players(
         squad = SquadService(session=db).get_squad(session_id=session_id)
         if squad is not None:
             target_gw = int(squad.gameweek)
-            # try to resolve to current GW via clock
-            try:
+            with contextlib.suppress(Exception):
                 from fpl_intelligence.sync.gameweek_clock import resolve_target_gameweek
                 target_gw = await resolve_target_gameweek(db, fallback=target_gw)
-            except Exception:
-                pass
     if target_gw is None:
         try:
             from fpl_intelligence.sync.gameweek_clock import resolve_target_gameweek

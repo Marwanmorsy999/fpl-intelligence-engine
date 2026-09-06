@@ -6,6 +6,7 @@ answer to "where is the AI / where is the math / why is X off".
 """
 
 from __future__ import annotations
+import contextlib
 
 import asyncio
 import logging
@@ -42,7 +43,7 @@ def _snapshot_age_and_seasons(path: str) -> tuple[float | None, list[str]]:
     the connector itself wrote is deterministic and honest; mtime is only a
     fallback when meta is unreadable.
     """
-    try:
+    with contextlib.suppress(Exception):
         import json
 
         with open(path, encoding="utf-8") as fh:
@@ -62,8 +63,6 @@ def _snapshot_age_and_seasons(path: str) -> tuple[float | None, list[str]]:
                 )
             ]
             return round(age_days, 1), seasons
-    except Exception:  # noqa: BLE001 - fall back to file metadata below
-        pass
     return _file_age_days(path), []
 
 
@@ -131,9 +130,7 @@ async def _probe_odds_uncached(db: Any) -> dict[str, Any]:
         block = await odds_probe_payload(db, snapshot)
         if block.get("unmatched"):
             logger.info("odds mapping unmatched teams: %s", block["unmatched"])
-        # Phase 23 (C1): persist the canonical payload so Decisions/Captain
-        # (materialized fast path) render the exact same sentence.
-        try:
+        with contextlib.suppress(Exception):
             from fpl_intelligence.prediction.market_check import store_shared_payload
 
             store_shared_payload(
@@ -141,8 +138,6 @@ async def _probe_odds_uncached(db: Any) -> dict[str, Any]:
                 block,
                 gameweek=block.get("gameweek"),
             )
-        except Exception:  # noqa: BLE001 — best-effort persistence
-            pass
         return {"status": block["status"], "detail": block["detail"]}
     except Exception as exc:  # noqa: BLE001 — audit must never fail the page
         db.rollback()  # keep the shared request session usable afterwards
@@ -361,7 +356,7 @@ _response_lock = threading.Lock()
 
 async def _probe_fpl(settings: Any) -> tuple[str, str, str]:
     """FPL import reachability -> (status, detail, strategy)."""
-    try:
+    with contextlib.suppress(Exception):
         from fpl_intelligence.data_providers.fpl_egress import validate_entry_payload
         from fpl_intelligence.data_providers.registry import get_async_fpl_adapter
 
@@ -373,8 +368,6 @@ async def _probe_fpl(settings: Any) -> tuple[str, str, str]:
             use_cache=False,
         )
         return "ok", "reachable", adapter.winning_strategy or "direct"
-    except Exception:  # noqa: BLE001
-        pass
     try:
         async with httpx.AsyncClient(
             timeout=_PROBE_BUDGET_SECONDS, follow_redirects=True

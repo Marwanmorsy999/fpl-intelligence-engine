@@ -9,6 +9,7 @@ Pure diff logic lives in :func:`detect_moves` so tests never need a DB.
 """
 
 from __future__ import annotations
+import contextlib
 
 import logging
 from datetime import UTC, datetime
@@ -208,7 +209,7 @@ def record_price_moves(db: Any, gameweek: int) -> int:
 
 def _name_lookup(db: Any) -> dict[int, str]:
     names: dict[int, str] = {}
-    try:
+    with contextlib.suppress(Exception):
         from sqlalchemy import select as sel
 
         from fpl_intelligence.sync.materialized_models import ElementFactDB
@@ -218,19 +219,15 @@ def _name_lookup(db: Any) -> dict[int, str]:
         ).all():
             if web:
                 names[int(eid)] = str(web)
-    except Exception:  # noqa: BLE001 — display-only fallback
-        pass
     if len(names) >= 100:
         return names
-    try:
+    with contextlib.suppress(Exception):
         from fpl_intelligence.prediction.live_provider import load_player_catalog
 
         for pid, row in load_player_catalog().items():
             name = str(row.get("web_name") or "")
             if name and int(pid) not in names:
                 names[int(pid)] = name
-    except Exception:  # noqa: BLE001 — display-only fallback
-        pass
     return names
 
 

@@ -287,7 +287,7 @@ async def save_local_squad_swap(
 
     # Bank adjustment: bank + price_out - price_in (tenths via catalog now_cost)
     bank = float(cur.bank or 0.0)
-    try:
+    with contextlib.suppress(Exception):
         price_in = float(catalog.get(int(body.element_in), {}).get("price") or 0.0)
         price_out = float(catalog.get(int(body.element_out), {}).get("price") or 0.0)
         # Fallback to stored squad prices when catalog price missing.
@@ -297,8 +297,6 @@ async def save_local_squad_swap(
             price_out = float((cur.player_prices or {}).get(int(body.element_out)) or 0.0)
         if price_in or price_out:
             bank = round(bank + price_out - price_in, 1)
-    except Exception:
-        pass
 
     # Captain/vice follow the swapped player.
     captain_id = int(cur.captain_id)
@@ -472,12 +470,10 @@ def _build_player_details(
         if uindex and web_name:
             row = UnderstatConnector.match_player(uindex, web_name)
             if row is not None:
-                try:
+                with contextlib.suppress(Exception):
                     stats = build_stats_from_row(row)
                     xg = round(float(stats.xg_per_90), 2)
                     xa = round(float(stats.xa_per_90), 2)
-                except Exception:  # noqa: BLE001 — skip unparseable rows
-                    pass
 
         # xPTS breakdown: only when the resolved level is the proxy (it is the
         # only level that documents a formula). Baseline/backtest levels serve
@@ -718,12 +714,10 @@ async def build_decisions_payload(
     # v2.5.3: cache the fully-enriched report keyed by updated_at so a fresh
     # squad-push is instantly visible and stale renders never survive a bump.
     if not live_facts:
-        try:
+        with contextlib.suppress(Exception):
             cache_key = _decisions_cache_key(session_id, squad.updated_at, squad.gameweek)
             with _decisions_cache_lock:
                 _decisions_cache[cache_key] = report.model_copy(deep=True)  # type: ignore[attr-defined]
-        except Exception:
-            pass
     return report
 
 
@@ -1113,8 +1107,7 @@ async def _attach_decision_depth(
             report.captain.player_id if report.captain else None,
             report.vice_captain,
         )
-        # Phase 24 C2 — highlight set-piece takers in captain comparison
-        try:
+        with contextlib.suppress(Exception):
             from fpl_intelligence.set_pieces.service import (
                 set_piece_flags as _sp_flags,  # noqa: PLC0415
             )
@@ -1123,8 +1116,6 @@ async def _attach_decision_depth(
                 pid = int(card.get("player_id", 0) or 0)
                 team = xi_teams.get(pid)
                 card["set_pieces"] = _sp_flags(pid, team)
-        except Exception:
-            pass
         report.meta["captain_comparison"] = comparison
 
     await _run()

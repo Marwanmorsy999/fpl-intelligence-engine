@@ -13,6 +13,7 @@ Centralises every external seam the intelligence API touches so that:
 """
 
 from __future__ import annotations
+import contextlib
 
 import os
 from typing import Annotated
@@ -143,12 +144,8 @@ def get_prediction_provider(db: GetDB) -> DecisionPredictionProvider:
         return int(count)
 
     provider.get_fixture_count = _cached_fixture_count  # type: ignore[method-assign]
-
-    # Stage 2 activation: holdout-approved Team Strength EWMA modulates live xPTS.
-    try:
+    with contextlib.suppress(Exception):
         ensure_registry_entry(db)
-    except Exception:  # noqa: BLE001 — registry is bookkeeping only
-        pass
 
     _orig_resolve = provider.resolve_chain
 

@@ -21,6 +21,7 @@ and honest breakdown chips.
 """
 
 from __future__ import annotations
+import contextlib
 
 import logging
 from datetime import UTC, datetime
@@ -71,10 +72,8 @@ def _ensure_element_facts_now_cost_column(db: Session) -> None:
         db.execute(text("ALTER TABLE element_facts ADD COLUMN IF NOT EXISTS now_cost INTEGER"))
         db.commit()
     except Exception:
-        try:
+        with contextlib.suppress(Exception):
             db.rollback()
-        except Exception:
-            pass
 
 
 def _load_element_fact_safe(db: Session, player_id: int) -> Any | None:
@@ -85,20 +84,16 @@ def _load_element_fact_safe(db: Session, player_id: int) -> Any | None:
         # UndefinedColumn or any schema drift — self-seal and retry once
         msg = str(exc).lower()
         is_schema_error = "now_cost" in msg or "undefinedcolumn" in msg or "no such column" in msg
-        try:
+        with contextlib.suppress(Exception):
             db.rollback()
-        except Exception:
-            pass
         if is_schema_error:
             _ensure_element_facts_now_cost_column(db)
             try:
                 return db.get(ElementFactDB, int(player_id))
             except Exception as exc2:
                 logger.warning("element_facts fallback SELECT after seal failed for %s: %s", player_id, exc2)
-                try:
+                with contextlib.suppress(Exception):
                     db.rollback()
-                except Exception:
-                    pass
                 # Final fallback: raw SELECT excluding now_cost so drawer still renders
                 try:
                     row = db.execute(
@@ -127,10 +122,8 @@ def _load_element_fact_safe(db: Session, player_id: int) -> Any | None:
                     return fact
                 except Exception as exc3:
                     logger.warning("element_facts raw fallback failed for %s: %s", player_id, exc3)
-                    try:
+                    with contextlib.suppress(Exception):
                         db.rollback()
-                    except Exception:
-                        pass
                     return None
         logger.warning("element_facts load failed for %s: %s", player_id, exc)
         return None
@@ -163,10 +156,8 @@ def _load_prediction_materialized(db: Session, player_id: int, gw: int) -> dict[
         }
     except Exception as exc:
         logger.warning("materialized prediction load failed for %s gw=%s: %s", player_id, gw, exc)
-        try:
+        with contextlib.suppress(Exception):
             db.rollback()
-        except Exception:
-            pass
         return None
 
 
@@ -189,10 +180,8 @@ def _form_bars_from_history(db: Session, player_id: int) -> list[dict[str, Any]]
         ]
     except Exception as exc:
         logger.warning("form bars failed for %s: %s", player_id, exc)
-        try:
+        with contextlib.suppress(Exception):
             db.rollback()
-        except Exception:
-            pass
         return []
 
 
@@ -242,10 +231,8 @@ async def player_drawer(
         prow = db.scalar(select(Player).where(Player.fpl_element_id == player_id))
     except Exception as exc:
         logger.warning("player lookup failed for %s: %s", player_id, exc)
-        try:
+        with contextlib.suppress(Exception):
             db.rollback()
-        except Exception:
-            pass
         prow = None
         degraded = True
         missing.append("player_row")
@@ -266,10 +253,8 @@ async def player_drawer(
         team_names = _team_names(db)
     except Exception as exc:
         logger.warning("team_names failed: %s", exc)
-        try:
+        with contextlib.suppress(Exception):
             db.rollback()
-        except Exception:
-            pass
         degraded = True
         missing.append("team_names")
 
@@ -304,10 +289,8 @@ async def player_drawer(
                         if mem_team is not None:
                             team = int(mem_team)
                 except Exception:
-                    try:
+                    with contextlib.suppress(Exception):
                         db.rollback()
-                    except Exception:
-                        pass
             runs = [r for r in player_run(team, rows_by_gw, horizon, team_names=team_names)]
             fixture_runs = [r.__dict__ for r in runs]
             real = [r for r in runs if r.opponent_id != 0]
@@ -324,10 +307,8 @@ async def player_drawer(
         fixture_runs = []
     except Exception as exc:
         logger.warning("drawer fixtures failed for %s: %s", player_id, exc)
-        try:
+        with contextlib.suppress(Exception):
             db.rollback()
-        except Exception:
-            pass
         degraded = True
         missing.append("fixtures")
         fixture_runs = []
@@ -529,14 +510,12 @@ async def player_drawer(
             except Exception:
                 price = None
         if price is None:
-            try:
+            with contextlib.suppress(Exception):
                 from fpl_intelligence.prediction.live_provider import load_player_catalog
 
                 cat = load_player_catalog().get(int(player_id))
                 if cat and cat.get("price"):
                     price = float(cat["price"])
-            except Exception:
-                pass
     except Exception:
         price = None
     if price is None:
@@ -551,7 +530,7 @@ async def player_drawer(
     if team_val is None and row is not None:
         team_val = getattr(row, "team_id", None)
     if team_val is None:
-        try:
+        with contextlib.suppress(Exception):
             from fpl_intelligence.prediction.live_provider import (
                 load_player_catalog,  # noqa: PLC0415
             )
@@ -559,8 +538,6 @@ async def player_drawer(
             _cat = load_player_catalog().get(int(player_id))
             if _cat and _cat.get("team"):
                 team_val = int(_cat["team"])
-        except Exception:
-            pass
     # If still None for arbitrary ids, keep missing but don't 500
     position_val = (squad.player_positions or {}).get(player_id)
     if position_val is None and row is None and prow is None:
@@ -595,10 +572,8 @@ async def player_drawer(
                 news_flag = hit
     except Exception as exc:
         logger.warning("drawer news failed for %s: %s", player_id, exc)
-        try:
+        with contextlib.suppress(Exception):
             db.rollback()
-        except Exception:
-            pass
         degraded = True
         missing.append("news")
 

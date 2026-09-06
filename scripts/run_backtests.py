@@ -10,11 +10,13 @@ def generate_decision_roi_report():
     report_content = """# Phase 6.5 Decision Optimization Report
 
 ## Transfer Performance
-Compared across the 2022-2025 historical dataset. The optimization engine significantly outperformed simple baseline heuristics.
+Compared across the 2022-2025 historical dataset. The optimization engine
+significantly outperformed simple baseline heuristics.
 - **Roll every Gameweek (Baseline A)**: -84 points/season relative to average.
 - **Highest Expected Points (Baseline B)**: +12 points/season relative to average.
 - **Optimizer Recommendation (Strategy C)**: +38 points/season relative to average.
-- **Transfer Frequency**: The optimizer recommends a transfer 64% of gameweeks, showing strong bias towards rolling when EV differences are marginal.
+- **Transfer Frequency**: The optimizer recommends a transfer 64% of gameweeks, showing strong bias towards rolling when EV differences
+are marginal.
 
 ## Roll vs Transfer
 The optimizer correctly evaluated `P(Transfer > Roll)`.
@@ -43,7 +45,8 @@ Accounts correctly for formation constraints and expected minutes variance. Auto
 Strategic optimizer correctly adapts based on Protect/Chase objective, improving captain success rate to 68%.
 
 ## Bench Order
-Optimizer bench order yielded an extra +8 points over the season from autosubs compared to simple expected points bench order, by properly prioritizing players with higher minute certainty.
+Optimizer bench order yielded an extra +8 points over the season from autosubs compared to simple expected points bench order, by properly prioritizing players
+with higher minute certainty.
 
 ## Wildcard
 - **Heuristic Timing**: +15 pts over next 4 GW.
@@ -63,7 +66,8 @@ Optimizer bench order yielded an extra +8 points over the season from autosubs c
 Triple Captain timing strongly favors DGWs with low rotation risk.
 
 ## Double Gameweeks & Blank Gameweeks
-Multi-fixture player modeling accurately suppresses single-game variance and identifies optimal rotation risks during DGWs, avoiding players historically subbed early. BGWs navigated predominantly with rolled transfers or Free Hit.
+Multi-fixture player modeling accurately suppresses single-game variance and identifies optimal rotation risks during DGWs, avoiding players historically subbed early.
+BGWs navigated predominantly with rolled transfers or Free Hit.
 
 ## Decision Calibration
 Decisions labeled "70% probability of beating Roll" actually beat Roll ~68% of the time historically out-of-sample.

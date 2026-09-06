@@ -1,3 +1,4 @@
+import contextlib
 import logging
 import os
 from typing import Any
@@ -175,12 +176,10 @@ def _never_500_handler_factory() -> Any:
         logger.exception("Unhandled exception for %s", path, exc_info=exc)
         # Phase 4.4 — report the unhandled exception to Sentry when configured.
         if _sentry_dsn:
-            try:
+            with contextlib.suppress(Exception):
                 import sentry_sdk  # noqa: PLC0415,PLC2701
 
                 sentry_sdk.capture_exception(exc)
-            except Exception:  # noqa: BLE001 — Sentry must never break the API
-                pass
         if path.startswith("/api/v1/league"):
             return JSONResponse(
                 status_code=200,

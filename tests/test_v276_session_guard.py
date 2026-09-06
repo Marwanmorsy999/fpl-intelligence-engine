@@ -5,6 +5,7 @@ to an empty list / honest no-league payload instead of raising ValueError.
 """
 
 from __future__ import annotations
+import contextlib
 
 from collections.abc import Generator
 
@@ -136,15 +137,10 @@ class TestLiveGuard:
 
         async def _never_parse(*_: object, **__: object):  # type: ignore[no-untyped-def]
             return []
-
-        # fixtures scanner not needed — no fixtures cached, live_mode is False.
-        # Patch just enough to keep the route deterministic.
-        try:
+        with contextlib.suppress(Exception):
             import fpl_intelligence.fixtures.scanner as _fx
 
             monkeypatch.setattr(_fx, "parse_fixtures", lambda *_a, **_k: [])
-        except Exception:
-            pass
 
         def _override() -> Generator[Session, None, None]:
             yield db_session

@@ -14,6 +14,7 @@ and reports status unavailable so the chain stays honest.
 """
 
 from __future__ import annotations
+import contextlib
 
 import logging
 from dataclasses import dataclass
@@ -256,10 +257,8 @@ def ensure_registry_entry(db: Session) -> bool:
                 db.commit()
             except Exception as exp:
                 logger.warning("team strength registry promote failed: %s", exp)
-                try:
+                with contextlib.suppress(Exception):
                     db.rollback()
-                except Exception:
-                    pass
                 return False
         return True
 
@@ -301,8 +300,6 @@ def ensure_registry_entry(db: Session) -> bool:
         return True
     except Exception as exp:
         logger.warning("team strength registry insert failed: %s", type(exp).__name__)
-        try:
+        with contextlib.suppress(Exception):
             db.rollback()
-        except Exception:
-            pass
         return False

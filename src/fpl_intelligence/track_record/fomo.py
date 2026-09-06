@@ -250,14 +250,11 @@ def compute_regret(db: Any, session_id: str, gameweek: int | None = None) -> dic
         d = int(captain_regret["delta"])
         if d > 0:
             rec_name = str(captain_regret.get("recommended_captain", "engine pick"))
-            # Try to resolve names
-            try:
+            with contextlib.suppress(Exception):
                 from fpl_intelligence.prediction.live_provider import load_player_catalog
 
                 cat = load_player_catalog()
                 rec_name = cat.get(int(rec_name), {}).get("web_name", rec_name) if str(rec_name).isdigit() else rec_name
-            except Exception:
-                pass
             cost_line = f"You lost {abs(d)} pts and ranks by ignoring the {rec_name} captain recommendation."
         elif d == 0:
             cost_line = "Your captain matched the engine — no regret this GW."

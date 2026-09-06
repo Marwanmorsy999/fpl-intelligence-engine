@@ -44,7 +44,7 @@ def _fixture_id_to_int(provider_fixture_id: str) -> int:
 
 
 def _canonical_fixture_id_map(db, season_id: int) -> dict[str, int]:
-    """Map the provider fixture ID representation used by the Team Strength source to canonical DB fixtures.
+    """Map Team Strength provider IDs to canonical DB fixture IDs.
 
     Historical ingestion stores ``Fixture.provider_fixture_id`` as the deterministic
     numeric transformation of the provider fixture ID.  The DB value is therefore
@@ -79,7 +79,8 @@ def _base_counts(db) -> dict[str, int]:
     )
     if fixtures != 380 or scored != 380:
         raise RuntimeError(
-            f"holdout fixture coverage invalid: fixtures={fixtures}, scored={scored}; expected 380/380"
+            f"holdout fixture coverage invalid: fixtures={fixtures}, "
+            f"scored={scored}; expected 380/380"
         )
     return {"season_id": season.id, "fixtures": fixtures, "scored": scored}
 
@@ -212,7 +213,8 @@ def _verify_team_match_layer(db, season_id: int) -> dict[str, int]:
     )
     if total != 760 or temporal != 760:
         raise RuntimeError(
-            f"holdout team-match coverage invalid: rows={total}, temporally_usable={temporal}; expected 760/760"
+            f"holdout team-match coverage invalid: rows={total}, "
+            f"temporally_usable={temporal}; expected 760/760"
         )
     return {"rows": total, "temporally_usable": temporal, "xg_rows": xg}
 

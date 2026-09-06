@@ -34,6 +34,7 @@ because of an upstream enrichment problem.
 """
 
 from __future__ import annotations
+import contextlib
 
 import json
 import logging
@@ -735,13 +736,11 @@ def _proxy_points_for_gameweek(
         if not fixtures:
             return {}, [], _shared_market_off("no fixtures matched yet")
         _t0 = time.perf_counter()
-        try:
+        with contextlib.suppress(Exception):
             snapshot = odds.fetch_epl_odds()
             if snapshot is not None:
                 probs, detail = _market_probs_for_fixtures(fixtures, team_names, snapshot.matches)
                 return probs, detail, _shared_market_payload(db, gameweek, fixtures, snapshot)
-        except Exception:  # noqa: BLE001 - graceful degradation contract
-            pass
         logger.warning("proxy market fetch %.3fs (degraded)", time.perf_counter() - _t0)
         return {}, [], _shared_market_off("odds fetch failed")
 
@@ -935,15 +934,13 @@ def _resolve_odds_api_key() -> str:
     Kept defensive on purpose — a missing/broken settings module must never
     break prediction construction; it only disables market enrichment.
     """
-    try:  # pragma: no cover - config wiring is covered by integration tests
+    with contextlib.suppress(Exception):  # pragma: no cover - config wiring is covered by integration tests
         from fpl_intelligence.config import settings as _settings_module
 
         holder = getattr(_settings_module, "settings", None) or _settings_module
         api_key = str(getattr(holder, "the_odds_api_key", "") or "").strip()
         if api_key:
             return api_key
-    except Exception:  # noqa: BLE001 - settings are optional at this layer
-        pass
     return os.environ.get("THE_ODDS_API_KEY", "").strip()
 
 
@@ -1133,10 +1130,7 @@ class LivePredictionProvider:
             "computed_at": max(r.computed_at for r in rows).isoformat(),
             "origin": "daily materialize cron (06:10 UTC)",
         }
-        # Phase 23 (C1): the materialized fast path never fetches odds, so it
-        # serves the PERSISTED canonical market-check payload — the exact
-        # object the Sources probe computed via compute_market_status.
-        try:
+        with contextlib.suppress(Exception):
             from fpl_intelligence.prediction.market_check import load_cached_payload
 
             stored = load_cached_payload(self.session)
@@ -1149,8 +1143,6 @@ class LivePredictionProvider:
                 }
                 if not stored.get("enabled"):
                     notes["market_check"]["reason"] = "no fixtures matched yet"
-        except Exception:  # noqa: BLE001 — status is enrichment, never required
-            pass
 
         return ChainLevel(
             source=SOURCE_MATERIALIZED,

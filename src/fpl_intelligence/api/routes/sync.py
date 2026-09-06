@@ -15,6 +15,7 @@ Auth contract
 """
 
 from __future__ import annotations
+import contextlib
 
 import hmac
 import logging
@@ -209,7 +210,7 @@ async def squad_push(payload: SquadPushPayload, db: GetDB) -> dict[str, Any]:
     # ribbon always shows real team_value instead of £100.0m / £0.0m defaults.
     player_prices: dict[int, float] = {}
     player_teams: dict[int, int] = {}
-    try:
+    with contextlib.suppress(Exception):
         from fpl_intelligence.prediction.live_provider import load_player_catalog  # noqa: PLC0415
 
         catalog = load_player_catalog()
@@ -219,8 +220,6 @@ async def squad_push(payload: SquadPushPayload, db: GetDB) -> dict[str, Any]:
                 player_prices[int(pid)] = float(row["price"])
             if row.get("team") is not None:
                 player_teams[int(pid)] = int(row["team"])
-    except Exception:  # noqa: BLE001 — enrichment only, never break the push
-        pass
 
     # If catalog prices unavailable (empty catalog), fall back to £5.0m per
     # player so team_value shows something honest rather than £0.0m.
@@ -251,15 +250,10 @@ async def squad_push(payload: SquadPushPayload, db: GetDB) -> dict[str, Any]:
     saved: SquadStateResponse = SquadService(session=db).set_squad(
         squad, session_id=str(payload.entry_id)
     )
-    # Cache invalidation: bump is implicit via updated_at in the row; ensure
-    # any in-process decisions cache keyed by updated_at will miss on next fetch.
-    # The squad-push already wrote updated_at = now, so invalidate here.
-    try:
+    with contextlib.suppress(Exception):
         from fpl_intelligence.api.routes.squad import _invalidate_decisions_cache  # noqa: PLC0415
 
         _invalidate_decisions_cache(str(payload.entry_id))
-    except Exception:
-        pass
     _log_sync(
         db,
         "squad",
