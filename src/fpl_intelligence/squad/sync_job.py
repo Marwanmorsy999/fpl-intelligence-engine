@@ -231,7 +231,7 @@ async def _run_sync_job(
                 except Exception:
                     pass
             return
-        except (asyncio.CancelledError, TimeoutError):
+        except asyncio.CancelledError:
             _set_job(
                 str(session_id),
                 {

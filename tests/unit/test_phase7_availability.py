@@ -13,6 +13,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from sqlalchemy.orm import Session
 
 from fpl_intelligence.availability import evidence as ev
 from fpl_intelligence.availability import metrics as mtr

@@ -81,7 +81,7 @@ def _test_override_db(request: Request) -> Any | None:
     return candidate
 
 
-def _db_players(db: Any, team: int | None) -> list["PlayerSummary"]:
+def _db_players(db: Any, team: int | None) -> list[PlayerSummary]:
     """Render explicitly overridden DB state for legacy ingestion tests."""
     from fpl_intelligence.db.models import PlayerGameweekPerformance, PlayerTeamMembership
 
