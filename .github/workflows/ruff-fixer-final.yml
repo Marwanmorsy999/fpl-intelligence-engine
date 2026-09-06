@@ -1,0 +1,169 @@
+name: Ruff Fixer Final
+
+on:
+  push:
+    branches: [fix/ci-ruff-final-20260906]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install -e ".[dev]"
+          python -m pip install libcst
+      - name: Apply targeted fixes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import libcst as cst
+          import subprocess
+
+          replacements = {
+              "scripts/backfill_holdout_2025_26.py": [
+                  ("    \"\"\"Map the provider fixture ID representation used by the Team Strength source to canonical DB fixtures.\n", "    \"\"\"Map Team Strength provider IDs to canonical DB fixture IDs.\n"),
+                  ('            f\"holdout fixture coverage invalid: fixtures={fixtures}, scored={scored}; expected 380/380\"\n', '            f\"holdout fixture coverage invalid: fixtures={fixtures}, \"\n            f\"scored={scored}; expected 380/380\"\n'),
+                  ('            f\"holdout team-match coverage invalid: rows={total}, temporally_usable={temporal}; expected 760/760\"\n', '            f\"holdout team-match coverage invalid: rows={total}, \"\n            f\"temporally_usable={temporal}; expected 760/760\"\n'),
+              ],
+              "scripts/materialize_availability_pit.py": [
+                  ('            \"refusing --commit: DATABASE_URL does not identify the approved validation Supabase project\"\n', '            \"refusing --commit: DATABASE_URL does not identify the approved \"\n            \"validation Supabase project\"\n'),
+              ],
+              "scripts/phase25_gate1_live_verify.py": [
+                  ('            handler = lambda m: errors.append(m.text[:140]) if m.type == "error" else None\n', '            def handle_console_message(msg, errors=errors):\n'
+                   '                if msg.type == "error":\n'
+                   '                    errors.append(msg.text[:140])\n\n'
+                   '            handler = handle_console_message\n'),
+                  ('        resp_handler = lambda r: api_status.__setitem__(0, r.status) if "/drawer" in r.url else None\n', '        def handle_response(response):\n'
+                   '            if "/drawer" in response.url:\n'
+                   '                api_status[0] = response.status\n\n'
+                   '        resp_handler = handle_response\n'),
+                  ('        planner = page.goto(BASE + "/planner", wait_until="domcontentloaded")\n', '        page.goto(BASE + "/planner", wait_until="domcontentloaded")\n'),
+              ],
+              "scripts/qa_gate26.py": [
+                  ('                    "() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2"\n', '                    "() => document.documentElement.scrollWidth > "\n                    "document.documentElement.clientWidth + 2"\n'),
+                  ('                        const r=el.getBoundingClientRect(); return r.width>0&&r.height>0&&(r.width<44||r.height<44)&&getComputedStyle(el).display!==\'none\';\n', '                        const r=el.getBoundingClientRect();\n'
+                   '                        return r.width>0&&r.height>0&&(r.width<44||r.height<44)&&getComputedStyle(el).display!==\'none\';\n'),
+                  ('                      }); return els.slice(0,3).map(e=>e.tagName+\'.\'+e.className.slice(0,40)+\' \'+Math.round(e.getBoundingClientRect().width)+\'x\'+Math.round(e.getBoundingClientRect().height));\n', '                      });\n'
+                   '                      return els.slice(0,3).map(e=>e.tagName+\'.\'+e.className.slice(0,40)+\' \'\n'
+                   '                        +Math.round(e.getBoundingClientRect().width)+\'x\'\n'
+                   '                        +Math.round(e.getBoundingClientRect().height));\n'),
+              ],
+              "scripts/run_backtests.py": [
+                  ('Compared across the 2022-2025 historical dataset. The optimization engine significantly outperformed simple baseline heuristics.', 'Compared across the 2022-2025 historical dataset. The optimization engine\n'
+                   'significantly outperformed simple baseline heuristics.'),
+                  ('transfer 64% of gameweeks, showing strong bias towards rolling when EV differences are marginal.', 'transfer 64% of gameweeks, showing strong bias towards rolling when EV differences\n'
+                   'are marginal.'),
+                  ('compared to simple expected points bench order, by properly prioritizing players with higher minute certainty.', 'compared to simple expected points bench order, by properly prioritizing players\n'
+                   'with higher minute certainty.'),
+                  ('rotation risks during DGWs, avoiding players historically subbed early. BGWs navigated predominantly with rolled transfers or Free Hit.', 'rotation risks during DGWs, avoiding players historically subbed early.\n'
+                   'BGWs navigated predominantly with rolled transfers or Free Hit.'),
+                  ('Confidence metrics are predictive of actual outcomes. P10/P90 estimations tightly bracketed real world outcomes in 82% of evaluations.', 'Confidence metrics are predictive of actual outcomes. P10/P90 estimations\n'
+                   'tightly bracketed real world outcomes in 82% of evaluations.'),
+              ],
+          }
+
+          for name, pairs in replacements.items():
+              p = Path(name)
+              s = p.read_text()
+              for old, new in pairs:
+                  s = s.replace(old, new)
+              p.write_text(s)
+
+          class Sim105(cst.CSTTransformer):
+              def __init__(self):
+                  self.changed = False
+
+              def leave_Try(self, original_node, updated_node):
+                  if updated_node.orelse or updated_node.finalbody or len(updated_node.handlers) != 1:
+                      return updated_node
+                  handler = updated_node.handlers[0]
+                  if not isinstance(handler.type, cst.Name) or handler.type.value != "Exception":
+                      return updated_node
+                  if len(handler.body.body) != 1:
+                      return updated_node
+                  stmt = handler.body.body[0]
+                  if not isinstance(stmt, cst.SimpleStatementLine) or len(stmt.body) != 1:
+                      return updated_node
+                  if not isinstance(stmt.body[0], cst.Pass):
+                      return updated_node
+                  self.changed = True
+                  return cst.With(
+                      items=[cst.WithItem(
+                          item=cst.Call(
+                              func=cst.Attribute(value=cst.Name("contextlib"), attr=cst.Name("suppress")),
+                              args=[cst.Arg(cst.Name("Exception"))],
+                          )
+                      )],
+                      body=updated_node.body,
+                  )
+
+          def has_contextlib_import(body):
+              for stmt in body:
+                  if not isinstance(stmt, cst.SimpleStatementLine):
+                      continue
+                  for small in stmt.body:
+                      if not isinstance(small, cst.Import):
+                          continue
+                      if any(alias.name.value == "contextlib" for alias in small.names):
+                          return True
+              return False
+
+          def add_contextlib_import(module):
+              if has_contextlib_import(module.body):
+                  return module
+              body = list(module.body)
+              index = 0
+              if body and isinstance(body[0], cst.SimpleStatementLine):
+                  first = body[0]
+                  if len(first.body) == 1 and isinstance(first.body[0], cst.Expr) and isinstance(first.body[0].value, cst.SimpleString):
+                      index = 1
+              while index < len(body):
+                  stmt = body[index]
+                  if isinstance(stmt, cst.SimpleStatementLine) and len(stmt.body) == 1:
+                      small = stmt.body[0]
+                      if isinstance(small, cst.ImportFrom) and isinstance(small.module, cst.Name) and small.module.value == "__future__":
+                          index += 1
+                          continue
+                  break
+              imp = cst.SimpleStatementLine(body=[cst.Import(names=[cst.ImportAlias(name=cst.Name("contextlib"))])])
+              body.insert(index, imp)
+              return module.with_changes(body=body)
+
+          for root in (Path("src"), Path("tests"), Path("scripts")):
+              for path in root.rglob("*.py"):
+                  module = cst.parse_module(path.read_text())
+                  transformer = Sim105()
+                  updated = module.visit(transformer)
+                  if transformer.changed:
+                      updated = add_contextlib_import(updated)
+                      path.write_text(updated.code)
+
+          subprocess.run(["python", "-m", "ruff", "check", "src", "tests", "scripts"], check=False)
+          PY
+      - name: Run Ruff gate and commit
+        run: |
+          set +e
+          python -m ruff check src tests scripts > ruff-output.txt 2>&1
+          status=$?
+          cat ruff-output.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src tests scripts
+          if [ "$status" -eq 0 ]; then
+            rm -f ruff-output.txt
+            git commit -m "fix: clean Ruff gate" || true
+          else
+            git add ruff-output.txt
+            git commit -m "chore: capture remaining Ruff diagnostics" || true
+          fi
+          git push || true
+          exit 0
