@@ -68,8 +68,10 @@ def main() -> int:
         emit("=== 1. REGRESSION SWEEP — every page renders, console clean ===")
         for path in PAGES:
             errors: list[str] = []
+
             def handler(m):
                 return errors.append(m.text[:140]) if m.type == "error" else None
+
             page.on("console", handler)
             page.goto(BASE + path, wait_until="domcontentloaded")
             page.wait_for_timeout(2600)
@@ -82,8 +84,10 @@ def main() -> int:
 
         emit("=== 2. DRAWER opens with 200 payload ===")
         api_status: dict[int, int] = {}
+
         def resp_handler(r):
             return api_status.__setitem__(0, r.status) if "/drawer" in r.url else None
+
         page.on("response", resp_handler)
         page.goto(BASE + "/dashboard", wait_until="domcontentloaded")
         page.wait_for_timeout(3000)

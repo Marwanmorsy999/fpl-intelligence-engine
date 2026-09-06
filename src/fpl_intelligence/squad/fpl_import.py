@@ -799,7 +799,9 @@ class FplSquadImporter:
             "entry_history": {},
             "transfers": base_picks.get("transfers", {}) if isinstance(base_picks, dict) else {},
             "_rebuilt_from_history": True,
-            "_swaps": [{"in": i, "out": o} for i, o in zip(ins_applied, outs_removed, strict=False)],
+            "_swaps": [
+                {"in": i, "out": o} for i, o in zip(ins_applied, outs_removed, strict=False)
+            ],
         }
         _ = elements  # names resolve later through _build_result/bootstrap
         logger.info(

@@ -41,25 +41,24 @@ E501 Line too long (104 > 100)
    |
 
 B023 Function definition does not bind loop variable `errors`
-  --> scripts/phase25_gate1_live_verify.py:72:24
+  --> scripts/phase25_gate1_live_verify.py:73:24
    |
-70 |             errors: list[str] = []
-71 |             def handler(m):
-72 |                 return errors.append(m.text[:140]) if m.type == "error" else None
+72 |             def handler(m):
+73 |                 return errors.append(m.text[:140]) if m.type == "error" else None
    |                        ^^^^^^
-73 |             page.on("console", handler)
-74 |             page.goto(BASE + path, wait_until="domcontentloaded")
+74 |
+75 |             page.on("console", handler)
    |
 
 E501 Line too long (114 > 100)
-   --> scripts/phase25_gate1_live_verify.py:111:101
+   --> scripts/phase25_gate1_live_verify.py:115:101
     |
-109 |         more_btn = page.locator("#moreBtn").count()
-110 |         emit(
-111 |             f"sticky ribbon present: {bool(ribbon)} · bottom tabs: {bool(bottom)} · More button: {bool(more_btn)}"
+113 |         more_btn = page.locator("#moreBtn").count()
+114 |         emit(
+115 |             f"sticky ribbon present: {bool(ribbon)} · bottom tabs: {bool(bottom)} · More button: {bool(more_btn)}"
     |                                                                                                     ^^^^^^^^^^^^^^
-112 |         )
-113 |         if not ribbon or not bottom or not more_btn:
+116 |         )
+117 |         if not ribbon or not bottom or not more_btn:
     |
 
 E501 Line too long (128 > 100)
@@ -216,16 +215,6 @@ SIM102 Use a single `if` statement instead of nested `if` statements
     |
 help: Combine `if` statements using `and`
 
-F821 Undefined name `select`
-   --> src/fpl_intelligence/api/routes/fixtures.py:138:17
-    |
-137 |             for element_id, team_id in db.execute(
-138 |                 select(ElementFactDB.element_id, ElementFactDB.team_id).where(
-    |                 ^^^^^^
-139 |                     ElementFactDB.element_id.in_(missing)
-140 |                 )
-    |
-
 E501 Line too long (186 > 100)
    --> src/fpl_intelligence/api/routes/transfers.py:115:101
     |
@@ -363,17 +352,6 @@ F821 Undefined name `exp`
 113 |         logger.warning("team strength fixture query failed: %s", exp)
     |                                                                  ^^^
 114 |         return TeamStrengthLiveResult({}, _neutral_notes(f"fixture_query:{type(exc).__name__}"))
-    |
-
-E501 Line too long (101 > 100)
-   --> src/fpl_intelligence/squad/fpl_import.py:802:101
-    |
-800 |             "transfers": base_picks.get("transfers", {}) if isinstance(base_picks, dict) else {},
-801 |             "_rebuilt_from_history": True,
-802 |             "_swaps": [{"in": i, "out": o} for i, o in zip(ins_applied, outs_removed, strict=False)],
-    |                                                                                                     ^
-803 |         }
-804 |         _ = elements  # names resolve later through _build_result/bootstrap
     |
 
 B025 try-except block with duplicate exception `TimeoutError`
@@ -828,4 +806,4 @@ E501 Line too long (122 > 100)
 446 |         page.click("#loadBtn")
     |
 
-Found 77 errors.
+Found 75 errors.
