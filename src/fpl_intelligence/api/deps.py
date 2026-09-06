@@ -129,9 +129,20 @@ def get_prediction_provider(db: GetDB) -> DecisionPredictionProvider:
     # get_fixture_count used an unscoped scalar_one_or_none() which raises
     # MultipleResultsFound after historical seasons are ingested and turns
     # /decisions into a 503. Bind a season-scoped implementation instead.
-    provider.get_fixture_count = lambda player_id, gameweek, _db=db: safe_fixture_count(
-        _db, player_id, gameweek
-    )
+    # The wrapper shares the provider's request-local cache so direct callers
+    # (e.g. Phase 9.4 PredictionContextBuilder) and bridge-wrapped callers
+    # (Phase 6 optimizers) deduplicate the gameweek + fixture lookups within
+    # one request.
+    def _cached_fixture_count(player_id: int, gameweek: int) -> int:
+        cache_key = (int(player_id), int(gameweek))
+        cached = provider._fixture_count_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        count = safe_fixture_count(db, int(player_id), int(gameweek))
+        provider._fixture_count_cache[cache_key] = int(count)
+        return int(count)
+
+    provider.get_fixture_count = _cached_fixture_count  # type: ignore[method-assign]
 
     # Stage 2 activation: holdout-approved Team Strength EWMA modulates live xPTS.
     try:

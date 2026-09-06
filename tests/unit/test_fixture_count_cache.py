@@ -70,6 +70,50 @@ def _prediction(player_id: int, gameweek: int, *, full: bool) -> PlayerPredictio
     )
 
 
+def test_cached_live_provider_shares_fixture_count_across_callers() -> None:
+    """CachedLivePredictionProvider must cache fixture counts so direct callers
+    (Phase 9.4 PredictionContextBuilder) and bridge-wrapped callers (Phase 6
+    optimizers) reuse the same result within one request.
+
+    Models the production wiring: ``deps.get_prediction_provider`` rebinds
+    ``provider.get_fixture_count`` to a lambda that consults
+    ``provider._fixture_count_cache`` before falling back to the
+    season-scoped ``safe_fixture_count``. The bridge's timed wrapper has its
+    own (separate) cache, so both cache layers cooperate to keep the DB
+    touched at most once per (player, gameweek) per request.
+    """
+    provider = MagicMock()
+    provider._fixture_count_cache = {}
+    underlying_calls = {"n": 0}
+
+    def _underlying(player_id: int, gameweek: int) -> int:
+        underlying_calls["n"] += 1
+        return 2
+
+    def _cached(player_id: int, gameweek: int) -> int:
+        key = (int(player_id), int(gameweek))
+        cached = provider._fixture_count_cache.get(key)
+        if cached is not None:
+            return cached
+        count = _underlying(player_id, gameweek)
+        provider._fixture_count_cache[key] = int(count)
+        return int(count)
+
+    provider.get_fixture_count.side_effect = _cached
+
+    bridge = DecisionOptimizerBridge(provider=provider)
+    timed = bridge._timed_provider
+
+    bridge_first = timed.get_fixture_count(42, 7)
+    direct_first = provider.get_fixture_count(42, 7)
+    bridge_second = timed.get_fixture_count(42, 7)
+    direct_second = provider.get_fixture_count(42, 7)
+
+    assert (bridge_first, direct_first, bridge_second, direct_second) == (2, 2, 2, 2)
+    # Underlying DB query happens once even though four callers requested it.
+    assert underlying_calls["n"] == 1
+
+
 def test_lightweight_bulk_prediction_does_not_fill_full_prediction_cache() -> None:
     provider = MagicMock()
     lightweight = _prediction(123, 3, full=False)
