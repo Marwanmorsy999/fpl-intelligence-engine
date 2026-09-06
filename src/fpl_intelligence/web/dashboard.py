@@ -195,5 +195,13 @@ def _register_dashboard_routes() -> None:
             return None
 
 
-if get_settings().serve_static_dashboard:
+# The production Vercel service is the user's actual dashboard deployment.
+# A Vercel env var may still carry the historical API-only setting, which used
+# to make /dashboard silently disappear even though all dashboard assets were
+# present. Preserve the explicit switch for other hosts, but always register
+# the bundled dashboard on Vercel so the canonical deployment URL remains
+# functional. A future separately-hosted frontend can still omit VERCEL and set
+# SERVE_STATIC_DASHBOARD=false as intended.
+_settings = get_settings()
+if _settings.serve_static_dashboard or os.environ.get("VERCEL") == "1":
     _register_dashboard_routes()
