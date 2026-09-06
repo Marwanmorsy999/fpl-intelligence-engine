@@ -111,8 +111,8 @@ def get_prediction_provider(db: GetDB) -> DecisionPredictionProvider:
 
         return StaticPredictionProvider()
 
-    from fpl_intelligence.prediction.gameweek_resolve import safe_fixture_count
     from fpl_intelligence.prediction.cached_live_provider import CachedLivePredictionProvider
+    from fpl_intelligence.prediction.gameweek_resolve import safe_fixture_count
     from fpl_intelligence.prediction.live_provider import (
         ChainLevel,
         PredictionChainResult,

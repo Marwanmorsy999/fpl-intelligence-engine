@@ -4,6 +4,7 @@ This command never writes to the database. By default it proves snapshot,
 event, and chronology safety; ``--require-signal`` additionally requires a
 measured validation-DB signal rather than accepting structural counts.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -12,7 +13,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from fpl_intelligence.availability.historical.chronological import evaluate_materialize_report
-from fpl_intelligence.availability.historical.materialize_pit import DeadlineCutoff, materialize_cutoffs
+from fpl_intelligence.availability.historical.materialize_pit import (
+    DeadlineCutoff,
+    materialize_cutoffs,
+)
 from fpl_intelligence.availability.historical.signal_lift import evaluate_signal_lift
 
 
@@ -35,7 +39,9 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("provide exactly one --season per --cutoff")
     if args.gameweek and len(args.gameweek) != len(args.cutoff):
         parser.error("provide exactly one --gameweek per --cutoff")
-    gameweeks = [int(value) for value in args.gameweek] if args.gameweek else [None] * len(args.cutoff)
+    gameweeks = (
+        [int(value) for value in args.gameweek] if args.gameweek else [None] * len(args.cutoff)
+    )
     cutoffs = [
         DeadlineCutoff(season, gw, _parse_cutoff(cutoff))
         for season, gw, cutoff in zip(args.season, gameweeks, args.cutoff, strict=True)

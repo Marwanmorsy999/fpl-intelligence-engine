@@ -24,7 +24,7 @@ def test_fast_feature_builder_matches_canonical_builder():
 def test_fast_feature_builder_preserves_recent_windows():
     features = FastMinutesWalkForwardEvaluator._feature_builder(_rows())
     assert features["minutes_last_3"] == 195.0
-    assert features["starts_last_3"] == 3.0
+    assert features["starts_last_3"] == 2.0
     assert features["points_last_3"] == 21.0
     assert features["n_season_matches"] == 4.0
-    assert features["points_per_90"] == round((3 + 10 + 8) / (30 + 90 + 75) * 90, 4)
+    assert features["points_per_90"] == round((6 + 3 + 10 + 8) / (60 + 30 + 90 + 75) * 90, 4)

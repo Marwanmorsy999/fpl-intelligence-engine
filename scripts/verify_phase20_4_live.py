@@ -17,11 +17,7 @@ import time
 
 from playwright.sync_api import sync_playwright
 
-BASE = (
-    sys.argv[1]
-    if len(sys.argv) > 1
-    else "https://fpl-intelligence-engine-foundation.vercel.app"
-)
+BASE = sys.argv[1] if len(sys.argv) > 1 else "https://fpl-intelligence-engine-foundation.vercel.app"
 ENTRY = sys.argv[2] if len(sys.argv) > 2 else "2295006"
 
 failures: list[str] = []
@@ -129,14 +125,14 @@ def main() -> int:
         model_line = ""
         meta = page.locator("#briefMeta").inner_text()
         print("brief meta:", meta)
-        header_pill = page.locator(
-            "#briefBox [data-testid='brief-card'] > .row .pill"
-        ).first
+        header_pill = page.locator("#briefBox [data-testid='brief-card'] > .row .pill").first
         model_line = header_pill.inner_text()
         print("answering-model pill:", model_line)
 
-        print(f"page timings: live={(time.time() - t0) * 1000:.0f}ms "
-              f"assistant={(time.time() - t1) * 1000:.0f}ms")
+        print(
+            f"page timings: live={(time.time() - t0) * 1000:.0f}ms "
+            f"assistant={(time.time() - t1) * 1000:.0f}ms"
+        )
 
         # --------------------------- console ------------------------------------
         browser.close()

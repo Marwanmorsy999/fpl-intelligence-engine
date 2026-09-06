@@ -16,6 +16,7 @@ Run modes:
 
 Exit codes: 0 ok / nothing to do, 1 fetch or persistence failure.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -49,9 +50,7 @@ def main(argv: list[str] | None = None) -> int:
     from fpl_intelligence.db.session import SessionLocal
     from fpl_intelligence.sync.results_ingestion import ingest_finished_gameweeks
 
-    force_gws = tuple(
-        int(part) for part in args.force.split(",") if part.strip().isdigit()
-    )
+    force_gws = tuple(int(part) for part in args.force.split(",") if part.strip().isdigit())
 
     async def _run() -> dict:
         db = SessionLocal()

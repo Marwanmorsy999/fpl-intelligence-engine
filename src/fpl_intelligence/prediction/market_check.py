@@ -165,6 +165,7 @@ def store_shared_payload(
     """Persist the canonical market-check payload (best-effort, never raises)."""
     try:
         from datetime import UTC, datetime
+
         from sqlalchemy import select
 
         from fpl_intelligence.sync.materialized_models import ProviderRefreshDB

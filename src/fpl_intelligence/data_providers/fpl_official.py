@@ -20,7 +20,7 @@ Phase 11.1 rules, no live call is ever made inside ``pytest``.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from fpl_intelligence.data_providers.base import (
@@ -144,7 +144,7 @@ class FplOfficialConnector(BaseDataConnector):
             for t in payload.get("teams", [])
             if isinstance(t, dict) and t.get("id") is not None
         }
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         facts: list[PlayerFact] = []
         for element in elements:
             if not isinstance(element, dict):

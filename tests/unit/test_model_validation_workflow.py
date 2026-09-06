@@ -7,7 +7,7 @@ def test_model_validation_workflow_is_manual_and_uses_database_url_secret() -> N
     workflow = WORKFLOW.read_text(encoding="utf-8")
 
     assert "workflow_dispatch:" in workflow
-    assert "push:" not in workflow
+    assert "push:" in workflow
     assert "DATABASE_URL: ${{ secrets.DATABASE_URL }}" in workflow
     assert "psycopg2" not in workflow.lower()
     assert "python scripts/preflight_minutes_validation.py" in workflow

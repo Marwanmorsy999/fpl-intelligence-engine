@@ -49,6 +49,7 @@ Usage
 Exit codes: ``0`` success (including a clean duplicate skip), ``1`` usage /
 configuration error, ``2`` provider error.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -321,9 +322,7 @@ def _evidence_citations_from_report(
                         ingested_at=ts.ingested_at,
                         temporal_class=raw_item.temporal_class or LedgerTemporalClass.PRE_DEADLINE,
                         direction=ev.direction,
-                        subject_ref=(
-                            f"player:{ev.player_id}" if ev.player_id else None
-                        ),
+                        subject_ref=(f"player:{ev.player_id}" if ev.player_id else None),
                         source_quote=ev.source_quote,
                         is_mock=is_mock,
                     )

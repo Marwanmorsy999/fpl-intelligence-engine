@@ -8,10 +8,11 @@ from __future__ import annotations
 
 import json
 import lzma
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from fpl_intelligence.availability.historical.event_types import parse_event_type
 from fpl_intelligence.availability.historical.providers import HistoricalAvailabilityProvider

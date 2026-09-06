@@ -24,7 +24,16 @@ class MockProvider(DecisionPredictionProvider):
         )
 
     def get_squad_predictions(self, squad_players: list[int], gameweeks: list[int]) -> dict:
-        pass
+        # Return a per-gameweek dict mapping each requested player to a
+        # prediction. This mirrors the contract of the real
+        # ``_TimedPredictionProvider.get_squad_predictions`` and keeps
+        # the captain optimizer's bulk-then-fallback path working.
+        return {
+            int(gw): {
+                int(pid): self.get_player_prediction(int(pid), int(gw)) for pid in squad_players
+            }
+            for gw in gameweeks
+        }
 
     def get_all_predictions(self, gameweek: int) -> dict:
         pass

@@ -10,10 +10,11 @@ import lzma
 import os
 import urllib.error
 import urllib.request
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from fpl_intelligence.availability.historical.pit_contract import (
     validate_import_result,

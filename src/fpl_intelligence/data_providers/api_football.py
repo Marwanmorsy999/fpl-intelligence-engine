@@ -23,7 +23,7 @@ from __future__ import annotations
 import logging
 import os
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -82,7 +82,7 @@ def parse_lineups(
     the FPL id (entity resolution is otherwise owned by Phase 9.2.1).
     """
     fpl_map = fpl_id_map or {}
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     facts: list[PlayerFact] = []
     for team in _response_list(payload, what="lineups"):
         if not isinstance(team, dict):
@@ -135,7 +135,7 @@ def parse_injuries(
 ) -> list[PlayerFact]:
     """Convert an API-Football injuries payload into injured/out facts."""
     fpl_map = fpl_id_map or {}
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     facts: list[PlayerFact] = []
     for item in _response_list(payload, what="injuries"):
         if not isinstance(item, dict):

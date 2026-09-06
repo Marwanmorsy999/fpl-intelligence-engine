@@ -21,6 +21,7 @@ from the git-ignored ``.env`` only); the default is the offline
 Exit codes: ``0`` all checks passed, ``1`` usage/configuration error,
 ``2`` verification/provider/network failure.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -136,9 +137,7 @@ def main(argv: list[str] | None = None) -> int:
         print("USAGE ERROR: --limit must be at least 1.")
         return EXIT_USAGE
 
-    session_factory = (
-        build_verification_session(f"sqlite:///{args.db}") if args.db else None
-    )
+    session_factory = build_verification_session(f"sqlite:///{args.db}") if args.db else None
     verifier = RSSFeedVerifier(
         feed_url=args.rss_url,
         source_id=args.source_id,

@@ -99,7 +99,9 @@ def league_trajectory(
     from fpl_intelligence.api.routes.league import _ensure_tables, pick_default
     from fpl_intelligence.leagues.models import LeagueCacheDB, LeagueSelectionDB
     from fpl_intelligence.leagues.service import stored_entry_leagues
-    from fpl_intelligence.sync.gameweek_clock import resolve_target_gameweek  # noqa: PLC0415  # sync import
+    from fpl_intelligence.sync.gameweek_clock import (
+        resolve_target_gameweek,  # noqa: PLC0415  # sync import
+    )
 
     _ensure_tables(db)
 

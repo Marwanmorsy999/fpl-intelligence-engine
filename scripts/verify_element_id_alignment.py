@@ -23,6 +23,7 @@ Usage::
 
 Exit codes: ``0`` aligned, ``1`` misalignment detected, ``2`` network/env error.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -70,9 +71,7 @@ def _get_json(client: httpx.Client, path: str) -> Any:
 
 def resolve_via_db(session: Any, element_id: int) -> tuple[str, int | None] | None:
     """Production-resolution order: fpl_element_id column, then external ids."""
-    player = session.scalar(
-        select(Player).where(Player.fpl_element_id == element_id)
-    )
+    player = session.scalar(select(Player).where(Player.fpl_element_id == element_id))
     if player is None:
         for prov in ("official_fpl", "fpl"):
             ext = session.scalar(
@@ -118,20 +117,15 @@ def main(argv: list[str] | None = None) -> int:
     try:
         client = httpx.Client(timeout=30.0, follow_redirects=True, headers=HEADERS)
         bootstrap = _get_json(client, "/api/bootstrap-static/")
-        elements = {
-            int(e["id"]): e for e in (bootstrap.get("elements") or []) if e.get("id")
-        }
+        elements = {int(e["id"]): e for e in (bootstrap.get("elements") or []) if e.get("id")}
         try:
             entry = _get_json(client, f"/api/entry/{args.entry}/")
             gw = args.gw or int(entry.get("current_event") or 1)
-            picks_payload = _get_json(
-                client, f"/api/entry/{args.entry}/event/{gw}/picks/"
-            )
+            picks_payload = _get_json(client, f"/api/entry/{args.entry}/event/{gw}/picks/")
             picks = [int(p["element"]) for p in picks_payload.get("picks") or []]
         except httpx.HTTPStatusError:
             print(
-                f"WARN: entry {args.entry} picks unavailable — "
-                "verifying bootstrap alignment only."
+                f"WARN: entry {args.entry} picks unavailable — verifying bootstrap alignment only."
             )
             picks, gw = [], (args.gw or 1)
     except (httpx.HTTPError, ValueError) as exc:
@@ -164,9 +158,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         match = our_name == fpl_name
         status = "OK" if match else "MISMATCH"
-        print(
-            f"{el:>11} | {fpl_name:<18} | {our_name:<16} | {price:>8.1f} | {status}"
-        )
+        print(f"{el:>11} | {fpl_name:<18} | {our_name:<16} | {price:>8.1f} | {status}")
         if not match:
             failures.append(f"element {el}: FPL='{fpl_name}' ours='{our_name}'")
 
@@ -180,11 +172,7 @@ def main(argv: list[str] | None = None) -> int:
 
     def check(el: int, expected: str) -> None:
         resolved = resolve_via_db(session, el) if session is not None else None
-        our = (
-            resolved[0]
-            if resolved
-            else (catalog_names.get(el) if session is None else None)
-        )
+        our = resolved[0] if resolved else (catalog_names.get(el) if session is None else None)
         if our == expected:
             print(f"  PASS  element {el} -> {expected}")
         else:
@@ -210,13 +198,14 @@ def main(argv: list[str] | None = None) -> int:
     if haaland_els:
         el = haaland_els[0]
         cost = elements[el].get("now_cost")
-        price = float(catalog[el]["price"]) if catalog.get(el) else (
-            float(cost) / 10.0 if cost is not None else None
+        price = (
+            float(catalog[el]["price"])
+            if catalog.get(el)
+            else (float(cost) / 10.0 if cost is not None else None)
         )
         if price is not None and price >= HAALAND_MIN_PRICE:
             print(
-                f"  PASS  Haaland (element {el}) price £{price:.1f}m "
-                f">= £{HAALAND_MIN_PRICE:.0f}m"
+                f"  PASS  Haaland (element {el}) price £{price:.1f}m >= £{HAALAND_MIN_PRICE:.0f}m"
             )
         else:
             failures.append(f"Haaland price too low: {price!r}")

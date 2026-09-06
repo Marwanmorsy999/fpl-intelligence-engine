@@ -25,9 +25,7 @@ import sys
 import urllib.error
 import urllib.request
 
-VAASTAV_RAW = (
-    "https://raw.githubusercontent.com/vaastav/Fantasy-Premier-League/master/data"
-)
+VAASTAV_RAW = "https://raw.githubusercontent.com/vaastav/Fantasy-Premier-League/master/data"
 UNDERSTAT_LEAGUE_URL = "https://understat.com/league/EPL"
 BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) FPL-DataRefresh/1.9"
 
@@ -216,7 +214,7 @@ def main() -> int:
     year = max(int(s.split("-")[0]) for s in _season_candidates()) - 1
     try:
         players = _understat_players(year)
-        print(f"Understat snapshot {year}/{year+1}: {len(players)} players parsed")
+        print(f"Understat snapshot {year}/{year + 1}: {len(players)} players parsed")
     except Exception as exc:  # noqa: BLE001 - enrichment is best-effort
         print(f"WARN understat snapshot failed ({exc})")
 
