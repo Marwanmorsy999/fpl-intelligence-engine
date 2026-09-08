@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from fpl_intelligence.api.performance import current_phase_timer
@@ -217,11 +218,19 @@ class DecisionOptimizerBridge:
 
     def _timed_phase(self, name: str, fn: Any, *args: Any, **kwargs: Any) -> Any:
         """Run an optimizer component with optional fine-grained timing."""
+        t0 = time.perf_counter()
         timer = current_phase_timer()
         if timer is None:
-            return fn(*args, **kwargs)
-        with timer.phase(name):
-            return fn(*args, **kwargs)
+            result = fn(*args, **kwargs)
+        else:
+            with timer.phase(name):
+                result = fn(*args, **kwargs)
+        elapsed_ms = (time.perf_counter() - t0) * 1000.0
+        base_provider = getattr(self._timed_provider, "_provider", None)
+        record = getattr(base_provider, "record_stage_timing", None)
+        if record is not None:
+            record(name, elapsed_ms)
+        return result
 
     def _timed_optimize_xi(
         self,

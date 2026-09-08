@@ -646,6 +646,17 @@ async def build_decisions_payload(
     bridge = DecisionOptimizerBridge(provider=effective_provider)
     report = bridge.generate_decisions(squad)
 
+    # --- stage timings: surface per-optimizer wall-clock ms in meta ------
+    base_provider = getattr(effective_provider, "_provider", effective_provider)
+    stage_timings = getattr(base_provider, "stage_timings", None)
+    if not stage_timings:
+        # effective_provider IS the CachedLivePredictionProvider (no override layer)
+        stage_timings = getattr(effective_provider, "stage_timings", None)
+    if stage_timings:
+        report.meta["optimizer_stage_timings_ms"] = {
+            k: round(v, 1) for k, v in stage_timings.items()
+        }
+
     # --- 7. skeleton guard -----------------------------------------------------
     if squad.player_ids and not report.starting_xi:
         raise RuntimeError(
