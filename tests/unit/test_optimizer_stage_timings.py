@@ -39,6 +39,10 @@ class _FakeProvider(DecisionPredictionProvider):
     def __init__(self) -> None:
         self.stage_timings: dict[str, float] = {}
 
+    def clear_request_cache(self) -> None:
+        """Implement so _TimedPredictionProvider delegation is exercised."""
+        self.stage_timings.clear()
+
     def record_stage_timing(self, stage: str, elapsed_ms: float) -> None:
         self.stage_timings[stage] = self.stage_timings.get(stage, 0.0) + elapsed_ms
 
@@ -138,3 +142,45 @@ class TestCachedProviderClear:
         provider.clear_request_cache()
 
         assert provider.stage_timings == {}
+
+
+class TestClearRequestCacheDelegation:
+    def test_clear_delegates_to_base_provider(self) -> None:
+        """_TimedPredictionProvider.clear_request_cache() must call the base
+        provider's clear_request_cache() so that CachedLivePredictionProvider's
+        _all_predictions_cache, _fixture_count_cache, and stage_timings are
+        also reset between generate_decisions() calls on the same bridge."""
+        provider = _FakeProvider()
+        provider.stage_timings["optimizer_starting_xi"] = 99.9
+
+        from fpl_intelligence.squad.bridge import _TimedPredictionProvider  # noqa: PLC0415
+        timed = _TimedPredictionProvider(provider)
+
+        # Populate the timed proxy caches to confirm they are also cleared.
+        timed._prediction_cache[(1, 1)] = _make_prediction()
+        timed._all_predictions_cache[1] = {1: _make_prediction()}
+        timed._fixture_count_cache[(1, 1)] = 2
+
+        timed.clear_request_cache()
+
+        # Proxy caches cleared.
+        assert not timed._prediction_cache
+        assert not timed._all_predictions_cache
+        assert not timed._fixture_count_cache
+        # Base provider caches also cleared via delegation.
+        assert not provider.stage_timings
+
+    def test_clear_is_safe_when_base_has_no_clear(self) -> None:
+        """Providers without clear_request_cache() must not raise."""
+        from unittest.mock import MagicMock  # noqa: PLC0415
+
+        from fpl_intelligence.squad.bridge import _TimedPredictionProvider  # noqa: PLC0415
+
+        bare = MagicMock(spec=[
+            "get_player_prediction",
+            "get_squad_predictions",
+            "get_all_predictions",
+            "get_fixture_count",
+        ])
+        timed = _TimedPredictionProvider(bare)
+        timed.clear_request_cache()  # must not raise
