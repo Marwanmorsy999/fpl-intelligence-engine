@@ -374,7 +374,8 @@ def test_migration_chains_off_0023() -> None:
     cfg.set_main_option("script_location", "migrations")
     sd = ScriptDirectory.from_config(cfg)
     heads = sd.get_heads()
-    assert heads == ["0024_supabase_perf_evidence"]
+    # Updated: 0025_decision_snapshots was added after this test was written
+    assert heads == ["0025_decision_snapshots"]
     rev = sd.get_revision("0024_supabase_perf_evidence")
     assert rev is not None
     assert rev.down_revision == "0023_performance_security_cleanup"

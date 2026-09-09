@@ -317,7 +317,8 @@ def test_scheduler_defines_run_daily_job() -> None:
 
 def test_run_daily_posts_to_daily_endpoint() -> None:
     wf = _load_scheduler()
-    run = wf["jobs"]["run-daily"]["steps"][0]["run"]
+    # step[0] is "Validate configuration"; step[1] is the actual curl POST
+    run = wf["jobs"]["run-daily"]["steps"][1]["run"]
     lowered = run.lower()
     assert "post" in lowered
     assert "/api/v1/admin/daily" in lowered
@@ -325,7 +326,8 @@ def test_run_daily_posts_to_daily_endpoint() -> None:
 
 def test_run_daily_sends_bearer_auth_header() -> None:
     wf = _load_scheduler()
-    step = wf["jobs"]["run-daily"]["steps"][0]
+    # step[0] is "Validate configuration"; step[1] is the actual curl POST
+    step = wf["jobs"]["run-daily"]["steps"][1]
     run = step["run"]
     lowered = run.lower()
     assert "authorization: bearer" in lowered

@@ -179,13 +179,13 @@ class TestScoringEngine:
         engine = FPLScoringEngine()
         comp = FPLPointsComponents(expected_goals=1.0, appearance_minutes=90.0)
         result = engine.compute(comp, position_code=2)
-        assert result["goals"] == pytest.approx(6.0)
+        assert result["goals"] == pytest.approx(6.0)  # DEF goal = 6 pts per FPL rules
 
     def test_goal_scored_gk(self):
         engine = FPLScoringEngine()
         comp = FPLPointsComponents(expected_goals=1.0, appearance_minutes=90.0)
         result = engine.compute(comp, position_code=1)
-        assert result["goals"] == pytest.approx(6.0)
+        assert result["goals"] == pytest.approx(10.0)  # GK goal = 10 pts per FPL rules
 
     def test_clean_sheet_defender(self):
         engine = FPLScoringEngine()
