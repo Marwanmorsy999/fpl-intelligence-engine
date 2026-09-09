@@ -143,28 +143,52 @@ async def ingest_vaastav_results(db: Session, season_code: str) -> dict[str, Any
 
 
 # --------------------------------------------------------------------------- #
-# Step 2 — vaastav fixtures.csv -> fixtures_cache
+# Step 2 — fixtures_cache: live FPL first, vaastav fallback
 # --------------------------------------------------------------------------- #
 async def refresh_fixtures_cache(db: Session, season_code: str) -> dict[str, Any]:
-    """Replace the fixtures cache with the freshest vaastav payload."""
-    text = await fetch_text(fixtures_url(season_code))
-    if text is None:
-        return {"ok": False, "reason": "fetch failed / not published"}
-    payload = parse_fixtures_csv(text)
-    if not payload:
-        return {"ok": False, "reason": "empty fixture csv"}
-    db.execute(delete(FixturesCacheDB))
-    db.add(
-        FixturesCacheDB(
-            source=f"vaastav:{season_code}",
-            payload=payload,
-            fetched_at=_now(),
+    """Replace the fixtures cache with the freshest available payload.
+
+    Strategy (live-first):
+    1. Try the official FPL ``/api/fixtures/`` via the egress adapter — this is
+       the authoritative source for ``finished`` flags and is updated within
+       minutes of a gameweek ending.
+    2. Fall back to vaastav fixtures.csv when the live fetch fails (e.g. FPL
+       blocks Vercel IPs).  Vaastav is correct for future fixtures but lags on
+       ``finished`` by up to 24h, which is what caused the GW2→GW3 staleness.
+    """
+    payload: list[dict[str, Any]] | None = None
+    source: str = ""
+
+    try:
+        from fpl_intelligence.data_providers.registry import (  # noqa: PLC0415
+            get_async_fpl_adapter,
         )
-    )
+
+        raw = await get_async_fpl_adapter().fetch(
+            "/api/fixtures/", capability="fixtures"
+        )
+        if isinstance(raw, list) and raw:
+            payload = [r for r in raw if isinstance(r, dict)]
+            source = "fpl-live"
+    except Exception as exc:  # noqa: BLE001 — fall through to vaastav
+        logger.info("refresh_fixtures_cache: live FPL fetch failed, trying vaastav: %s", exc)
+
+    if not payload:
+        text = await fetch_text(fixtures_url(season_code))
+        if text is None:
+            return {"ok": False, "reason": "fetch failed / not published"}
+        payload = parse_fixtures_csv(text)
+        if not payload:
+            return {"ok": False, "reason": "empty fixture csv"}
+        source = f"vaastav:{season_code}"
+
+    db.execute(delete(FixturesCacheDB))
+    db.add(FixturesCacheDB(source=source, payload=payload, fetched_at=_now()))
     db.commit()
-    upcoming = sorted({r["event"] for r in payload if not r["finished"]})
+    upcoming = sorted({r["event"] for r in payload if not r.get("finished")})
     return {
         "ok": True,
+        "source": source,
         "fixtures": len(payload),
         "next_unfinished_gw": upcoming[0] if upcoming else None,
     }
