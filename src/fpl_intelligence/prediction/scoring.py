@@ -22,6 +22,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+try:
+    from scipy.stats import poisson as _poisson  # type: ignore[import-untyped]
+    def _p_concede_2plus(xgc: float) -> float:
+        """P(goals_conceded >= 2) via Poisson CDF — exact, not linear proxy."""
+        return float(1.0 - _poisson.cdf(1, max(0.0, xgc)))
+except ImportError:  # fallback if scipy unavailable
+    def _p_concede_2plus(xgc: float) -> float:  # type: ignore[misc]
+        """Fallback linear approximation when scipy is unavailable."""
+        return min(1.0, max(0.0, xgc - 1.5))
+
 DEFAULT_RULES: dict[str, Any] = {
     "rules_version": "default-official",
     "points": {
@@ -153,9 +163,9 @@ class FPLScoringEngine:
         if position in ("GK", "DEF"):
             p = self._points.get("goals_conceded_2_plus", {})
             per_conceded = p.get(position, 0)
-            # Expected deduction applies when expected goals conceded > 1.5
-            # (approximate P(concede 2+) via a simple clip).
-            p_2plus = min(1.0, max(0.0, components.expected_goals_conceded - 1.5))
+            # Use Poisson CDF for P(concede >= 2) — far more accurate than
+            # the previous linear proxy which was off by up to 44%.
+            p_2plus = _p_concede_2plus(components.expected_goals_conceded)
             conceded_pts = per_conceded * p_2plus
 
         defensive_pts = components.defensive_contribution
