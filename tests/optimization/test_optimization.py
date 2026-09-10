@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from fpl_intelligence.optimization.domain import (
     ActionType,
@@ -71,8 +72,9 @@ def test_captain_optimizer():
     rec = optimizer.recommend_captain(squad)
     assert rec.action.action_type == ActionType.CAPTAIN
     # The optimizer uses the actual predictive distribution to compute EV.
-    # The mock distribution [2,2,2,6,6,6,8,10,10,15] has mean 6.7, not 6.0.
-    assert rec.expected_gain == 6.7
+    # The mock distribution [2,2,2,6,6,6,8,10,10,15] has mean 6.7.
+    # Captain doubles the score, so expected_gain = 6.7 * 2 = 13.4.
+    assert rec.expected_gain == pytest.approx(13.4)
 
 
 def test_transfer_optimizer():

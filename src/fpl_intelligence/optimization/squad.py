@@ -123,10 +123,12 @@ class CaptainOptimizer:
         )
         return Recommendation(
             action=action,
-            expected_gain=best_candidate.expected_points,
-            base_case=best_candidate.median,
-            downside_case=best_candidate.p10,
-            upside_case=best_candidate.p90,
+            # Captain doubles the player's score — multiply EV, median, and
+            # percentiles by 2 so the reported gain is the actual captaincy EV.
+            expected_gain=best_candidate.expected_points * 2,
+            base_case=best_candidate.median * 2,
+            downside_case=best_candidate.p10 * 2,
+            upside_case=best_candidate.p90 * 2,
             probability_positive=best_candidate.prob_10_plus,
             confidence=0.8,
             main_reason=main_reason,

@@ -245,15 +245,22 @@ def todays_moves_payload(
 
     from fpl_intelligence.prices.models import PriceMoveDB
 
-    stmt = (
-        select(PriceMoveDB)
-        .order_by(PriceMoveDB.moved_at.desc(), PriceMoveDB.id.desc())
-        .limit(400)
-    )
-    rows = db.execute(stmt).scalars().all()
     if gameweek is not None:
-        gw_rows = [r for r in rows if r.gameweek == int(gameweek)]
-        rows = gw_rows or rows
+        # Filter at DB level so the 400-row buffer never silently drops rows
+        # from the requested GW, and we never fall back to stale prior-GW data.
+        stmt = (
+            select(PriceMoveDB)
+            .where(PriceMoveDB.gameweek == int(gameweek))
+            .order_by(PriceMoveDB.moved_at.desc(), PriceMoveDB.id.desc())
+            .limit(400)
+        )
+    else:
+        stmt = (
+            select(PriceMoveDB)
+            .order_by(PriceMoveDB.moved_at.desc(), PriceMoveDB.id.desc())
+            .limit(400)
+        )
+    rows = db.execute(stmt).scalars().all()
     names = _name_lookup(db)
 
     def _card(r: PriceMoveDB) -> dict[str, Any]:

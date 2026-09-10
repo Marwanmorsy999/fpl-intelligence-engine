@@ -92,6 +92,9 @@ class DistributionEngine:
                 expected_bonus=float(bonus_pts[i]),
                 appearance_minutes=float(minutes[i]),
                 defensive_contribution=float(def_contrib[i]),
+                # Pass team xGC so GK/DEF conceded deduction is applied in
+                # each sample rather than being silently zeroed.
+                expected_goals_conceded=float(components.get("expected_goals_conceded", 0.0)),
             )
             result = engine.compute(comp, position_code)
             points[i] = result["total"]
