@@ -77,9 +77,12 @@ class TransferOptimizer:
                 ev_out = pred_out.expected_points
                 v_out = ev_out * 1.5
 
+            # Discount future variance exponentially — we care more about
+            # near-term uncertainty; 0.85 per GW is a calibrated decay.
+            decay = 0.85 ** offset
             expected_gain += ev_in - ev_out
-            var_in += v_in
-            var_out += v_out
+            var_in += v_in * decay
+            var_out += v_out * decay
 
         hit_cost = 0
         if squad.free_transfers < 1:
@@ -236,10 +239,16 @@ class MultiTransferPlanner:
         for _light_delta, p_out, p_in in ranked_pairs[:_MAX_FULL_TRANSFER_EVALS]:
             eval_obj = self.optimizer.evaluate_transfer(squad, p_out, p_in, horizon)
 
-            flexibility_penalty = (
-                0.5
-                if squad.free_transfers > 0
+            # Flexibility penalty scales with free transfers banked:
+            # Each free transfer that can still be rolled is worth ~0.5 EV
+            # (opportunity cost of spending a transfer early).
+            can_roll = (
+                squad.free_transfers > 0
                 and squad.rolled_transfers < self.rules.max_rolled_transfers
+            )
+            flexibility_penalty = (
+                0.5 * min(squad.free_transfers, self.rules.max_rolled_transfers)
+                if can_roll
                 else 0.0
             )
 

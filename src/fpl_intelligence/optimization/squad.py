@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import itertools
 from dataclasses import dataclass
 
 import numpy as np
@@ -209,14 +208,38 @@ class StartingXIOptimizer:
             squad_players, key=lambda pid: predictions[pid][sort_field], reverse=True
         )
 
-        best_xi: list[int] | None = None
+        # Greedy position-aware XI selection: for each position, pick the
+        # top-ranked players within formation bounds, then fill remaining slots
+        # from the global EV-sorted pool. This is optimal for rank-1 squad
+        # composition and vastly faster than trying all C(15,11)=1365 combos.
+        pos_players: dict[int, list[int]] = {1: [], 2: [], 3: [], 4: []}
+        for pid in sorted_players:
+            pos_players[player_positions[pid]].append(pid)
 
-        for combo in itertools.combinations(sorted_players, 11):
-            positions = [player_positions[pid] for pid in combo]
-            if self.is_valid_formation(positions):
-                best_xi = list(combo)
+        selected: list[int] = []
+        # 1. Satisfy minimums first
+        for pos in [1, 2, 3, 4]:
+            min_p = self.rules.min_formation(pos)
+            selected.extend(pos_players[pos][:min_p])
+
+        # 2. Fill remaining 11 - sum(mins) = 4 slots greedily by EV
+        remaining_cap = {pos: self.rules.max_formation(pos) - self.rules.min_formation(pos)
+                         for pos in [1, 2, 3, 4]}
+        already_selected = set(selected)
+        candidates = [
+            pid for pid in sorted_players
+            if pid not in already_selected
+            and remaining_cap[player_positions[pid]] > 0
+        ]
+        for pid in candidates:
+            if len(selected) >= 11:
                 break
+            pos = player_positions[pid]
+            if remaining_cap[pos] > 0:
+                selected.append(pid)
+                remaining_cap[pos] -= 1
 
+        best_xi: list[int] | None = selected if len(selected) == 11 else None
         if not best_xi:
             best_xi = squad_players[:11]
 
