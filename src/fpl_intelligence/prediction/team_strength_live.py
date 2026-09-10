@@ -15,6 +15,7 @@ and reports status unavailable so the chain stays honest.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -109,7 +110,7 @@ def compute_team_strength_multipliers(
             ).where(Fixture.gameweek_id == gw_id)
         ).all()
     except Exception as exc:  # noqa: BLE001
-        logger.warning("team strength fixture query failed: %s", exp)
+        logger.warning("team strength fixture query failed: %s", exc)
         return TeamStrengthLiveResult({}, _neutral_notes(f"fixture_query:{type(exc).__name__}"))
 
     active = [f for f in fixtures if not bool(getattr(f, "postponed", False))]
@@ -256,10 +257,8 @@ def ensure_registry_entry(db: Session) -> bool:
                 db.commit()
             except Exception as exp:
                 logger.warning("team strength registry promote failed: %s", exp)
-                try:
+                with contextlib.suppress(Exception):
                     db.rollback()
-                except Exception:
-                    pass
                 return False
         return True
 
@@ -301,8 +300,6 @@ def ensure_registry_entry(db: Session) -> bool:
         return True
     except Exception as exp:
         logger.warning("team strength registry insert failed: %s", type(exp).__name__)
-        try:
+        with contextlib.suppress(Exception):
             db.rollback()
-        except Exception:
-            pass
         return False

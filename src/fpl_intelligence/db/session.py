@@ -9,9 +9,7 @@ from fpl_intelligence.config import get_settings
 
 settings = get_settings()
 
-#: Built-in placeholder the Settings model uses when no DATABASE_URL was set.
 _DEFAULT_PG_PLACEHOLDER = "postgresql+psycopg://fpl:fpl@localhost:5432/fpl"
-#: Local dev fallback so a fresh clone runs with zero configuration.
 _DEFAULT_DEV_SQLITE = "sqlite:///./fpl_local.db"
 
 
@@ -32,12 +30,6 @@ def _is_production_runtime() -> bool:
 
 
 def _effective_database_url() -> str:
-    """Resolve the single source-of-truth DATABASE_URL with a graceful dev fallback.
-
-    ``DATABASE_URL`` (via settings) is the one source of truth. When nothing was
-    configured and we are not in a production context, development falls back to
-    a local SQLite file. Production always requires an explicit PostgreSQL URL.
-    """
     url = settings.database_url.strip()
     if url == _DEFAULT_PG_PLACEHOLDER or url.startswith("sqlite"):
         if _is_production_runtime():
@@ -51,7 +43,6 @@ def _effective_database_url() -> str:
 
 
 def validation_database_url() -> str:
-    """Return the explicitly configured PostgreSQL URL for read-only validation."""
     url = settings.database_url.strip()
     if not url or url == _DEFAULT_PG_PLACEHOLDER:
         raise RuntimeError("DATABASE_URL is not configured for this validation run.")
@@ -59,34 +50,38 @@ def validation_database_url() -> str:
         raise RuntimeError("DATABASE_URL must point to PostgreSQL for this validation run.")
     url = _normalize_postgres_driver(url)
     if not url.startswith("postgresql+psycopg://"):
-        raise RuntimeError("DATABASE_URL must use a PostgreSQL SQLAlchemy URL for validation.")
+        raise RuntimeError("DATABASE_URL must use a PostgreSQL SQLAlchemy URL for this validation run.")
     return url
 
 
 def _make_engine(url: str):
-    """Create an engine safe for short-lived/serverless processes.
+    """Create a bounded, serverless-safe SQLAlchemy engine.
 
-    Supabase transaction-mode pooling should own connection reuse. SQLAlchemy's
-    client-side QueuePool can retain connections across warm serverless workers
-    and multiply pressure on the pooler, so production PostgreSQL uses NullPool.
+    Supabase transaction pooling owns connection reuse. NullPool prevents each
+    warm Vercel worker from retaining its own client-side pool. Explicit
+    connect/query timeouts also prevent a transient pooler/auth outage from
+    consuming the entire Vercel function duration.
     """
-    connect_args = {"prepare_threshold": None} if url.startswith("postgres") else {}
-    pool_kwargs = {"poolclass": NullPool} if url.startswith("postgres") else {}
-    return create_engine(
-        url,
-        pool_pre_ping=True,
-        connect_args=connect_args,
-        **pool_kwargs,
-    )
+    if url.startswith("postgres"):
+        connect_args = {
+            "prepare_threshold": None,
+            "connect_timeout": 4,
+            "options": "-c statement_timeout=5000 -c idle_in_transaction_session_timeout=5000",
+        }
+        return create_engine(
+            url,
+            pool_pre_ping=True,
+            poolclass=NullPool,
+            connect_args=connect_args,
+        )
+    return create_engine(url, pool_pre_ping=True)
 
 
 def _validation_engine():
-    """Build the engine shared by validation session factories."""
     return _make_engine(validation_database_url())
 
 
 def validation_session_factory() -> sessionmaker[Session]:
-    """Build a read-only session factory for the configured validation database."""
     validation_engine = _validation_engine()
     if validation_engine.url.drivername.startswith("postgres"):
 
@@ -103,7 +98,6 @@ def validation_session_factory() -> sessionmaker[Session]:
 
 
 def validation_write_session_factory() -> sessionmaker[Session]:
-    """Build a write-capable session factory for controlled validation imports."""
     return sessionmaker(
         bind=_validation_engine(),
         autoflush=False,

@@ -39,6 +39,7 @@ dev = [
   "ruff>=0.9,<1",
   "mypy>=1.14,<2",
   "playwright>=1.50,<2",
+  "pytest-playwright>=0.7,<1",
 ]
 
 [project.scripts]
@@ -53,18 +54,7 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM"]
-# E501: pre-existing line-length violations across the codebase
-# SIM105/SIM102/SIM108/SIM401: pre-existing simplification suggestions
-# F401/F841/F821: pre-existing unused/undefined names in tests and scripts
-# I001: pre-existing import order in test files
-# E402/E731: pre-existing module-level import order and lambda assignments
-# B007/B023/B025/B905/BLE001: pre-existing bugbear warnings
-extend-ignore = [
-  "E501", "SIM105", "SIM102", "SIM108", "SIM401",
-  "F401", "F841", "F821", "I001",
-  "E402", "E731",
-  "B007", "B023", "B025", "B905", "BLE001",
-]
+extend-ignore = ["E501"]
 
 [tool.pytest.ini_options]
 addopts = "-q"

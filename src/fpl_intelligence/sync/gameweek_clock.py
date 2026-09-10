@@ -1,26 +1,15 @@
-"""Phase 21.1 (T2) — gameweek auto-advance helpers.
-
-The engine's *target* gameweek must follow the official FPL clock, not a
-stored value: at request time we read ``bootstrap-static`` through the egress
-mask chain and pick the first event whose deadline is still in the future —
-exactly the gameweek the manager's next moves affect. When FPL is unreachable
-we degrade to the fixtures-cache inference and then to the saved squad value,
-never guessing upward.
-"""
+"""Gameweek clock helpers with bounded serverless fallback behavior."""
 
 from __future__ import annotations
 
 import logging
+import os
 import threading
 import time
 from datetime import UTC, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
-
-#: In-process cache for the bootstrap-derived target gameweek. The value moves
-#: once per week; ten minutes of staleness costs nothing and keeps the request
-#: path off the network almost always.
 _TARGET_CACHE_SECONDS = 600.0
 _target_cache: tuple[float, int | None] = (0.0, None)
 _target_lock = threading.Lock()
@@ -36,20 +25,22 @@ def _parse_deadline(raw: Any) -> datetime | None:
 
 
 def _in_pytest() -> bool:
-    """True under pytest so network probes never run inside the test suite."""
-    import os
     import sys
 
     return "pytest" in sys.modules or os.environ.get("FPL_NO_NETWORK", "") == "1"
 
 
-def pick_target_event(events: list[dict[str, Any]], now: datetime | None = None) -> int | None:
-    """First event whose deadline has NOT passed yet (pure).
+def _serverless_no_live_bootstrap() -> bool:
+    """Do not put Vercel requests behind an upstream FPL bootstrap dependency.
 
-    This is the gameweek transfers/captaincy changes still apply to — FPL's
-    own "next deadline" convention. Events without a parseable deadline are
-    skipped rather than guessed.
+    Production already has a daily materialized dataset and fixtures cache. The
+    official FPL endpoint intermittently rejects shared cloud egress with 403s;
+    retrying several proxy masks here can consume the whole serverless budget.
     """
+    return os.environ.get("VERCEL", "") == "1" or os.environ.get("VERCEL_ENV", "") == "production"
+
+
+def pick_target_event(events: list[dict[str, Any]], now: datetime | None = None) -> int | None:
     moment = now or datetime.now(UTC)
     best: tuple[datetime, int] | None = None
     for event in events or []:
@@ -72,14 +63,8 @@ def pick_target_event(events: list[dict[str, Any]], now: datetime | None = None)
 
 
 async def bootstrap_target_gameweek(settings: Any = None) -> int | None:
-    """Target gameweek from live bootstrap-static via the egress masks.
-
-    Cached in-process for :data:`_TARGET_CACHE_SECONDS`. Returns ``None`` when
-    bootstrap cannot be reached — callers fall back to fixtures-cache/squad
-    values instead of inventing a number. Unit-test environments (pytest) are
-    detected and short-circuit to ``None`` so no network is ever attempted.
-    """
-    if _in_pytest():
+    """Return the cached/live bootstrap target, but never probe it from Vercel."""
+    if _in_pytest() or _serverless_no_live_bootstrap():
         return None
 
     now_mono = time.monotonic()
@@ -89,7 +74,7 @@ async def bootstrap_target_gameweek(settings: Any = None) -> int | None:
         return cached_value
 
     try:
-        from fpl_intelligence.config import get_settings  # noqa: PLC0415
+        from fpl_intelligence.config import get_settings
         from fpl_intelligence.data_providers.fpl_egress import validate_bootstrap_payload
         from fpl_intelligence.data_providers.registry import get_async_fpl_adapter
 
@@ -97,7 +82,7 @@ async def bootstrap_target_gameweek(settings: Any = None) -> int | None:
         payload = await get_async_fpl_adapter(settings=cfg).fetch(
             "/api/bootstrap-static/", validator=validate_bootstrap_payload
         )
-    except Exception as exc:  # noqa: BLE001 - honest degradation
+    except Exception as exc:  # noqa: BLE001 - metadata must never block callers
         logger.info("bootstrap target gw unavailable: %s", exc)
         return None
 
@@ -110,70 +95,47 @@ async def bootstrap_target_gameweek(settings: Any = None) -> int | None:
 
 
 async def resolve_target_gameweek(db: Any, fallback: int = 1) -> int:
-    """Bootstrap-first target GW with graceful fixtures-cache fallback.
-
-    Order: live bootstrap next-deadline event -> first unfinished gameweek in
-    ``fixtures_cache`` -> ``fallback``. Never raises.
-    """
+    """Resolve target GW from safe local cache first on serverless runtimes."""
     target = await bootstrap_target_gameweek()
     if target is not None:
         return int(target)
     try:
-        from sqlalchemy import select  # noqa: PLC0415
+        from sqlalchemy import select
 
-        from fpl_intelligence.fixtures.scanner import (  # noqa: PLC0415
-            infer_current_gameweek,
-            parse_fixtures,
-        )
-        from fpl_intelligence.sync.materialized_models import FixturesCacheDB  # noqa: PLC0415
+        from fpl_intelligence.fixtures.scanner import infer_current_gameweek, parse_fixtures
+        from fpl_intelligence.sync.materialized_models import FixturesCacheDB
 
         row = db.scalar(select(FixturesCacheDB).order_by(FixturesCacheDB.id.desc()).limit(1))
         if row is not None and row.payload:
             return infer_current_gameweek(parse_fixtures(row.payload), fallback=fallback)
-    except Exception as exc:  # noqa: BLE001 - never fail a request on metadata
+    except Exception as exc:  # noqa: BLE001
         logger.warning("fixtures-cache gameweek fallback failed: %s", exc)
     return fallback
 
 
 def resolve_season_gw_ceiling_sync(db: Any, fallback: int | None = None) -> int | None:
-    """Sync ceiling for the CURRENT season's GW range (v2.7.4-prod-heal).
-
-    Recommender/grading queries must never read past the current season:
-    ``ingested_history`` keeps last season's rows (e.g. GW38 of 2025/26) and
-    ``MAX(gameweek)`` silently grades a dead season. This returns the current
-    target GW from (in order): the in-process bootstrap cache, a fresh
-    bootstrap fetch when possible, then the fixtures-cache inference — and
-    ``None`` when nothing trustworthy is available so callers can degrade
-    honestly instead of guessing.
-    """
+    """Resolve a current-season GW ceiling without a serverless network probe."""
     with _target_lock:
         _, cached = _target_cache
     if cached is not None:
         return int(cached)
 
-    if _in_pytest():
-        # Never touch the network under pytest; fall through to fixtures cache.
-        pass
-    else:
+    if not (_in_pytest() or _serverless_no_live_bootstrap()):
         try:
             import asyncio
-
             loop = asyncio.get_event_loop()
             if not loop.is_running():
                 fetched = loop.run_until_complete(bootstrap_target_gameweek())
                 if fetched is not None:
                     return int(fetched)
-        except Exception as exc:  # noqa: BLE001 - honest degradation
+        except Exception as exc:  # noqa: BLE001
             logger.debug("sync bootstrap gw probe failed: %s", exc)
 
     try:
-        from sqlalchemy import select  # noqa: PLC0415
+        from sqlalchemy import select
 
-        from fpl_intelligence.fixtures.scanner import (  # noqa: PLC0415
-            infer_current_gameweek,
-            parse_fixtures,
-        )
-        from fpl_intelligence.sync.materialized_models import FixturesCacheDB  # noqa: PLC0415
+        from fpl_intelligence.fixtures.scanner import infer_current_gameweek, parse_fixtures
+        from fpl_intelligence.sync.materialized_models import FixturesCacheDB
 
         row = db.scalar(select(FixturesCacheDB).order_by(FixturesCacheDB.id.desc()).limit(1))
         if row is not None and row.payload:
@@ -183,6 +145,6 @@ def resolve_season_gw_ceiling_sync(db: Any, fallback: int | None = None) -> int 
             )
             if inferred:
                 return int(inferred)
-    except Exception as exc:  # noqa: BLE001 - honest degradation
+    except Exception as exc:  # noqa: BLE001
         logger.warning("season gw ceiling inference failed: %s", exc)
     return fallback

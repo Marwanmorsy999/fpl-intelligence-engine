@@ -19,10 +19,66 @@ context would otherwise auto-start the tour, whose full-viewport
 
 from __future__ import annotations
 
+import contextlib
+import os
+import socket
+import subprocess
+import time
 from collections.abc import Iterator
 
 import pytest
 from playwright.sync_api import Page, Route
+
+
+def _port_open(host: str, port: int) -> bool:
+    try:
+        with socket.create_connection((host, port), timeout=0.5):
+            return True
+    except OSError:
+        return False
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _live_server() -> Iterator[None]:
+    """Start uvicorn once for the entire E2E session, then tear it down."""
+    # If a server is already running (e.g. dev machine), just use it.
+    if _port_open("localhost", 8000):
+        yield
+        return
+
+    env = {**os.environ, "DATABASE_URL": "sqlite:///./test_e2e.db"}
+    proc = subprocess.Popen(
+        [
+            "python", "-m", "uvicorn",
+            "fpl_intelligence.api.main:app",
+            "--host", "127.0.0.1",
+            "--port", "8000",
+            "--log-level", "warning",
+        ],
+        env=env,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    # Wait up to 15 s for the server to accept connections.
+    deadline = time.monotonic() + 15
+    while time.monotonic() < deadline:
+        if _port_open("localhost", 8000):
+            break
+        time.sleep(0.25)
+    else:
+        proc.kill()
+        raise RuntimeError("uvicorn did not start within 15 s")
+
+    yield
+
+    proc.terminate()
+    try:
+        proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+    # Clean up the test DB file if it was created here.
+    with contextlib.suppress(FileNotFoundError):
+        os.unlink("test_e2e.db")
 
 # 1x1 transparent PNG — stands in for player photos / team badges.
 _PNG_1X1 = (

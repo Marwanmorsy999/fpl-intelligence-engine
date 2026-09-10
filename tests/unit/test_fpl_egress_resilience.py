@@ -4,6 +4,7 @@ import asyncio
 
 from fpl_intelligence.data_providers.fpl_egress import FplEgressChain
 
+
 def test_recent_stale_cache_survives_provider_exhaustion():
     now = 1000.0
     chain = FplEgressChain('https://example.invalid', cache_ttl=60, stale_if_error_ttl=900, monotonic_clock=lambda: now)

@@ -152,7 +152,6 @@ def compute_regret(db: Any, session_id: str, gameweek: int | None = None) -> dic
                 except (TypeError, ValueError):
                     user_captain = rec_captain
                 user_pts = int(actuals.get(user_captain, 0))
-                delta = int(user_pts) - int(rec_pts)
                 # "Cost of Ignoring" is rec best vs user pick
                 # If score has best_alternative, use that as comparison
                 best_alt = score.get("best_alternative")
@@ -160,11 +159,6 @@ def compute_regret(db: Any, session_id: str, gameweek: int | None = None) -> dic
                     best_alt = int(best_alt) if best_alt is not None else None
                 except (TypeError, ValueError):
                     best_alt = None
-                if best_alt is not None:
-                    best_pts = int(actuals.get(best_alt, 0))
-                    cost = int(best_pts * 2) - int(user_pts * 2) if score.get("captain_points") is not None else int(best_pts) - int(user_pts)
-                else:
-                    cost = int(rec_pts * 2) - int(user_pts * 2) if rec_pts is not None else 0
                 # Simpler: delta between rec captain (doubled) vs user captain
                 # Correct: doubled points comparison
                 rec_doubled = rec_pts * 2

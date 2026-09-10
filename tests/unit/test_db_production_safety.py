@@ -4,6 +4,7 @@ import pytest
 
 from fpl_intelligence.db import session as db_session
 
+
 def test_production_rejects_default_or_sqlite_database(monkeypatch):
     monkeypatch.setattr(db_session.settings, 'app_env', 'production')
     monkeypatch.delenv('VERCEL', raising=False)

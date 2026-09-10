@@ -4,7 +4,6 @@ import pytest
 
 from fpl_intelligence.prediction.scoring import FPLPointsComponents, FPLScoringEngine
 
-
 RULES_PATH = Path(__file__).resolve().parents[2] / "config" / "fpl_rules" / "2026-27.yaml"
 
 

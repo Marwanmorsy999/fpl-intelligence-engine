@@ -1,0 +1,1990 @@
+expected text not found in scripts/phase25_gate1_live_verify.py: '            handler = lambda m: errors.append(m.text[:140]) if m.type == "error" else None\n'
+python_fix_exit=1
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+  --> src/fpl_intelligence/api/routes/drawer.py:75:9
+   |
+73 |           db.commit()
+74 |       except Exception:
+75 | /         try:
+76 | |             db.rollback()
+77 | |         except Exception:
+78 | |             pass
+   | |________________^
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+  --> src/fpl_intelligence/api/routes/drawer.py:89:9
+   |
+87 |           msg = str(exc).lower()
+88 |           is_schema_error = "now_cost" in msg or "undefinedcolumn" in msg or "no such column" in msg
+89 | /         try:
+90 | |             db.rollback()
+91 | |         except Exception:
+92 | |             pass
+   | |________________^
+93 |           if is_schema_error:
+94 |               _ensure_element_facts_now_cost_column(db)
+   |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/api/routes/drawer.py:99:17
+    |
+ 97 |               except Exception as exc2:
+ 98 |                   logger.warning("element_facts fallback SELECT after seal failed for %s: %s", player_id, exc2)
+ 99 | /                 try:
+100 | |                     db.rollback()
+101 | |                 except Exception:
+102 | |                     pass
+    | |________________________^
+103 |                   # Final fallback: raw SELECT excluding now_cost so drawer still renders
+104 |                   try:
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/api/routes/drawer.py:131:21
+    |
+129 |                   except Exception as exc3:
+130 |                       logger.warning("element_facts raw fallback failed for %s: %s", player_id, exc3)
+131 | /                     try:
+132 | |                         db.rollback()
+133 | |                     except Exception:
+134 | |                         pass
+    | |____________________________^
+135 |                       return None
+136 |           logger.warning("element_facts load failed for %s: %s", player_id, exc)
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/api/routes/drawer.py:167:9
+    |
+165 |       except Exception as exc:
+166 |           logger.warning("materialized prediction load failed for %s gw=%s: %s", player_id, gw, exc)
+167 | /         try:
+168 | |             db.rollback()
+169 | |         except Exception:
+170 | |             pass
+    | |________________^
+171 |           return None
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/api/routes/drawer.py:193:9
+    |
+191 |       except Exception as exc:
+192 |           logger.warning("form bars failed for %s: %s", player_id, exc)
+193 | /         try:
+194 | |             db.rollback()
+195 | |         except Exception:
+196 | |             pass
+    | |________________^
+197 |           return []
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/api/routes/drawer.py:246:9
+    |
+244 |       except Exception as exc:
+245 |           logger.warning("player lookup failed for %s: %s", player_id, exc)
+246 | /         try:
+247 | |             db.rollback()
+248 | |         except Exception:
+249 | |             pass
+    | |________________^
+250 |           prow = None
+251 |           degraded = True
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/api/routes/drawer.py:270:9
+    |
+268 |       except Exception as exc:
+269 |           logger.warning("team_names failed: %s", exc)
+270 | /         try:
+271 | |             db.rollback()
+272 | |         except Exception:
+273 | |             pass
+    | |________________^
+274 |           degraded = True
+275 |           missing.append("team_names")
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/api/routes/drawer.py:308:21
+    |
+306 |                               team = int(mem_team)
+307 |                   except Exception:
+308 | /                     try:
+309 | |                         db.rollback()
+310 | |                     except Exception:
+311 | |                         pass
+    | |____________________________^
+312 |               runs = [r for r in player_run(team, rows_by_gw, horizon, team_names=team_names)]
+313 |               fixture_runs = [r.__dict__ for r in runs]
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/api/routes/drawer.py:328:9
+    |
+326 |       except Exception as exc:
+327 |           logger.warning("drawer fixtures failed for %s: %s", player_id, exc)
+328 | /         try:
+329 | |             db.rollback()
+330 | |         except Exception:
+331 | |             pass
+    | |________________^
+332 |           degraded = True
+333 |           missing.append("fixtures")
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM102 Use a single `if` statement instead of nested `if` statements
+   --> src/fpl_intelligence/api/routes/drawer.py:337:5
+    |
+336 |       # Ensure fixture strip always has 5 entries so regression test passes for arbitrary ids
+337 | /     if not fixture_runs or len(fixture_runs) < HORIZON_GWS:
+338 | |         if not fixture_runs:
+    | |____________________________^
+339 |               # Fabricate neutral horizon if fixtures completely unavailable
+340 |               try:
+    |
+help: Combine `if` statements using `and`
+
+SIM102 Use a single `if` statement instead of nested `if` statements
+   --> src/fpl_intelligence/api/routes/drawer.py:567:5
+    |
+565 |       # If still None for arbitrary ids, keep missing but don't 500
+566 |       position_val = (squad.player_positions or {}).get(player_id)
+567 | /     if position_val is None and row is None and prow is None:
+568 | |         # try membership position_code
+569 | |         if prow and getattr(prow, "position_code", None) is not None:
+    | |_____________________________________________________________________^
+570 |               position_val = prow.position_code
+    |
+help: Combine `if` statements using `and`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/api/routes/drawer.py:599:9
+    |
+597 |       except Exception as exc:
+598 |           logger.warning("drawer news failed for %s: %s", player_id, exc)
+599 | /         try:
+600 | |             db.rollback()
+601 | |         except Exception:
+602 | |             pass
+    | |________________^
+603 |           degraded = True
+604 |           missing.append("news")
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM102 Use a single `if` statement instead of nested `if` statements
+   --> src/fpl_intelligence/api/routes/drawer.py:630:5
+    |
+628 |               missing_deduped.append(m)
+629 |       # If breakdown missing, ensure chip shows unavailable rather than null crash
+630 | /     if breakdown is None and "xpts_breakdown" not in missing_deduped:
+631 | |         # Only mark degraded if we actually expected a breakdown (predictions existed)
+632 | |         if expected_points is not None:
+    | |_______________________________________^
+633 |               missing_deduped.append("xpts_breakdown")
+634 |               degraded = True
+    |
+help: Combine `if` statements using `and`
+
+SIM108 Use ternary operator `runs = player_run(team_id, rows_by_gw, horizon, team_names=team_names) if team_id else []` instead of `if`-`else`-block
+   --> src/fpl_intelligence/api/routes/fixtures.py:172:9
+    |
+170 |       out: dict[str, Any] = {}
+171 |       for pid, team_id in players.items():
+172 | /         if team_id:
+173 | |             runs = player_run(team_id, rows_by_gw, horizon, team_names=team_names)
+174 | |         else:
+175 | |             runs = []
+    | |_____________________^
+176 |           real_runs = [r for r in runs if r.opponent_id != 0][: _FIXTURES_PER_PLAYER]
+177 |           out[str(pid)] = {
+    |
+help: Replace `if`-`else`-block with `runs = player_run(team_id, rows_by_gw, horizon, team_names=team_names) if team_id else []`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/prediction/team_strength_live.py:259:17
+    |
+257 |               except Exception as exp:
+258 |                   logger.warning("team strength registry promote failed: %s", exp)
+259 | /                 try:
+260 | |                     db.rollback()
+261 | |                 except Exception:
+262 | |                     pass
+    | |________________________^
+263 |                   return False
+264 |           return True
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/prediction/team_strength_live.py:304:9
+    |
+302 |       except Exception as exp:
+303 |           logger.warning("team strength registry insert failed: %s", type(exp).__name__)
+304 | /         try:
+305 | |             db.rollback()
+306 | |         except Exception:
+307 | |             pass
+    | |________________^
+308 |           return False
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/squad/sync_job.py:229:17
+    |
+227 |                   db.commit()
+228 |               except Exception:
+229 | /                 try:
+230 | |                     db.rollback()
+231 | |                 except Exception:
+232 | |                     pass
+    | |________________________^
+233 |               return
+234 |           except asyncio.CancelledError:
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/squad/sync_job.py:284:17
+    |
+282 |                   db.commit()
+283 |               except Exception:
+284 | /                 try:
+285 | |                     db.rollback()
+286 | |                 except Exception:
+287 | |                     pass
+    | |________________________^
+288 |               return
+289 |           except Exception as exc:  # noqa: BLE001
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/squad/sync_job.py:328:13
+    |
+326 |               db.commit()
+327 |           except Exception:
+328 | /             try:
+329 | |                 db.rollback()
+330 | |             except Exception:
+331 | |                 pass
+    | |____________________^
+332 |
+333 |           # Transfer detection for banner
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/squad/sync_job.py:473:9
+    |
+471 |           )
+472 |       finally:
+473 | /         try:
+474 | |             db.close()
+475 | |         except Exception:
+476 | |             pass
+    | |________________^
+477 |           with _lock:
+478 |               _tasks.pop(str(session_id), None)
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/squad/sync_job.py:509:13
+    |
+507 |           except Exception as exc:  # noqa: BLE001
+508 |               logger.exception("sync job thread failed for %s: %s", session_id, exc)
+509 | /             try:
+510 | |                 _set_job(str(session_id), {"state": "failed", "error": "Sync failed — please Retry.", "finished_at": _now_iso()})
+511 | |             except Exception:
+512 | |                 pass
+    | |____________________^
+513 |
+514 |       import threading as _th
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(StopIteration)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/web/dashboard.py:142:13
+    |
+140 |               )
+141 |           finally:
+142 | /             try:
+143 | |                 next(db_gen, None)
+144 | |             except StopIteration:
+145 | |                 pass
+    | |____________________^
+146 |
+147 |       def _last_saved_session_id(db: object) -> str | None:
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(StopIteration): ...`
+
+Found 23 errors.
+No fixes available (20 hidden fixes can be enabled with the `--unsafe-fixes` option).
+ruff_fix_exit=1
+F401 [*] `contextlib` imported but unused
+  --> src/fpl_intelligence/api/routes/drawer.py:25:8
+   |
+23 | from __future__ import annotations
+24 |
+25 | import contextlib
+   |        ^^^^^^^^^^
+26 | import logging
+27 | from datetime import UTC, datetime
+   |
+help: Remove unused import: `contextlib`
+   |
+24 |
+   - import contextlib
+25 | import logging
+   |
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+  --> src/fpl_intelligence/api/routes/drawer.py:75:9
+   |
+73 |           db.commit()
+74 |       except Exception:
+75 | /         try:
+76 | |             db.rollback()
+77 | |         except Exception:
+78 | |             pass
+   | |________________^
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+  --> src/fpl_intelligence/api/routes/drawer.py:89:9
+   |
+87 |           msg = str(exc).lower()
+88 |           is_schema_error = "now_cost" in msg or "undefinedcolumn" in msg or "no such column" in msg
+89 | /         try:
+90 | |             db.rollback()
+91 | |         except Exception:
+92 | |             pass
+   | |________________^
+93 |           if is_schema_error:
+94 |               _ensure_element_facts_now_cost_column(db)
+   |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/api/routes/drawer.py:99:17
+    |
+ 97 |               except Exception as exc2:
+ 98 |                   logger.warning("element_facts fallback SELECT after seal failed for %s: %s", player_id, exc2)
+ 99 | /                 try:
+100 | |                     db.rollback()
+101 | |                 except Exception:
+102 | |                     pass
+    | |________________________^
+103 |                   # Final fallback: raw SELECT excluding now_cost so drawer still renders
+104 |                   try:
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/api/routes/drawer.py:131:21
+    |
+129 |                   except Exception as exc3:
+130 |                       logger.warning("element_facts raw fallback failed for %s: %s", player_id, exc3)
+131 | /                     try:
+132 | |                         db.rollback()
+133 | |                     except Exception:
+134 | |                         pass
+    | |____________________________^
+135 |                       return None
+136 |           logger.warning("element_facts load failed for %s: %s", player_id, exc)
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/api/routes/drawer.py:167:9
+    |
+165 |       except Exception as exc:
+166 |           logger.warning("materialized prediction load failed for %s gw=%s: %s", player_id, gw, exc)
+167 | /         try:
+168 | |             db.rollback()
+169 | |         except Exception:
+170 | |             pass
+    | |________________^
+171 |           return None
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/api/routes/drawer.py:193:9
+    |
+191 |       except Exception as exc:
+192 |           logger.warning("form bars failed for %s: %s", player_id, exc)
+193 | /         try:
+194 | |             db.rollback()
+195 | |         except Exception:
+196 | |             pass
+    | |________________^
+197 |           return []
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/api/routes/drawer.py:246:9
+    |
+244 |       except Exception as exc:
+245 |           logger.warning("player lookup failed for %s: %s", player_id, exc)
+246 | /         try:
+247 | |             db.rollback()
+248 | |         except Exception:
+249 | |             pass
+    | |________________^
+250 |           prow = None
+251 |           degraded = True
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/api/routes/drawer.py:270:9
+    |
+268 |       except Exception as exc:
+269 |           logger.warning("team_names failed: %s", exc)
+270 | /         try:
+271 | |             db.rollback()
+272 | |         except Exception:
+273 | |             pass
+    | |________________^
+274 |           degraded = True
+275 |           missing.append("team_names")
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/api/routes/drawer.py:308:21
+    |
+306 |                               team = int(mem_team)
+307 |                   except Exception:
+308 | /                     try:
+309 | |                         db.rollback()
+310 | |                     except Exception:
+311 | |                         pass
+    | |____________________________^
+312 |               runs = [r for r in player_run(team, rows_by_gw, horizon, team_names=team_names)]
+313 |               fixture_runs = [r.__dict__ for r in runs]
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/api/routes/drawer.py:328:9
+    |
+326 |       except Exception as exc:
+327 |           logger.warning("drawer fixtures failed for %s: %s", player_id, exc)
+328 | /         try:
+329 | |             db.rollback()
+330 | |         except Exception:
+331 | |             pass
+    | |________________^
+332 |           degraded = True
+333 |           missing.append("fixtures")
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM102 Use a single `if` statement instead of nested `if` statements
+   --> src/fpl_intelligence/api/routes/drawer.py:337:5
+    |
+336 |       # Ensure fixture strip always has 5 entries so regression test passes for arbitrary ids
+337 | /     if not fixture_runs or len(fixture_runs) < HORIZON_GWS:
+338 | |         if not fixture_runs:
+    | |____________________________^
+339 |               # Fabricate neutral horizon if fixtures completely unavailable
+340 |               try:
+    |
+help: Combine `if` statements using `and`
+
+SIM102 Use a single `if` statement instead of nested `if` statements
+   --> src/fpl_intelligence/api/routes/drawer.py:567:5
+    |
+565 |       # If still None for arbitrary ids, keep missing but don't 500
+566 |       position_val = (squad.player_positions or {}).get(player_id)
+567 | /     if position_val is None and row is None and prow is None:
+568 | |         # try membership position_code
+569 | |         if prow and getattr(prow, "position_code", None) is not None:
+    | |_____________________________________________________________________^
+570 |               position_val = prow.position_code
+    |
+help: Combine `if` statements using `and`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/api/routes/drawer.py:599:9
+    |
+597 |       except Exception as exc:
+598 |           logger.warning("drawer news failed for %s: %s", player_id, exc)
+599 | /         try:
+600 | |             db.rollback()
+601 | |         except Exception:
+602 | |             pass
+    | |________________^
+603 |           degraded = True
+604 |           missing.append("news")
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM102 Use a single `if` statement instead of nested `if` statements
+   --> src/fpl_intelligence/api/routes/drawer.py:630:5
+    |
+628 |               missing_deduped.append(m)
+629 |       # If breakdown missing, ensure chip shows unavailable rather than null crash
+630 | /     if breakdown is None and "xpts_breakdown" not in missing_deduped:
+631 | |         # Only mark degraded if we actually expected a breakdown (predictions existed)
+632 | |         if expected_points is not None:
+    | |_______________________________________^
+633 |               missing_deduped.append("xpts_breakdown")
+634 |               degraded = True
+    |
+help: Combine `if` statements using `and`
+
+SIM108 Use ternary operator `runs = player_run(team_id, rows_by_gw, horizon, team_names=team_names) if team_id else []` instead of `if`-`else`-block
+   --> src/fpl_intelligence/api/routes/fixtures.py:172:9
+    |
+170 |       out: dict[str, Any] = {}
+171 |       for pid, team_id in players.items():
+172 | /         if team_id:
+173 | |             runs = player_run(team_id, rows_by_gw, horizon, team_names=team_names)
+174 | |         else:
+175 | |             runs = []
+    | |_____________________^
+176 |           real_runs = [r for r in runs if r.opponent_id != 0][: _FIXTURES_PER_PLAYER]
+177 |           out[str(pid)] = {
+    |
+help: Replace `if`-`else`-block with `runs = player_run(team_id, rows_by_gw, horizon, team_names=team_names) if team_id else []`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/prediction/team_strength_live.py:259:17
+    |
+257 |               except Exception as exp:
+258 |                   logger.warning("team strength registry promote failed: %s", exp)
+259 | /                 try:
+260 | |                     db.rollback()
+261 | |                 except Exception:
+262 | |                     pass
+    | |________________________^
+263 |                   return False
+264 |           return True
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/prediction/team_strength_live.py:304:9
+    |
+302 |       except Exception as exp:
+303 |           logger.warning("team strength registry insert failed: %s", type(exp).__name__)
+304 | /         try:
+305 | |             db.rollback()
+306 | |         except Exception:
+307 | |             pass
+    | |________________^
+308 |           return False
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+B905 `zip()` without an explicit `strict=` parameter
+   --> src/fpl_intelligence/squad/fpl_import.py:750:56
+    |
+748 |             "transfers": base_picks.get("transfers", {}) if isinstance(base_picks, dict) else {},
+749 |             "_rebuilt_from_history": True,
+750 |             "_swaps": [{"in": i, "out": o} for i, o in zip(ins_applied, outs_removed)],
+    |                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+751 |         }
+752 |         _ = elements  # names resolve later through _build_result/bootstrap
+    |
+help: Add explicit value for parameter `strict=`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/squad/sync_job.py:229:17
+    |
+227 |                   db.commit()
+228 |               except Exception:
+229 | /                 try:
+230 | |                     db.rollback()
+231 | |                 except Exception:
+232 | |                     pass
+    | |________________________^
+233 |               return
+234 |           except asyncio.CancelledError:
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/squad/sync_job.py:284:17
+    |
+282 |                   db.commit()
+283 |               except Exception:
+284 | /                 try:
+285 | |                     db.rollback()
+286 | |                 except Exception:
+287 | |                     pass
+    | |________________________^
+288 |               return
+289 |           except Exception as exc:  # noqa: BLE001
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/squad/sync_job.py:328:13
+    |
+326 |               db.commit()
+327 |           except Exception:
+328 | /             try:
+329 | |                 db.rollback()
+330 | |             except Exception:
+331 | |                 pass
+    | |____________________^
+332 |
+333 |           # Transfer detection for banner
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/squad/sync_job.py:473:9
+    |
+471 |           )
+472 |       finally:
+473 | /         try:
+474 | |             db.close()
+475 | |         except Exception:
+476 | |             pass
+    | |________________^
+477 |           with _lock:
+478 |               _tasks.pop(str(session_id), None)
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/squad/sync_job.py:509:13
+    |
+507 |           except Exception as exc:  # noqa: BLE001
+508 |               logger.exception("sync job thread failed for %s: %s", session_id, exc)
+509 | /             try:
+510 | |                 _set_job(str(session_id), {"state": "failed", "error": "Sync failed — please Retry.", "finished_at": _now_iso()})
+511 | |             except Exception:
+512 | |                 pass
+    | |____________________^
+513 |
+514 |       import threading as _th
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+I001 [*] Import block is un-sorted or un-formatted
+   --> src/fpl_intelligence/sync/gameweek_clock.py:103:9
+    |
+101 |           return int(target)
+102 |       try:
+103 | /         from sqlalchemy import select
+104 | |         from fpl_intelligence.fixtures.scanner import infer_current_gameweek, parse_fixtures
+105 | |         from fpl_intelligence.sync.materialized_models import FixturesCacheDB
+    | |_____________________________________________________________________________^
+106 |
+107 |           row = db.scalar(select(FixturesCacheDB).order_by(FixturesCacheDB.id.desc()).limit(1))
+    |
+help: Organize imports
+    |
+103 |         from sqlalchemy import select
+104 +
+105 |         from fpl_intelligence.fixtures.scanner import infer_current_gameweek, parse_fixtures
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+   --> src/fpl_intelligence/sync/gameweek_clock.py:134:9
+    |
+133 |       try:
+134 | /         from sqlalchemy import select
+135 | |         from fpl_intelligence.fixtures.scanner import infer_current_gameweek, parse_fixtures
+136 | |         from fpl_intelligence.sync.materialized_models import FixturesCacheDB
+    | |_____________________________________________________________________________^
+137 |
+138 |           row = db.scalar(select(FixturesCacheDB).order_by(FixturesCacheDB.id.desc()).limit(1))
+    |
+help: Organize imports
+    |
+134 |         from sqlalchemy import select
+135 +
+136 |         from fpl_intelligence.fixtures.scanner import infer_current_gameweek, parse_fixtures
+    |
+
+F841 Local variable `delta` is assigned to but never used
+   --> src/fpl_intelligence/track_record/fomo.py:155:17
+    |
+153 |                     user_captain = rec_captain
+154 |                 user_pts = int(actuals.get(user_captain, 0))
+155 |                 delta = int(user_pts) - int(rec_pts)
+    |                 ^^^^^
+156 |                 # "Cost of Ignoring" is rec best vs user pick
+157 |                 # If score has best_alternative, use that as comparison
+    |
+help: Remove assignment to unused variable `delta`
+
+F841 Local variable `cost` is assigned to but never used
+   --> src/fpl_intelligence/track_record/fomo.py:167:21
+    |
+165 | …         cost = int(best_pts * 2) - int(user_pts * 2) if score.get("captain_points") is not None else int(best_pts) - int(user_pts)
+166 | …     else:
+167 | …         cost = int(rec_pts * 2) - int(user_pts * 2) if rec_pts is not None else 0
+    |           ^^^^
+168 | …     # Simpler: delta between rec captain (doubled) vs user captain
+169 | …     # Correct: doubled points comparison
+    |
+help: Remove assignment to unused variable `cost`
+
+F401 [*] `fpl_intelligence.config.get_settings` imported but unused
+  --> src/fpl_intelligence/web/dashboard.py:18:37
+   |
+16 | from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+17 |
+18 | from fpl_intelligence.config import get_settings
+   |                                     ^^^^^^^^^^^^
+19 |
+20 | router = APIRouter()
+   |
+help: Remove unused import: `fpl_intelligence.config.get_settings`
+   |
+17 |
+   - from fpl_intelligence.config import get_settings
+18 |
+   |
+
+SIM105 Use `contextlib.suppress(StopIteration)` instead of `try`-`except`-`pass`
+   --> src/fpl_intelligence/web/dashboard.py:142:13
+    |
+140 |               )
+141 |           finally:
+142 | /             try:
+143 | |                 next(db_gen, None)
+144 | |             except StopIteration:
+145 | |                 pass
+    | |____________________^
+146 |
+147 |       def _last_saved_session_id(db: object) -> str | None:
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(StopIteration): ...`
+
+I001 [*] Import block is un-sorted or un-formatted
+   --> src/fpl_intelligence/web/dashboard.py:148:9
+    |
+147 |       def _last_saved_session_id(db: object) -> str | None:
+148 | /         from sqlalchemy import select as _select
+149 | |         from fpl_intelligence.squad.models_db import SquadStateDB
+    | |_________________________________________________________________^
+150 |
+151 |           try:
+    |
+help: Organize imports
+    |
+148 |         from sqlalchemy import select as _select
+149 +
+150 |         from fpl_intelligence.squad.models_db import SquadStateDB
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/prediction/test_phase5_complete.py:13:1
+   |
+11 |   sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
+12 |
+13 | / from datetime import UTC, datetime
+14 | |
+15 | | import numpy as np
+16 | | import pytest
+17 | |
+18 | | from fpl_intelligence.config.holdout import (
+19 | |     DEVELOPMENT_SEASONS,
+20 | |     FINAL_HOLDOUT_SEASONS,
+21 | |     HoldoutMode,
+22 | |     HoldoutViolationError,
+23 | |     SeasonSplit,
+24 | |     enforce_holdout,
+25 | | )
+26 | | from fpl_intelligence.prediction.advanced_player.assist_model import AssistModel
+27 | | from fpl_intelligence.prediction.advanced_player.bonus_model import BonusModel
+28 | | from fpl_intelligence.prediction.advanced_player.clean_sheet_model import CleanSheetModel
+29 | | from fpl_intelligence.prediction.advanced_player.defensive_contribution_model import DefensiveContributionModel
+30 | | from fpl_intelligence.prediction.advanced_player.goal_model import GoalModel
+31 | | from fpl_intelligence.prediction.advanced_player.player_model import AdvancedPlayerModel
+32 | | from fpl_intelligence.prediction.distributions.calibration import CalibrationReport, evaluate_calibration
+33 | | from fpl_intelligence.prediction.distributions.engine import DistributionEngine
+34 | | from fpl_intelligence.prediction.match import MatchPrediction, PoissonMatchModel
+35 | | from fpl_intelligence.prediction.phase5_comparison import ComparisonResult, Phase5Comparison
+36 | | from fpl_intelligence.prediction.scoring import FPLPointsComponents, FPLScoringEngine
+37 | | from fpl_intelligence.prediction.simulation import GameweekSimulator, MatchSimulator
+38 | | from fpl_intelligence.simulation.gameweek import AdvancedGameweekSimulator
+39 | | from fpl_intelligence.simulation.joint import JointSimulator
+   | |____________________________________________________________^
+40 |
+41 |   # The remainder of this file is preserved from the existing regression suite.
+   |
+help: Organize imports
+   |
+28 | from fpl_intelligence.prediction.advanced_player.clean_sheet_model import CleanSheetModel
+   - from fpl_intelligence.prediction.advanced_player.defensive_contribution_model import DefensiveContributionModel
+29 + from fpl_intelligence.prediction.advanced_player.defensive_contribution_model import (
+30 +     DefensiveContributionModel,
+31 + )
+32 | from fpl_intelligence.prediction.advanced_player.goal_model import GoalModel
+33 | from fpl_intelligence.prediction.advanced_player.player_model import AdvancedPlayerModel
+   - from fpl_intelligence.prediction.distributions.calibration import CalibrationReport, evaluate_calibration
+34 + from fpl_intelligence.prediction.distributions.calibration import (
+35 +     CalibrationReport,
+36 +     evaluate_calibration,
+37 + )
+38 | from fpl_intelligence.prediction.distributions.engine import DistributionEngine
+   |
+
+F401 [*] `datetime.UTC` imported but unused
+  --> tests/prediction/test_phase5_complete.py:13:22
+   |
+11 | sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
+12 |
+13 | from datetime import UTC, datetime
+   |                      ^^^
+14 |
+15 | import numpy as np
+   |
+help: Remove unused import: `datetime.UTC`
+   |
+12 |
+   - from datetime import UTC, datetime
+13 + from datetime import datetime
+14 |
+   |
+
+F401 [*] `numpy` imported but unused
+  --> tests/prediction/test_phase5_complete.py:15:17
+   |
+13 | from datetime import UTC, datetime
+14 |
+15 | import numpy as np
+   |                 ^^
+16 | import pytest
+   |
+help: Remove unused import: `numpy`
+   |
+14 |
+   - import numpy as np
+15 | import pytest
+   |
+
+F401 [*] `fpl_intelligence.prediction.advanced_player.assist_model.AssistModel` imported but unused
+  --> tests/prediction/test_phase5_complete.py:26:70
+   |
+24 |     enforce_holdout,
+25 | )
+26 | from fpl_intelligence.prediction.advanced_player.assist_model import AssistModel
+   |                                                                      ^^^^^^^^^^^
+27 | from fpl_intelligence.prediction.advanced_player.bonus_model import BonusModel
+28 | from fpl_intelligence.prediction.advanced_player.clean_sheet_model import CleanSheetModel
+   |
+help: Remove unused import: `fpl_intelligence.prediction.advanced_player.assist_model.AssistModel`
+   |
+25 | )
+   - from fpl_intelligence.prediction.advanced_player.assist_model import AssistModel
+26 | from fpl_intelligence.prediction.advanced_player.bonus_model import BonusModel
+   |
+
+F401 [*] `fpl_intelligence.prediction.advanced_player.bonus_model.BonusModel` imported but unused
+  --> tests/prediction/test_phase5_complete.py:27:69
+   |
+25 | )
+26 | from fpl_intelligence.prediction.advanced_player.assist_model import AssistModel
+27 | from fpl_intelligence.prediction.advanced_player.bonus_model import BonusModel
+   |                                                                     ^^^^^^^^^^
+28 | from fpl_intelligence.prediction.advanced_player.clean_sheet_model import CleanSheetModel
+29 | from fpl_intelligence.prediction.advanced_player.defensive_contribution_model import DefensiveContributionModel
+   |
+help: Remove unused import: `fpl_intelligence.prediction.advanced_player.bonus_model.BonusModel`
+   |
+26 | from fpl_intelligence.prediction.advanced_player.assist_model import AssistModel
+   - from fpl_intelligence.prediction.advanced_player.bonus_model import BonusModel
+27 | from fpl_intelligence.prediction.advanced_player.clean_sheet_model import CleanSheetModel
+   |
+
+F401 [*] `fpl_intelligence.prediction.advanced_player.clean_sheet_model.CleanSheetModel` imported but unused
+  --> tests/prediction/test_phase5_complete.py:28:75
+   |
+26 | from fpl_intelligence.prediction.advanced_player.assist_model import AssistModel
+27 | from fpl_intelligence.prediction.advanced_player.bonus_model import BonusModel
+28 | from fpl_intelligence.prediction.advanced_player.clean_sheet_model import CleanSheetModel
+   |                                                                           ^^^^^^^^^^^^^^^
+29 | from fpl_intelligence.prediction.advanced_player.defensive_contribution_model import DefensiveContributionModel
+30 | from fpl_intelligence.prediction.advanced_player.goal_model import GoalModel
+   |
+help: Remove unused import: `fpl_intelligence.prediction.advanced_player.clean_sheet_model.CleanSheetModel`
+   |
+27 | from fpl_intelligence.prediction.advanced_player.bonus_model import BonusModel
+   - from fpl_intelligence.prediction.advanced_player.clean_sheet_model import CleanSheetModel
+28 | from fpl_intelligence.prediction.advanced_player.defensive_contribution_model import DefensiveContributionModel
+   |
+
+F401 [*] `fpl_intelligence.prediction.advanced_player.defensive_contribution_model.DefensiveContributionModel` imported but unused
+  --> tests/prediction/test_phase5_complete.py:29:86
+   |
+27 | from fpl_intelligence.prediction.advanced_player.bonus_model import BonusModel
+28 | from fpl_intelligence.prediction.advanced_player.clean_sheet_model import CleanSheetModel
+29 | from fpl_intelligence.prediction.advanced_player.defensive_contribution_model import DefensiveContributionModel
+   |                                                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^
+30 | from fpl_intelligence.prediction.advanced_player.goal_model import GoalModel
+31 | from fpl_intelligence.prediction.advanced_player.player_model import AdvancedPlayerModel
+   |
+help: Remove unused import: `fpl_intelligence.prediction.advanced_player.defensive_contribution_model.DefensiveContributionModel`
+   |
+28 | from fpl_intelligence.prediction.advanced_player.clean_sheet_model import CleanSheetModel
+   - from fpl_intelligence.prediction.advanced_player.defensive_contribution_model import DefensiveContributionModel
+29 | from fpl_intelligence.prediction.advanced_player.goal_model import GoalModel
+   |
+
+F401 [*] `fpl_intelligence.prediction.advanced_player.goal_model.GoalModel` imported but unused
+  --> tests/prediction/test_phase5_complete.py:30:68
+   |
+28 | from fpl_intelligence.prediction.advanced_player.clean_sheet_model import CleanSheetModel
+29 | from fpl_intelligence.prediction.advanced_player.defensive_contribution_model import DefensiveContributionModel
+30 | from fpl_intelligence.prediction.advanced_player.goal_model import GoalModel
+   |                                                                    ^^^^^^^^^
+31 | from fpl_intelligence.prediction.advanced_player.player_model import AdvancedPlayerModel
+32 | from fpl_intelligence.prediction.distributions.calibration import CalibrationReport, evaluate_calibration
+   |
+help: Remove unused import: `fpl_intelligence.prediction.advanced_player.goal_model.GoalModel`
+   |
+29 | from fpl_intelligence.prediction.advanced_player.defensive_contribution_model import DefensiveContributionModel
+   - from fpl_intelligence.prediction.advanced_player.goal_model import GoalModel
+30 | from fpl_intelligence.prediction.advanced_player.player_model import AdvancedPlayerModel
+   |
+
+F401 [*] `fpl_intelligence.prediction.advanced_player.player_model.AdvancedPlayerModel` imported but unused
+  --> tests/prediction/test_phase5_complete.py:31:70
+   |
+29 | from fpl_intelligence.prediction.advanced_player.defensive_contribution_model import DefensiveContributionModel
+30 | from fpl_intelligence.prediction.advanced_player.goal_model import GoalModel
+31 | from fpl_intelligence.prediction.advanced_player.player_model import AdvancedPlayerModel
+   |                                                                      ^^^^^^^^^^^^^^^^^^^
+32 | from fpl_intelligence.prediction.distributions.calibration import CalibrationReport, evaluate_calibration
+33 | from fpl_intelligence.prediction.distributions.engine import DistributionEngine
+   |
+help: Remove unused import: `fpl_intelligence.prediction.advanced_player.player_model.AdvancedPlayerModel`
+   |
+30 | from fpl_intelligence.prediction.advanced_player.goal_model import GoalModel
+   - from fpl_intelligence.prediction.advanced_player.player_model import AdvancedPlayerModel
+31 | from fpl_intelligence.prediction.distributions.calibration import CalibrationReport, evaluate_calibration
+   |
+
+F401 [*] `fpl_intelligence.prediction.distributions.calibration.CalibrationReport` imported but unused
+  --> tests/prediction/test_phase5_complete.py:32:67
+   |
+30 | from fpl_intelligence.prediction.advanced_player.goal_model import GoalModel
+31 | from fpl_intelligence.prediction.advanced_player.player_model import AdvancedPlayerModel
+32 | from fpl_intelligence.prediction.distributions.calibration import CalibrationReport, evaluate_calibration
+   |                                                                   ^^^^^^^^^^^^^^^^^
+33 | from fpl_intelligence.prediction.distributions.engine import DistributionEngine
+34 | from fpl_intelligence.prediction.match import MatchPrediction, PoissonMatchModel
+   |
+help: Remove unused import
+   |
+31 | from fpl_intelligence.prediction.advanced_player.player_model import AdvancedPlayerModel
+   - from fpl_intelligence.prediction.distributions.calibration import CalibrationReport, evaluate_calibration
+32 | from fpl_intelligence.prediction.distributions.engine import DistributionEngine
+   |
+
+F401 [*] `fpl_intelligence.prediction.distributions.calibration.evaluate_calibration` imported but unused
+  --> tests/prediction/test_phase5_complete.py:32:86
+   |
+30 | from fpl_intelligence.prediction.advanced_player.goal_model import GoalModel
+31 | from fpl_intelligence.prediction.advanced_player.player_model import AdvancedPlayerModel
+32 | from fpl_intelligence.prediction.distributions.calibration import CalibrationReport, evaluate_calibration
+   |                                                                                      ^^^^^^^^^^^^^^^^^^^^
+33 | from fpl_intelligence.prediction.distributions.engine import DistributionEngine
+34 | from fpl_intelligence.prediction.match import MatchPrediction, PoissonMatchModel
+   |
+help: Remove unused import
+   |
+31 | from fpl_intelligence.prediction.advanced_player.player_model import AdvancedPlayerModel
+   - from fpl_intelligence.prediction.distributions.calibration import CalibrationReport, evaluate_calibration
+32 | from fpl_intelligence.prediction.distributions.engine import DistributionEngine
+   |
+
+F401 [*] `fpl_intelligence.prediction.distributions.engine.DistributionEngine` imported but unused
+  --> tests/prediction/test_phase5_complete.py:33:62
+   |
+31 | from fpl_intelligence.prediction.advanced_player.player_model import AdvancedPlayerModel
+32 | from fpl_intelligence.prediction.distributions.calibration import CalibrationReport, evaluate_calibration
+33 | from fpl_intelligence.prediction.distributions.engine import DistributionEngine
+   |                                                              ^^^^^^^^^^^^^^^^^^
+34 | from fpl_intelligence.prediction.match import MatchPrediction, PoissonMatchModel
+35 | from fpl_intelligence.prediction.phase5_comparison import ComparisonResult, Phase5Comparison
+   |
+help: Remove unused import: `fpl_intelligence.prediction.distributions.engine.DistributionEngine`
+   |
+32 | from fpl_intelligence.prediction.distributions.calibration import CalibrationReport, evaluate_calibration
+   - from fpl_intelligence.prediction.distributions.engine import DistributionEngine
+33 | from fpl_intelligence.prediction.match import MatchPrediction, PoissonMatchModel
+   |
+
+F401 [*] `fpl_intelligence.prediction.match.MatchPrediction` imported but unused
+  --> tests/prediction/test_phase5_complete.py:34:47
+   |
+32 | from fpl_intelligence.prediction.distributions.calibration import CalibrationReport, evaluate_calibration
+33 | from fpl_intelligence.prediction.distributions.engine import DistributionEngine
+34 | from fpl_intelligence.prediction.match import MatchPrediction, PoissonMatchModel
+   |                                               ^^^^^^^^^^^^^^^
+35 | from fpl_intelligence.prediction.phase5_comparison import ComparisonResult, Phase5Comparison
+36 | from fpl_intelligence.prediction.scoring import FPLPointsComponents, FPLScoringEngine
+   |
+help: Remove unused import
+   |
+33 | from fpl_intelligence.prediction.distributions.engine import DistributionEngine
+   - from fpl_intelligence.prediction.match import MatchPrediction, PoissonMatchModel
+34 | from fpl_intelligence.prediction.phase5_comparison import ComparisonResult, Phase5Comparison
+   |
+
+F401 [*] `fpl_intelligence.prediction.match.PoissonMatchModel` imported but unused
+  --> tests/prediction/test_phase5_complete.py:34:64
+   |
+32 | from fpl_intelligence.prediction.distributions.calibration import CalibrationReport, evaluate_calibration
+33 | from fpl_intelligence.prediction.distributions.engine import DistributionEngine
+34 | from fpl_intelligence.prediction.match import MatchPrediction, PoissonMatchModel
+   |                                                                ^^^^^^^^^^^^^^^^^
+35 | from fpl_intelligence.prediction.phase5_comparison import ComparisonResult, Phase5Comparison
+36 | from fpl_intelligence.prediction.scoring import FPLPointsComponents, FPLScoringEngine
+   |
+help: Remove unused import
+   |
+33 | from fpl_intelligence.prediction.distributions.engine import DistributionEngine
+   - from fpl_intelligence.prediction.match import MatchPrediction, PoissonMatchModel
+34 | from fpl_intelligence.prediction.phase5_comparison import ComparisonResult, Phase5Comparison
+   |
+
+F401 [*] `fpl_intelligence.prediction.phase5_comparison.ComparisonResult` imported but unused
+  --> tests/prediction/test_phase5_complete.py:35:59
+   |
+33 | from fpl_intelligence.prediction.distributions.engine import DistributionEngine
+34 | from fpl_intelligence.prediction.match import MatchPrediction, PoissonMatchModel
+35 | from fpl_intelligence.prediction.phase5_comparison import ComparisonResult, Phase5Comparison
+   |                                                           ^^^^^^^^^^^^^^^^
+36 | from fpl_intelligence.prediction.scoring import FPLPointsComponents, FPLScoringEngine
+37 | from fpl_intelligence.prediction.simulation import GameweekSimulator, MatchSimulator
+   |
+help: Remove unused import
+   |
+34 | from fpl_intelligence.prediction.match import MatchPrediction, PoissonMatchModel
+   - from fpl_intelligence.prediction.phase5_comparison import ComparisonResult, Phase5Comparison
+35 | from fpl_intelligence.prediction.scoring import FPLPointsComponents, FPLScoringEngine
+   |
+
+F401 [*] `fpl_intelligence.prediction.phase5_comparison.Phase5Comparison` imported but unused
+  --> tests/prediction/test_phase5_complete.py:35:77
+   |
+33 | from fpl_intelligence.prediction.distributions.engine import DistributionEngine
+34 | from fpl_intelligence.prediction.match import MatchPrediction, PoissonMatchModel
+35 | from fpl_intelligence.prediction.phase5_comparison import ComparisonResult, Phase5Comparison
+   |                                                                             ^^^^^^^^^^^^^^^^
+36 | from fpl_intelligence.prediction.scoring import FPLPointsComponents, FPLScoringEngine
+37 | from fpl_intelligence.prediction.simulation import GameweekSimulator, MatchSimulator
+   |
+help: Remove unused import
+   |
+34 | from fpl_intelligence.prediction.match import MatchPrediction, PoissonMatchModel
+   - from fpl_intelligence.prediction.phase5_comparison import ComparisonResult, Phase5Comparison
+35 | from fpl_intelligence.prediction.scoring import FPLPointsComponents, FPLScoringEngine
+   |
+
+F401 [*] `fpl_intelligence.prediction.simulation.GameweekSimulator` imported but unused
+  --> tests/prediction/test_phase5_complete.py:37:52
+   |
+35 | from fpl_intelligence.prediction.phase5_comparison import ComparisonResult, Phase5Comparison
+36 | from fpl_intelligence.prediction.scoring import FPLPointsComponents, FPLScoringEngine
+37 | from fpl_intelligence.prediction.simulation import GameweekSimulator, MatchSimulator
+   |                                                    ^^^^^^^^^^^^^^^^^
+38 | from fpl_intelligence.simulation.gameweek import AdvancedGameweekSimulator
+39 | from fpl_intelligence.simulation.joint import JointSimulator
+   |
+help: Remove unused import
+   |
+36 | from fpl_intelligence.prediction.scoring import FPLPointsComponents, FPLScoringEngine
+   - from fpl_intelligence.prediction.simulation import GameweekSimulator, MatchSimulator
+37 | from fpl_intelligence.simulation.gameweek import AdvancedGameweekSimulator
+   |
+
+F401 [*] `fpl_intelligence.prediction.simulation.MatchSimulator` imported but unused
+  --> tests/prediction/test_phase5_complete.py:37:71
+   |
+35 | from fpl_intelligence.prediction.phase5_comparison import ComparisonResult, Phase5Comparison
+36 | from fpl_intelligence.prediction.scoring import FPLPointsComponents, FPLScoringEngine
+37 | from fpl_intelligence.prediction.simulation import GameweekSimulator, MatchSimulator
+   |                                                                       ^^^^^^^^^^^^^^
+38 | from fpl_intelligence.simulation.gameweek import AdvancedGameweekSimulator
+39 | from fpl_intelligence.simulation.joint import JointSimulator
+   |
+help: Remove unused import
+   |
+36 | from fpl_intelligence.prediction.scoring import FPLPointsComponents, FPLScoringEngine
+   - from fpl_intelligence.prediction.simulation import GameweekSimulator, MatchSimulator
+37 | from fpl_intelligence.simulation.gameweek import AdvancedGameweekSimulator
+   |
+
+F401 [*] `fpl_intelligence.simulation.gameweek.AdvancedGameweekSimulator` imported but unused
+  --> tests/prediction/test_phase5_complete.py:38:50
+   |
+36 | from fpl_intelligence.prediction.scoring import FPLPointsComponents, FPLScoringEngine
+37 | from fpl_intelligence.prediction.simulation import GameweekSimulator, MatchSimulator
+38 | from fpl_intelligence.simulation.gameweek import AdvancedGameweekSimulator
+   |                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+39 | from fpl_intelligence.simulation.joint import JointSimulator
+   |
+help: Remove unused import: `fpl_intelligence.simulation.gameweek.AdvancedGameweekSimulator`
+   |
+37 | from fpl_intelligence.prediction.simulation import GameweekSimulator, MatchSimulator
+   - from fpl_intelligence.simulation.gameweek import AdvancedGameweekSimulator
+38 | from fpl_intelligence.simulation.joint import JointSimulator
+   |
+
+F401 [*] `fpl_intelligence.simulation.joint.JointSimulator` imported but unused
+  --> tests/prediction/test_phase5_complete.py:39:47
+   |
+37 | from fpl_intelligence.prediction.simulation import GameweekSimulator, MatchSimulator
+38 | from fpl_intelligence.simulation.gameweek import AdvancedGameweekSimulator
+39 | from fpl_intelligence.simulation.joint import JointSimulator
+   |                                               ^^^^^^^^^^^^^^
+40 |
+41 | # The remainder of this file is preserved from the existing regression suite.
+   |
+help: Remove unused import: `fpl_intelligence.simulation.joint.JointSimulator`
+   |
+38 | from fpl_intelligence.simulation.gameweek import AdvancedGameweekSimulator
+   - from fpl_intelligence.simulation.joint import JointSimulator
+39 |
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_phase1_fixes.py:8:1
+   |
+ 6 |   1.3 - Chip baseline only counts players with real (>0) xPTS predictions.
+ 7 |   """
+ 8 | / from __future__ import annotations
+ 9 | |
+10 | | import json
+11 | | from unittest.mock import MagicMock, patch
+12 | |
+13 | | import pytest
+14 | | from fastapi.testclient import TestClient
+15 | | from sqlalchemy import create_engine
+16 | | from sqlalchemy.orm import sessionmaker
+17 | |
+18 | | from fpl_intelligence.api.main import app
+19 | | from fpl_intelligence.db.base import Base
+   | |_________________________________________^
+help: Organize imports
+   |
+20 |
+   -
+21 | # ---------------------------------------------------------------------------
+   |
+
+F401 [*] `json` imported but unused
+  --> tests/test_phase1_fixes.py:10:8
+   |
+ 8 | from __future__ import annotations
+ 9 |
+10 | import json
+   |        ^^^^
+11 | from unittest.mock import MagicMock, patch
+   |
+help: Remove unused import: `json`
+   |
+9  |
+   - import json
+10 | from unittest.mock import MagicMock, patch
+   |
+
+F401 [*] `fastapi.testclient.TestClient` imported but unused
+  --> tests/test_phase1_fixes.py:14:32
+   |
+13 | import pytest
+14 | from fastapi.testclient import TestClient
+   |                                ^^^^^^^^^^
+15 | from sqlalchemy import create_engine
+16 | from sqlalchemy.orm import sessionmaker
+   |
+help: Remove unused import: `fastapi.testclient.TestClient`
+   |
+13 | import pytest
+   - from fastapi.testclient import TestClient
+14 | from sqlalchemy import create_engine
+   |
+
+F401 [*] `fpl_intelligence.api.main.app` imported but unused
+  --> tests/test_phase1_fixes.py:18:39
+   |
+16 | from sqlalchemy.orm import sessionmaker
+17 |
+18 | from fpl_intelligence.api.main import app
+   |                                       ^^^
+19 | from fpl_intelligence.db.base import Base
+   |
+help: Remove unused import: `fpl_intelligence.api.main.app`
+   |
+17 |
+   - from fpl_intelligence.api.main import app
+18 | from fpl_intelligence.db.base import Base
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_phase1_fixes.py:65:9
+   |
+63 |     def test_bank_tenths_converted_to_pounds(self, db_session):
+64 |         """squad_push with bank=45 (FPL tenths) should store 4.5 (£m)."""
+65 |         from fpl_intelligence.api.routes.sync import squad_push, SquadPushPayload, PickItem
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+66 |
+67 |         # Patch catalog so prices are available
+   |
+help: Organize imports
+   |
+64 |         """squad_push with bank=45 (FPL tenths) should store 4.5 (£m)."""
+   -         from fpl_intelligence.api.routes.sync import squad_push, SquadPushPayload, PickItem
+65 +         from fpl_intelligence.api.routes.sync import PickItem, SquadPushPayload, squad_push
+66 |
+   |
+
+F401 [*] `fpl_intelligence.api.routes.sync.squad_push` imported but unused
+  --> tests/test_phase1_fixes.py:65:54
+   |
+63 |     def test_bank_tenths_converted_to_pounds(self, db_session):
+64 |         """squad_push with bank=45 (FPL tenths) should store 4.5 (£m)."""
+65 |         from fpl_intelligence.api.routes.sync import squad_push, SquadPushPayload, PickItem
+   |                                                      ^^^^^^^^^^
+66 |
+67 |         # Patch catalog so prices are available
+   |
+help: Remove unused import: `fpl_intelligence.api.routes.sync.squad_push`
+   |
+64 |         """squad_push with bank=45 (FPL tenths) should store 4.5 (£m)."""
+   -         from fpl_intelligence.api.routes.sync import squad_push, SquadPushPayload, PickItem
+65 +         from fpl_intelligence.api.routes.sync import SquadPushPayload, PickItem
+66 |
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_v277_league_regression.py:19:1
+   |
+17 |   """
+18 |
+19 | / from __future__ import annotations
+20 | |
+21 | | from collections.abc import Generator
+22 | | from unittest.mock import MagicMock, patch
+23 | |
+24 | | import pytest
+25 | | from fastapi.testclient import TestClient
+26 | | from sqlalchemy.exc import OperationalError
+27 | | from sqlalchemy.orm import Session
+28 | |
+29 | | from fpl_intelligence.api import deps
+   | |_____________________________________^
+help: Organize imports
+   |
+30 |
+   -
+31 | # ---------------------------------------------------------------------------
+   |
+
+F401 [*] `unittest.mock.patch` imported but unused
+  --> tests/test_v277_league_regression.py:22:38
+   |
+21 | from collections.abc import Generator
+22 | from unittest.mock import MagicMock, patch
+   |                                      ^^^^^
+23 |
+24 | import pytest
+   |
+help: Remove unused import: `unittest.mock.patch`
+   |
+21 | from collections.abc import Generator
+   - from unittest.mock import MagicMock, patch
+22 + from unittest.mock import MagicMock
+23 |
+   |
+
+F401 [*] `pytest` imported but unused
+  --> tests/test_v277_league_regression.py:24:8
+   |
+22 | from unittest.mock import MagicMock, patch
+23 |
+24 | import pytest
+   |        ^^^^^^
+25 | from fastapi.testclient import TestClient
+26 | from sqlalchemy.exc import OperationalError
+   |
+help: Remove unused import: `pytest`
+   |
+23 |
+   - import pytest
+24 | from fastapi.testclient import TestClient
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/unit/test_chronological_and_lift.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | from datetime import UTC, datetime, timedelta
+4 | | from pathlib import Path
+5 | |
+6 | | from fpl_intelligence.availability.historical.chronological import evaluate_materialize_report
+7 | | from fpl_intelligence.availability.historical.materialize_pit import DeadlineCutoff, MaterializedSnapshot, MaterializeReport
+  | |____________________________________________________________________________________________________________________________^
+help: Organize imports
+   |
+6  | from fpl_intelligence.availability.historical.chronological import evaluate_materialize_report
+   - from fpl_intelligence.availability.historical.materialize_pit import DeadlineCutoff, MaterializedSnapshot, MaterializeReport
+7  + from fpl_intelligence.availability.historical.materialize_pit import (
+8  +     DeadlineCutoff,
+9  +     MaterializedSnapshot,
+10 +     MaterializeReport,
+11 + )
+12 |
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/unit/test_db_production_safety.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import pytest
+4 | |
+5 | | from fpl_intelligence.db import session as db_session
+  | |_____________________________________________________^
+6 |
+7 |   def test_production_rejects_default_or_sqlite_database(monkeypatch):
+  |
+help: Organize imports
+  |
+6 |
+7 +
+8 | def test_production_rejects_default_or_sqlite_database(monkeypatch):
+  |
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/unit/test_fpl_2026_27_rules.py:1:1
+  |
+1 | / from pathlib import Path
+2 | |
+3 | | import pytest
+4 | |
+5 | | from fpl_intelligence.prediction.scoring import FPLPointsComponents, FPLScoringEngine
+  | |_____________________________________________________________________________________^
+help: Organize imports
+  |
+6 |
+  -
+7 | RULES_PATH = Path(__file__).resolve().parents[2] / "config" / "fpl_rules" / "2026-27.yaml"
+  |
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/unit/test_fpl_egress_resilience.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import asyncio
+4 | |
+5 | | from fpl_intelligence.data_providers.fpl_egress import FplEgressChain
+  | |_____________________________________________________________________^
+6 |
+7 |   def test_recent_stale_cache_survives_provider_exhaustion():
+  |
+help: Organize imports
+  |
+6 |
+7 +
+8 | def test_recent_stale_cache_survives_provider_exhaustion():
+  |
+
+F401 [*] `pytest` imported but unused
+ --> tests/unit/test_gameweek_season_scope.py:3:8
+  |
+1 | from __future__ import annotations
+2 |
+3 | import pytest
+  |        ^^^^^^
+4 | from sqlalchemy import create_engine
+5 | from sqlalchemy.orm import Session
+  |
+help: Remove unused import: `pytest`
+  |
+2 |
+  - import pytest
+3 | from sqlalchemy import create_engine
+  |
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/unit/test_minutes_validation_fast.py:1:1
+  |
+1 | / from datetime import UTC, datetime
+2 | |
+3 | | from fpl_intelligence.prediction.minutes_validation_fast import FastMinutesWalkForwardEvaluator, _PerfRow
+4 | | from fpl_intelligence.prediction.training import TrainingDataBuilder
+  | |____________________________________________________________________^
+help: Organize imports
+  |
+2 |
+  - from fpl_intelligence.prediction.minutes_validation_fast import FastMinutesWalkForwardEvaluator, _PerfRow
+3 + from fpl_intelligence.prediction.minutes_validation_fast import (
+4 +     FastMinutesWalkForwardEvaluator,
+5 +     _PerfRow,
+6 + )
+7 | from fpl_intelligence.prediction.training import TrainingDataBuilder
+  |
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/unit/test_performance_middleware.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | from fastapi import FastAPI
+4 | | from fastapi.testclient import TestClient
+5 | |
+6 | | from fpl_intelligence.api.performance import RequestProfilingMiddleware
+  | |_______________________________________________________________________^
+7 |
+8 |   def test_request_id_is_generated_and_returned():
+  |
+help: Organize imports
+  |
+7 |
+8 +
+9 | def test_request_id_is_generated_and_returned():
+  |
+
+F401 [*] `fpl_intelligence.optimization.provider.PlayerPrediction` imported but unused
+ --> tests/unit/test_phase15_4_lightweight_pool.py:5:52
+  |
+3 | import numpy as np
+4 |
+5 | from fpl_intelligence.optimization.provider import PlayerPrediction
+  |                                                    ^^^^^^^^^^^^^^^^
+6 | from fpl_intelligence.prediction.live_provider import _make_prediction
+  |
+help: Remove unused import: `fpl_intelligence.optimization.provider.PlayerPrediction`
+  |
+4 |
+  - from fpl_intelligence.optimization.provider import PlayerPrediction
+5 | from fpl_intelligence.prediction.live_provider import _make_prediction
+  |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/unit/test_phase1_5_squad_truth.py:30:1
+   |
+28 |   os.environ.setdefault("FPL_NO_NETWORK", "1")
+29 |
+30 | / import pytest  # noqa: E402
+31 | | from fastapi.testclient import TestClient  # noqa: E402
+32 | | from sqlalchemy.orm import Session  # noqa: E402
+33 | |
+34 | | from fpl_intelligence.api import deps  # noqa: E402
+35 | | from fpl_intelligence.api.routes.squad import (  # noqa: E402
+36 | |     FromFplRequest,
+37 | |     _build_transfer_status,
+38 | | )
+39 | | from fpl_intelligence.live_intelligence.bridge import (  # noqa: E402
+40 | |     StaticPredictionProvider,
+41 | | )
+42 | | from fpl_intelligence.squad.models import SquadStateCreate  # noqa: E402
+43 | | from fpl_intelligence.squad.service import SquadService  # noqa: E402
+   | |_______________________________________________________^
+help: Organize imports
+   |
+44 |
+   -
+45 | # --------------------------------------------------------------------------- #
+   |
+
+F841 Local variable `sid` is assigned to but never used
+   --> tests/unit/test_phase24_compare_chips.py:133:5
+    |
+132 | def test_drawer_shows_set_piece_chips(client):
+133 |     sid = _make_squad(client, "drawer_sp")
+    |     ^^^
+134 |     # 5 known takers from set_piece_takers.json: Saka 12 (ARS), Haaland 411 (MCI), Palmer 154 (CHE), Watkins 55 (AVL), Isak 379 (LIV)
+135 |     for pid, should_have in [(12, "penalty"), (411, "penalty"), (154, "penalty"), (55, "penalty"), (379, "penalty")]:
+    |
+help: Remove assignment to unused variable `sid`
+
+B007 Loop control variable `should_have` not used within loop body
+   --> tests/unit/test_phase24_compare_chips.py:135:14
+    |
+133 |     sid = _make_squad(client, "drawer_sp")
+134 |     # 5 known takers from set_piece_takers.json: Saka 12 (ARS), Haaland 411 (MCI), Palmer 154 (CHE), Watkins 55 (AVL), Isak 379 (LIV)
+135 |     for pid, should_have in [(12, "penalty"), (411, "penalty"), (154, "penalty"), (55, "penalty"), (379, "penalty")]:
+    |              ^^^^^^^^^^^
+136 |         r = client.get(f"/api/v1/player/{pid}/drawer", params={"session_id": "drawer_sp"})
+137 |         assert r.status_code == 200, r.text
+    |
+help: Rename unused `should_have` to `_should_have`
+
+F401 [*] `json` imported but unused
+ --> tests/unit/test_phase27_shadow.py:8:8
+  |
+6 | from __future__ import annotations
+7 |
+8 | import json
+  |        ^^^^
+9 | from datetime import UTC, datetime
+  |
+help: Remove unused import: `json`
+  |
+7 |
+  - import json
+8 | from datetime import UTC, datetime
+  |
+
+F401 [*] `sqlalchemy.select` imported but unused
+  --> tests/unit/test_phase27_shadow.py:13:24
+   |
+11 | import pytest
+12 | from fastapi.testclient import TestClient
+13 | from sqlalchemy import select
+   |                        ^^^^^^
+14 |
+15 | from fpl_intelligence.api.main import app
+   |
+help: Remove unused import: `sqlalchemy.select`
+   |
+12 | from fastapi.testclient import TestClient
+   - from sqlalchemy import select
+13 |
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/unit/test_phase7_availability.py:9:1
+   |
+ 7 |   """
+ 8 |
+ 9 | / from __future__ import annotations
+10 | |
+11 | | from datetime import UTC, datetime
+12 | | from pathlib import Path
+13 | |
+14 | | import numpy as np
+15 | | import pytest
+16 | | from sqlalchemy.orm import Session
+17 | |
+18 | | from fpl_intelligence.availability import evidence as ev
+19 | | from fpl_intelligence.availability import metrics as mtr
+20 | | from fpl_intelligence.availability import state as st
+21 | | from fpl_intelligence.availability.db_provider import (
+22 | |     DBAvailabilityProvider,
+23 | |     DBNewsProvider,
+24 | | )
+25 | | from fpl_intelligence.availability.evaluation import (
+26 | |     Phase7EvaluationResult,
+27 | |     evaluate_phase7,
+28 | | )
+29 | | from fpl_intelligence.availability.minutes_integration import (
+30 | |     AvailabilityAwareMinutesModel,
+31 | | )
+32 | | from fpl_intelligence.availability.historical.temporal import AvailabilityTimestamps
+33 | | from fpl_intelligence.availability.models import (
+34 | |     AvailabilityArticle,
+35 | |     AvailabilityEvent,
+36 | |     AvailabilitySource,
+37 | |     AvailabilityStatus,
+38 | |     EvidenceType,
+39 | |     SourceReliability,
+40 | |     TemporalClass,
+41 | |     TrainingReport,
+42 | | )
+43 | | from fpl_intelligence.db.models import (
+44 | |     PlayerExternalId,
+45 | |     TeamExternalId,
+46 | | )
+47 | | from fpl_intelligence.availability.prediction_wrapper import (
+48 | |     AvailabilityAwarePredictionProvider,
+49 | | )
+50 | | from fpl_intelligence.availability.validation import (
+51 | |     audit_availability_coverage,
+52 | |     audit_temporal_availability,
+53 | | )
+54 | | from fpl_intelligence.optimization.provider import (
+55 | |     DecisionPredictionProvider,
+56 | |     PlayerPrediction,
+57 | | )
+   | |_^
+58 |
+59 |   # ---------------------------------------------------------------------------
+   |
+help: Organize imports
+   |
+28 | )
+29 + from fpl_intelligence.availability.historical.temporal import AvailabilityTimestamps
+30 | from fpl_intelligence.availability.minutes_integration import (
+31 |     AvailabilityAwareMinutesModel,
+32 | )
+   - from fpl_intelligence.availability.historical.temporal import AvailabilityTimestamps
+33 | from fpl_intelligence.availability.models import (
+--------------------------------------------------------------------------------
+41 |     TrainingReport,
+   - )
+   - from fpl_intelligence.db.models import (
+   -     PlayerExternalId,
+   -     TeamExternalId,
+42 | )
+--------------------------------------------------------------------------------
+49 | )
+50 + from fpl_intelligence.db.models import (
+51 +     PlayerExternalId,
+52 +     TeamExternalId,
+53 + )
+54 | from fpl_intelligence.optimization.provider import (
+   |
+
+F401 [*] `pathlib.Path` imported but unused
+  --> tests/unit/test_phase7_availability.py:12:21
+   |
+11 | from datetime import UTC, datetime
+12 | from pathlib import Path
+   |                     ^^^^
+13 |
+14 | import numpy as np
+   |
+help: Remove unused import: `pathlib.Path`
+   |
+11 | from datetime import UTC, datetime
+   - from pathlib import Path
+12 |
+   |
+
+F401 [*] `fpl_intelligence.availability.historical.temporal.AvailabilityTimestamps` imported but unused
+  --> tests/unit/test_phase7_availability.py:32:63
+   |
+30 |     AvailabilityAwareMinutesModel,
+31 | )
+32 | from fpl_intelligence.availability.historical.temporal import AvailabilityTimestamps
+   |                                                               ^^^^^^^^^^^^^^^^^^^^^^
+33 | from fpl_intelligence.availability.models import (
+34 |     AvailabilityArticle,
+   |
+help: Remove unused import: `fpl_intelligence.availability.historical.temporal.AvailabilityTimestamps`
+   |
+31 | )
+   - from fpl_intelligence.availability.historical.temporal import AvailabilityTimestamps
+32 | from fpl_intelligence.availability.models import (
+   |
+
+F401 [*] `fpl_intelligence.availability.models.TemporalClass` imported but unused
+  --> tests/unit/test_phase7_availability.py:40:5
+   |
+38 |     EvidenceType,
+39 |     SourceReliability,
+40 |     TemporalClass,
+   |     ^^^^^^^^^^^^^
+41 |     TrainingReport,
+42 | )
+   |
+help: Remove unused import: `fpl_intelligence.availability.models.TemporalClass`
+   |
+39 |     SourceReliability,
+   -     TemporalClass,
+40 |     TrainingReport,
+   |
+
+F401 [*] `fpl_intelligence.availability.historical.importer.ResolverAudit` imported but unused
+    --> tests/unit/test_phase7_availability.py:1073:13
+     |
+1071 |         )
+1072 |         from fpl_intelligence.availability.historical.importer import (
+1073 |             ResolverAudit,
+     |             ^^^^^^^^^^^^^
+1074 |         )
+1075 |         from fpl_intelligence.db.models import PlayerExternalId, TeamExternalId
+     |
+help: Remove unused import: `fpl_intelligence.availability.historical.importer.ResolverAudit`
+     |
+1071 |         )
+     -         from fpl_intelligence.availability.historical.importer import (
+     -             ResolverAudit,
+     -         )
+1072 |         from fpl_intelligence.db.models import PlayerExternalId, TeamExternalId
+     |
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/unit/test_pit_fplcache_availability.py:2:1
+  |
+1 |   """Unit tests for immutable fplcache PIT extraction."""
+2 | / from __future__ import annotations
+3 | |
+4 | | import json
+5 | | import lzma
+6 | | from datetime import UTC, datetime
+7 | | from pathlib import Path
+8 | |
+9 | | from fpl_intelligence.availability.historical.pit_fplcache import PointInTimeFPLCacheAvailabilityProvider, SnapshotRef
+  | |______________________________________________________________________________________________________________________^
+help: Organize imports
+   |
+8  |
+   - from fpl_intelligence.availability.historical.pit_fplcache import PointInTimeFPLCacheAvailabilityProvider, SnapshotRef
+9  + from fpl_intelligence.availability.historical.pit_fplcache import (
+10 +     PointInTimeFPLCacheAvailabilityProvider,
+11 +     SnapshotRef,
+12 + )
+13 |
+   |
+
+SIM401 Use `events[0].get("event_time", True)` instead of an `if` block
+  --> tests/unit/test_pit_fplcache_availability.py:39:12
+   |
+37 |     assert events[0]["timestamps"].published_at == captured
+38 |     assert events[0]["timestamps"].available_at == captured
+39 |     assert events[0]["event_time"] if "event_time" in events[0] else True
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+help: Replace with `events[0].get("event_time", True)`
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/unit/test_v253_sync_truth.py:2:1
+   |
+ 1 |   """v2.5.3 — sync truth: next-GW picks, cache bump, sync-now banner."""
+ 2 | / from __future__ import annotations
+ 3 | |
+ 4 | | import asyncio
+ 5 | | from datetime import UTC, datetime
+ 6 | | from unittest.mock import AsyncMock, patch
+ 7 | |
+ 8 | | import pytest
+ 9 | | from fastapi.testclient import TestClient
+10 | | from sqlalchemy import select
+11 | |
+12 | | from fpl_intelligence.db.session import get_db
+13 | | from fpl_intelligence.squad.models import SquadStateCreate
+14 | | from fpl_intelligence.squad.service import SquadService
+15 | | from fpl_intelligence.squad.fpl_import import FplSquadImporter
+   | |______________________________________________________________^
+help: Organize imports
+   |
+12 | from fpl_intelligence.db.session import get_db
+13 + from fpl_intelligence.squad.fpl_import import FplSquadImporter
+14 | from fpl_intelligence.squad.models import SquadStateCreate
+15 | from fpl_intelligence.squad.service import SquadService
+   - from fpl_intelligence.squad.fpl_import import FplSquadImporter
+   -
+16 |
+   |
+
+F401 [*] `datetime.UTC` imported but unused
+ --> tests/unit/test_v253_sync_truth.py:5:22
+  |
+4 | import asyncio
+5 | from datetime import UTC, datetime
+  |                      ^^^
+6 | from unittest.mock import AsyncMock, patch
+  |
+help: Remove unused import
+  |
+4 | import asyncio
+  - from datetime import UTC, datetime
+5 | from unittest.mock import AsyncMock, patch
+  |
+
+F401 [*] `datetime.datetime` imported but unused
+ --> tests/unit/test_v253_sync_truth.py:5:27
+  |
+4 | import asyncio
+5 | from datetime import UTC, datetime
+  |                           ^^^^^^^^
+6 | from unittest.mock import AsyncMock, patch
+  |
+help: Remove unused import
+  |
+4 | import asyncio
+  - from datetime import UTC, datetime
+5 | from unittest.mock import AsyncMock, patch
+  |
+
+F401 [*] `sqlalchemy.select` imported but unused
+  --> tests/unit/test_v253_sync_truth.py:10:24
+   |
+ 8 | import pytest
+ 9 | from fastapi.testclient import TestClient
+10 | from sqlalchemy import select
+   |                        ^^^^^^
+11 |
+12 | from fpl_intelligence.db.session import get_db
+   |
+help: Remove unused import: `sqlalchemy.select`
+   |
+9  | from fastapi.testclient import TestClient
+   - from sqlalchemy import select
+10 |
+   |
+
+F841 Local variable `call` is assigned to but never used
+  --> tests/unit/test_v253_sync_truth.py:90:9
+   |
+88 |         # Mock chain fetch: entry, bootstrap, picks_cur, picks_next in order
+89 |         entry = {"id": 2295006, "name": "Tricky Maro", "current_event": 1}
+90 |         call = {"n": 0}
+   |         ^^^^
+91 |
+92 |         async def fake_fetch(path, validator=None, use_cache=True):
+   |
+help: Remove assignment to unused variable `call`
+
+F841 Local variable `data` is assigned to but never used
+   --> tests/unit/test_v253_sync_truth.py:178:13
+    |
+176 |         # 200 or 404? With no player DB rows it still returns decisions via optimizer
+177 |         if dec.status_code == 200:
+178 |             data = dec.json()
+    |             ^^^^
+179 |             # decisions meta or players map should reference squad ids; we assert squad ids changed
+180 |             # The report's starting_xi is derived from squad, so after sync it must contain 999 elsewhere
+    |
+help: Remove assignment to unused variable `data`
+
+F841 Local variable `picks_cur` is assigned to but never used
+   --> tests/unit/test_v253_sync_truth.py:192:9
+    |
+190 |         entry = {"id": 2295006, "name": "Tricky Maro", "current_event": 1}
+191 |         bootstrap = BOOTSTRAP_MIN
+192 |         picks_cur = _payload_ids(OLD_IDS)
+    |         ^^^^^^^^^
+193 |         picks_new = _payload_ids(NEW_IDS)
+    |
+help: Remove assignment to unused variable `picks_cur`
+
+F841 Local variable `squad` is assigned to but never used
+   --> tests/unit/test_v253_sync_truth.py:199:13
+    |
+197 |             from fpl_intelligence.squad.models import SquadStateCreate
+198 |
+199 |             squad = SquadStateCreate(
+    |             ^^^^^
+200 |                 player_ids=NEW_IDS,
+201 |                 captain_id=NEW_IDS[0],
+    |
+help: Remove assignment to unused variable `squad`
+
+F841 Local variable `squad` is assigned to but never used
+   --> tests/unit/test_v253_sync_truth.py:221:17
+    |
+219 |                 from fpl_intelligence.squad.models import SquadStateCreate
+220 |
+221 |                 squad = SquadStateCreate(
+    |                 ^^^^^
+222 |                     player_ids=NEW_IDS,
+223 |                     captain_id=NEW_IDS[0],
+    |
+help: Remove assignment to unused variable `squad`
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/unit/test_v256_async_sync.py:2:1
+   |
+ 1 |   """v2.5.6 — async sync-now: 202 + poll, 25s cap, parallel fetch, warm retry."""
+ 2 | / from __future__ import annotations
+ 3 | |
+ 4 | | import asyncio
+ 5 | | import time
+ 6 | | from unittest.mock import AsyncMock, patch
+ 7 | |
+ 8 | | import pytest
+ 9 | | from fastapi.testclient import TestClient
+10 | |
+11 | | from fpl_intelligence.db.session import get_db
+12 | | from fpl_intelligence.squad.models import SquadStateCreate
+13 | | from fpl_intelligence.squad.service import SquadService
+14 | | from fpl_intelligence.squad.fpl_import import FplSquadImporter, clear_fpl_import_caches
+15 | | from fpl_intelligence.squad.sync_job import clear_all_jobs
+   | |__________________________________________________________^
+16 |
+17 |   OLD_IDS = list(range(100, 115))
+   |
+help: Organize imports
+   |
+11 | from fpl_intelligence.db.session import get_db
+12 + from fpl_intelligence.squad.fpl_import import FplSquadImporter, clear_fpl_import_caches
+13 | from fpl_intelligence.squad.models import SquadStateCreate
+14 | from fpl_intelligence.squad.service import SquadService
+   - from fpl_intelligence.squad.fpl_import import FplSquadImporter, clear_fpl_import_caches
+15 | from fpl_intelligence.squad.sync_job import clear_all_jobs
+   |
+
+F401 [*] `unittest.mock.AsyncMock` imported but unused
+ --> tests/unit/test_v256_async_sync.py:6:27
+  |
+4 | import asyncio
+5 | import time
+6 | from unittest.mock import AsyncMock, patch
+  |                           ^^^^^^^^^
+7 |
+8 | import pytest
+  |
+help: Remove unused import
+  |
+5 | import time
+  - from unittest.mock import AsyncMock, patch
+6 |
+  |
+
+F401 [*] `unittest.mock.patch` imported but unused
+ --> tests/unit/test_v256_async_sync.py:6:38
+  |
+4 | import asyncio
+5 | import time
+6 | from unittest.mock import AsyncMock, patch
+  |                                      ^^^^^
+7 |
+8 | import pytest
+  |
+help: Remove unused import
+  |
+5 | import time
+  - from unittest.mock import AsyncMock, patch
+6 |
+  |
+
+F841 Local variable `hit2` is assigned to but never used
+   --> tests/unit/test_v256_async_sync.py:240:9
+    |
+238 |         # So we assert cache hit is instant (<0.1s)
+239 |         start = time.monotonic()
+240 |         hit2 = _get_cached_picks(2295006, 2)
+    |         ^^^^
+241 |         assert time.monotonic() - start < 0.1
+    |
+help: Remove assignment to unused variable `hit2`
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/unit/test_verified_deadlines.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | from datetime import UTC, datetime
+4 | |
+5 | | from fpl_intelligence.availability.historical.verified_deadlines import load_verified_deadline_cutoffs
+  | |______________________________________________________________________________________________________^
+help: Organize imports
+  |
+4 |
+  - from fpl_intelligence.availability.historical.verified_deadlines import load_verified_deadline_cutoffs
+5 + from fpl_intelligence.availability.historical.verified_deadlines import (
+6 +     load_verified_deadline_cutoffs,
+7 + )
+8 |
+  |
+
+Found 94 errors.
+[*] 59 fixable with the `--fix` option (32 hidden fixes can be enabled with the `--unsafe-fixes` option).
+ruff_check_exit=1
+compile_exit=0

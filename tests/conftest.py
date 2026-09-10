@@ -303,3 +303,8 @@ def populated_db(db_session: Session) -> Session:
     db.commit()
 
     return db
+
+
+def pytest_sessionstart(session: pytest.Session) -> None:
+    """Import the Vercel shim before any test can initialize the shared app."""
+    import api.index  # noqa: F401, PLC0415

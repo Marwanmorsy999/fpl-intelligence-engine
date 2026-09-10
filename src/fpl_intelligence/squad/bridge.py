@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from fpl_intelligence.api.performance import current_phase_timer
@@ -37,6 +38,12 @@ class _TimedPredictionProvider(DecisionPredictionProvider):
         self._prediction_cache.clear()
         self._all_predictions_cache.clear()
         self._fixture_count_cache.clear()
+        # Delegate to the underlying provider so its own request-local caches
+        # (CachedLivePredictionProvider._all_predictions_cache, _fixture_count_cache,
+        # stage_timings) are also reset for each new generate_decisions() call.
+        clear_base = getattr(self._provider, "clear_request_cache", None)
+        if clear_base is not None:
+            clear_base()
 
     def _call(self, fn: Any, *args: Any, **kwargs: Any) -> Any:
         timer = current_phase_timer()
@@ -101,20 +108,22 @@ class _TimedPredictionProvider(DecisionPredictionProvider):
         return result
 
     def get_all_predictions(self, gameweek: int) -> dict[int, PlayerPrediction]:
+        # L1 proxy cache: serve repeated calls for the same gameweek within
+        # this request without hitting the base provider again.
         cached = self._all_predictions_cache.get(gameweek)
         if cached is not None:
             return cached
 
+        # Delegate to underlying provider (CachedLivePredictionProvider L2 cache
+        # keyed by (gameweek, skip_materialized), which also enables bulk-pool
+        # promotion in get_player_prediction).
         result = self._call(self._provider.get_all_predictions, gameweek)
         self._all_predictions_cache[gameweek] = result
-        # Bulk predictions intentionally omit predictive distributions. Do not
-        # put those lightweight objects into the full single-player cache: a
-        # later transfer evaluation needs the full distribution for variance
-        # and probability calculations. Full predictions may still populate
-        # the shared cache, preserving cross-optimizer reuse.
+        # Populate the per-player cache with any predictions that carry full
+        # distributions, preserving cross-optimizer reuse within this request.
         for player_id, prediction in result.items():
             if prediction.distribution is not None and len(prediction.distribution) > 0:
-                self._prediction_cache[(player_id, gameweek)] = prediction
+                self._prediction_cache[(int(player_id), int(gameweek))] = prediction
         return result
 
     def get_fixture_count(self, player_id: int, gameweek: int) -> int:
@@ -217,11 +226,19 @@ class DecisionOptimizerBridge:
 
     def _timed_phase(self, name: str, fn: Any, *args: Any, **kwargs: Any) -> Any:
         """Run an optimizer component with optional fine-grained timing."""
+        t0 = time.perf_counter()
         timer = current_phase_timer()
         if timer is None:
-            return fn(*args, **kwargs)
-        with timer.phase(name):
-            return fn(*args, **kwargs)
+            result = fn(*args, **kwargs)
+        else:
+            with timer.phase(name):
+                result = fn(*args, **kwargs)
+        elapsed_ms = (time.perf_counter() - t0) * 1000.0
+        base_provider = getattr(self._timed_provider, "_provider", None)
+        record = getattr(base_provider, "record_stage_timing", None)
+        if record is not None:
+            record(name, elapsed_ms)
+        return result
 
     def _timed_optimize_xi(
         self,

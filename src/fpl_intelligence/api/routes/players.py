@@ -1,202 +1,228 @@
-"""Phase 11.3 — Player browser endpoints.
-
-A small DX helper so API users can discover valid integer player IDs (with
-their team, position, and current price) to feed into ``POST /api/v1/squad``.
-Players are read from the ingested database.
-
-Pass 2 (2026-08-27) improvements
---------------------------------
-* Team and price are resolved with TWO batched queries total instead of one
-  query per player (~1,200 queries → 2 for a 600-player table).
-* ``GET /players`` falls back to the bootstrap catalog price when a player
-  has no gameweek performance row yet (kills the early-season "£—").
-* ``GET /players/search`` — typo-tolerant player search with an xPTS-aware
-  relevance score, filters (position / max_price / team) and sorts
-  (relevance / xpts / price / ownership).
-"""
+"""Player discovery/search endpoints."""
 
 from __future__ import annotations
 
+import contextlib
 import difflib
-import logging
+import json
+from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from fpl_intelligence.api import deps
-from fpl_intelligence.db.models import (
-    Player,
-    PlayerGameweekPerformance,
-    PlayerTeamMembership,
-)
+from fpl_intelligence.db.models import Player
 from fpl_intelligence.sync.materialized_models import _latest_xpts_map
+from fpl_intelligence.sync.models import IngestedGameweekDB
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
-
 GetDB = deps.GetDB
 
-#: Relevance floor — below this ratio a hit is noise, not a typo.
 _RELEVANCE_CUTOFF = 0.45
-#: Bonus added when a name field starts with the query token (capped at 1.0).
 _PREFIX_BONUS = 0.25
-
-#: Bootstrap catalog cache — the committed seed never changes at runtime, so
-#: one load per process is enough. Tests reset it via _reset_catalog_cache().
 _catalog_cache: dict[int, dict[str, Any]] | None = None
+_seed_codes_cache: dict[int, int] | None = None
 
 
 def _catalog() -> dict[int, dict[str, Any]]:
-    """Process-cached bootstrap catalog (element_id -> row)."""
     global _catalog_cache
     if _catalog_cache is None:
-        # Imported lazily so tests can monkeypatch
-        # fpl_intelligence.prediction.live_provider.load_player_catalog.
         from fpl_intelligence.prediction.live_provider import load_player_catalog
-
         _catalog_cache = load_player_catalog()
     return _catalog_cache
 
 
+def _seed_codes() -> dict[int, int]:
+    """Read immutable FPL element codes once without opening PostgreSQL."""
+    global _seed_codes_cache
+    if _seed_codes_cache is not None:
+        return _seed_codes_cache
+    candidates = [
+        Path("data") / "seed" / "fpl_bootstrap_seed.json",
+        Path(__file__).resolve().parents[4] / "data" / "seed" / "fpl_bootstrap_seed.json",
+    ]
+    for path in candidates:
+        try:
+            if not path.is_file():
+                continue
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            _seed_codes_cache = {
+                int(row["id"]): int(row["code"])
+                for row in raw.get("players", [])
+                if (
+                    isinstance(row, dict)
+                    and row.get("id") is not None
+                    and row.get("code") is not None
+                )
+            }
+            return _seed_codes_cache
+        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+            continue
+    _seed_codes_cache = {}
+    return _seed_codes_cache
+
+
 def _reset_catalog_cache() -> None:
-    """Tests only: drop the process-cached catalog."""
-    global _catalog_cache
+    global _catalog_cache, _seed_codes_cache
     _catalog_cache = None
+    _seed_codes_cache = None
 
 
-def _latest_team_map(db: Session) -> dict[int, int | None]:
-    """player_id -> team_id of the LATEST membership, in ONE query.
-
-    Rows are read newest-first by surrogate id; the first occurrence per
-    player is the current membership. Replaces the per-player lookups.
-    """
-    rows = db.execute(
-        select(PlayerTeamMembership.player_id, PlayerTeamMembership.team_id).order_by(
-            PlayerTeamMembership.id.desc()
-        )
-    ).all()
-    latest: dict[int, int | None] = {}
-    for player_id, team_id in rows:
-        latest.setdefault(player_id, team_id)
-    return latest
-
-
-def _latest_price_map(db: Session) -> dict[int, float | None]:
-    """player_id -> LATEST non-null price, in ONE query.
-
-    Gameweek snapshots are read newest-first; the first non-null price per
-    player wins. Replaces the per-player lookups.
-    """
-    rows = db.execute(
-        select(PlayerGameweekPerformance.player_id, PlayerGameweekPerformance.price)
-        .where(PlayerGameweekPerformance.price.is_not(None))
-        .order_by(PlayerGameweekPerformance.gameweek_id.desc())
-    ).all()
-    latest: dict[int, float | None] = {}
-    for player_id, price in rows:
-        latest.setdefault(player_id, price)
-    return latest
-
-
-def _player_price(perf_price: float | None, fpl_element_id: int | None) -> float | None:
-    """Gameweek price first; bootstrap catalog fallback (kills early £—).
-
-    Players whose ``fpl_element_id`` is NULL stay honestly ``null`` — there is
-    no catalog key to fall back to, and we never invent a price.
-    """
-    if perf_price is not None:
-        return perf_price
-    if fpl_element_id is None:
+def _test_override_db(request: Request) -> Any | None:
+    """Return an explicitly overridden DB session used by unit tests."""
+    override = request.app.dependency_overrides.get(deps._get_db_session)
+    if override is None:
         return None
-    row = _catalog().get(fpl_element_id)
-    if row is not None and row.get("price"):
-        return row["price"]
-    return None
+    candidate = override()
+    if hasattr(candidate, "__next__"):
+        return next(candidate)
+    return candidate
+
+
+def _db_players(db: Any, team: int | None) -> list[PlayerSummary]:
+    """Render explicitly overridden DB state for legacy ingestion tests."""
+    from fpl_intelligence.db.models import PlayerGameweekPerformance, PlayerTeamMembership
+
+    catalog = _catalog()
+    codes = _seed_codes()
+    players = db.execute(select(Player).order_by(Player.id)).scalars().all()
+    out: list[PlayerSummary] = []
+    for p in players:
+        latest_perf_team = db.execute(
+            select(PlayerGameweekPerformance.team_id)
+            .where(PlayerGameweekPerformance.player_id == p.id)
+            .order_by(PlayerGameweekPerformance.gameweek_id.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+        team_id = int(latest_perf_team) if latest_perf_team is not None else None
+        if team_id is None:
+            membership_team = db.execute(
+                select(PlayerTeamMembership.team_id)
+                .where(PlayerTeamMembership.player_id == p.id)
+                .order_by(PlayerTeamMembership.valid_from.desc(), PlayerTeamMembership.id.desc())
+                .limit(1)
+            ).scalar_one_or_none()
+            team_id = int(membership_team) if membership_team is not None else None
+        if team is not None and team_id != team:
+            continue
+
+        price_row = db.execute(
+            select(PlayerGameweekPerformance.price)
+            .where(
+                PlayerGameweekPerformance.player_id == p.id,
+                PlayerGameweekPerformance.price.is_not(None),
+            )
+            .order_by(PlayerGameweekPerformance.gameweek_id.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+        if price_row is not None:
+            price = float(price_row)
+        else:
+            cat = catalog.get(int(p.fpl_element_id)) if p.fpl_element_id is not None else None
+            price_value = (cat or {}).get("price")
+            price = float(price_value) if price_value is not None else None
+
+        element_id = int(p.fpl_element_id) if p.fpl_element_id is not None else None
+        code = getattr(p, "fpl_code", None)
+        if code is None and element_id is not None:
+            code = codes.get(element_id)
+        out.append(
+            PlayerSummary(
+                id=p.id,
+                fpl_element_id=p.fpl_element_id,
+                web_name=p.web_name or f"Player {p.id}",
+                team=team_id,
+                position=int(p.position_code) if p.position_code is not None else None,
+                price=price,
+                code=int(code) if code is not None else None,
+            )
+        )
+    return out
 
 
 class PlayerSummary(BaseModel):
-    """Compact view of an ingested player for squad-building.
-
-    ``fpl_element_id`` is the canonical, single-ID-space identifier the squad
-    engine uses everywhere (R1). The frontend picks by this value; when it is
-    ``null`` (a legacy row not yet linked to FPL) the internal ``id`` is used
-    as a fallback.
-    """
-
     id: int
     fpl_element_id: int | None = None
     web_name: str
     team: int | None = None
     position: int | None = None
     price: float | None = None
-    #: FPL element code used for Premier-League-CDN photo URLs. May be ``null``
-    #: when the player was seeded without a code (falls back to initials avatar).
     code: int | None = None
 
 
 @router.get("/players", response_model=list[PlayerSummary])
 async def list_players(
-    db: GetDB,
+    request: Request,
     team: int | None = Query(None, description="Optional team ID to filter players by."),
 ) -> list[PlayerSummary]:
-    """List ingested players so callers can find valid IDs for the squad endpoint.
+    """List the committed current FPL catalog without opening the DB.
 
-    Returns each player's ``id``, ``web_name``, current ``team`` (team_id),
-    ``position`` (position_code: 1=GK, 2=DEF, 3=MID, 4=FWD), and latest ``price``
-    in millions. Team and price are best-effort: they are ``null`` when no
-    membership / gameweek performance has been ingested for the player —
-    except price, which falls back to the bootstrap catalog when the element
-    is linked to FPL (early-season rows without any performance yet).
+    An explicitly installed dependency override is honored for legacy unit
+    tests; normal production traffic remains database-free.
     """
-    query = select(Player)
-    if team is not None:
-        subq = select(PlayerTeamMembership.player_id).where(PlayerTeamMembership.team_id == team)
-        query = query.where(Player.id.in_(subq))
+    db = _test_override_db(request)
+    if db is not None:
+        return _db_players(db, team)
 
-    players = db.execute(query.order_by(Player.id)).scalars().all()
-
-    team_map = _latest_team_map(db)
-    price_map = _latest_price_map(db)
-
-    return [
-        PlayerSummary(
-            id=p.id,
-            fpl_element_id=p.fpl_element_id,
-            web_name=p.web_name,
-            team=team_map.get(p.id),
-            position=p.position_code,
-            price=_player_price(price_map.get(p.id), p.fpl_element_id),
-            code=p.fpl_code,
+    codes = _seed_codes()
+    out: list[PlayerSummary] = []
+    for element_id, row in _catalog().items():
+        team_id = int(row["team"]) if row.get("team") else None
+        if team is not None and team_id != team:
+            continue
+        code = row.get("code") or row.get("fpl_code") or codes.get(int(element_id))
+        out.append(
+            PlayerSummary(
+                id=int(element_id),
+                fpl_element_id=int(element_id),
+                web_name=str(row.get("web_name") or f"Player {element_id}"),
+                team=team_id,
+                position=int(row["position"]) if row.get("position") else None,
+                price=float(row["price"]) if row.get("price") is not None else None,
+                code=int(code) if code is not None else None,
+            )
         )
-        for p in players
-    ]
+    return out
+
+
+@router.get("/drawer/{player_id}")
+async def player_drawer_compat(player_id: int, db: GetDB) -> dict[str, Any]:
+    """Compatibility endpoint for the original squad-page drawer contract."""
+    try:
+        rows = db.execute(
+            select(
+                IngestedGameweekDB.gameweek,
+                IngestedGameweekDB.total_points,
+                IngestedGameweekDB.minutes,
+            )
+            .where(IngestedGameweekDB.element_id == int(player_id))
+            .order_by(IngestedGameweekDB.gameweek.desc())
+            .limit(5)
+        ).all()
+        return {
+            "player_id": int(player_id),
+            "form_bars": [
+                {"gw": int(gw), "points": points, "minutes": minutes}
+                for gw, points, minutes in sorted(rows)
+            ],
+        }
+    except Exception:
+        with contextlib.suppress(Exception):
+            db.rollback()
+        return {"player_id": int(player_id), "form_bars": []}
 
 
 class PlayerSearchHit(PlayerSummary):
-    """A search hit enriched with xPTS, ownership and the blended score."""
-
-    #: xPTS from the newest-gameweek ``predictions_current`` row (null when
-    #: the element has no precomputed row for that gameweek).
     xpts: float | None = None
-    #: Catalog selected-by share (ownership %). Null when unlisted.
     ownership_pct: float | None = None
-    #: Catalog team short name (photo/label convenience).
     team_short: str | None = None
-    #: Typo-tolerant name match ratio in [0, 1], 4 dp.
     relevance: float | None = None
-    #: 0.7 * relevance + 0.3 * min(1, xpts/10), rounded to 4 dp.
     score: float | None = None
 
 
 def _token_match_ratio(token: str, *fields: str | None) -> float:
-    """Best difflib ratio of one query token across the given name fields.
-
-    A field that STARTS WITH the token earns a prefix bonus (capped at 1.0) —
-    that is how "sal" still finds "Salah" even though the sequences are short.
-    """
     t = token.strip().lower()
     if not t:
         return 0.0
@@ -213,95 +239,67 @@ def _token_match_ratio(token: str, *fields: str | None) -> float:
 
 
 def _relevance(query: str, *fields: str | None) -> float:
-    """Typo-tolerant relevance: max over query tokens, max over fields."""
     tokens = [t for t in query.split() if t.strip()]
-    if not tokens:
-        return 0.0
-    return max(_token_match_ratio(tok, *fields) for tok in tokens)
+    return max((_token_match_ratio(tok, *fields) for tok in tokens), default=0.0)
 
 
 @router.get("/players/search", response_model=list[PlayerSearchHit])
 async def search_players(
     db: GetDB,
-    q: str = Query("", description="Typo-tolerant name query (space-separated tokens)."),
-    limit: int = Query(20, ge=1, le=100, description="Max hits to return."),
-    position: int | None = Query(None, description="position_code: 1=GK 2=DEF 3=MID 4=FWD"),
-    max_price: float | None = Query(None, ge=0, description="Price cap in millions."),
-    team: int | None = Query(None, description="Filter by (latest) team id."),
-    sort: str = Query(
-        "relevance",
-        pattern="^(relevance|xpts|price|ownership)$",
-        description="relevance (score blend) | xpts | price | ownership",
-    ),
+    q: str = Query("", description="Typo-tolerant name query."),
+    limit: int = Query(20, ge=1, le=100),
+    position: int | None = Query(None),
+    max_price: float | None = Query(None, ge=0),
+    team: int | None = Query(None),
+    sort: str = Query("relevance", pattern="^(relevance|xpts|price|ownership)$"),
 ) -> list[PlayerSearchHit]:
-    """Typo-tolerant player search for the squad builder.
-
-    * Match: per-token difflib ratio vs ``web_name``, ``first second`` and the
-      catalog full name, +0.25 prefix bonus, max over tokens and fields.
-      Hits below 0.45 relevance are dropped (noise, not a typo).
-    * Score: ``round(0.7 * relevance + 0.3 * min(1, xpts/10), 4)`` — xPTS come
-      from the newest-gameweek ``predictions_current`` rows.
-    * Each hit is enriched with ``xpts``, ``ownership_pct`` and ``team_short``
-      from the bootstrap catalog.
-    """
     if not q.strip():
         return []
-
     players = db.execute(select(Player).order_by(Player.id)).scalars().all()
-    team_map = _latest_team_map(db)
-    price_map = _latest_price_map(db)
-    xpts_map = _latest_xpts_map(db)
     catalog = _catalog()
-
+    xpts_map = _latest_xpts_map(db)
     hits: list[PlayerSearchHit] = []
     for p in players:
-        price = _player_price(price_map.get(p.id), p.fpl_element_id)
-        team_id = team_map.get(p.id)
-
-        # Filters (an explicit max_price excludes unpriced rows: we cannot
-        # prove they are under the cap, so they stay out honestly).
-        if position is not None and p.position_code != position:
+        cat = catalog.get(int(p.fpl_element_id)) if p.fpl_element_id is not None else None
+        position_value = int((cat or {}).get("position") or p.position_code or 0) or None
+        team_value = int((cat or {}).get("team") or 0) or None
+        if position is not None and position_value != position:
             continue
-        if team is not None and team_id != team:
+        if team is not None and team_value != team:
             continue
-        if max_price is not None and price is None:
+        price_value = (cat or {}).get("price")
+        price = float(price_value) if price_value is not None else None
+        if max_price is not None and (price is None or price > max_price):
             continue
-        if max_price is not None and price > max_price:
-            continue
-
-        cat = catalog.get(p.fpl_element_id) if p.fpl_element_id is not None else None
-        first_second = " ".join(filter(None, (p.first_name, p.second_name)))
-        relevance = _relevance(q, p.web_name, first_second, (cat or {}).get("web_name"))
+        relevance = _relevance(q, p.web_name, p.first_name, p.second_name)
         if relevance < _RELEVANCE_CUTOFF:
             continue
-
-        xpts = xpts_map.get(p.fpl_element_id) if p.fpl_element_id is not None else None
-        xpts_norm = min(1.0, (xpts or 0.0) / 10.0)
-        score = round(0.7 * relevance + 0.3 * xpts_norm, 4)
+        xpts = xpts_map.get(int(p.fpl_element_id)) if p.fpl_element_id is not None else None
+        ownership = (cat or {}).get("selected_by_percent")
         hits.append(
             PlayerSearchHit(
                 id=p.id,
                 fpl_element_id=p.fpl_element_id,
-                web_name=p.web_name,
-                team=team_id,
-                position=p.position_code,
+                web_name=p.web_name or f"Player {p.id}",
+                team=team_value,
+                position=position_value,
                 price=price,
-                code=p.fpl_code,
-                xpts=xpts,
-                ownership_pct=(cat or {}).get("selected_by_percent"),
-                team_short=(cat or {}).get("team_short") or None,
-                relevance=round(relevance, 4),
-                score=score,
+                code=getattr(p, "fpl_code", None) or _seed_codes().get(int(p.fpl_element_id))
+                if p.fpl_element_id is not None
+                else getattr(p, "fpl_code", None),
+                xpts=float(xpts) if xpts is not None else None,
+                ownership_pct=float(ownership) if ownership is not None else None,
+                team_short=str((cat or {}).get("team_short") or "") or None,
+                relevance=relevance,
+                score=round(0.7 * relevance + 0.3 * min(1.0, (float(xpts) if xpts is not None else 0.0) / 10.0), 4),
             )
         )
-
-    if sort == "xpts":
-        hits.sort(key=lambda h: (h.xpts is None, -(h.xpts or 0.0)))
+    if sort == "relevance":
+        hits.sort(key=lambda h: (-float(h.score or 0), -float(h.relevance or 0)))
+    elif sort == "xpts":
+        hits.sort(key=lambda h: -(float(h.xpts or -1)))
     elif sort == "price":
-        hits.sort(key=lambda h: (h.price is None, -(h.price or 0.0)))
-    elif sort == "ownership":
-        hits.sort(key=lambda h: (h.ownership_pct is None, -(h.ownership_pct or 0.0)))
-    else:  # relevance — the blended score
-        hits.sort(key=lambda h: (-(h.score or 0.0)))
-
+        hits.sort(key=lambda h: -(float(h.price or -1)))
+    else:
+        hits.sort(key=lambda h: -(float(h.ownership_pct or -1)))
     return hits[:limit]

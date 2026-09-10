@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from fpl_intelligence.availability.historical.verified_deadlines import load_verified_deadline_cutoffs
+from fpl_intelligence.availability.historical.verified_deadlines import (
+    load_verified_deadline_cutoffs,
+)
 
 
 def test_verified_catalog_contains_first_five_gameweeks_for_two_seasons() -> None:

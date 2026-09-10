@@ -120,16 +120,19 @@ def test_vercel_json_build_command_installs_the_project() -> None:
     assert build == "bash vercel_build.sh", f"unexpected buildCommand: {build!r}"
 
 
-def test_vercel_json_build_command_applies_migrations() -> None:
-    """v2.7.4-prod-heal: the deploy step migrates the prod DB explicitly.
+def test_vercel_json_build_command_is_hermetic() -> None:
+    """Migrations must NOT run at build time.
 
-    The 0021 gap (missing ``local_squad_state``) 500'd /league and
-    /league/trajectory; the schema must move with the code, never behind it.
-    The build is delegated to vercel_build.sh which runs prod_migrate when needed.
+    Running prod_migrate during the Vercel build caused transient pool/auth
+    outages to turn valid builds into failed deployments (v2.7.4-prod-heal
+    was reverted; migrations are now an explicit separate operations step).
+    The build must be hermetic: install only.
     """
     vercel_build = Path("vercel_build.sh").read_text(encoding="utf-8")
-    assert "python -m fpl_intelligence.prod_migrate" in vercel_build, (
-        "vercel_build.sh must run the migration step"
+    assert "pip install" in vercel_build, "vercel_build.sh must install the package"
+    assert "prod_migrate" not in vercel_build, (
+        "vercel_build.sh must NOT run migrations at build time — "
+        "use the admin daily job or a manual migration step instead"
     )
 
 
@@ -226,7 +229,11 @@ def test_vercel_json_rewrites_route_to_the_function(source: str) -> None:
     rewrites = _load_vercel().get("rewrites", [])
     match = next((r for r in rewrites if r.get("source") == source), None)
     assert match is not None, f"missing rewrite for {source}"
-    assert match.get("destination") == FUNCTION_DESTINATION
+    # Destinations use query-string routing: /api/index.py?__route=<path>
+    dest = match.get("destination", "")
+    assert dest.startswith(FUNCTION_DESTINATION), (
+        f"rewrite destination {dest!r} must route through {FUNCTION_DESTINATION}"
+    )
 
 
 def test_vercel_json_handles_telegram_webhook() -> None:

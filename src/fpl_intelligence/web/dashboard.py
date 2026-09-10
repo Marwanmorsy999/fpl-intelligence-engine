@@ -15,6 +15,7 @@ handler for the shared stylesheet/scripts.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 from pathlib import Path
@@ -175,10 +176,8 @@ def _register_dashboard_routes() -> None:
                 status_code=503,
             )
         finally:
-            try:
+            with contextlib.suppress(StopIteration):
                 next(db_gen, None)
-            except StopIteration:
-                pass
 
     def _last_saved_session_id(db: object) -> str | None:
         """Most recently updated squad session (legacy default-squad behavior)."""

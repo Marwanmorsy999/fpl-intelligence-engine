@@ -9,10 +9,10 @@ deterministic fixtures. No synthetic full-season data is used.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from pathlib import Path
 
 import numpy as np
 import pytest
+from sqlalchemy.orm import Session
 
 from fpl_intelligence.availability import evidence as ev
 from fpl_intelligence.availability import metrics as mtr
@@ -28,7 +28,6 @@ from fpl_intelligence.availability.evaluation import (
 from fpl_intelligence.availability.minutes_integration import (
     AvailabilityAwareMinutesModel,
 )
-from fpl_intelligence.availability.historical.temporal import AvailabilityTimestamps
 from fpl_intelligence.availability.models import (
     AvailabilityArticle,
     AvailabilityEvent,
@@ -36,12 +35,7 @@ from fpl_intelligence.availability.models import (
     AvailabilityStatus,
     EvidenceType,
     SourceReliability,
-    TemporalClass,
     TrainingReport,
-)
-from fpl_intelligence.db.models import (
-    PlayerExternalId,
-    TeamExternalId,
 )
 from fpl_intelligence.availability.prediction_wrapper import (
     AvailabilityAwarePredictionProvider,
@@ -49,6 +43,10 @@ from fpl_intelligence.availability.prediction_wrapper import (
 from fpl_intelligence.availability.validation import (
     audit_availability_coverage,
     audit_temporal_availability,
+)
+from fpl_intelligence.db.models import (
+    PlayerExternalId,
+    TeamExternalId,
 )
 from fpl_intelligence.optimization.provider import (
     DecisionPredictionProvider,
@@ -1067,9 +1065,6 @@ class TestHistoricalEntityResolutionAlias:
         from fpl_intelligence.availability.historical.entity_resolution import (
             HistoricalEntityResolver,
             HistoricalResolutionReport,
-        )
-        from fpl_intelligence.availability.historical.importer import (
-            ResolverAudit,
         )
         from fpl_intelligence.db.models import PlayerExternalId, TeamExternalId
 

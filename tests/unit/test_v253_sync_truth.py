@@ -2,18 +2,15 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
 
 from fpl_intelligence.db.session import get_db
+from fpl_intelligence.squad.fpl_import import FplSquadImporter
 from fpl_intelligence.squad.models import SquadStateCreate
 from fpl_intelligence.squad.service import SquadService
-from fpl_intelligence.squad.fpl_import import FplSquadImporter
-
 
 OLD_IDS = list(range(100, 115))  # 15 old players
 NEW_IDS = [999] + list(range(101, 115))  # one transfer: 100 -> 999
@@ -87,7 +84,6 @@ class TestNextGWPicksTruth:
         imp = FplSquadImporter(egress=AsyncMock())
         # Mock chain fetch: entry, bootstrap, picks_cur, picks_next in order
         entry = {"id": 2295006, "name": "Tricky Maro", "current_event": 1}
-        call = {"n": 0}
 
         async def fake_fetch(path, validator=None, use_cache=True):
             # Route by path
@@ -175,7 +171,7 @@ class TestSyncNowBannerAndDecisions:
         dec = client.get("/api/v1/decisions", params={"session_id": "2295006"})
         # 200 or 404? With no player DB rows it still returns decisions via optimizer
         if dec.status_code == 200:
-            data = dec.json()
+            dec.json()
             # decisions meta or players map should reference squad ids; we assert squad ids changed
             # The report's starting_xi is derived from squad, so after sync it must contain 999 elsewhere
             # The simplest proof: re-fetch squad via decisions' meta or direct squad
@@ -189,24 +185,11 @@ class TestSyncNowBannerAndDecisions:
         # Mock importer to return NEW_IDS for GW2 without real network
         entry = {"id": 2295006, "name": "Tricky Maro", "current_event": 1}
         bootstrap = BOOTSTRAP_MIN
-        picks_cur = _payload_ids(OLD_IDS)
         picks_new = _payload_ids(NEW_IDS)
 
         async def fake_build(entry_id, db=None):
             # Simulate chosen GW2
-            from fpl_intelligence.squad.models import SquadStateCreate
 
-            squad = SquadStateCreate(
-                player_ids=NEW_IDS,
-                captain_id=NEW_IDS[0],
-                vice_captain_id=NEW_IDS[1],
-                bank=0.0,
-                gameweek=2,
-                picks_gw=2,
-                player_positions={pid: 2 for pid in NEW_IDS},
-                player_prices={pid: 6.5 for pid in NEW_IDS},
-                player_teams={pid: 1 for pid in NEW_IDS},
-            )
             return FplSquadImporter(egress=None)._build_result(
                 entry=entry, picks_payload=picks_new, bootstrap=bootstrap, gameweek=2, entry_name="Tricky Maro", db=db
             )
@@ -216,17 +199,7 @@ class TestSyncNowBannerAndDecisions:
             inst = MockImp.return_value
             # need to make build_squad_from_entry an async mock returning our fake
             async def _fake(*a, **kw):
-                from fpl_intelligence.squad.models import SquadStateCreate
 
-                squad = SquadStateCreate(
-                    player_ids=NEW_IDS,
-                    captain_id=NEW_IDS[0],
-                    vice_captain_id=NEW_IDS[1],
-                    bank=0.0,
-                    gameweek=2,
-                    picks_gw=2,
-                    player_positions={pid: 2 for pid in NEW_IDS},
-                )
                 # Build result via real builder for names
                 imp = FplSquadImporter(egress=None)
                 return imp._build_result(entry=entry, picks_payload=picks_new, bootstrap=bootstrap, gameweek=2, entry_name="Tricky Maro", db=db)

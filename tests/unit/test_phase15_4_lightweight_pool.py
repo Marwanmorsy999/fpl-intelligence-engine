@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import numpy as np
 
-from fpl_intelligence.optimization.provider import PlayerPrediction
 from fpl_intelligence.prediction.live_provider import _make_prediction
 
 

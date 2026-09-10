@@ -20,15 +20,15 @@
   "rewrites": [
     {
       "source": "/api/v1/telegram/webhook",
-      "destination": "/api/index.py"
+      "destination": "/api/index.py?__route=/api/v1/telegram/webhook"
     },
     {
       "source": "/api/v1/admin/(.*)",
-      "destination": "/api/index.py"
+      "destination": "/api/index.py?__route=/api/v1/admin/$1"
     },
     {
       "source": "/(.*)",
-      "destination": "/api/index.py"
+      "destination": "/api/index.py?__route=/$1"
     }
   ]
 }

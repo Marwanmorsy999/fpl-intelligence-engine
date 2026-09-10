@@ -8,7 +8,6 @@ from fastapi import APIRouter, Query
 
 from fpl_intelligence.api import deps
 from fpl_intelligence.prices.service import (
-    ensure_price_tables,
     price_chip_map,
     todays_moves_payload,
 )
@@ -22,9 +21,21 @@ async def moves(
     limit: int = Query(5, ge=1, le=25),
     gameweek: int | None = Query(None),
 ) -> dict[str, Any]:
-    """"Today's risers/fallers" top-N cards for the Decisions strip."""
-    ensure_price_tables(db)
-    return todays_moves_payload(db, limit=limit, gameweek=gameweek)
+    """Today's risers/fallers without request-time schema DDL.
+
+    Price history is enrichment for the dashboard, not a reason to fail the
+    entire request. During a transient DB outage return the documented empty
+    state so the UI remains usable and callers can retry later.
+    """
+    try:
+        return todays_moves_payload(db, limit=limit, gameweek=gameweek)
+    except Exception as exc:  # noqa: BLE001 - honest graceful degradation
+        return {
+            "risers": [],
+            "fallers": [],
+            "has_data": False,
+            "note": f"Price moves temporarily unavailable: {type(exc).__name__}",
+        }
 
 
 @router.get("/chips")
@@ -33,11 +44,9 @@ async def chips(
     player_ids: str = Query("", description="Comma-separated element ids."),
 ) -> dict[str, Any]:
     """Latest price delta per requested element — drives the ▲/▼ chips."""
-    ensure_price_tables(db)
-    wanted = [
-        int(p) for p in player_ids.split(",") if p.strip().isdigit()
-    ]
-    chip_map = price_chip_map(db, wanted)
-    return {
-        "chips": {str(k): v for k, v in chip_map.items()},
-    }
+    wanted = [int(p) for p in player_ids.split(",") if p.strip().isdigit()]
+    try:
+        chip_map = price_chip_map(db, wanted)
+    except Exception:  # noqa: BLE001 - price chips are optional enrichment
+        chip_map = {}
+    return {"chips": {str(k): v for k, v in chip_map.items()}}

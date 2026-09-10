@@ -130,9 +130,9 @@ def test_chips_respects_used_chips(client):
     assert any("Hold" in p["label"] or p["total_gain"]==0 for p in data["plans"])
 
 def test_drawer_shows_set_piece_chips(client):
-    sid = _make_squad(client, "drawer_sp")
+    _make_squad(client, "drawer_sp")
     # 5 known takers from set_piece_takers.json: Saka 12 (ARS), Haaland 411 (MCI), Palmer 154 (CHE), Watkins 55 (AVL), Isak 379 (LIV)
-    for pid, should_have in [(12, "penalty"), (411, "penalty"), (154, "penalty"), (55, "penalty"), (379, "penalty")]:
+    for pid, _ in [(12, "penalty"), (411, "penalty"), (154, "penalty"), (55, "penalty"), (379, "penalty")]:
         r = client.get(f"/api/v1/player/{pid}/drawer", params={"session_id": "drawer_sp"})
         assert r.status_code == 200, r.text
         data = r.json()
