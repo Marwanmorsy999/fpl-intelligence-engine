@@ -1,9 +1,16 @@
 """Phase 10.3 — Simple web dashboard for FPL intelligence.
 
-Serves the bundled static dashboard and its sibling pages from the same FastAPI
-application as the API. The Vercel deployment is intentionally self-contained:
-there is no separate frontend host to configure, so the dashboard routes must
-always be registered in this application.
+Serves the single-page decisions dashboard that consumes the Phase 10.1 REST
+API to display system health, player intelligence reports, and unresolved
+evidence.
+
+Phase 11.2 (frontend separation): the dashboard routes are only registered when
+``SERVE_STATIC_DASHBOARD`` is enabled, so the FastAPI app can run as a pure JSON
+API while the static SPA is hosted separately (e.g. on Vercel/Netlify).
+
+Phase 19.0 (multi-page UI): adds the FotMob-grade sibling pages — My Team,
+Track Record, Live, Sources and Connect — plus a whitelisted ``/static``
+handler for the shared stylesheet/scripts.
 """
 
 from __future__ import annotations
@@ -16,29 +23,34 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
+from fpl_intelligence.config import get_settings
+
 router = APIRouter()
 
 _STATIC_DIR = Path(__file__).parent / "static"
 
+#: Phase 19.0/20.0 page registry: route path -> static filename.
 _PAGES: dict[str, str] = {
     "/dashboard": "dashboard.html",
-    "/decisions": "dashboard.html",
+    "/decisions": "dashboard.html",  # alias keeps the nav label honest
     "/my-team": "my_team.html",
     "/track-record": "track_record.html",
     "/live": "live.html",
     "/sources": "sources.html",
     "/connect": "connect.html",
-    "/assistant": "assistant.html",
-    "/league": "league.html",
-    "/compare": "compare.html",
-    "/chips": "chips.html",
-    "/crunch": "crunch.html",
-    "/targets": "targets.html",
-    "/planner": "planner.html",
-    "/transfers": "transfers.html",
-    "/help": "help.html",
+    "/assistant": "assistant.html",  # Phase 20.0 weekly brief
+    "/league": "league.html",  # Phase 23 Gate 1 — LEAGUE KILLER
+    "/compare": "compare.html",  # Phase 24 Gate 0 — M3 head-to-head
+    "/chips": "chips.html",  # Phase 24 Gate 1 — C1 chip planner
+    "/crunch": "crunch.html",  # Phase 24 Gate 0 — M1 deadline crunch view
+    "/targets": "targets.html",  # Phase 25 Gate 0 — T2 alpha engine
+    "/planner": "planner.html",  # Phase 25 Gate 0 — T3 horizon planner
+    "/transfers": "transfers.html",  # Phase 27 Gate 0 — T1 transfer desk
+    "/help": "help.html",  # Phase 3.4 — onboarding & FAQ
 }
 
+#: Whitelisted shared assets servable under /static (no directory traversal).
+#: Phase 3 adds lib/*: fetch-with-timeout, idb-cache, onboarding.
 _STATIC_FILES = {
     "app.css",
     "tokens.css",
@@ -53,6 +65,9 @@ _STATIC_FILES = {
     "icon-512.png",
 }
 
+#: Phase 3.1/3.3/3.4 — standalone browser libraries under /static/lib/.
+#: Served via /static/lib/{name}; kept separate from the flat whitelist above
+#: so legacy asset paths keep their exact shape (and contracts stay identical).
 _LIB_FILES = {
     "fetch-with-timeout.js",
     "idb-cache.js",
@@ -61,8 +76,13 @@ _LIB_FILES = {
 
 
 def _sentry_browser_snippet(dsn: str) -> str:
-    """Sentry browser snippet, injected only when a DSN is configured."""
-    escaped = json.dumps(dsn)
+    """Sentry browser snippet, injected into `dashboard.html` head only when a DSN exists.
+
+    Keeps the frontend's "zero console noise" guarantee: when no DSN is
+    configured the snippet is never served, so no SDK is loaded and every
+    call-site guard (`window.reportError` / `window.Sentry?.`) is a no-op.
+    """
+    escaped = json.dumps(dsn)  # safe as a JS string literal
     return (
         '<script src="https://browser.sentry-cdn.com/8.41.1/bundle.tracing.es5.min.js" '
         'crossorigin="anonymous"></script>'
@@ -86,19 +106,24 @@ def _sentry_browser_snippet(dsn: str) -> str:
 def _register_dashboard_routes() -> None:
     @router.get("/static/{asset_name}", include_in_schema=False)
     async def serve_static(asset_name: str) -> FileResponse:
+        """Serve whitelisted shared assets only."""
         if asset_name not in _STATIC_FILES:
             raise HTTPException(status_code=404, detail="Not found")
         return FileResponse(_STATIC_DIR / asset_name)
 
     @router.get("/static/lib/{lib_name}", include_in_schema=False)
     async def serve_static_lib(lib_name: str) -> FileResponse:
+        """Phase 3 — serve whitelisted lib/ modules only."""
         if lib_name not in _LIB_FILES:
             raise HTTPException(status_code=404, detail="Not found")
         return FileResponse(_STATIC_DIR / "lib" / lib_name)
 
+    # Phase 4.4 — read once at registration time; absent DSN => never injected.
     _sentry_dsn_for_pages = os.environ.get("SENTRY_DSN", "").strip()
 
     def _page_handler(filename: str):
+        # Only the primary dashboard page carries the Sentry browser snippet,
+        # and only when a DSN is actually configured.
         if filename == "dashboard.html" and _sentry_dsn_for_pages:
             async def _serve() -> HTMLResponse:
                 html = (_STATIC_DIR / filename).read_text(encoding="utf-8")
@@ -116,7 +141,18 @@ def _register_dashboard_routes() -> None:
         router.get(path, include_in_schema=False)(_page_handler(filename))
 
     @router.get("/api/v1/dashboard/squad-decisions", include_in_schema=False)
-    async def dashboard_squad_decisions(session_id: str | None = None) -> JSONResponse:
+    async def dashboard_squad_decisions(
+        session_id: str | None = None,
+    ) -> JSONResponse:
+        """Proxy the squad decisions for the dashboard SPA.
+
+        Audit 2026-08: this used to spin up a ``fastapi.testclient.TestClient``
+        per request to call ``GET /api/v1/decisions`` — importing test tooling
+        into production, re-entering the ASGI app mid-request, and dropping
+        the caller's session. It now invokes the shared decisions builder
+        directly with the caller's ``session_id`` (falling back to the last
+        saved squad), with no in-process HTTP hop.
+        """
         from fpl_intelligence.api import deps
         from fpl_intelligence.api.routes.squad import build_decisions_payload
 
@@ -132,9 +168,11 @@ def _register_dashboard_routes() -> None:
             provider = deps.get_prediction_provider(db)  # type: ignore[arg-type]
             report = await build_decisions_payload(db, provider, key)
             return JSONResponse(content=report.model_dump(mode="json"))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 — honest error, never a bare 500
             return JSONResponse(
-                content={"error": f"Decisions unavailable right now ({type(exc).__name__})."},
+                content={
+                    "error": f"Decisions unavailable right now ({type(exc).__name__})."
+                },
                 status_code=503,
             )
         finally:
@@ -142,6 +180,7 @@ def _register_dashboard_routes() -> None:
                 next(db_gen, None)
 
     def _last_saved_session_id(db: object) -> str | None:
+        """Most recently updated squad session (legacy default-squad behavior)."""
         from sqlalchemy import select as _select
 
         from fpl_intelligence.squad.models_db import SquadStateDB
@@ -151,11 +190,17 @@ def _register_dashboard_routes() -> None:
                 _select(SquadStateDB.session_id).order_by(SquadStateDB.updated_at.desc())
             ).scalars().first()
             return str(row) if row else None
-        except Exception:
+        except Exception:  # noqa: BLE001 — missing table etc. degrades to None
             return None
 
 
-# This deployment is designed to serve the dashboard and API from one FastAPI
-# function. Register the routes unconditionally so a stale SERVE_STATIC_DASHBOARD
-# environment variable cannot silently remove the UI from production.
-_register_dashboard_routes()
+# The production Vercel service is the user's actual dashboard deployment.
+# A Vercel env var may still carry the historical API-only setting, which used
+# to make /dashboard silently disappear even though all dashboard assets were
+# present. Preserve the explicit switch for other hosts, but always register
+# the bundled dashboard on Vercel so the canonical deployment URL remains
+# functional. A future separately-hosted frontend can still omit VERCEL and set
+# SERVE_STATIC_DASHBOARD=false as intended.
+_settings = get_settings()
+if _settings.serve_static_dashboard or os.environ.get("VERCEL") == "1":
+    _register_dashboard_routes()
