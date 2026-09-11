@@ -244,10 +244,34 @@ async def refresh_element_facts(db: Session, season_code: str) -> dict[str, Any]
     try:
         from sqlalchemy import text as sa_text
 
-        db.execute(
-            sa_text("ALTER TABLE element_facts ADD COLUMN IF NOT EXISTS now_cost INTEGER")
-        )
-        db.commit()
+        for col_def in [
+            "now_cost INTEGER",
+            "chance_of_playing_next_round INTEGER",
+            "chance_of_playing_this_round INTEGER",
+            "element_type INTEGER",
+            "ep_next REAL",
+            "ep_this REAL",
+            "transfers_in_event INTEGER",
+            "transfers_out_event INTEGER",
+            "transfers_in_season INTEGER",
+            "transfers_out_season INTEGER",
+            "total_points INTEGER",
+            "points_per_game REAL",
+            "form REAL",
+            "ict_index REAL",
+            "goals_scored INTEGER",
+            "assists INTEGER",
+            "clean_sheets INTEGER",
+            "yellow_cards INTEGER",
+            "red_cards INTEGER",
+            "bonus INTEGER",
+            "photo VARCHAR(60)",
+        ]:
+            try:
+                db.execute(sa_text(f"ALTER TABLE element_facts ADD COLUMN IF NOT EXISTS {col_def}"))
+                db.commit()
+            except Exception:  # noqa: BLE001 — sqlite lacks IF NOT EXISTS
+                db.rollback()
     except Exception:  # noqa: BLE001 — sqlite lacks IF NOT EXISTS on ADD COLUMN
         db.rollback()
     for element_id, fact in facts.items():
@@ -263,6 +287,27 @@ async def refresh_element_facts(db: Session, season_code: str) -> dict[str, Any]
         row.now_cost = fact.get("now_cost")
         row.status = fact["status"]
         row.news = fact["news"]
+        # Extended FPL compatibility fields
+        row.chance_of_playing_next_round = fact.get("chance_of_playing_next_round")
+        row.chance_of_playing_this_round = fact.get("chance_of_playing_this_round")
+        row.element_type = fact.get("element_type")
+        row.ep_next = fact.get("ep_next")
+        row.ep_this = fact.get("ep_this")
+        row.transfers_in_event = fact.get("transfers_in_event")
+        row.transfers_out_event = fact.get("transfers_out_event")
+        row.transfers_in_season = fact.get("transfers_in_season")
+        row.transfers_out_season = fact.get("transfers_out_season")
+        row.total_points = fact.get("total_points")
+        row.points_per_game = fact.get("points_per_game")
+        row.form = fact.get("form")
+        row.ict_index = fact.get("ict_index")
+        row.goals_scored = fact.get("goals_scored")
+        row.assists = fact.get("assists")
+        row.clean_sheets = fact.get("clean_sheets")
+        row.yellow_cards = fact.get("yellow_cards")
+        row.red_cards = fact.get("red_cards")
+        row.bonus = fact.get("bonus")
+        row.photo = fact.get("photo")
         row.updated_at = now
         upserted += 1
     db.commit()
