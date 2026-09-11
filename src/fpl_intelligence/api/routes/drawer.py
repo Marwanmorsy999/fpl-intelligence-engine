@@ -61,19 +61,44 @@ HORIZON_GWS = 5
 
 
 def _ensure_element_facts_now_cost_column(db: Session) -> None:
-    """Self-seal prod DBs that predate migration 0020.
+    """Self-seal prod DBs that predate the extended element_facts schema.
 
-    The deployed DB (migration 0018) lacks element_facts.now_cost, so any
-    SELECT * via the ORM 500s with UndefinedColumn. The daily materialize
-    also self-seals, but drawer requests arrive before the next cron — so
-    the read path must seal itself too (best-effort, no raise).
+    Covers now_cost and all 16 new FPL-compatibility columns added in v2.8.0.
+    Best-effort: if ALTER fails (e.g. column already exists on PostgreSQL)
+    the error is suppressed and the DB remains usable.
     """
-    try:
-        db.execute(text("ALTER TABLE element_facts ADD COLUMN IF NOT EXISTS now_cost INTEGER"))
-        db.commit()
-    except Exception:
-        with contextlib.suppress(Exception):
-            db.rollback()
+    new_columns = [
+        ("now_cost", "INTEGER"),
+        ("chance_of_playing_next_round", "INTEGER"),
+        ("chance_of_playing_this_round", "INTEGER"),
+        ("element_type", "INTEGER"),
+        ("ep_next", "REAL"),
+        ("ep_this", "REAL"),
+        ("transfers_in_event", "INTEGER"),
+        ("transfers_out_event", "INTEGER"),
+        ("transfers_in_season", "INTEGER"),
+        ("transfers_out_season", "INTEGER"),
+        ("total_points", "INTEGER"),
+        ("points_per_game", "REAL"),
+        ("form", "REAL"),
+        ("ict_index", "REAL"),
+        ("goals_scored", "INTEGER"),
+        ("assists", "INTEGER"),
+        ("clean_sheets", "INTEGER"),
+        ("yellow_cards", "INTEGER"),
+        ("red_cards", "INTEGER"),
+        ("bonus", "INTEGER"),
+        ("photo", "VARCHAR(60)"),
+    ]
+    for col_name, col_type in new_columns:
+        try:
+            db.execute(
+                text(f"ALTER TABLE element_facts ADD COLUMN IF NOT EXISTS {col_name} {col_type}")
+            )
+            db.commit()
+        except Exception:  # noqa: BLE001
+            with contextlib.suppress(Exception):
+                db.rollback()
 
 
 def _load_element_fact_safe(db: Session, player_id: int) -> Any | None:
@@ -83,7 +108,16 @@ def _load_element_fact_safe(db: Session, player_id: int) -> Any | None:
     except Exception as exc:
         # UndefinedColumn or any schema drift — self-seal and retry once
         msg = str(exc).lower()
-        is_schema_error = "now_cost" in msg or "undefinedcolumn" in msg or "no such column" in msg
+        is_schema_error = (
+            "undefinedcolumn" in msg
+            or "no such column" in msg
+            or any(col in msg for col in [
+                "now_cost", "chance_of_playing", "element_type", "ep_next", "ep_this",
+                "transfers_in_event", "transfers_out_event", "total_points",
+                "points_per_game", "form", "ict_index", "goals_scored", "assists",
+                "clean_sheets", "yellow_cards", "red_cards", "bonus", "photo",
+            ])
+        )
         with contextlib.suppress(Exception):
             db.rollback()
         if is_schema_error:
@@ -99,26 +133,32 @@ def _load_element_fact_safe(db: Session, player_id: int) -> Any | None:
                     row = db.execute(
                         text(
                             "SELECT element_id, web_name, team_id, minutes, selected_by_percent, "
-                            "cost_change_event, status, news, updated_at FROM element_facts WHERE element_id=:pid"
+                            "cost_change_event, now_cost, status, news, "
+                            "chance_of_playing_next_round, chance_of_playing_this_round, "
+                            "element_type, ep_next, ep_this, transfers_in_event, "
+                            "transfers_out_event, total_points, points_per_game, "
+                            "form, ict_index, goals_scored, assists, clean_sheets, "
+                            "yellow_cards, red_cards, bonus, photo, updated_at "
+                            "FROM element_facts WHERE element_id=:pid"
                         ),
                         {"pid": int(player_id)},
                     ).mappings().first()
                     if row is None:
                         return None
-                    # Build a lightweight namespace
+                    # Build a lightweight namespace with all columns
                     class _Fact:
                         pass
                     fact = _Fact()
-                    fact.element_id = row["element_id"]
-                    fact.web_name = row["web_name"]
-                    fact.team_id = row["team_id"]
-                    fact.minutes = row["minutes"]
-                    fact.selected_by_percent = row["selected_by_percent"]
-                    fact.cost_change_event = row["cost_change_event"]
-                    fact.now_cost = None
-                    fact.status = row["status"]
-                    fact.news = row["news"]
-                    fact.updated_at = row["updated_at"]
+                    for col in [
+                        "element_id", "web_name", "team_id", "minutes", "selected_by_percent",
+                        "cost_change_event", "now_cost", "status", "news",
+                        "chance_of_playing_next_round", "chance_of_playing_this_round",
+                        "element_type", "ep_next", "ep_this", "transfers_in_event",
+                        "transfers_out_event", "total_points", "points_per_game",
+                        "form", "ict_index", "goals_scored", "assists", "clean_sheets",
+                        "yellow_cards", "red_cards", "bonus", "photo", "updated_at",
+                    ]:
+                        setattr(fact, col, row.get(col))
                     return fact
                 except Exception as exc3:
                     logger.warning("element_facts raw fallback failed for %s: %s", player_id, exc3)
@@ -633,6 +673,24 @@ async def player_drawer(
             "minutes_played": minutes_played,
             "selected_by_percent": selected_by,
             "cost_change_event": cost_change,
+            # FPL-compatible availability and stats fields
+            "chance_of_playing_next_round": getattr(row, "chance_of_playing_next_round", None) if row else None,
+            "chance_of_playing_this_round": getattr(row, "chance_of_playing_this_round", None) if row else None,
+            "news": getattr(row, "news", None) if row else None,
+            "ep_next": getattr(row, "ep_next", None) if row else None,
+            "form": getattr(row, "form", None) if row else None,
+            "total_points": getattr(row, "total_points", None) if row else None,
+            "points_per_game": getattr(row, "points_per_game", None) if row else None,
+            "ict_index": getattr(row, "ict_index", None) if row else None,
+            "goals_scored": getattr(row, "goals_scored", None) if row else None,
+            "assists": getattr(row, "assists", None) if row else None,
+            "clean_sheets": getattr(row, "clean_sheets", None) if row else None,
+            "yellow_cards": getattr(row, "yellow_cards", None) if row else None,
+            "red_cards": getattr(row, "red_cards", None) if row else None,
+            "bonus": getattr(row, "bonus", None) if row else None,
+            "photo": getattr(row, "photo", None) if row else None,
+            "transfers_in_event": getattr(row, "transfers_in_event", None) if row else None,
+            "transfers_out_event": getattr(row, "transfers_out_event", None) if row else None,
         },
         "set_pieces": set_pieces,
         "expected_points": expected_points,
