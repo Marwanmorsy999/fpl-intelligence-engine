@@ -47,15 +47,9 @@ def test_list_players_returns_ingested_rows(client: TestClient) -> None:
     first = body[0]
     # Phase 14.0: payload extended with ``code`` (PL-CDN photo key).
     # Phase 18.0 R1: payload exposes ``fpl_element_id`` (single id space).
-    assert set(first.keys()) == {
-        "id",
-        "fpl_element_id",
-        "web_name",
-        "team",
-        "position",
-        "price",
-        "code",
-    }
+    # Core fields must be present; new FPL-compatibility fields are additive.
+    core_fields = {"id", "fpl_element_id", "web_name", "team", "position", "price", "code"}
+    assert core_fields.issubset(set(first.keys()))
     assert isinstance(first["id"], int)
     assert isinstance(first["web_name"], str)
     # Haaland (player 4) is a FWD (position 4) on team 4 with price 6.5.

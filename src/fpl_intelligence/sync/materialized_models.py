@@ -64,6 +64,34 @@ class ElementFactDB(Base):
     now_cost: Mapped[int | None] = mapped_column(Integer)
     status: Mapped[str | None] = mapped_column(String(20))
     news: Mapped[str | None] = mapped_column(String(500))
+    #: FPL availability percentage (0-100) for the next round.
+    chance_of_playing_next_round: Mapped[int | None] = mapped_column(Integer)
+    #: FPL availability percentage (0-100) for this round.
+    chance_of_playing_this_round: Mapped[int | None] = mapped_column(Integer)
+    #: FPL position code (1=GK, 2=DEF, 3=MID, 4=FWD).
+    element_type: Mapped[int | None] = mapped_column(Integer)
+    #: FPL's own EP for next gameweek.
+    ep_next: Mapped[float | None] = mapped_column(Float)
+    #: FPL's own EP for current gameweek.
+    ep_this: Mapped[float | None] = mapped_column(Float)
+    #: GW-specific transfer volumes.
+    transfers_in_event: Mapped[int | None] = mapped_column(Integer)
+    transfers_out_event: Mapped[int | None] = mapped_column(Integer)
+    transfers_in_season: Mapped[int | None] = mapped_column(Integer)
+    transfers_out_season: Mapped[int | None] = mapped_column(Integer)
+    #: Season-to-date stats.
+    total_points: Mapped[int | None] = mapped_column(Integer)
+    points_per_game: Mapped[float | None] = mapped_column(Float)
+    form: Mapped[float | None] = mapped_column(Float)
+    ict_index: Mapped[float | None] = mapped_column(Float)
+    goals_scored: Mapped[int | None] = mapped_column(Integer)
+    assists: Mapped[int | None] = mapped_column(Integer)
+    clean_sheets: Mapped[int | None] = mapped_column(Integer)
+    yellow_cards: Mapped[int | None] = mapped_column(Integer)
+    red_cards: Mapped[int | None] = mapped_column(Integer)
+    bonus: Mapped[int | None] = mapped_column(Integer)
+    #: Photo code for player images (use https://resources.premierleague.com/premierleague/photos/players/110x140/pXXXXXX.png).
+    photo: Mapped[str | None] = mapped_column(String(60))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 

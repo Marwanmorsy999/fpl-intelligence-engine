@@ -14,7 +14,7 @@ from sqlalchemy import select
 
 from fpl_intelligence.api import deps
 from fpl_intelligence.db.models import Player
-from fpl_intelligence.sync.materialized_models import _latest_xpts_map
+from fpl_intelligence.sync.materialized_models import ElementFactDB, _latest_xpts_map
 from fpl_intelligence.sync.models import IngestedGameweekDB
 
 router = APIRouter()
@@ -128,6 +128,9 @@ def _db_players(db: Any, team: int | None) -> list[PlayerSummary]:
         code = getattr(p, "fpl_code", None)
         if code is None and element_id is not None:
             code = codes.get(element_id)
+        # Enrich from element_facts if available
+        eid = int(p.fpl_element_id) if p.fpl_element_id is not None else None
+        fact = db.get(ElementFactDB, eid) if eid is not None else None
         out.append(
             PlayerSummary(
                 id=p.id,
@@ -137,6 +140,18 @@ def _db_players(db: Any, team: int | None) -> list[PlayerSummary]:
                 position=int(p.position_code) if p.position_code is not None else None,
                 price=price,
                 code=int(code) if code is not None else None,
+                status=fact.status if fact else None,
+                chance_of_playing_next_round=fact.chance_of_playing_next_round if fact else None,
+                chance_of_playing_this_round=fact.chance_of_playing_this_round if fact else None,
+                news=fact.news if fact else None,
+                form=fact.form if fact else None,
+                total_points=fact.total_points if fact else None,
+                points_per_game=fact.points_per_game if fact else None,
+                ict_index=fact.ict_index if fact else None,
+                ep_next=fact.ep_next if fact else None,
+                transfers_in_event=fact.transfers_in_event if fact else None,
+                transfers_out_event=fact.transfers_out_event if fact else None,
+                photo=fact.photo if fact else None,
             )
         )
     return out
@@ -150,6 +165,19 @@ class PlayerSummary(BaseModel):
     position: int | None = None
     price: float | None = None
     code: int | None = None
+    # FPL-compatible fields
+    status: str | None = None  # a=available, d=doubt, i=injured, s=suspended, u=unavailable
+    chance_of_playing_next_round: int | None = None  # 0-100
+    chance_of_playing_this_round: int | None = None  # 0-100
+    news: str | None = None
+    form: float | None = None
+    total_points: int | None = None
+    points_per_game: float | None = None
+    ict_index: float | None = None
+    ep_next: float | None = None
+    transfers_in_event: int | None = None
+    transfers_out_event: int | None = None
+    photo: str | None = None  # use with resources.premierleague.com/premierleague/photos/players/110x140/p{photo}
 
 
 @router.get("/players", response_model=list[PlayerSummary])
@@ -276,6 +304,9 @@ async def search_players(
             continue
         xpts = xpts_map.get(int(p.fpl_element_id)) if p.fpl_element_id is not None else None
         ownership = (cat or {}).get("selected_by_percent")
+        # Enrich with FPL availability/stats from element_facts
+        eid = int(p.fpl_element_id) if p.fpl_element_id is not None else None
+        fact = db.get(ElementFactDB, eid) if eid is not None else None
         hits.append(
             PlayerSearchHit(
                 id=p.id,
@@ -292,8 +323,21 @@ async def search_players(
                 team_short=str((cat or {}).get("team_short") or "") or None,
                 relevance=relevance,
                 score=round(0.7 * relevance + 0.3 * min(1.0, (float(xpts) if xpts is not None else 0.0) / 10.0), 4),
+                status=fact.status if fact else None,
+                chance_of_playing_next_round=fact.chance_of_playing_next_round if fact else None,
+                chance_of_playing_this_round=fact.chance_of_playing_this_round if fact else None,
+                news=fact.news if fact else None,
+                form=fact.form if fact else None,
+                total_points=fact.total_points if fact else None,
+                points_per_game=fact.points_per_game if fact else None,
+                ict_index=fact.ict_index if fact else None,
+                ep_next=fact.ep_next if fact else None,
+                transfers_in_event=fact.transfers_in_event if fact else None,
+                transfers_out_event=fact.transfers_out_event if fact else None,
+                photo=fact.photo if fact else None,
             )
         )
+
     if sort == "relevance":
         hits.sort(key=lambda h: (-float(h.score or 0), -float(h.relevance or 0)))
     elif sort == "xpts":
