@@ -57,104 +57,108 @@ async def price_probability(
     db: deps.GetDB,
     limit: int = Query(20, ge=1, le=100),
 ) -> dict[str, Any]:
-    """Players with predicted imminent price changes based on net transfer pressure.
+    """Players most likely to change price this GW based on net transfer pressure."""
+    from sqlalchemy import select  # noqa: PLC0415
 
-    Uses the transfer-threshold model: probability = min(1, |net_transfers| / threshold)
-    where threshold scales by price band (budget/mid/premium).
-    Only players with >30% probability are returned, sorted by probability descending.
-    """
-    from sqlalchemy import select
-
-    from fpl_intelligence.db.models import PerformanceDB
-    from fpl_intelligence.tools.price_predictor import predict_price_changes
+    from fpl_intelligence.sync.materialized_models import ElementFactDB  # noqa: PLC0415
 
     try:
-        stmt = (
-            select(PerformanceDB)
-            .order_by(PerformanceDB.id.desc())
-            .limit(2000)
-        )
-        rows = db.execute(stmt).scalars().all()
-        predictions = predict_price_changes(rows, limit=limit)
+        rows = db.execute(
+            select(ElementFactDB).where(ElementFactDB.now_cost.is_not(None))
+        ).scalars().all()
+
+        results = []
+        for row in rows:
+            tin = row.transfers_in_event or 0
+            tout = row.transfers_out_event or 0
+            net = tin - tout
+            if net == 0:
+                continue
+            price = (row.now_cost or 0) / 10.0
+            threshold = 200_000 if price < 5.0 else (350_000 if price < 8.0 else 500_000)
+            prob = min(1.0, abs(net) / threshold)
+            if prob < 0.25:
+                continue
+            results.append({
+                "element_id": row.element_id,
+                "player": row.web_name,
+                "price": price,
+                "transfers_in_event": tin,
+                "transfers_out_event": tout,
+                "net_transfers": net,
+                "direction": "rise" if net > 0 else "fall",
+                "probability": round(prob, 3),
+                "status": row.status,
+                "chance_of_playing_next_round": row.chance_of_playing_next_round,
+            })
+        results.sort(key=lambda r: -r["probability"])
         return {
-            "predictions": predictions,
-            "count": len(predictions),
-            "note": "probability = net_transfers / threshold (capped at 100%)",
+            "predictions": results[:limit],
+            "count": len(results[:limit]),
+            "note": "probability = |net_transfers| / price_band_threshold",
         }
     except Exception as exc:  # noqa: BLE001
-        return {
-            "predictions": [],
-            "count": 0,
-            "note": f"Price probability temporarily unavailable: {type(exc).__name__}",
-        }
+        return {"predictions": [], "count": 0, "note": f"Unavailable: {type(exc).__name__}"}
 
 
 @router.get("/differentials")
 async def differentials(
     db: deps.GetDB,
-    max_ownership: float = Query(15.0, ge=0.0, le=50.0, description="Max ownership % to qualify as differential"),
+    max_ownership: float = Query(15.0, ge=0.0, le=50.0),
     limit: int = Query(10, ge=1, le=30),
 ) -> dict[str, Any]:
-    """High-EV players with low ownership — differentials worth targeting.
+    """High-EV low-ownership players by position — differentials worth targeting."""
+    from sqlalchemy import select  # noqa: PLC0415
 
-    Returns players below the ownership threshold sorted by xPTS descending,
-    split by position so managers can find differentials in each slot.
-    """
-    from sqlalchemy import select
-
-    from fpl_intelligence.db.models import PerformanceDB
+    from fpl_intelligence.sync.materialized_models import (  # noqa: PLC0415
+        ElementFactDB,
+        PredictionCurrentDB,
+    )
 
     try:
-        stmt = (
-            select(PerformanceDB)
-            .order_by(PerformanceDB.id.desc())
-            .limit(5000)
-        )
-        rows = db.execute(stmt).scalars().all()
+        pred_rows = db.execute(
+            select(PredictionCurrentDB)
+            .order_by(PredictionCurrentDB.gameweek.desc(), PredictionCurrentDB.expected_points.desc())
+        ).scalars().all()
 
-        # Deduplicate to latest row per player
-        seen: set[int] = set()
-        players = []
-        for row in rows:
-            pid = getattr(row, "element_id", None) or getattr(row, "player_id", None)
-            if pid and pid not in seen:
-                seen.add(pid)
-                players.append(row)
+        xpts_map: dict[int, float] = {}
+        seen_gw: dict[int, int] = {}
+        for pred in pred_rows:
+            eid = pred.element_id
+            if eid not in xpts_map or pred.gameweek > seen_gw.get(eid, -1):
+                xpts_map[eid] = pred.expected_points
+                seen_gw[eid] = pred.gameweek
 
-        results: list[dict[str, Any]] = []
-        for row in players:
-            ownership = getattr(row, "selected_by_percent", None)
-            xpts = getattr(row, "expected_points", None) or getattr(row, "ep_next", None)
-            if ownership is None or xpts is None:
+        facts = db.execute(select(ElementFactDB)).scalars().all()
+        pos_labels = {1: "GK", 2: "DEF", 3: "MID", 4: "FWD"}
+        by_pos: dict[str, list] = {}
+
+        for fact in facts:
+            sel = fact.selected_by_percent
+            if sel is None:
                 continue
             try:
-                ownership_f = float(str(ownership).replace("%", ""))
-                xpts_f = float(xpts)
+                ownership_f = float(str(sel).replace("%", ""))
             except (TypeError, ValueError):
                 continue
             if ownership_f > max_ownership:
                 continue
-            pid = getattr(row, "element_id", None) or getattr(row, "player_id", None)
-            name = getattr(row, "web_name", None) or f"Player {pid}"
-            pos = getattr(row, "element_type", None) or getattr(row, "position_code", None)
-            price = getattr(row, "now_cost", None)
-            results.append({
-                "player_id": pid,
-                "player": name,
-                "position": pos,
+            xpts = xpts_map.get(fact.element_id) or (fact.ep_next or 0.0)
+            pos_key = pos_labels.get(fact.element_type or 3, "MID")
+            by_pos.setdefault(pos_key, []).append({
+                "element_id": fact.element_id,
+                "player": fact.web_name or f"Player {fact.element_id}",
+                "position": pos_key,
                 "ownership_pct": round(ownership_f, 1),
-                "xpts": round(xpts_f, 2),
-                "price": round(float(price) / 10, 1) if price else None,
+                "xpts": round(float(xpts), 2),
+                "price": round(fact.now_cost / 10.0, 1) if fact.now_cost else None,
+                "status": fact.status,
+                "form": fact.form,
+                "chance_of_playing_next_round": fact.chance_of_playing_next_round,
             })
 
-        results.sort(key=lambda r: -r["xpts"])
-        by_pos: dict[str, list] = {}
-        for r in results:
-            pos_key = str(r.get("position", "UNK"))
-            by_pos.setdefault(pos_key, []).append(r)
-
-        # Limit per position
         for pos_key in by_pos:
+            by_pos[pos_key].sort(key=lambda r: -r["xpts"])
             by_pos[pos_key] = by_pos[pos_key][:limit]
 
         return {
@@ -163,9 +167,5 @@ async def differentials(
             "total": sum(len(v) for v in by_pos.values()),
         }
     except Exception as exc:  # noqa: BLE001
-        return {
-            "differentials": {},
-            "max_ownership_pct": max_ownership,
-            "total": 0,
-            "note": f"Differentials temporarily unavailable: {type(exc).__name__}",
-        }
+        return {"differentials": {}, "max_ownership_pct": max_ownership, "total": 0,
+                "note": f"Unavailable: {type(exc).__name__}"}
