@@ -126,9 +126,12 @@ async def injury_watch(
         if row and row.player_ids:
             squad_pids = set(row.player_ids)
 
-    facts = db.execute(
-        select(ElementFactDB).where(ElementFactDB.status.notin_(["a", None]))
-    ).scalars().all()
+    try:
+        facts = db.execute(
+            select(ElementFactDB).where(ElementFactDB.status.notin_(["a", None]))
+        ).scalars().all()
+    except Exception:  # noqa: BLE001
+        return {"alerts": [], "total": 0, "in_squad": 0, "note": "Player data not yet available"}
 
     pos_labels = {1: "GK", 2: "DEF", 3: "MID", 4: "FWD"}
     status_labels = {"d": "Doubt", "i": "Injured", "s": "Suspended", "u": "Unavailable", "n": "Not in squad"}

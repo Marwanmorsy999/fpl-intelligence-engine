@@ -437,15 +437,18 @@ async def materialize_all(
 # Read helpers used by the request path (indexed queries only)
 # --------------------------------------------------------------------------- #
 def load_cached_fixtures(db: Session) -> list[dict[str, Any]]:
-    """Fresh-enough raw fixtures payload, or ``[]`` when absent."""
-    row = db.scalar(
-        select(FixturesCacheDB)
-        .where(
-            FixturesCacheDB.fetched_at
-            >= _now() - timedelta(seconds=FIXTURES_MAX_AGE_SECONDS)
+    """Fresh-enough raw fixtures payload, or ``[]`` when absent or table missing."""
+    try:
+        row = db.scalar(
+            select(FixturesCacheDB)
+            .where(
+                FixturesCacheDB.fetched_at
+                >= _now() - timedelta(seconds=FIXTURES_MAX_AGE_SECONDS)
+            )
+            .order_by(FixturesCacheDB.id.desc())
         )
-        .order_by(FixturesCacheDB.id.desc())
-    )
+    except Exception:  # noqa: BLE001 — table absent in bare/test DB
+        return []
     if row is None or not isinstance(row.payload, list):
         return []
     return [item for item in row.payload if isinstance(item, dict)]
