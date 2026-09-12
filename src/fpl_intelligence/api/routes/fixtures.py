@@ -86,12 +86,9 @@ async def load_fixtures(db: Session) -> list[dict[str, Any]]:
 
     try:
         raw = await get_async_fpl_adapter().fetch("/api/fixtures/", capability="fixtures")
-    except Exception as exc:  # noqa: BLE001 - surfaced as an honest 503
+    except Exception as exc:  # noqa: BLE001 — live fetch failed, return empty
         logger.warning("fixtures fetch failed: %s", exc)
-        raise HTTPException(
-            status_code=503,
-            detail="Fixture data unavailable right now (FPL blocked or offline).",
-        ) from exc
+        return []
 
     # Backfill the materialized cache so subsequent requests stay off-network.
     if isinstance(raw, list) and raw:
@@ -230,7 +227,14 @@ async def fixtures_get(
             ) from exc
         squad_players = _resolve_player_teams(db, pids)
 
-    rows = parse_fixtures(await load_fixtures(db))
+    _raw_fixtures = await load_fixtures(db)
+    rows = parse_fixtures(_raw_fixtures)
+    if not rows:
+        return {
+            "fixtures": [],
+            "team_names": {},
+            "note": "Fixture data not yet available — run daily sync or check back shortly.",
+        }
     team_names = _team_names(db)
     rows_by_gw = {}
     for row in rows:
@@ -288,7 +292,8 @@ async def fixture_scan(
 
     rows = parse_fixtures(await load_fixtures(db))
     if not rows:
-        raise HTTPException(status_code=503, detail="No upcoming fixtures published yet.")
+        return {"fixtures": [], "player_id": None,
+                "note": "Fixture data not yet available — run daily sync or check back shortly."}
     # Phase 21.1 (T2): the target GW follows the official FPL clock at request
     # time; the horizon shows the next five gameweeks with UNPLAYED fixtures.
     try:
