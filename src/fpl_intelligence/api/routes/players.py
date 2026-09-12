@@ -347,3 +347,77 @@ async def search_players(
     else:
         hits.sort(key=lambda h: -(float(h.ownership_pct or -1)))
     return hits[:limit]
+
+
+@router.get("/players/fpl-compat")
+async def players_fpl_compat(
+    db: deps.GetDB,
+) -> dict[str, Any]:
+    """Players list in FPL bootstrap-static elements[] shape.
+
+    Returns the same fields as the official FPL API bootstrap-static endpoint's
+    elements array, so frontend code written against the FPL API works unchanged.
+    """
+    from sqlalchemy import select  # noqa: PLC0415
+
+    from fpl_intelligence.sync.materialized_models import (  # noqa: PLC0415
+        ElementFactDB,
+        PredictionCurrentDB,
+    )
+
+    # Get xPTS predictions
+    pred_rows = db.execute(
+        select(PredictionCurrentDB)
+        .order_by(PredictionCurrentDB.gameweek.desc())
+    ).scalars().all()
+    xpts_map: dict[int, float] = {}
+    gw_map: dict[int, int] = {}
+    for p in pred_rows:
+        if p.element_id not in xpts_map or p.gameweek > gw_map.get(p.element_id, -1):
+            xpts_map[p.element_id] = p.expected_points
+            gw_map[p.element_id] = p.gameweek
+
+    facts = db.execute(select(ElementFactDB)).scalars().all()
+
+    elements = []
+    for f in facts:
+        ep_next = xpts_map.get(f.element_id) or f.ep_next
+        elements.append({
+            # Core FPL fields
+            "id": f.element_id,
+            "element_type": f.element_type or 3,
+            "web_name": f.web_name or "",
+            "first_name": "",
+            "second_name": f.web_name or "",
+            "team": f.team_id,
+            "team_code": f.team_id,
+            "now_cost": f.now_cost or 0,
+            "selected_by_percent": f.selected_by_percent or "0.0",
+            "transfers_in_event": f.transfers_in_event or 0,
+            "transfers_out_event": f.transfers_out_event or 0,
+            "transfers_in": f.transfers_in_season or 0,
+            "transfers_out": f.transfers_out_season or 0,
+            "ep_next": str(round(ep_next, 1)) if ep_next else "0.0",
+            "ep_this": str(round(f.ep_this or 0.0, 1)),
+            "total_points": f.total_points or 0,
+            "points_per_game": str(f.points_per_game or "0.0"),
+            "form": str(f.form or "0.0"),
+            "ict_index": str(f.ict_index or "0.0"),
+            "goals_scored": f.goals_scored or 0,
+            "assists": f.assists or 0,
+            "clean_sheets": f.clean_sheets or 0,
+            "yellow_cards": f.yellow_cards or 0,
+            "red_cards": f.red_cards or 0,
+            "bonus": f.bonus or 0,
+            "status": f.status or "a",
+            "news": f.news or "",
+            "news_added": None,
+            "chance_of_playing_next_round": f.chance_of_playing_next_round,
+            "chance_of_playing_this_round": f.chance_of_playing_this_round,
+            "cost_change_event": f.cost_change_event or 0,
+            "photo": f.photo or "",
+            # Intelligence extension fields (our additions)
+            "fpl_intelligence_xpts": round(ep_next, 2) if ep_next else None,
+        })
+
+    return {"elements": elements, "total": len(elements)}

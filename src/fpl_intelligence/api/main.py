@@ -27,6 +27,7 @@ from fpl_intelligence.api.routes.intelligence import router as intelligence_rout
 from fpl_intelligence.api.routes.league import router as league_router
 from fpl_intelligence.api.routes.live import router as live_router
 from fpl_intelligence.api.routes.news import router as news_router
+from fpl_intelligence.api.routes.personalise import router as personalise_router
 from fpl_intelligence.api.routes.planner import router as planner_router
 from fpl_intelligence.api.routes.players import router as players_router
 from fpl_intelligence.api.routes.prices import router as prices_router
@@ -104,6 +105,7 @@ app.add_middleware(EdgeCachePolicyMiddleware)
 app.include_router(intelligence_router, prefix="/api/v1")
 app.include_router(players_router, prefix="/api/v1")
 app.include_router(squad_router, prefix="/api/v1")
+app.include_router(personalise_router)
 app.include_router(admin_router, prefix="/api/v1")
 app.include_router(telegram_router, prefix="/api/v1")
 app.include_router(dashboard_router)

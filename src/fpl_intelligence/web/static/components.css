@@ -200,3 +200,219 @@ th.sortable button:hover { color: var(--color-text); }
 
 /* Legacy shims so old class names keep working */
 .exec-ribbon { composes: sync-ribbon; }
+
+
+/* ============================================================================
+   MOBILE-FIRST IMPROVEMENTS (v2.9.0)
+   ============================================================================ */
+
+/* M2: Touch targets — all interactive elements min 44px */
+button, [role="button"], .navlink, .pill-btn, select, input[type="checkbox"],
+input[type="radio"], .autocomplete-item, .row-tap {
+  min-height: 44px;
+}
+/* Pills are display content, not tap targets — keep compact but not interactive */
+
+/* M3/C3: Player availability badge */
+.avail-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  line-height: 1.4;
+}
+.avail-badge.avail-a { background: rgba(0,255,148,.12); color: #00ff94; border: 1px solid rgba(0,255,148,.3); }
+.avail-badge.avail-d { background: rgba(251,191,36,.12); color: #fbbf24; border: 1px solid rgba(251,191,36,.3); }
+.avail-badge.avail-i { background: rgba(255,51,102,.12); color: #ff3366; border: 1px solid rgba(255,51,102,.3); }
+.avail-badge.avail-s { background: rgba(255,51,102,.12); color: #ff3366; border: 1px solid rgba(255,51,102,.3); }
+.avail-badge.avail-u { background: rgba(100,116,139,.12); color: #94a3b8; border: 1px solid rgba(100,116,139,.3); }
+
+/* M3: FPL CDN player photo */
+.player-photo-fpl {
+  width: 60px;
+  height: 75px;
+  object-fit: cover;
+  object-position: top center;
+  border-radius: 10px;
+  background: #1e293b;
+  display: block;
+}
+.player-photo-fpl.lg {
+  width: 100px;
+  height: 125px;
+  border-radius: 14px;
+}
+
+/* M4: Swipe-dismissible drawer overlay */
+.drawer-overlay {
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+}
+.drawer-sheet {
+  transform: translateY(0);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  touch-action: pan-y;
+}
+.drawer-sheet.swiping {
+  transition: none;
+}
+.drawer-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(148, 163, 184, 0.3);
+  margin: 8px auto 16px;
+  flex-shrink: 0;
+}
+
+/* M6: Pull-to-refresh indicator */
+.ptr-indicator {
+  position: fixed;
+  top: 56px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-60px);
+  z-index: 100;
+  background: var(--color-surface-3, #1a2335);
+  border: 1px solid rgba(56,189,248,0.3);
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #38bdf8;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: transform 0.2s ease;
+  pointer-events: none;
+}
+.ptr-indicator.visible {
+  transform: translateX(-50%) translateY(8px);
+}
+.ptr-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(56,189,248,0.3);
+  border-top-color: #38bdf8;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* M8: Responsive tables — card layout on mobile */
+@media (max-width: 480px) {
+  table.data-responsive thead { display: none; }
+  table.data-responsive tbody tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 8px;
+    padding: 12px;
+    margin-bottom: 8px;
+    background: var(--color-surface, #111827);
+    border: 1px solid rgba(148,163,184,0.12);
+    border-radius: 12px;
+  }
+  table.data-responsive tbody td {
+    border: none;
+    padding: 2px 0;
+    font-size: 13px;
+  }
+  table.data-responsive tbody td::before {
+    content: attr(data-label);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-faint, #8b95a7);
+    display: block;
+  }
+}
+
+/* M10: Pitch player cards — fluid on all screen sizes */
+@media (max-width: 420px) {
+  .player-card { width: 76px; }
+  .player-photo { width: 44px; height: 54px; }
+  .avatar-fallback { width: 44px; height: 54px; font-size: 0.85rem; }
+  .web-name { font-size: 0.65rem; }
+  .xpts-tag { font-size: 0.58rem; }
+}
+
+/* C3: Chip name display mapping */
+.chip-label-wildcard::before { content: "Wildcard"; }
+.chip-label-freehit::before { content: "Free Hit"; }
+.chip-label-3xc::before { content: "Triple Captain"; }
+.chip-label-bboost::before { content: "Bench Boost"; }
+
+/* P1: Risk profile badge */
+.risk-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+}
+.risk-badge.aggressive {
+  background: rgba(239,68,68,.12);
+  color: #f87171;
+  border: 1px solid rgba(239,68,68,.3);
+}
+.risk-badge.balanced {
+  background: rgba(59,130,246,.12);
+  color: #93c5fd;
+  border: 1px solid rgba(59,130,246,.3);
+}
+.risk-badge.safe {
+  background: rgba(34,197,94,.12);
+  color: #4ade80;
+  border: 1px solid rgba(34,197,94,.3);
+}
+
+/* P7: Injury watch / news alert banner */
+.news-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(251,191,36,.35);
+  background: rgba(251,191,36,.07);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.news-alert .news-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.news-alert .news-text { color: var(--color-text, #e6ebf4); }
+.news-alert .news-player { font-weight: 700; color: #fbbf24; }
+
+/* General: larger tap area for icon buttons */
+.icon-btn {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  color: var(--color-text-dim);
+  transition: background 0.15s ease;
+}
+.icon-btn:hover { background: rgba(148,163,184,.08); }
+.icon-btn:active { background: rgba(148,163,184,.14); }
+
+/* F3: Price change countdown chip */
+.price-countdown {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fbbf24;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.price-countdown.imminent { color: #f87171; animation: pulse 1.5s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }

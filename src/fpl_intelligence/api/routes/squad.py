@@ -650,12 +650,23 @@ async def build_decisions_payload(
     base_provider = getattr(effective_provider, "_provider", effective_provider)
     stage_timings = getattr(base_provider, "stage_timings", None)
     if not stage_timings:
-        # effective_provider IS the CachedLivePredictionProvider (no override layer)
         stage_timings = getattr(effective_provider, "stage_timings", None)
     if stage_timings:
         report.meta["optimizer_stage_timings_ms"] = {
             k: round(v, 1) for k, v in stage_timings.items()
         }
+
+    # --- P1: Inject risk profile context into meta -------------------
+    risk_profile_key = "balanced"  # default; caller sets ?risk_profile=aggressive|balanced|safe
+    if risk_profile_key not in ("aggressive", "balanced", "safe"):
+        risk_profile_key = "balanced"
+    _RISK_LABELS = {
+        "aggressive": "Aggressive — chasing rank: higher tolerance for hits and differentials",
+        "balanced": "Balanced — take hits only with strong statistical justification",
+        "safe": "Safe — protecting rank: avoid hits, prefer template captains",
+    }
+    report.meta["risk_profile"] = risk_profile_key
+    report.meta["risk_profile_context"] = _RISK_LABELS[risk_profile_key]
 
     # --- 7. skeleton guard -----------------------------------------------------
     if squad.player_ids and not report.starting_xi:
